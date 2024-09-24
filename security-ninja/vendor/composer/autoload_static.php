@@ -4,7 +4,7 @@
 
 namespace Composer\Autoload;
 
-class ComposerStaticInit14215d0d2948b5a4e5288569db0ba206
+class ComposerStaticInita78dab2d43a881f2ca1977e9fe709bf7
 {
     public static $files = array (
         'a9ed0d27b5a698798a89181429f162c5' => __DIR__ . '/..' . '/khanamiryan/qrcode-detector-decoder/lib/Common/customFunctions.php',
@@ -47,6 +47,10 @@ class ComposerStaticInit14215d0d2948b5a4e5288569db0ba206
         'M' => 
         array (
             'MabeEnum\\' => 9,
+        ),
+        'I' => 
+        array (
+            'IP2Location\\' => 12,
         ),
         'D' => 
         array (
@@ -100,6 +104,10 @@ class ComposerStaticInit14215d0d2948b5a4e5288569db0ba206
         'MabeEnum\\' => 
         array (
             0 => __DIR__ . '/..' . '/marc-mabe/php-enum/src',
+        ),
+        'IP2Location\\' => 
+        array (
+            0 => __DIR__ . '/..' . '/ip2location/ip2location-php/src',
         ),
         'Da\\TwoFA\\' => 
         array (
@@ -291,8 +299,11 @@ class ComposerStaticInit14215d0d2948b5a4e5288569db0ba206
         'WPSecurityNinja\\Plugin\\Da\\TwoFA\\Validator\\GoogleAuthenticationCompatibilityValidator' => __DIR__ . '/..' . '/2amigos/2fa-library/src/Validator/GoogleAuthenticationCompatibilityValidator.php',
         'WPSecurityNinja\\Plugin\\Da\\TwoFA\\Validator\\OneTimePasswordValidator' => __DIR__ . '/..' . '/2amigos/2fa-library/src/Validator/OneTimePasswordValidator.php',
         'WPSecurityNinja\\Plugin\\Da\\TwoFA\\Validator\\SecretKeyValidator' => __DIR__ . '/..' . '/2amigos/2fa-library/src/Validator/SecretKeyValidator.php',
-        'WPSecurityNinja\\Plugin\\IP2Location\\Database' => __DIR__ . '/..' . '/ip2location/ip2location-php/IP2Location.php',
-        'WPSecurityNinja\\Plugin\\IP2Location\\WebService' => __DIR__ . '/..' . '/ip2location/ip2location-php/IP2Location.php',
+        'WPSecurityNinja\\Plugin\\IP2Location\\Country' => __DIR__ . '/..' . '/ip2location/ip2location-php/src/Country.php',
+        'WPSecurityNinja\\Plugin\\IP2Location\\Database' => __DIR__ . '/..' . '/ip2location/ip2location-php/src/Database.php',
+        'WPSecurityNinja\\Plugin\\IP2Location\\IpTools' => __DIR__ . '/..' . '/ip2location/ip2location-php/src/IpTools.php',
+        'WPSecurityNinja\\Plugin\\IP2Location\\Region' => __DIR__ . '/..' . '/ip2location/ip2location-php/src/Region.php',
+        'WPSecurityNinja\\Plugin\\IP2Location\\WebService' => __DIR__ . '/..' . '/ip2location/ip2location-php/src/WebService.php',
         'WPSecurityNinja\\Plugin\\MabeEnum\\Enum' => __DIR__ . '/..' . '/marc-mabe/php-enum/src/Enum.php',
         'WPSecurityNinja\\Plugin\\MabeEnum\\EnumMap' => __DIR__ . '/..' . '/marc-mabe/php-enum/src/EnumMap.php',
         'WPSecurityNinja\\Plugin\\MabeEnum\\EnumSerializableTrait' => __DIR__ . '/..' . '/marc-mabe/php-enum/src/EnumSerializableTrait.php',
@@ -462,9 +473,9 @@ class ComposerStaticInit14215d0d2948b5a4e5288569db0ba206
     public static function getInitializer(ClassLoader $loader)
     {
         return \Closure::bind(function () use ($loader) {
-            $loader->prefixLengthsPsr4 = ComposerStaticInit14215d0d2948b5a4e5288569db0ba206::$prefixLengthsPsr4;
-            $loader->prefixDirsPsr4 = ComposerStaticInit14215d0d2948b5a4e5288569db0ba206::$prefixDirsPsr4;
-            $loader->classMap = ComposerStaticInit14215d0d2948b5a4e5288569db0ba206::$classMap;
+            $loader->prefixLengthsPsr4 = ComposerStaticInita78dab2d43a881f2ca1977e9fe709bf7::$prefixLengthsPsr4;
+            $loader->prefixDirsPsr4 = ComposerStaticInita78dab2d43a881f2ca1977e9fe709bf7::$prefixDirsPsr4;
+            $loader->classMap = ComposerStaticInita78dab2d43a881f2ca1977e9fe709bf7::$classMap;
 
         }, null, ClassLoader::class);
     }

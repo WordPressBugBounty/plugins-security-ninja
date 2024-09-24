@@ -215,8 +215,8 @@ remove_action('template_redirect', 'rest_output_link_header', 11, 0);</pre>
 		<div class="sn_test_details" id="ver_check">
 			<div class="test_name"><?php esc_html_e( 'Check if WordPress core is up to date', 'security-ninja' ); ?></div>
 			<div class="test_description"><p><?php esc_html_e( 'Keeping the WordPress core up to date is one of the most important aspects of site security. If vulnerabilities are discovered in WordPress and a new version is released to address the issue, the information required to exploit the vulnerability is definitely in the public domain. This makes old versions more open to attacks, and is one of the primary reasons you should always keep WordPress up to date.', 'security-ninja' ); ?></p>
-				<p>Thanks to automatic updates updating is very easy. Just go to <a target="_blank" href="update-core.php">Dashboard - Updates</a> and click "Upgrade".</p>
-				<p><?php esc_html_e( 'Remember - Always backup your files and database before upgrading!', 'security-ninja' ); ?></p>
+				<p><?php esc_html_e( 'Thanks to automatic updates, upgrading is now very simple. Navigate to the "Dashboard - Updates" page and click the "Update Now" button.', 'security-ninja' ); ?></p>
+				<p><?php esc_html_e( 'Important: Always create a backup of your files and database before performing any upgrades!', 'security-ninja' ); ?></p>
 			</div>
 		</div>
 

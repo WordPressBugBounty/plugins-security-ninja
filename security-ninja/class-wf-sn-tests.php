@@ -1737,7 +1737,7 @@ class Wf_Sn_Tests extends WF_SN
 	{
 		$return = array();
 		$max_users_attack = 5;
-		$passwords_file_path = WF_SN_PLUGIN_DIR . 'misc/brute-force-dictionary.txt';
+		$passwords_file_path = WF_SN_PLUGIN_DIR . 'includes/brute-force-dictionary.txt';
 
 		// Check if the dictionary file exists and is readable
 		if (!file_exists($passwords_file_path) || !is_readable($passwords_file_path)) {
@@ -1792,7 +1792,6 @@ class Wf_Sn_Tests extends WF_SN
 
 		return $return;
 	}
-
 
 
 	/**
@@ -2123,7 +2122,7 @@ class Wf_Sn_Tests extends WF_SN
 		} else {
 			$total_headers = count($headers);
 			$return_array['status'] = 0;
-			$return_array['msg']    = sprintf(__('X-Frame-Options header is not set. Detected %d headers in total. This can make your site vulnerable to clickjacking attacks.', 'security-ninja'), $total_headers).' '.print_r($headers,true);
+			$return_array['msg']    = sprintf(__('X-Frame-Options header is not set. Detected %d headers in total. This can make your site vulnerable to clickjacking attacks.', 'security-ninja'), $total_headers);
 		}
 
 		return $return_array;
@@ -2199,76 +2198,76 @@ class Wf_Sn_Tests extends WF_SN
 	}
 
 	/**
-	 * check if php headers contain php version
+	 * Check if PHP headers contain sensitive information.
 	 *
-	 * @author  Lars Koudal
-	 * @since   v0.0.1
-	 * @version v1.0.0  Monday, January 25th, 2021.
-	 * @version v1.0.1  Monday, April 29th, 2024.
-	 * @access  public static
-	 * @return  mixed
+	 * @since   0.0.1
+	 * @version 1.0.2  Tuesday, April 30th, 2024.
+	 *
+	 * @return array Test result with status and message.
 	 */
 	public static function php_headers()
 	{
-		$return = array();
+		$return = array(
+			'status' => 10,
+			'msg'    => __('Great, no sensitive information exposed in headers.', 'security-ninja')
+		);
 
 		$is_local = in_array($_SERVER['REMOTE_ADDR'], array('127.0.0.1', '::1'));
 		
 		$response = wp_remote_get(
-				add_query_arg('secnin-test', rand(), get_home_url()),
-				array(
-						'timeout'     => 25,
-						'redirection' => 2,
-						'sslverify'   => !$is_local,
-				)
+			add_query_arg('secnin-test', wp_rand(), home_url()),
+			array(
+				'timeout'     => 30,
+				'redirection' => 2,
+				'sslverify'   => !$is_local,
+			)
 		);
 
 		if (is_wp_error($response)) {
-			$return['status'] = 0; // Error state if there was a problem with the request
-			$return['msg']    = __('Error: Unable to get the response.', 'security-ninja');
+			$return['status'] = 0;
+			$return['msg']    = sprintf(__('Error: Unable to get the response. %s', 'security-ninja'), $response->get_error_message());
 			return $return;
 		}
 
-   // Access the headers directly from the response array
-	 $raw_headers = isset($response['headers']) ? $response['headers'] : array();
+		if (wp_remote_retrieve_response_code($response) !== 200) {
+			$return['status'] = 0;
+			$return['msg']    = sprintf(__('Error: Unexpected response code: %d', 'security-ninja'), wp_remote_retrieve_response_code($response));
+			return $return;
+		}
 
-	 // Convert headers to an array and make them case-insensitive
-	 if (is_object($raw_headers)) {
-			 $headers = $raw_headers->getAll();
-	 } else {
-			 $headers = (array) $raw_headers;
-	 }
+		$raw_headers = wp_remote_retrieve_headers($response);
+		$headers = array();
 
-	 $headers = array_change_key_case($headers, CASE_LOWER); // Convert headers to lowercase
+		if (is_object($raw_headers)) {
+			$headers = $raw_headers->getAll();
+		} elseif (is_array($raw_headers)) {
+			$headers = $raw_headers;
+		}
 
+		$headers = array_change_key_case($headers, CASE_LOWER);
 
 		$php_version = phpversion();
-
-		// Check for any sensitive information
-		$sensitive_headers = array(
-			'server',
-			'x-powered-by',
-			'x-debug-token',
-			'x-debug-token-link'
-		);
+		$sensitive_headers = array('server', 'x-powered-by', 'x-debug-token', 'x-debug-token-link');
 		$sensitive_found = false;
-		$sensitive_details = '';
+		$sensitive_details = array();
 
 		foreach ($headers as $header_name => $header_value) {
-			if (in_array(strtolower($header_name), $sensitive_headers)) {
-				if (stripos($header_value, 'php') !== false || stripos($header_value, $php_version) !== false || stripos($header_value, 'debug') !== false) {
+			if (in_array(strtolower($header_name), $sensitive_headers, true)) {
+				if (is_array($header_value)) {
+					$header_value = implode(', ', $header_value);
+				}
+				if (stripos($header_value, 'php') !== false || 
+					stripos($header_value, $php_version) !== false || 
+					stripos($header_value, 'debug') !== false) {
 					$sensitive_found = true;
-					$sensitive_details .= $header_name . ': ' . $header_value . '; ';
+					$sensitive_details[] = $header_name . ': ' . $header_value;
 				}
 			}
 		}
 
 		if ($sensitive_found) {
-			$return['status'] = 0; // Sensitive information found
-			$return['msg']    = sprintf(__('Sensitive information exposed in headers: %s', 'security-ninja'), $sensitive_details);
-		} else {
-			$return['status'] = 10;
-			$return['msg']    = __('Great, no sensitive information exposed in headers.', 'security-ninja');
+			$return['status'] = 0;
+			$return['msg']    = sprintf(__('Sensitive information exposed in headers: %s', 'security-ninja'), implode('; ', $sensitive_details));
 		}
 
 		return $return;
@@ -2388,7 +2387,7 @@ class Wf_Sn_Tests extends WF_SN
 	 */
 	public static function dictionary_attack($password)
 	{
-		$dictionary = file(WF_SN_PLUGIN_DIR . 'misc/brute-force-dictionary.txt', FILE_IGNORE_NEW_LINES);
+		$dictionary = file(WF_SN_PLUGIN_DIR . 'includes/brute-force-dictionary.txt', FILE_IGNORE_NEW_LINES);
 
 		if (in_array($password, $dictionary, true)) {
 			return true;

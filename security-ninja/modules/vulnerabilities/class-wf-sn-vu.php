@@ -328,6 +328,37 @@ class Wf_Sn_Vu {
     }
 
     /**
+     * Get the last modification time of vulnerability files.
+     *
+     * @since   v5.209
+     * @version v1.0.1 Sunday, September 15th, 2024.
+     * @access  public
+     * @global  WP_Filesystem_Base $wp_filesystem WordPress filesystem subclass.
+     * @return  array|false An array of last modified timestamps for each vulnerability type, or false on failure.
+     */
+    public static function get_vulnerabilities_last_modified() {
+        require_once ABSPATH . 'wp-admin/includes/file.php';
+        global $wp_filesystem;
+        if ( empty( $wp_filesystem ) && !WP_Filesystem() ) {
+            return false;
+            // Early return if filesystem initialization fails.
+        }
+        $upload_dir = wp_upload_dir();
+        $last_modified = array(
+            'wordpress' => false,
+            'plugins'   => false,
+            'themes'    => false,
+        );
+        foreach ( $last_modified as $type => &$timestamp ) {
+            $file_path = $upload_dir['basedir'] . "/security-ninja/vulns/{$type}_vulns.jsonl";
+            if ( $wp_filesystem->exists( $file_path ) ) {
+                $timestamp = $wp_filesystem->mtime( $file_path );
+            }
+        }
+        return $last_modified;
+    }
+
+    /**
      * set_html_content_type.
      *
      * @author  Unknown
@@ -480,7 +511,7 @@ class Wf_Sn_Vu {
             }
         }
         $message_content_html .= '<p>' . esc_html__( 'View all vulnerabilities:', 'security-ninja' ) . ' <a href="' . esc_url( admin_url( 'admin.php?page=wf-sn#sn_vuln' ) ) . '" target="_blank">' . esc_html__( 'here', 'security-ninja' ) . '</a></p>';
-        $url = Wf_Sn::generate_sn_web_link( 'email_vuln_warning_footer', '/' );
+        $url = Utils::generate_sn_web_link( 'email_vuln_warning_footer', '/' );
         $message_content_html .= '<p>' . esc_html__( 'Thank you for using WP Security Ninja', 'security-ninja' ) . ' - <a href="' . esc_url( $url ) . '" target="_blank">' . esc_html__( 'WP Security Ninja', 'security-ninja' ) . '</a></p>';
         // Additional security advice
         $message_content_html .= '<p>' . esc_html__( 'For enhanced security, please ensure that all your plugins, themes, and WordPress itself are always up-to-date. Regular updates help protect your website from known vulnerabilities.', 'security-ninja' ) . '</p>';
@@ -1360,6 +1391,21 @@ class Wf_Sn_Vu {
             ?>
 				</p>
 				<?php 
+            $last_modified = Wf_Sn_Vu::get_vulnerabilities_last_modified();
+            if ( $last_modified ) {
+                echo '<h4>' . esc_html__( 'Last Updated', 'security-ninja' ) . '</h4>';
+                echo '<ul class="sn-vuln-update-list">';
+                foreach ( $last_modified as $type => $timestamp ) {
+                    $time_diff = human_time_diff( $timestamp, current_time( 'timestamp' ) );
+                    printf(
+                        '<li><strong>%s</strong>: %s (%s ' . esc_html__( 'ago', 'security-ninja' ) . ')</li>',
+                        esc_html( ucfirst( $type ) ),
+                        esc_html( date_i18n( get_option( 'date_format' ) . ' ' . get_option( 'time_format' ), $timestamp ) ),
+                        esc_html( $time_diff )
+                    );
+                }
+                echo '</ul>';
+            }
         }
         ?>
 

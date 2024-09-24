@@ -16,6 +16,7 @@ return array(
     'TypistTech\\Imposter\\' => array($vendorDir . '/typisttech/imposter/src'),
     'ParagonIE\\ConstantTime\\' => array($vendorDir . '/paragonie/constant_time_encoding/src'),
     'MabeEnum\\' => array($vendorDir . '/marc-mabe/php-enum/src'),
+    'IP2Location\\' => array($vendorDir . '/ip2location/ip2location-php/src'),
     'Da\\TwoFA\\' => array($vendorDir . '/2amigos/2fa-library/src'),
     'Da\\QrCode\\' => array($vendorDir . '/2amigos/qrcode-library/src'),
     'DASPRiD\\Enum\\' => array($vendorDir . '/dasprid/enum/src'),

@@ -1,0 +1,335 @@
+/*
+* Security Ninja - Core Scanner add-on
+* (c) 2013. Web factory Ltd
+*/
+
+.toplevel_page_wf-sn .sn-file-list {
+	list-style-type: circle;
+	list-style-position: inside;
+	margin-left: 25px
+}
+
+#wf-sn-core-scanner-response .spinner {
+	float : left;
+	display: none;
+}
+
+#wf-sn-core-scanner-response .spinner.is-active {
+	display: inline;
+}
+
+#wf-sn-core-scanner-response {
+	clear: both;
+	float: left;
+	width: 100%;
+display: none;
+	margin-bottom: 20px;
+}
+/*
+.toplevel_page_wf-sn .sn-cs-changed-bad p,
+.toplevel_page_wf-sn .sn-cs-missing-bad p,
+.toplevel_page_wf-sn .sn-cs-changed-ok p,
+.toplevel_page_wf-sn .sn-cs-missing-ok p,
+.toplevel_page_wf-sn .sn-cs-ok p {
+	font-size:12px;	font-weight:normal;
+	margin-bottom:15px;color: #666; padding:15px;
+	box-sizing:border-box;
+}
+*/
+.toplevel_page_wf-sn .sn-cs-changed-bad h4,
+.toplevel_page_wf-sn .sn-cs-missing-bad h4,
+.toplevel_page_wf-sn .sn-cs-changed-ok h4,
+.toplevel_page_wf-sn .sn-cs-missing-ok h4,
+.toplevel_page_wf-sn .sn-cs-ok h4 {
+	font-size:17px;
+}
+
+.sn-cs-missing-bad,
+.sn-cs-changed-bad,
+.sn-cs-changed-bad {
+	margin-bottom: 30px;
+
+}
+
+
+.toplevel_page_wf-sn .sn-cs-changed-bad h4::before {
+	content: "Error";
+	display: inline-block;
+	background-color: #ff0000;
+	color: #ffffff;
+	padding: 2px 5px;
+	font-size: 12px;
+	font-weight: bold;
+	margin-right: 10px;
+}
+
+.toplevel_page_wf-sn .sn-cs-changed-bad h4 {
+	display:block;
+
+	margin-bottom: 0;
+}
+.toplevel_page_wf-sn .sn-cs-missing-bad h4 {
+	display:block;
+	margin-bottom: 0;
+}
+
+.toplevel_page_wf-sn .sn-cs-missing-bad h4::before {
+	content: "Warning";
+	display: inline-block;
+	background-color: #EFA800;
+	color: #ffffff;
+	padding: 2px 5px;
+	font-size: 12px;
+	font-weight: bold;
+	margin-right: 10px;
+}
+
+
+.toplevel_page_wf-sn .sn-cs-changed-ok h4 {
+	color:#6FBF00; margin-bottom: 0;
+}
+
+
+.toplevel_page_wf-sn .sn-cs-missing-ok h4 {
+	color:#6FBF00; margin-bottom: 0;
+}
+.toplevel_page_wf-sn .sn-cs-ok h4 {
+	color:#444; margin-bottom: 0;
+}
+.toplevel_page_wf-sn .sn-file {
+
+	margin-right:20px;
+	font-family: Consolas,Monaco,monospace;
+}
+
+.toplevel_page_wf-sn .sn-show-source,
+.toplevel_page_wf-sn .sn-restore-source,
+.toplevel_page_wf-sn .sn-delete-source {
+	margin:10px 5px 0 1px;
+	font-size: 11px;
+	text-decoration: none;
+	border-radius: 1px;
+}
+
+.toplevel_page_wf-sn .sn-file-list li {
+	margin-bottom:10px
+}
+/*
+.toplevel_page_wf-sn .sn-cs-changed-bad,
+.toplevel_page_wf-sn .sn-cs-missing-bad,
+.toplevel_page_wf-sn .sn-cs-changed-ok,
+.toplevel_page_wf-sn .sn-cs-missing-ok,
+.toplevel_page_wf-sn .sn-cs-ok {
+	border-bottom:1px dotted #ccc;
+	padding-bottom:20px
+}
+*/
+.toplevel_page_wf-sn .sn-cs-ok {
+	border-bottom:0
+}
+/*.sn-show-source:after, .sn-restore-source:after {
+content:'›';
+margin-left: 3px;
+font-size: 13px
+}*/
+
+.toplevel_page_wf-sn .sn-cs-ok h4 {
+	font-weight: bold;
+	margin-bottom: 5px
+}
+
+.toplevel_page_wf-sn .sn_count {
+	font-weight:bold;
+/*
+	font-size:32px;
+	letter-spacing:-3px
+*/
+}
+
+.toplevel_page_wf-sn .wrap h2 {
+	color: #464646;
+
+
+	margin-top: 18px
+}
+
+.toplevel_page_wf-sn #source-dialog {
+	padding: 0;
+}
+
+.toplevel_page_wf-sn #source-dialog pre {
+	margin: 0;
+}
+/*
+.toplevel_page_wf-sn #source-dialog p,
+	#restore-dialog p {
+	margin: 20px;
+}
+*/
+.toplevel_page_wf-sn .wp-dialog .ui-dialog-title {
+	padding: 3px 18px 5px 3px !important;
+}
+
+/*** Added ***/
+.toplevel_page_wf-sn .red {
+	color: #ff0000;
+}
+
+.toplevel_page_wf-sn .core-title {
+	background: #f9f9f9;
+	padding: 15px;
+	margin-bottom: 10px;
+}
+
+.toplevel_page_wf-sn .core-title h4 {
+	font-size: 16px;
+}
+
+/*
+#sn-cs-results {
+
+	margin:0 auto 25px auto;
+	background: #fff;
+	-webkit-box-shadow: 0px 2px 1px 0px rgba(0, 0, 0, 0.1);
+	-moz-box-shadow:    0px 2px 1px 0px rgba(0, 0, 0, 0.1);
+	box-shadow:         0px 2px 1px 0px rgba(0, 0, 0, 0.1);
+
+}
+*/
+
+.toplevel_page_wf-sn .sn-cs-missing-bad h4,
+.toplevel_page_wf-sn .sn-cs-missing-ok h4,
+.toplevel_page_wf-sn .sn-cs-changed-ok h4,
+.toplevel_page_wf-sn .sn-cs-changed-bad h4 {
+	margin-top: 0px;
+}
+
+.toplevel_page_wf-sn .sn-cs-missing-bad p,
+.toplevel_page_wf-sn .sn-cs-missing-ok p,
+.toplevel_page_wf-sn .sn-cs-changed-ok p,
+.toplevel_page_wf-sn .sn-cs-changed-bad p {
+	text-align: left;
+	width: 800px;
+	display: inline-block;
+}
+
+.toplevel_page_wf-sn .sn-file-list {
+	width: 100%;
+	padding: 0;
+	box-sizing: border-box;
+	display: inline-block;
+	margin-left: 0px;
+	list-style: none;
+}
+
+.toplevel_page_wf-sn .sn-file-list li:after {
+	clear: both;
+	content:'';
+	display: block;
+}
+
+.toplevel_page_wf-sn .sn-file-list li {
+	text-align: right;
+	background: #f9f9f9;
+}
+
+.toplevel_page_wf-sn .sn-file-list li span {
+	float: left;
+	padding-left: 25px;
+	position: relative;
+	text-align: left;
+	height: 38px;
+	line-height: 38px;
+
+
+
+
+	display: inline-block;
+	color: #000000;
+	font-family: Consolas,Monaco,monospace;
+	font-size: 12px;
+
+
+
+}
+
+.toplevel_page_wf-sn .sn-cs-missing-ok .sn-file-list li span:before,
+.toplevel_page_wf-sn .sn-cs-changed-ok .sn-file-list li span:before {
+	display: inline-block;
+	content: '>';
+	font-size: 12px;
+	width: 15px;
+	height: 15px;
+	color: #ff0000;
+	text-align: center;
+	line-height: 19px;
+	position: absolute;
+	left: 5px;
+	top: 10px;
+}
+
+.toplevel_page_wf-sn .sn-file-list li span:before {
+	display: inline-block;
+	content: '>';
+	font-size: 12px;
+	width: 15px;
+	height: 15px;
+	color: #ff0000;
+	text-align: center;
+	line-height: 19px;
+	position: absolute;
+	left: 5px;
+	top: 10px;
+}
+
+.toplevel_page_wf-sn .sn-file-list li a {
+	display: inline-block;
+	margin: 10px 0 0 10px;
+}
+
+.toplevel_page_wf-sn .sn-file-list li a + a {
+	margin-right: 0px !important;
+}
+
+.toplevel_page_wf-sn .sn-cs-ok {
+	text-align: center;
+	max-width: 900px;
+	margin: 0 auto;
+}
+
+.toplevel_page_wf-sn .scanned-box {
+	margin-right: 10px;
+}
+
+.toplevel_page_wf-sn .scanned-box,
+.toplevel_page_wf-sn .safe-box {
+	background: #c3c7ce;
+	display: inline-block;
+	padding: 15px 25px;
+	min-width: 130px;
+}
+
+.toplevel_page_wf-sn .safe-box {
+	background: #86c95d;
+	margin-left: 10px;
+}
+
+.toplevel_page_wf-sn .scanned-box span,
+.toplevel_page_wf-sn .safe-box span {
+	display: block;
+	text-align: center;
+}
+
+.toplevel_page_wf-sn .scanned-box span.count,
+.toplevel_page_wf-sn .safe-box span.count {
+	color:#fff;
+	font-weight: bold;
+	font-size: 18px;
+}
+
+.toplevel_page_wf-sn .scanned-box span.title,
+.toplevel_page_wf-sn .safe-box span.title {
+	color: #fff;
+	font-weight: normal;
+	text-transform: uppercase;
+}

@@ -6,7 +6,7 @@ License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 Requires at least: 4.7
 Tested up to: 6.6.2
-Stable tag: 5.208
+Stable tag: 5.211.1
 Requires PHP: 7.4
 
 Scans for vulnerabilities, detects risky plugins, and guides you how to secure your site against hackers.
@@ -24,6 +24,21 @@ For over a decade, **Security Ninja** has been the guardian of thousands of webs
 - **Stay Ahead of Threats**: Our vulnerability scanner proactively alerts you to known vulnerabilities, allowing you to address potential threats before they exploit your website.
 - **Comprehensive Protection**: Security Ninja not only checks and warns for common issues but also checks for **known vulnerabilities in plugins and themes**.
 - **Peace of Mind**: Knowing your site is monitored for the latest vulnerabilities means you can focus on what matters most—growing your business and creating content, worry-free.
+
+
+**Core Scanner - Comprehensive Protection for Your WordPress Installation**
+
+The **Core Scanner** module adds a critical layer of security by ensuring your WordPress installation remains untampered and free of unauthorized files.
+
+- **Full Core File Integrity Check**: Every file in your core WordPress folders is scanned to ensure it hasn't been modified or compromised.
+- **Detection of Unknown Files**: The scanner flags any extra or unknown files in your core WordPress directories, alerting you to potential threats.
+- **Built-in File Viewer**: Review flagged files directly within your WordPress dashboard using the integrated file viewer for a clear and easy inspection.
+- **Restore Core Files**: If a core WordPress file has been altered, you can quickly restore it with a single click, ensuring your site is running the official version.
+- **Easy File Management**: For unknown or suspicious files, you have the option to delete them right from the interface, keeping your WordPress installation clean and secure.
+
+This module brings essential security functionality to your site, ensuring the integrity of your WordPress core files with minimal effort on your part.
+
+
 
 **Join thousands of satisfied users who trust Security Ninja to keep their websites safe.** Start protecting your online presence today and help yourself to peace of mind.
 
@@ -51,7 +66,7 @@ https://wordpress.org/plugins/security-ninja-for-mainwp/
 
 - **Proactive Defense Strategies**: Equip yourself with the tools and knowledge to prevent attacks before they happen, safeguarding your site from potential threats.
 
-- **Optimization Beyond Security**: Improve your site’s performance with database optimization tips, ensuring a seamless experience for your users.
+- **Optimization Beyond Security**: Improve your site's performance with database optimization tips, ensuring a seamless experience for your users.
 
 - **Knowledge Empowerment**: Each test comes with an easy-to-understand explanation, documentation, and actionable steps to fix identified issues.
 
@@ -136,10 +151,10 @@ Automatically block **600+ million bad IPs** with one click! <a href="https://wp
   * Check if plugins/themes file editor is enabled
   * Check if uploads folder is browsable by browsers
   * Test if user with ID 1 and administrator role exists
-  * Check if Windows Live Writer link is present in pages’ header data
+  * Check if Windows Live Writer link is present in pages' header data
   * Check if <i>wp-config.php</i> is present on the default location
   * Check if MySQL server is connectable from outside with the WP user
-  * Check if EditURI link is present in pages’ header data
+  * Check if EditURI link is present in pages' header data
   * Check if TimThumb script is used in the active theme
   * Check if the server is vulnerable to the Shellshock bug #6271
   * Check if the server is vulnerable to the Shellshock bug #7169
@@ -205,10 +220,10 @@ Security Ninja performs diagnostics and offers recommendations without making an
 Absolutely safe. It functions solely as a diagnostic tool, providing insights without altering your site.
 
 = Is using Security Ninja legal? =
-Yes, it’s completely legal for your own site. It’s designed to run tests on the site where it’s installed, aiding in your site's security enhancement.
+Yes, it's completely legal for your own site. It's designed to run tests on the site where it's installed, aiding in your site's security enhancement.
 
 = What if I encounter issues with the plugin? =
-While we strive for universal compatibility, if you face any issues, our support team is ready to assist. Visit our [support forum](https://wordpress.org/support/plugin/security-ninja) to open a new thread, and we’ll help you as soon as possible.
+While we strive for universal compatibility, if you face any issues, our support team is ready to assist. Visit our [support forum](https://wordpress.org/support/plugin/security-ninja) to open a new thread, and we'll help you as soon as possible.
 
 
 == Screenshots ==
@@ -219,6 +234,36 @@ While we strive for universal compatibility, if you face any issues, our support
 4. Vulnerable plugins list with details and recommendations - prevent known problems in plugin.
 
 == Changelog ==
+
+= 5.211 =
+* Code cleanup and refactoring.
+* Removed anoymous feature when signing up.
+* Fix: Resolved an issue with the events logger not sending emails in some cases.
+* Improved Scheduled Scanner to load results via AJAX, reducing database load and request times.
+* Fix: Resolved issues loading the Core Scanner results window.
+
+= 5.210 =
+* Feature: Core Scanner module now available to all users. Keeping your core files safe is important.
+* Enhancement: Improved file restoration process within the Core Scanner for more reliable recovery.
+* UI: Updated dialog messages for better user understanding in file operations.
+* Fix: Resolved an issue with the white label feature loading properly for some users with unlimited licenses.
+* Fix: Resolved an issue with inline CSS added in admin incorrectly.
+* Security: Strengthened nonce verification in AJAX calls for Core Scanner actions.
+* New: Automatic license activation for agencies: Automatically activates licenses on sites without an existing activation. Makes it easy to distribute the plugin to multiple sites.
+* Security: Enhanced escaping in Core Scanner's file listing function.
+* Improvement: Updated Core Scanner to use WordPress's built-in hashing function for better security.
+* Code: Improved PHPDoc comments in Core Scanner module for better code documentation.
+
+= 5.209 =
+* Improved 2FA setup and verification process.
+* Fix: Resolved an issue where the 2FA setup wizard was not displayed for some users.
+* Updated IP2Location package to 9.7.3 to fix an issue with country detection.
+* Fix: Issue with country detection in the visitor log module - wrong flag used in some cases.
+* Enhanced send_webhook_event function for better reliability and security.
+* Enhanced: Vulnerability scanner now displays when each vulnerability list was last updated.
+* Fix: Resolved an issue with saving country settings on some sites.
+* Improved 'PHP Headers' security test for better accuracy and reliability. Thank you Stefan.
+* Enhanced error handling and sensitive information detection in server responses.
 
 = 5.208 =
 * General: Added and updated PHPDoc comments for better code documentation and consistency.
@@ -331,7 +376,7 @@ While we strive for universal compatibility, if you face any issues, our support
 
 = 5.191 =
 * Tested up to WordPress 6.5.4
-* Enhanced crawler validation function now supports additional crawlers including Ahrefs, Microsoft, DuckDuckGo, Facebook, Apple, Yandex, Huawei, Common Crawl, Semrush, Swiftype, and Sogou.
+* Enhanced crawler validation function now supports additional crawlers including Ahrefs, Microsoft, DuckDuckGo, Facebook, Apple, Yandex, Huawei, Common Crawl, Semrush, Swiftype, Sogou.
 * Introducing 2FA (Two-Factor Authentication) in beta! Test it out before deploying to all users.
 * Improved handling of locally banned IPs, enhancing plugin stability and performance.
 * WPMUDEV service IPs now automatically whitelisted for smoother integration.
@@ -550,7 +595,7 @@ While we strive for universal compatibility, if you face any issues, our support
 
 = 5.154 =
 * FIX: PHP warning the first time the settings in the vulnerabilites module was updated.
-* Updated the "Application Passwords" test to include info on how to disable the feature. Thank you @lsbk :-)
+* Update the "Application Passwords" test to include info on how to disable the feature. Thank you @lsbk :-)
 * New: More details in email report, user IP and improved layout. Thank you Kevin for the suggestion.
 * New: You can now email events log reports to more than one recipient. Thank you Kevin.
 

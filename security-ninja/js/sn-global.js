@@ -3,41 +3,6 @@
 
 
 /**
- * Stores opt-in or opt-out choice for user.
- *
- * @author	Lars Koudal
- * @since	v0.0.1
- * @version	v1.0.0	Tuesday, March 22nd, 2022.
- * @global
- * @param	mixed	element	
- * @return	void
- */
-function wfsn_freemius_opt_in(element) {
-  var nonce = jQuery('#wfsn-freemius-opt-nonce').val();
-  var choice = jQuery(element).data('opt');
-  
-  jQuery.ajax({
-    type: 'POST',
-    url: ajaxurl,
-    async: true,
-    data: {
-      action: 'wfsn_freemius_opt_in',
-      opt_nonce: nonce,
-      choice: choice
-    },
-    success: function (data) {
-      location.reload();
-    },
-    error: function (xhr, textStatus, error) {
-    }
-  });
-  
-}
-
-
-
-
-/**
  * Enables plugin background updates
  *
  * @author	Lars Koudal
