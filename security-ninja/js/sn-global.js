@@ -2,40 +2,6 @@
 /* Functions are loaded on entire WP admin */
 
 
-/**
- * Enables plugin background updates
- *
- * @author	Lars Koudal
- * @since	v0.0.1
- * @version	v1.0.0	Friday, March 18th, 2022.	
- * @version	v1.0.1	Tuesday, March 22nd, 2022.
- * @global
- * @return	void
- */
-function wfsn_enable_background_updates(e) {
-  jQuery(this).attr('disabled');
-  jQuery('#wfsn-enable-background-updates a.button').addClass('disabled');
-  jQuery('#wfsn-enable-background-updates .dismiss-this').addClass('disabled');
-  jQuery('.wrap').prepend('<div class="secning-loading-popup"><p>Please wait<span class="spinner is-active"></span></p></div>');
-  jQuery(".secnin-loading-popup").toggle();
-  var nonce = jQuery('#wfsn-enable-background-updates-nonce').val();
-  jQuery.ajax({
-    type: 'POST',
-    url: ajaxurl,
-    data: {
-      action: 'wfsn_enable_background_updates',
-      nonce: nonce
-    },
-    success: function (data) {
-      location.reload();
-    },
-    error: function (xhr, textStatus, error) {
-      console.log(xhr.statusText);
-      console.log(textStatus);
-      console.log(error);
-    }
-  });
-}
 
 
 

@@ -34,14 +34,16 @@ jQuery(document).ready(function($) {
       filename: filename,
       filehash: filehash
     }, function(response) {
-      if (response == '1') {
+      if (response.success) {
         jQuery('[data-hash="'+filehash+'"]').closest('li').fadeOut("slow", function() {
           jQuery(this).remove();
+          get_latest_update(true);
         });
+        jQuery('#wf-sn-core-scanner-response').append('<p>' + response.data.message + '</p>');
       } 
       else {
-        alert(wf_sn_cs.strings.error_occurred + ': ' + response);
-        jQuery(this).attr('disabled', '');
+        jQuery('#wf-sn-core-scanner-response').append('<p class="error">' + wf_sn_cs.strings.error_occurred + ': ' + response.data.message + '</p>');
+        jQuery(this).removeAttr('disabled');
       }
     }, 'json');
   });

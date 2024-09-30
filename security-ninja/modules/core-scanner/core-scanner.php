@@ -400,28 +400,17 @@ class Wf_Sn_Cs {
         if ( !$internal ) {
             check_ajax_referer( 'wf_sn_cs' );
         }
-        // Check if the user has the required capability
         if ( !current_user_can( 'manage_options' ) ) {
             wp_send_json_error( array(
                 'message' => __( 'You do not have sufficient permissions to access this page.', 'security-ninja' ),
                 'code'    => 'insufficient_permissions',
             ) );
         }
-        $results = [];
-        $doupdate = false;
-        if ( isset( $_POST['doupdate'] ) && $_POST['doupdate'] ) {
-            $doupdate = true;
-        } else {
-            $results = get_option( 'wf_sn_cs_results', array() );
-        }
-        // If we are doing an update with $internal set to true
-        if ( $internal ) {
-            $doupdate = true;
-        }
         $start_time = microtime( true );
-        if ( isset( $results ) && !$doupdate ) {
-            $spenttime = microtime( true ) - $start_time;
-            $results['run_time'] = number_format( $spenttime, 2 );
+        $results = get_option( 'wf_sn_cs_results', array() );
+        $doupdate = $internal || isset( $_POST['doupdate'] ) && $_POST['doupdate'];
+        if ( !$doupdate && !empty( $results ) ) {
+            $results['run_time'] = number_format( microtime( true ) - $start_time, 2 );
             wp_send_json_success( $results );
         }
         $results['missing_ok'] = array();
@@ -755,22 +744,26 @@ class Wf_Sn_Cs {
     }
 
     /**
-     * Restore the a file - AJAX
+     * Restore a file - AJAX
      *
-     * @author  Lars Koudal
      * @since   v0.0.1
-     * @version v1.0.0  Friday, December 18th, 2020.
+     * @version v1.0.1  Friday, March 15th, 2024.
      * @access  public static
      * @return  void
      */
     public static function restore_file() {
         check_ajax_referer( 'wf_sn_cs' );
         if ( !current_user_can( 'manage_options' ) ) {
-            wp_die( 'You do not have sufficient permissions to access this page.', 'Permission Denied', array(
-                'response' => 403,
+            wp_send_json_error( array(
+                'message' => __( 'You do not have sufficient permissions to access this page.', 'security-ninja' ),
             ) );
         }
-        $file = str_replace( ABSPATH, '', stripslashes( $_POST['filename'] ) );
+        if ( !isset( $_POST['filename'] ) || empty( $_POST['filename'] ) ) {
+            wp_send_json_error( array(
+                'message' => __( 'No filename provided.', 'security-ninja' ),
+            ) );
+        }
+        $file = str_replace( ABSPATH, '', sanitize_text_field( wp_unslash( $_POST['filename'] ) ) );
         $url = wp_nonce_url( 'options.php?page=wf-sn', 'wf-sn-cs' );
         $creds = request_filesystem_credentials(
             $url,
@@ -780,18 +773,55 @@ class Wf_Sn_Cs {
             null
         );
         if ( !WP_Filesystem( $creds ) ) {
-            die( 'can\'t write to file.' );
+            wp_send_json_error( array(
+                'message' => __( 'Unable to access the filesystem.', 'security-ninja' ),
+            ) );
         }
-        $org_file = wp_remote_get( 'https://core.trac.wordpress.org/browser/tags/' . get_bloginfo( 'version' ) . '/src/' . $file . '?format=txt' );
-        if ( !$org_file['body'] ) {
-            die( 'can\'t download remote file source.' );
+        $url = 'https://core.trac.wordpress.org/browser/tags/' . get_bloginfo( 'version' ) . '/src/' . $file . '?format=txt';
+        $org_file = wp_remote_get( $url );
+        if ( is_wp_error( $org_file ) || 404 === wp_remote_retrieve_response_code( $org_file ) || empty( $org_file['body'] ) ) {
+            $error_message = ( is_wp_error( $org_file ) ? $org_file->get_error_message() : __( 'Unable to download remote file source.', 'security-ninja' ) );
+            if ( secnin_fs()->is__premium_only() && secnin_fs()->can_use_premium_code() ) {
+                wf_sn_el_modules::log_event(
+                    'security_ninja',
+                    'core_scanner',
+                    'Cannot download file',
+                    array(
+                        'file'  => $file,
+                        'url'   => $url,
+                        'error' => $error_message,
+                    )
+                );
+            }
+            wp_send_json_error( array(
+                'message' => $error_message,
+            ) );
         }
         global $wp_filesystem;
+        // Initialize the WordPress filesystem, if not already.
+        if ( empty( $wp_filesystem ) ) {
+            include_once ABSPATH . 'wp-admin/includes/file.php';
+            WP_Filesystem();
+        }
         if ( !$wp_filesystem->put_contents( trailingslashit( ABSPATH ) . $file, $org_file['body'], FS_CHMOD_FILE ) ) {
-            die( 'unknown error while writing file.' );
+            wp_send_json_error( array(
+                'message' => __( 'Error writing file.', 'security-ninja' ),
+            ) );
         }
         self::scan_files();
-        wp_send_json_success();
+        if ( secnin_fs()->is__premium_only() && secnin_fs()->can_use_premium_code() ) {
+            wf_sn_el_modules::log_event(
+                'security_ninja',
+                'core_scanner',
+                'Restored file',
+                array(
+                    'name' => $file,
+                )
+            );
+        }
+        wp_send_json_success( array(
+            'message' => __( 'File restored successfully.', 'security-ninja' ),
+        ) );
     }
 
     /**
@@ -830,13 +860,17 @@ class Wf_Sn_Cs {
             null
         );
         if ( !WP_Filesystem( $creds ) ) {
-            die( sprintf( esc_html__( 'Cannot delete %s', 'security-ninja' ), $file ) );
+            wp_send_json_error( array(
+                'message' => sprintf( __( 'Cannot delete %s', 'security-ninja' ), $file ),
+            ) );
         }
         global $wp_filesystem;
         if ( !$wp_filesystem->delete( trailingslashit( ABSPATH ) . $file, false ) ) {
-            die( sprintf( esc_html__( 'Unknown error deleting %s', 'security-ninja' ), esc_html( $file ) ) );
-        } else {
+            wp_send_json_error( array(
+                'message' => sprintf( __( 'Unknown error deleting %s', 'security-ninja' ), esc_html( $file ) ),
+            ) );
         }
+        wp_send_json_success();
     }
 
     /**

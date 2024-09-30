@@ -5,7 +5,7 @@ Plugin Name: Security Ninja
 Plugin URI: https://wpsecurityninja.com/
 Description: Check your site for <strong>security vulnerabilities</strong> and get precise suggestions for corrective actions on passwords, user accounts, file permissions, database security, version hiding, plugins, themes, security headers and other security aspects.
 Author: WP Security Ninja
-Version: 5.213
+Version: 5.214
 Author URI: https://wpsecurityninja.com/
 Text Domain: security-ninja
 Domain Path: /languages
@@ -175,7 +175,6 @@ if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
                     add_action( 'admin_init', array(__NAMESPACE__ . '\\Utils', 'secnin_fs_license_key_migration') );
                     secnin_fs()->add_filter( 'plugin_icon', array(__NAMESPACE__ . '\\Wf_Sn', 'secnin_fs_custom_icon') );
                 }
-                add_action( 'wp_ajax_wfsn_enable_background_updates', array(__NAMESPACE__ . '\\Wf_Sn', 'do_action_wfsn_enable_background_updates') );
                 add_action( 'wp_ajax_wfsn_freemius_reset_activation', array(__NAMESPACE__ . '\\Wf_Sn', 'freemius_reset_activation') );
                 add_action( 'wp_dashboard_setup', array(__NAMESPACE__ . '\\Wf_Sn', 'add_dashboard_widgets') );
                 add_filter(
@@ -632,43 +631,10 @@ if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
             if ( !secnin_fs()->is_anonymous() ) {
                 return;
             }
-            // Resets
+            // Suggested by Leo to just delete the option
+            delete_option( 'secnin_fs_migrated2fs' );
             secnin_fs()->connect_again();
             wp_send_json_success();
-        }
-
-        /**
-         * Enable background updates
-         *
-         * @author  Lars Koudal
-         * @since   v0.0.1
-         * @version v1.0.0  Friday, March 18th, 2022.
-         * @access  public static
-         * @return  void
-         */
-        public static function do_action_wfsn_enable_background_updates() {
-            $nonce = sanitize_text_field( $_POST['nonce'] );
-            if ( empty( $nonce ) || !wp_verify_nonce( $nonce, 'wfsn-background-updates' ) ) {
-                wp_send_json_error( array(
-                    'success' => false,
-                    'message' => esc_html__( 'Nonce verification failed.', 'security-ninja' ),
-                ) );
-            }
-            if ( !current_user_can( 'manage_options' ) ) {
-                wp_send_json_error( array(
-                    'success' => false,
-                    'message' => esc_html__( 'You do not have permission to do this.', 'security-ninja' ),
-                ) );
-            }
-            $auto_updates = (array) get_site_option( 'auto_update_plugins', array() );
-            // Enables automatic background updates
-            $auto_updates[] = 'security-ninja/security-ninja.php';
-            $auto_updates[] = 'security-ninja-premium/security-ninja.php';
-            update_site_option( 'auto_update_plugins', $auto_updates );
-            wp_send_json_success( array(
-                'success' => true,
-                'message' => esc_html__( 'Automatic background updates enabled.', 'security-ninja' ),
-            ) );
         }
 
         /**

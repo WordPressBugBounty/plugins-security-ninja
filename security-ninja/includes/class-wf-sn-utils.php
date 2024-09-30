@@ -35,71 +35,7 @@ class Utils {
      */
     public static function do_admin_notices() {
         $is_sn_admin_page = \WPSecurityNinja\Plugin\Wf_Sn::is_plugin_page();
-        // Are we on the "Plugins" admin page?
-        $is_plugins_page = false;
         $current_screen = get_current_screen();
-        if ( 'plugins' === $current_screen->id ) {
-            $is_plugins_page = true;
-        }
-        // Checks if auto updates has been enabled
-        if ( function_exists( 'wp_is_auto_update_enabled_for_type' ) ) {
-            $auto_updates_enabled = wp_is_auto_update_enabled_for_type( 'plugin' );
-            $hide_auto_update = false;
-            $current_screen = get_current_screen();
-            if ( strpos( $current_screen->id, 'admin_page_security-ninja-welcome' ) !== false || strpos( $current_screen->id, 'page_security-ninja-wizard' ) !== false ) {
-                $hide_auto_update = true;
-            }
-            if ( $auto_updates_enabled && !$hide_auto_update && ($is_sn_admin_page || $is_plugins_page) ) {
-                // Updates are enabled, lets look for if our plugin is on the list
-                $found = false;
-                $look_for = array('security-ninja/security-ninja.php', 'security-ninja-premium/security-ninja.php');
-                $auto_updates = (array) get_site_option( 'auto_update_plugins', array() );
-                if ( $auto_updates ) {
-                    foreach ( $auto_updates as $au ) {
-                        if ( in_array( $au, $look_for, true ) ) {
-                            $found = true;
-                        }
-                    }
-                }
-                if ( !$found ) {
-                    if ( \PAnD::is_admin_notice_active( 'wfsn-enable-background-updates-forever' ) ) {
-                        $plugin_name = 'Security Ninja';
-                        ?>
-						<div class="secnin-notice notice notice-info is-dismissible" id="wfsn-enable-background-updates" data-dismissible="wfsn-enable-background-updates-forever">
-							<?php 
-                        ?>
-							<h3>
-								<?php 
-                        echo esc_html( $plugin_name ) . ' - ';
-                        esc_html_e( 'Automatic background updates', 'security-ninja' );
-                        ?>
-							</h3>
-							<p>
-								<?php 
-                        // translators: Message if the plugin does not have automatic plugin enabled, but the website has the feature enabled.
-                        printf( esc_html__( 'You have automatic plugin updates turned on in WordPress, but not enabled for %1$s.', 'security-ninja' ), esc_html( $plugin_name ) );
-                        ?>
-							</p>
-							<p><?php 
-                        esc_html_e( 'Enable to install updates automatically in the background, keeping your protection up to date.', 'security-ninja' );
-                        ?></p>
-							<p>
-								<a href="javascript:;" class="button button-primary" onclick="wfsn_enable_background_updates(this)"><?php 
-                        esc_html_e( 'Enable auto-updates', 'security-ninja' );
-                        ?> </a> <a href="javascript:;" class="dismiss-this button button-secondary"><?php 
-                        esc_html_e( 'No, thank you', 'security-ninja' );
-                        ?></a>
-							</p>
-							<input type="hidden" id="wfsn-enable-background-updates-nonce" value="<?php 
-                        echo esc_attr( wp_create_nonce( 'wfsn-background-updates' ) );
-                        ?>" />
-
-						</div>
-						<?php 
-                    }
-                }
-            }
-        }
         if ( !$is_sn_admin_page ) {
             return;
         }
@@ -334,7 +270,7 @@ class Utils {
      * @return  void
      */
     public static function secnin_fs_license_key_migration() {
-        if ( !secnin_fs()->has_api_connectivity() || secnin_fs()->is_registered() ) {
+        if ( false === secnin_fs()->has_api_connectivity() || secnin_fs()->is_registered() ) {
             // No connectivity OR the user already opted-in to Freemius.
             return;
         }
@@ -353,6 +289,10 @@ class Utils {
                     // TODO: Log invalid license key format for debugging
                 }
             }
+        }
+        if ( '' === $license_key ) {
+            \WPSecurityNinja\Plugin\wf_sn_el_modules::log_event( 'License key not found in license.txt', 'security_ninja' );
+            return;
         }
         try {
             $next_page = secnin_fs()->activate_migrated_license( $license_key );
@@ -603,7 +543,7 @@ class Utils {
             echo '<div class="wf-sn-overlay-content">';
             echo '<div id="sn-site-scan" style="display: none;">';
             echo '</div>';
-            do_action( 'sn_overlay_content' );
+            // do_action( 'sn_overlay_content' ); // @todo - remove this
             echo '<p><a id="abort-scan" href="#" class="button button-secondary">Cancel</a></p>';
             do_action( 'sn_overlay_content_after' );
             echo '</div>';
