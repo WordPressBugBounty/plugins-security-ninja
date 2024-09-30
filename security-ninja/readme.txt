@@ -6,7 +6,7 @@ License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 Requires at least: 4.7
 Tested up to: 6.6.2
-Stable tag: 5.211.1
+Stable tag: 5.213
 Requires PHP: 7.4
 
 Scans for vulnerabilities, detects risky plugins, and guides you how to secure your site against hackers.
@@ -234,6 +234,14 @@ While we strive for universal compatibility, if you face any issues, our support
 4. Vulnerable plugins list with details and recommendations - prevent known problems in plugin.
 
 == Changelog ==
+
+= 5.213 =
+* Fixed an issue where license activation could lead to a flood of email verification requests. This occurred when users agreed to activate their license but didn’t complete the email confirmation process. Previously, users were allowed to remain anonymous, but this caused unintended complications.
+* Fixed an issue in the malware scanner that occasionally caused the scan to stop unexpectedly.
+
+= 5.212 =  
+* Resolved issues causing unexpected errors for some users.  
+* Improved MainWP integration for smoother functionality.  
 
 = 5.211 =
 * Code cleanup and refactoring.

@@ -259,7 +259,7 @@ class Utils {
 
 
 				<p>You can unsubscribe anytime. For more details, review our <a href="<?php 
-            echo esc_url( self::generate_sn_web_link( 'newsletter_signup', '/privacy-policy/' ) );
+            echo esc_url( \WPSecurityNinja\Plugin\Utils::generate_sn_web_link( 'newsletter_signup', '/privacy-policy/' ) );
             ?>" target="_blank" rel="noopener">Privacy Policy</a>.</p>
 				<p><small>Signup form is shown every 30 days.</small> - <a href="javascript:;" class="dismiss-this">Click here to dismiss</a></p>
 			</div>
@@ -334,14 +334,14 @@ class Utils {
      * @return  void
      */
     public static function secnin_fs_license_key_migration() {
-        if ( secnin_fs()->is_registered() ) {
+        if ( !secnin_fs()->has_api_connectivity() || secnin_fs()->is_registered() ) {
+            // No connectivity OR the user already opted-in to Freemius.
             return;
         }
-        if ( !secnin_fs()->has_api_connectivity() ) {
-            // No connectivity to Freemius API
+        if ( 'pending' !== get_option( 'secnin_fs_migrated2fs', 'pending' ) ) {
             return;
         }
-        // Check if license.txt exists in the plugin directory
+        // Check if license.txt exists in the plugin directory and use it to activate the license
         $license_file = WF_SN_PLUGIN_DIR . 'license.txt';
         $license_key = '';
         if ( file_exists( $license_file ) ) {
@@ -423,7 +423,7 @@ class Utils {
                 global $wpdb;
                 $information['SecNin_get_details'] = array(
                     'plan' => 'Free',
-                    'ver'  => wf_sn::get_plugin_version(),
+                    'ver'  => \WPSecurityNinja\Plugin\wf_sn::get_plugin_version(),
                 );
                 // Check vulnerabilities
                 if ( class_exists( __NAMESPACE__ . '\\wf_sn_vu' ) ) {
@@ -433,9 +433,9 @@ class Utils {
                     $information['SecNin_get_details']['vulndetails'] = $vulndetails;
                 }
                 // Get test scores
-                $information['SecNin_get_details']['tests'] = Wf_Sn::return_test_scores();
-                $information['SecNin_get_details']['test_results'] = Wf_Sn::get_test_results();
-            } catch ( Exception $e ) {
+                $information['SecNin_get_details']['tests'] = \WPSecurityNinja\Plugin\Wf_Sn::return_test_scores();
+                $information['SecNin_get_details']['test_results'] = \WPSecurityNinja\Plugin\Wf_Sn::get_test_results();
+            } catch ( \Exception $e ) {
                 $information['SecNin_get_details'] = array(
                     'error' => $e->getMessage(),
                 );
@@ -474,7 +474,7 @@ class Utils {
                     break;
                 // *** Update vulnerabilities
                 case 'update_vulnerabilities':
-                    Wf_Sn_Vu::update_vuln_list();
+                    \WPSecurityNinja\Plugin\Wf_Sn_Vu::update_vuln_list();
                     break;
                 // ***  Update white label settings
                 case 'update_white_label':
@@ -644,7 +644,7 @@ class Utils {
 
 				<p><strong>This feature is available for Pro users with 25+ site licenses.</strong></p>
 				<p class="fomlink"><a target="_blank" href="<?php 
-        echo esc_url( self::generate_sn_web_link( 'tab_whitelabel', '/' ) );
+        echo esc_url( \WPSecurityNinja\Plugin\Utils::generate_sn_web_link( 'tab_whitelabel', '/' ) );
         ?>" class="button button-primary" rel="noopener"><?php 
         esc_html_e( 'Learn more', 'security-ninja' );
         ?></a></p>
