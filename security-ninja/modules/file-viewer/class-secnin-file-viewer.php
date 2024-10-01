@@ -204,9 +204,11 @@ class FileViewer {
 		}
 
 		// Check file extension
-		$allowed_extensions = array( 'php', 'js', 'css', 'txt', 'html', 'htm' );
+		$allowed_extensions = array( 'php', 'js', 'css', 'txt', 'html', 'htm', 'log' );
 		$file_extension = strtolower( pathinfo( $normalized_path, PATHINFO_EXTENSION ) );
-		if ( ! in_array( $file_extension, $allowed_extensions, true ) ) {
+		$allowed_files = array( 'debug.log', 'error_log' );
+
+		if ( ! in_array( $file_extension, $allowed_extensions, true ) && ! in_array( basename( $normalized_path ), $allowed_files, true ) ) {
 			wf_sn_el_modules::log_event( 'File Viewer', 'Attempt to view disallowed file type: ' . $file_extension );
 			return false;
 		}

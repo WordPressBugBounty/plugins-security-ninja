@@ -6,7 +6,7 @@ License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 Requires at least: 4.7
 Tested up to: 6.6.2
-Stable tag: 5.214
+Stable tag: 5.215
 Requires PHP: 7.4
 
 Scans for vulnerabilities, detects risky plugins, and guides you how to secure your site against hackers.
@@ -235,12 +235,17 @@ While we strive for universal compatibility, if you face any issues, our support
 
 == Changelog ==
 
+= 5.215 =
+* Fix: Resolved an issue with error messages showing up regarding \wf_sn_el_modules missing. Thank you everyone reporting this issue.
+* File Viewer: Added support for viewing `debug.log` and `error_log` files, allowing users to access important debugging information.
+* File Viewer: Fixed a PHP notice about a missing timestamp, $timestamp. Thank you Tom for reporting this issue.
+* Cloud Firewall: Added a filter `secnin_show_woocommerce_login_message` to allow customization of the WooCommerce login message display. https://wpsecurityninja.com/docs/filters-hooks/secnin_show_woocommerce_login_message/
+
 = 5.214 =
 * Fixed issues with 2FA setup not working for some users.
 * Improved malware scanner better interface and improvements to the backend.
 * Started work reintroducing the database malwarescanner and preparing for a beta release.
 * Improvement to the license activation process.
-
 
 = 5.213 =
 * Fixed an issue where license activation could lead to a flood of email verification requests. This occurred when users agreed to activate their license but didn't complete the email confirmation process. Previously, users were allowed to remain anonymous, but this caused unintended complications.

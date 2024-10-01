@@ -290,10 +290,6 @@ class Utils {
                 }
             }
         }
-        if ( '' === $license_key ) {
-            \WPSecurityNinja\Plugin\wf_sn_el_modules::log_event( 'License key not found in license.txt', 'security_ninja' );
-            return;
-        }
         try {
             $next_page = secnin_fs()->activate_migrated_license( $license_key );
         } catch ( \Exception $e ) {
