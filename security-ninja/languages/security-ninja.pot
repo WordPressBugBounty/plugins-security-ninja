@@ -2,7 +2,7 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: Security Ninja\n"
-"POT-Creation-Date: 2024-09-23 15:57-0400\n"
+"POT-Creation-Date: 2024-10-17 20:26-0400\n"
 "PO-Revision-Date: 2019-05-09 16:21-0400\n"
 "Last-Translator: Lars Koudal <lars@koudal.dk>\n"
 "Language-Team: Lars Koudal <admin@wpsecurityninja.com>\n"
@@ -188,11 +188,11 @@ msgstr ""
 msgid "Check if the server is vulnerable to the Shellshock bug #7169."
 msgstr ""
 
-#: class-wf-sn-tests.php:241 sn-tests-description.php:712
+#: class-wf-sn-tests.php:241 sn-tests-description.php:781
 msgid "Check if admin interface is delivered via SSL"
 msgstr ""
 
-#: class-wf-sn-tests.php:246 sn-tests-description.php:725
+#: class-wf-sn-tests.php:246 sn-tests-description.php:794
 msgid "Check if MySQL account used by WordPress has too many permissions"
 msgstr ""
 
@@ -201,7 +201,7 @@ msgid ""
 "Check if the list of usernames can be fetched by looping through user IDs"
 msgstr ""
 
-#: class-wf-sn-tests.php:256 sn-tests-description.php:203
+#: class-wf-sn-tests.php:256 sn-tests-description.php:209
 msgid "Check if the REST API links are shown in code"
 msgstr ""
 
@@ -229,7 +229,7 @@ msgstr ""
 msgid "Check if server response headers contain Content-Security-Policy."
 msgstr ""
 
-#: class-wf-sn-tests.php:291 sn-tests-description.php:484
+#: class-wf-sn-tests.php:291 sn-tests-description.php:536
 msgid "Check if the REST API is enabled."
 msgstr ""
 
@@ -254,46 +254,56 @@ msgstr ""
 #: class-wf-sn-tests.php:376 class-wf-sn-tests.php:377
 #: class-wf-sn-tests.php:378 class-wf-sn-tests.php:379
 #: class-wf-sn-tests.php:380 class-wf-sn-tests.php:381
+#: modules/auto-fixer/class-wf-sn-fixes.php:106
+#: modules/auto-fixer/class-wf-sn-fixes.php:107
+#: modules/auto-fixer/class-wf-sn-fixes.php:108
+#: modules/auto-fixer/class-wf-sn-fixes.php:109
+#: modules/auto-fixer/class-wf-sn-fixes.php:110
+#: modules/auto-fixer/class-wf-sn-fixes.php:111
+#: modules/auto-fixer/class-wf-sn-fixes.php:112
+#: modules/auto-fixer/class-wf-sn-fixes.php:113
 msgid "Common name for config file backup - can contain critical information"
 msgstr ""
 
-#: class-wf-sn-tests.php:382
+#: class-wf-sn-tests.php:382 modules/auto-fixer/class-wf-sn-fixes.php:114
 msgid "Can contain server details or errors that can be exploited."
 msgstr ""
 
-#: class-wf-sn-tests.php:383
+#: class-wf-sn-tests.php:383 modules/auto-fixer/class-wf-sn-fixes.php:115
 msgid "Can contain user details or errors that can be exploited."
 msgstr ""
 
-#: class-wf-sn-tests.php:384
+#: class-wf-sn-tests.php:384 modules/auto-fixer/class-wf-sn-fixes.php:116
 msgid ""
 ".htaccess backup files on SiteGround - Can show server details or "
 "configurations that should not be public."
 msgstr ""
 
-#: class-wf-sn-tests.php:385
+#: class-wf-sn-tests.php:385 modules/auto-fixer/class-wf-sn-fixes.php:117
 msgid ""
 ".htaccess backup file by Swift Performance - Can show server details or "
 "configurations that should not be public."
 msgstr ""
 
-#: class-wf-sn-tests.php:386
+#: class-wf-sn-tests.php:386 modules/auto-fixer/class-wf-sn-fixes.php:140
 msgid ""
 ".sql files should not be kept on your server - they may contain sensitive "
 "data."
 msgstr ""
 
-#: class-wf-sn-tests.php:387
+#: class-wf-sn-tests.php:387 modules/auto-fixer/class-wf-sn-fixes.php:118
 msgid ""
 "Displays all details about PHP on your website, should only exist briefly "
 "during development."
 msgstr ""
 
 #: class-wf-sn-tests.php:388 class-wf-sn-tests.php:389
+#: modules/auto-fixer/class-wf-sn-fixes.php:119
+#: modules/auto-fixer/class-wf-sn-fixes.php:120
 msgid "Should only exist briefly during development and not on a live site."
 msgstr ""
 
-#: class-wf-sn-tests.php:390
+#: class-wf-sn-tests.php:390 modules/auto-fixer/class-wf-sn-fixes.php:141
 msgid "Copies of old files could contain important info about your server."
 msgstr ""
 
@@ -1086,265 +1096,448 @@ msgstr ""
 msgid "Username enumeration test failed."
 msgstr ""
 
-#: includes/class-wf-sn-utils.php:112
-msgid "Automatic background updates"
-msgstr ""
-
-#. translators: Message if the plugin does not have automatic plugin enabled, but the website has the feature enabled.
-#: includes/class-wf-sn-utils.php:118
-#, php-format
-msgid ""
-"You have automatic plugin updates turned on in WordPress, but not enabled "
-"for %1$s."
-msgstr ""
-
-#: includes/class-wf-sn-utils.php:121
-msgid ""
-"Enable to install updates automatically in the background, keeping your "
-"protection up to date."
-msgstr ""
-
-#: includes/class-wf-sn-utils.php:123
-msgid "Enable auto-updates"
-msgstr ""
-
-#: includes/class-wf-sn-utils.php:123
-msgid "No, thank you"
-msgstr ""
-
-#: includes/class-wf-sn-utils.php:147
+#: includes/class-wf-sn-utils.php:74
 msgid "Security Ninja - Vulnerability list updated!"
 msgstr ""
 
-#: includes/class-wf-sn-utils.php:200
+#: includes/class-wf-sn-utils.php:127
 msgid "a while"
 msgstr ""
 
-#: includes/class-wf-sn-utils.php:335
+#: includes/class-wf-sn-utils.php:260
 msgid "Last Login"
 msgstr ""
 
-#: includes/class-wf-sn-utils.php:384
+#: includes/class-wf-sn-utils.php:308
 msgid "No recorded login"
 msgstr ""
 
-#: includes/class-wf-sn-utils.php:444
+#: includes/class-wf-sn-utils.php:369
 msgid "License automatically activated!"
 msgstr ""
 
-#: includes/class-wf-sn-utils.php:495
+#: includes/class-wf-sn-utils.php:420
 msgid "Secure the site"
 msgstr ""
 
-#: includes/class-wf-sn-utils.php:581
+#: includes/class-wf-sn-utils.php:507
 msgid "Syncing data with MainWP Dashboard"
 msgstr ""
 
-#: includes/class-wf-sn-utils.php:827
+#: includes/class-wf-sn-utils.php:750
 msgid "Security Ninja API"
 msgstr ""
 
-#: includes/class-wf-sn-utils.php:828
+#: includes/class-wf-sn-utils.php:751
 msgid "Sending and getting data from Security Ninja API servers."
 msgstr ""
 
-#: includes/class-wf-sn-utils.php:833
+#: includes/class-wf-sn-utils.php:756
 msgid "Newsletter"
 msgstr ""
 
-#: includes/class-wf-sn-utils.php:834
+#: includes/class-wf-sn-utils.php:757
 msgid "You are added to our newsletter. Unsubscribe anytime."
 msgstr ""
 
-#: includes/class-wf-sn-utils.php:923 security-ninja.php:1205
-#: security-ninja.php:1306 security-ninja.php:1347 security-ninja.php:1378
+#: includes/class-wf-sn-utils.php:845 includes/sidebar.php:29
+#: security-ninja.php:1159 security-ninja.php:1260 security-ninja.php:1301
+#: security-ninja.php:1332
 msgid "Learn more"
 msgstr ""
 
-#: includes/sidebar.php:105
+#: includes/sidebar.php:31
+msgid "About the tests"
+msgstr ""
+
+#: includes/sidebar.php:32
+msgid "Even small sites are attacked by hackers"
+msgstr ""
+
+#: includes/sidebar.php:33
+msgid "New to WordPress? avoid these beginner mistakes"
+msgstr ""
+
+#: includes/sidebar.php:34
+msgid "Guide to Password and Username Security"
+msgstr ""
+
+#: includes/sidebar.php:35
+msgid "Signs that your site has been hacked"
+msgstr ""
+
+#: includes/sidebar.php:56
+msgid "Install Wizard"
+msgstr ""
+
+#: includes/sidebar.php:56
+msgid "get protected in minutes."
+msgstr ""
+
+#: includes/sidebar.php:57
+msgid "Firewall Protection"
+msgstr ""
+
+#: includes/sidebar.php:57
+msgid "Protect your website from suspicious visitors."
+msgstr ""
+
+#: includes/sidebar.php:58
+msgid "Spam Protection"
+msgstr ""
+
+#: includes/sidebar.php:58
+msgid "The firewall blocks known spammers."
+msgstr ""
+
+#: includes/sidebar.php:59
+msgid "Login Protection"
+msgstr ""
+
+#: includes/sidebar.php:59
+msgid "Stop repeated failed logins."
+msgstr ""
+
+#: includes/sidebar.php:60
+msgid "Rename Login"
+msgstr ""
+
+#: includes/sidebar.php:60
+msgid "Change the default WordPress login URL."
+msgstr ""
+
+#: includes/sidebar.php:61
+msgid "2FA"
+msgstr ""
+
+#: includes/sidebar.php:61
+msgid "Add two factor authentication to your WordPress login."
+msgstr ""
+
+#: includes/sidebar.php:62
+msgid "Country Blocking"
+msgstr ""
+
+#: includes/sidebar.php:62
+msgid "Block entire countries."
+msgstr ""
+
+#: includes/sidebar.php:63 modules/core-scanner/core-scanner.php:295
+#: modules/scheduled-scanner/scheduled-scanner.php:130
+#: modules/scheduled-scanner/scheduled-scanner.php:938
+msgid "Core Scanner"
+msgstr ""
+
+#: includes/sidebar.php:63
+msgid "Detect infected WordPress core files."
+msgstr ""
+
+#: includes/sidebar.php:64
+msgid "Plugin Validation"
+msgstr ""
+
+#: includes/sidebar.php:64
+msgid "Check plugins have not been modified with malware."
+msgstr ""
+
+#: includes/sidebar.php:65 modules/malware-scanner/malware-scanner.php:1890
+#: security-ninja.php:547 security-ninja.php:1285
+msgid "Malware Scanner"
+msgstr ""
+
+#: includes/sidebar.php:65
+msgid "Find and remove suspicious files."
+msgstr ""
+
+#: includes/sidebar.php:66
+msgid "Auto Fixer"
+msgstr ""
+
+#: includes/sidebar.php:66
+msgid "Fix many security issues with a few clicks."
+msgstr ""
+
+#: includes/sidebar.php:67 modules/events-logger/events-logger.php:930
+msgid "Events Logger"
+msgstr ""
+
+#: includes/sidebar.php:67
+msgid "Audit log - Know who did what on your website"
+msgstr ""
+
+#: includes/sidebar.php:68 security-ninja.php:546
+msgid "Scheduled Scanner"
+msgstr ""
+
+#: includes/sidebar.php:68
+msgid "Scan your website for security issues at a specific time."
+msgstr ""
+
+#: includes/sidebar.php:70
+msgid "Try the Pro version free for 30 days!"
+msgstr ""
+
+#: includes/sidebar.php:79
+msgid ""
+"We ask for your payment information to reduce fraud and provide a seamless "
+"subscription experience."
+msgstr ""
+
+#: includes/sidebar.php:80
+msgid "CANCEL ANYTIME before the trial ends to avoid being charged."
+msgstr ""
+
+#: includes/sidebar.php:81
+msgid "We will send you an email reminder BEFORE your trial ends."
+msgstr ""
+
+#: includes/sidebar.php:82
+msgid "We accept Visa, Mastercard, American Express and PayPal."
+msgstr ""
+
+#: includes/sidebar.php:83
+msgid "Upgrade, downgrade or cancel any time."
+msgstr ""
+
+#: includes/sidebar.php:84
+msgid "Bulk discounts for more websites."
+msgstr ""
+
+#: includes/sidebar.php:86
+msgid "Read more about the Pro version"
+msgstr ""
+
+#: includes/sidebar.php:106
 msgid "Blocked visits"
 msgstr ""
 
-#: includes/sidebar.php:130
-msgid "Search Documentation"
+#: includes/sidebar.php:124
+msgid "Plugin help"
 msgstr ""
 
 #: includes/sidebar.php:131
+msgid "Search Documentation"
+msgstr ""
+
+#: includes/sidebar.php:132
 msgid "Need human help?"
 msgstr ""
 
-#: includes/sidebar.php:140
+#: includes/sidebar.php:138
+msgid "Support Forum"
+msgstr ""
+
+#: includes/sidebar.php:141
 msgid "Reset Account"
 msgstr ""
 
-#: modules/2fa/class-wf-sn-2fa.php:121
-msgid "Invalid user or token."
+#: includes/sidebar.php:147
+msgid "Restart the setup wizard"
 msgstr ""
 
-#: modules/2fa/class-wf-sn-2fa.php:134
-msgid "Two-Factor Authentication Setup"
-msgstr ""
-
-#: modules/2fa/class-wf-sn-2fa.php:164 modules/2fa/class-wf-sn-2fa.php:878
-msgid "QR Code Loading"
-msgstr ""
-
-#: modules/2fa/class-wf-sn-2fa.php:173 modules/2fa/class-wf-sn-2fa.php:881
-msgid "Generate New QR Code"
-msgstr ""
-
-#: modules/2fa/class-wf-sn-2fa.php:193
-msgid "Protected by"
-msgstr ""
-
-#: modules/2fa/class-wf-sn-2fa.php:226
-msgid "Error generating QR code. Please try again. Debug info:"
-msgstr ""
-
-#: modules/2fa/class-wf-sn-2fa.php:235
-msgid ""
-"Error generating QR code. Please check your internet connection and try "
-"again. Status:"
-msgstr ""
-
-#: modules/2fa/class-wf-sn-2fa.php:237
-msgid "Response Text:"
-msgstr ""
-
-#: modules/2fa/class-wf-sn-2fa.php:276 modules/2fa/class-wf-sn-2fa.php:695
-#: modules/2fa/class-wf-sn-2fa.php:696
+#: modules/2fa/class-wf-sn-2fa.php:145 modules/2fa/class-wf-sn-2fa.php:626
+#: modules/2fa/class-wf-sn-2fa.php:627
 msgid "Invalid nonce."
 msgstr ""
 
-#: modules/2fa/class-wf-sn-2fa.php:292
+#: modules/2fa/class-wf-sn-2fa.php:159 modules/2fa/class-wf-sn-2fa.php:162
 msgid "Invalid user identification."
 msgstr ""
 
-#: modules/2fa/class-wf-sn-2fa.php:302
+#: modules/2fa/class-wf-sn-2fa.php:170
+#, php-format
+msgid "User not found for ID: %d"
+msgstr ""
+
+#: modules/2fa/class-wf-sn-2fa.php:173
 msgid "User not found."
 msgstr ""
 
-#: modules/2fa/class-wf-sn-2fa.php:316
+#: modules/2fa/class-wf-sn-2fa.php:185 modules/2fa/class-wf-sn-2fa.php:188
 msgid "Failed to generate or retrieve necessary security data."
 msgstr ""
 
-#: modules/2fa/class-wf-sn-2fa.php:326
+#: modules/2fa/class-wf-sn-2fa.php:196 modules/2fa/class-wf-sn-2fa.php:199
 msgid "Failed to secure the 2FA secret. Please try again."
 msgstr ""
 
-#: modules/2fa/class-wf-sn-2fa.php:336
+#: modules/2fa/class-wf-sn-2fa.php:207 modules/2fa/class-wf-sn-2fa.php:210
 msgid "Failed to save the 2FA secret. Please try again."
 msgstr ""
 
-#: modules/2fa/class-wf-sn-2fa.php:346 modules/2fa/class-wf-sn-2fa.php:717
+#: modules/2fa/class-wf-sn-2fa.php:222 modules/2fa/class-wf-sn-2fa.php:664
 msgid "Failed to retrieve the 2FA secret. Please contact support."
 msgstr ""
 
-#: modules/2fa/class-wf-sn-2fa.php:392
+#: modules/2fa/class-wf-sn-2fa.php:266
 msgid "Two Factor Authentication"
 msgstr ""
 
-#: modules/2fa/class-wf-sn-2fa.php:395
+#: modules/2fa/class-wf-sn-2fa.php:269
 msgid "Bypass 2FA"
 msgstr ""
 
-#: modules/2fa/class-wf-sn-2fa.php:399
+#: modules/2fa/class-wf-sn-2fa.php:273
 msgid "Check this box to allow the user to bypass Two Factor Authentication."
 msgstr ""
 
-#: modules/2fa/class-wf-sn-2fa.php:703
+#: modules/2fa/class-wf-sn-2fa.php:397
+#: modules/core-scanner/core-scanner.php:100
+#: modules/visitor-log/class-wf-sn-visitor-log.php:336
+#: modules/visitor-log/class-wf-sn-visitor-log.php:384
+msgid "Invalid nonce"
+msgstr ""
+
+#: modules/2fa/class-wf-sn-2fa.php:403
+msgid "Invalid user identification"
+msgstr ""
+
+#: modules/2fa/class-wf-sn-2fa.php:409
+msgid "User not found"
+msgstr ""
+
+#: modules/2fa/class-wf-sn-2fa.php:428
+msgid "The grace period has expired"
+msgstr ""
+
+#: modules/2fa/class-wf-sn-2fa.php:525
+msgid "Failed to save the generated passphrase."
+msgstr ""
+
+#. translators: %s: Error message
+#: modules/2fa/class-wf-sn-2fa.php:535
+#, php-format
+msgid "Failed to generate or save 2FA passphrase: %s"
+msgstr ""
+
+#: modules/2fa/class-wf-sn-2fa.php:634
 msgid "Missing user ID or code."
 msgstr ""
 
-#: modules/2fa/class-wf-sn-2fa.php:704
+#: modules/2fa/class-wf-sn-2fa.php:635
 msgid "Missing required information."
 msgstr ""
 
-#: modules/2fa/class-wf-sn-2fa.php:710
+#. translators: %d: user ID
+#: modules/2fa/class-wf-sn-2fa.php:646
 #, php-format
 msgid "User secret is missing for user ID: %d"
 msgstr ""
 
-#: modules/2fa/class-wf-sn-2fa.php:711
+#: modules/2fa/class-wf-sn-2fa.php:650
 msgid "User secret is missing."
 msgstr ""
 
-#: modules/2fa/class-wf-sn-2fa.php:716
+#. translators: %d: user ID
+#: modules/2fa/class-wf-sn-2fa.php:660
 #, php-format
 msgid "Failed to decrypt 2FA secret for user ID: %d"
 msgstr ""
 
-#: modules/2fa/class-wf-sn-2fa.php:728
+#. translators: %d: user ID
+#: modules/2fa/class-wf-sn-2fa.php:680
 #, php-format
 msgid "Failed to retrieve user data for user ID: %d"
 msgstr ""
 
-#: modules/2fa/class-wf-sn-2fa.php:729
+#: modules/2fa/class-wf-sn-2fa.php:684
 msgid "Failed to retrieve user data."
 msgstr ""
 
-#: modules/2fa/class-wf-sn-2fa.php:737
+#. translators: %s: user display name
+#: modules/2fa/class-wf-sn-2fa.php:699
 #, php-format
 msgid "2FA verification successful for %s"
 msgstr ""
 
-#: modules/2fa/class-wf-sn-2fa.php:743
+#: modules/2fa/class-wf-sn-2fa.php:708
 msgid "Verified. Logging you in."
 msgstr ""
 
-#: modules/2fa/class-wf-sn-2fa.php:748
+#. translators: %d: user ID
+#: modules/2fa/class-wf-sn-2fa.php:718
 #, php-format
 msgid "Incorrect 2FA code entered for user: %d"
 msgstr ""
 
-#: modules/2fa/class-wf-sn-2fa.php:751
+#: modules/2fa/class-wf-sn-2fa.php:724
 msgid "Incorrect 2FA code. Please try again."
 msgstr ""
 
-#: modules/2fa/class-wf-sn-2fa.php:797
+#: modules/2fa/class-wf-sn-2fa.php:767
+msgid "Invalid user ID or object."
+msgstr ""
+
+#: modules/2fa/class-wf-sn-2fa.php:770
 msgid "Invalid user ID."
 msgstr ""
 
-#: modules/2fa/class-wf-sn-2fa.php:818
+#: modules/2fa/class-wf-sn-2fa.php:792
 msgid "2FA Verification"
 msgstr ""
 
-#: modules/2fa/class-wf-sn-2fa.php:887
+#: modules/2fa/class-wf-sn-2fa.php:859
+msgid "QR Code Loading"
+msgstr ""
+
+#: modules/2fa/class-wf-sn-2fa.php:862
+msgid "Generate New QR Code"
+msgstr ""
+
+#: modules/2fa/class-wf-sn-2fa.php:868
 msgid "Enter the 6-digit code from your authentication app."
 msgstr ""
 
-#: modules/2fa/class-wf-sn-2fa.php:892
+#: modules/2fa/class-wf-sn-2fa.php:873
 msgid "Verify Code"
 msgstr ""
 
+#. translators: %1$d: number of days left, %2$d: number of hours left
+#: modules/2fa/class-wf-sn-2fa.php:898
+#, php-format
+msgid "You have %1$d days and %2$d hours left to set up 2FA. "
+msgstr ""
+
+#: modules/2fa/class-wf-sn-2fa.php:904
+msgid "Skip for now"
+msgstr ""
+
 #. translators: %s: Site title.
-#: modules/2fa/class-wf-sn-2fa.php:900
+#: modules/2fa/class-wf-sn-2fa.php:914
 #, php-format
 msgctxt "site"
 msgid "&larr; Back to %s"
 msgstr ""
 
+#: modules/auto-fixer/auto-fixer.php:119
+msgid "Cleaned /sn-backups/ folder "
+msgstr ""
+
 #: modules/auto-fixer/auto-fixer.php:200 modules/auto-fixer/auto-fixer.php:266
-#: modules/cloud-firewall/cloud-firewall.php:1571
-#: modules/cloud-firewall/cloud-firewall.php:1601
-#: modules/cloud-firewall/cloud-firewall.php:1676
-#: modules/cloud-firewall/cloud-firewall.php:1734
+#: modules/cloud-firewall/cloud-firewall.php:1616
+#: modules/cloud-firewall/cloud-firewall.php:1646
+#: modules/cloud-firewall/cloud-firewall.php:1721
+#: modules/cloud-firewall/cloud-firewall.php:1779
 #: modules/core-scanner/core-scanner.php:220
-#: modules/core-scanner/core-scanner.php:906
-#: modules/events-logger/events-logger.php:696
+#: modules/core-scanner/core-scanner.php:916
+#: modules/events-logger/events-logger.php:707
 #: modules/malware-scanner/malware-scanner.php:158
-#: modules/malware-scanner/malware-scanner.php:686
-#: modules/malware-scanner/malware-scanner.php:710
-#: modules/malware-scanner/malware-scanner.php:760
-#: modules/malware-scanner/malware-scanner.php:812
-#: modules/malware-scanner/malware-scanner.php:1032
-#: modules/malware-scanner/malware-scanner.php:1080
+#: modules/malware-scanner/malware-scanner.php:688
+#: modules/malware-scanner/malware-scanner.php:712
+#: modules/malware-scanner/malware-scanner.php:762
+#: modules/malware-scanner/malware-scanner.php:814
+#: modules/malware-scanner/malware-scanner.php:1025
+#: modules/malware-scanner/malware-scanner.php:1073
 #: modules/visitor-log/class-wf-sn-visitor-log.php:342
 #: modules/visitor-log/class-wf-sn-visitor-log.php:390
-#: modules/wizard/class-wf-sn-wizard.php:553
-#: modules/wizard/class-wf-sn-wizard.php:602
-#: modules/wizard/class-wf-sn-wizard.php:653 security-ninja.php:2884
+#: modules/wizard/class-wf-sn-wizard.php:562
+#: modules/wizard/class-wf-sn-wizard.php:611
+#: modules/wizard/class-wf-sn-wizard.php:662 security-ninja.php:2848
 msgid "Failed."
+msgstr ""
+
+#: modules/auto-fixer/auto-fixer.php:206
+msgid "No test ID parsed"
 msgstr ""
 
 #: modules/auto-fixer/auto-fixer.php:221
@@ -1400,187 +1593,226 @@ msgstr ""
 msgid "Backup file does not exist: %s"
 msgstr ""
 
-#: modules/auto-fixer/class-wf-sn-fixes.php:132
-#: modules/auto-fixer/class-wf-sn-fixes.php:147
+#: modules/auto-fixer/class-wf-sn-fixes.php:84
+msgid "Username enumeration is disabled."
+msgstr ""
+
+#: modules/auto-fixer/class-wf-sn-fixes.php:121
+msgid "Default readme.html file in English."
+msgstr ""
+
+#: modules/auto-fixer/class-wf-sn-fixes.php:122
+msgid "Default readme.html file in German."
+msgstr ""
+
+#: modules/auto-fixer/class-wf-sn-fixes.php:123
+msgid "Default readme.html file in French."
+msgstr ""
+
+#: modules/auto-fixer/class-wf-sn-fixes.php:124
+msgid "Default readme.html file in Spanish."
+msgstr ""
+
+#: modules/auto-fixer/class-wf-sn-fixes.php:125
+msgid "Default readme.html file in Italian."
+msgstr ""
+
+#: modules/auto-fixer/class-wf-sn-fixes.php:126
+msgid "Default readme.html file in Dutch."
+msgstr ""
+
+#: modules/auto-fixer/class-wf-sn-fixes.php:134
+#: modules/auto-fixer/class-wf-sn-fixes.php:151
 msgid "Unwanted file deleted."
 msgstr ""
 
-#: modules/auto-fixer/class-wf-sn-fixes.php:455
+#: modules/auto-fixer/class-wf-sn-fixes.php:142
+msgid ""
+"Files with this pattern are leftovers from installation scripts and should "
+"not be on your server."
+msgstr ""
+
+#: modules/auto-fixer/class-wf-sn-fixes.php:153
+msgid "Reason:"
+msgstr ""
+
+#: modules/auto-fixer/class-wf-sn-fixes.php:464
 msgid "Security Fixes"
 msgstr ""
 
-#: modules/auto-fixer/class-wf-sn-fixes.php:456
+#: modules/auto-fixer/class-wf-sn-fixes.php:465
 msgid ""
 "Use the settings here to control the security on your website. These "
 "features can be enabled and disabled based on what requirements your website/"
 "server has."
 msgstr ""
 
-#: modules/auto-fixer/class-wf-sn-fixes.php:466
+#: modules/auto-fixer/class-wf-sn-fixes.php:475
 msgid "WordPress Features"
 msgstr ""
 
-#: modules/auto-fixer/class-wf-sn-fixes.php:471
+#: modules/auto-fixer/class-wf-sn-fixes.php:480
 msgid "Disable plugin & theme editor"
 msgstr ""
 
-#: modules/auto-fixer/class-wf-sn-fixes.php:485
+#: modules/auto-fixer/class-wf-sn-fixes.php:494
 msgid "Disables the plugin editor and the theme editor."
 msgstr ""
 
-#: modules/auto-fixer/class-wf-sn-fixes.php:492
+#: modules/auto-fixer/class-wf-sn-fixes.php:501
 msgid "Disable debug mode"
 msgstr ""
 
-#: modules/auto-fixer/class-wf-sn-fixes.php:506
+#: modules/auto-fixer/class-wf-sn-fixes.php:515
 msgid ""
 "Disables the error log. This could contain information hackers could abuse "
 "to attack your system."
 msgstr ""
 
-#: modules/auto-fixer/class-wf-sn-fixes.php:513
+#: modules/auto-fixer/class-wf-sn-fixes.php:522
 msgid "Disable WP Sitemaps"
 msgstr ""
 
-#: modules/auto-fixer/class-wf-sn-fixes.php:527
+#: modules/auto-fixer/class-wf-sn-fixes.php:536
 msgid ""
 "Disables the sitemaps functionality introduced in WordPress 5.5. This "
 "feature is not security related, but can create issues with SEO plugins."
 msgstr ""
 
-#: modules/auto-fixer/class-wf-sn-fixes.php:534
+#: modules/auto-fixer/class-wf-sn-fixes.php:543
+#: modules/auto-fixer/fixers/fix_application_passwords.php:18
 msgid "Disable Application Passwords"
 msgstr ""
 
-#: modules/auto-fixer/class-wf-sn-fixes.php:548
+#: modules/auto-fixer/class-wf-sn-fixes.php:557
 msgid ""
 "Disables the Application Password feature introduced in WordPress 5.6. "
 "Allows external services and programs to interact with your website. If not "
 "used specifically it does not need to be enabled."
 msgstr ""
 
-#: modules/auto-fixer/class-wf-sn-fixes.php:555
+#: modules/auto-fixer/class-wf-sn-fixes.php:564
 msgid "Disable Username Enumeration"
 msgstr ""
 
-#: modules/auto-fixer/class-wf-sn-fixes.php:569
+#: modules/auto-fixer/class-wf-sn-fixes.php:578
 msgid ""
 "This will prevent redirections from yoursite.com/?author={id} to yoursite."
 "com/author/username"
 msgstr ""
 
-#: modules/auto-fixer/class-wf-sn-fixes.php:576
+#: modules/auto-fixer/class-wf-sn-fixes.php:585
 msgid "Remove unwanted files"
 msgstr ""
 
-#: modules/auto-fixer/class-wf-sn-fixes.php:590
+#: modules/auto-fixer/class-wf-sn-fixes.php:599
 msgid ""
 "If enabled, a daily cleanup process cleans up unneeded files from your "
 "WordPress installation. Access to .bak, .sql and other files are blocked via "
 "the firewall module."
 msgstr ""
 
-#: modules/auto-fixer/class-wf-sn-fixes.php:600
+#: modules/auto-fixer/class-wf-sn-fixes.php:609
 msgid "Hide WP Version"
 msgstr ""
 
-#: modules/auto-fixer/class-wf-sn-fixes.php:614
+#: modules/auto-fixer/class-wf-sn-fixes.php:623
 msgid "Hide WordPress version info is revealed in page's meta data."
 msgstr ""
 
-#: modules/auto-fixer/class-wf-sn-fixes.php:621
+#: modules/auto-fixer/class-wf-sn-fixes.php:630
 msgid "Hide WLW"
 msgstr ""
 
-#: modules/auto-fixer/class-wf-sn-fixes.php:635
+#: modules/auto-fixer/class-wf-sn-fixes.php:644
 msgid "Hide Windows Live Writer link in page's meta data."
 msgstr ""
 
-#: modules/auto-fixer/class-wf-sn-fixes.php:642
+#: modules/auto-fixer/class-wf-sn-fixes.php:651
 msgid "Secure Cookies"
 msgstr ""
 
-#: modules/auto-fixer/class-wf-sn-fixes.php:648
+#: modules/auto-fixer/class-wf-sn-fixes.php:657
 msgid "Enable Secure Cookies"
 msgstr ""
 
-#: modules/auto-fixer/class-wf-sn-fixes.php:664
+#: modules/auto-fixer/class-wf-sn-fixes.php:673
 msgid ""
 "Enforcing all cookies are set as secure adds a layer of protection against "
 "cross-site scripting attacks and is an easy measure to protect your website."
 msgstr ""
 
-#: modules/auto-fixer/class-wf-sn-fixes.php:665
+#: modules/auto-fixer/class-wf-sn-fixes.php:674
 msgid "These settings are added to your wp-config.php file."
 msgstr ""
 
-#: modules/auto-fixer/class-wf-sn-fixes.php:678
+#: modules/auto-fixer/class-wf-sn-fixes.php:687
 msgid "Security Headers"
 msgstr ""
 
-#: modules/auto-fixer/class-wf-sn-fixes.php:679
+#: modules/auto-fixer/class-wf-sn-fixes.php:688
 msgid ""
 "Configuring your website with the right security headers can help your "
 "website from a lot of problems. It can be difficult to get the settings "
 "right, so be sure to test your website properly."
 msgstr ""
 
-#: modules/auto-fixer/class-wf-sn-fixes.php:686
+#: modules/auto-fixer/class-wf-sn-fixes.php:695
 msgid "Hide PHP Version"
 msgstr ""
 
-#: modules/auto-fixer/class-wf-sn-fixes.php:700
+#: modules/auto-fixer/class-wf-sn-fixes.php:709
 msgid ""
 "Removes the \"X-Powered-By\" header. No need to tell what software version "
 "you are running."
 msgstr ""
 
-#: modules/auto-fixer/class-wf-sn-fixes.php:707
+#: modules/auto-fixer/class-wf-sn-fixes.php:716
 msgid "X-Content-Type-Options"
 msgstr ""
 
-#: modules/auto-fixer/class-wf-sn-fixes.php:724
+#: modules/auto-fixer/class-wf-sn-fixes.php:733
 msgid ""
 "Setting this will force a browser to only load external resources (.css, .js "
 "and so on) if the content-type matches what is expected. This prevents "
 "malicious hidden code in unexpected files."
 msgstr ""
 
-#: modules/auto-fixer/class-wf-sn-fixes.php:725
-#: modules/auto-fixer/class-wf-sn-fixes.php:750
-#: modules/auto-fixer/class-wf-sn-fixes.php:775
-#: modules/auto-fixer/class-wf-sn-fixes.php:800
-#: modules/auto-fixer/class-wf-sn-fixes.php:826
+#: modules/auto-fixer/class-wf-sn-fixes.php:734
+#: modules/auto-fixer/class-wf-sn-fixes.php:759
+#: modules/auto-fixer/class-wf-sn-fixes.php:784
+#: modules/auto-fixer/class-wf-sn-fixes.php:809
+#: modules/auto-fixer/class-wf-sn-fixes.php:835
 msgid "Default: "
 msgstr ""
 
-#: modules/auto-fixer/class-wf-sn-fixes.php:732
+#: modules/auto-fixer/class-wf-sn-fixes.php:741
 msgid "X-Frame-Options"
 msgstr ""
 
-#: modules/auto-fixer/class-wf-sn-fixes.php:749
+#: modules/auto-fixer/class-wf-sn-fixes.php:758 sn-tests-description.php:96
 msgid ""
 "The X-Frame-Options response header indicates if a page is allowed to render "
-"a page in an <iframe>, <frame> or <object>. Avoid clickjacking attacks by "
+"a page in an iframe, frame or object. Avoid clickjacking attacks simply by "
 "not allowing your content to be embedded on other websites."
 msgstr ""
 
-#: modules/auto-fixer/class-wf-sn-fixes.php:757
+#: modules/auto-fixer/class-wf-sn-fixes.php:766
 msgid "Strict-Transport-Security"
 msgstr ""
 
-#: modules/auto-fixer/class-wf-sn-fixes.php:774
+#: modules/auto-fixer/class-wf-sn-fixes.php:783
 msgid ""
 "When enabled, HSTS instructs browsers to only connect to your website using "
 "HTTPS, preventing SSL stripping attacks and ensuring all data transmission "
 "is encrypted."
 msgstr ""
 
-#: modules/auto-fixer/class-wf-sn-fixes.php:782
+#: modules/auto-fixer/class-wf-sn-fixes.php:791
 msgid "Referrer-Policy"
 msgstr ""
 
-#: modules/auto-fixer/class-wf-sn-fixes.php:799
+#: modules/auto-fixer/class-wf-sn-fixes.php:808
 msgid ""
 "Referrer-Policy is a way to control when the \"referrer\" header information "
 "is allowed. This means which websites can see where visitors are referred "
@@ -1588,87 +1820,384 @@ msgid ""
 "internally on your website."
 msgstr ""
 
-#: modules/auto-fixer/class-wf-sn-fixes.php:807
+#: modules/auto-fixer/class-wf-sn-fixes.php:816
 msgid "Permissions-Policy"
 msgstr ""
 
-#: modules/auto-fixer/class-wf-sn-fixes.php:824
+#: modules/auto-fixer/class-wf-sn-fixes.php:833
 msgid ""
 "This is a way to instruct a browser which features it can use on a website. "
 "With this you can explitly prevent access to the camera, microphone, "
 "geolocation and many other features."
 msgstr ""
 
-#: modules/auto-fixer/class-wf-sn-fixes.php:825
+#: modules/auto-fixer/class-wf-sn-fixes.php:834
 msgid "For a full and updated list check out the link: "
 msgstr ""
 
-#: modules/auto-fixer/class-wf-sn-fixes.php:825
+#: modules/auto-fixer/class-wf-sn-fixes.php:834
 msgid "Mozilla.org - Permissions Policy"
 msgstr ""
 
-#: modules/auto-fixer/class-wf-sn-fixes.php:827
+#: modules/auto-fixer/class-wf-sn-fixes.php:836
 msgid ""
 "Note: This was previously named Feature Policy. Both the name and the syntax "
 "have been changed since then."
 msgstr ""
 
-#: modules/auto-fixer/class-wf-sn-fixes.php:834
+#: modules/auto-fixer/class-wf-sn-fixes.php:843
 msgid "Content-Security-Policy"
 msgstr ""
 
-#: modules/auto-fixer/class-wf-sn-fixes.php:851
+#: modules/auto-fixer/class-wf-sn-fixes.php:860
 msgid ""
 "Warning: If you embed scripts from external websites, Google Analytics or "
 "other sources this could break your website functionality. Read and test "
 "before implementing."
 msgstr ""
 
-#: modules/auto-fixer/class-wf-sn-fixes.php:852 sn-tests-description.php:69
+#: modules/auto-fixer/class-wf-sn-fixes.php:861 sn-tests-description.php:69
 msgid ""
 "Since each website is different, we can only give a general suggestion and "
 "strongly advise to remove the fix again if something on your website stops "
 "working."
 msgstr ""
 
-#: modules/auto-fixer/class-wf-sn-fixes.php:854
+#: modules/auto-fixer/class-wf-sn-fixes.php:863
 msgid "Examples"
 msgstr ""
 
-#: modules/auto-fixer/class-wf-sn-fixes.php:855
+#: modules/auto-fixer/class-wf-sn-fixes.php:864
 msgid "All is allowed, but only in code coming from this website:"
 msgstr ""
 
-#: modules/auto-fixer/class-wf-sn-fixes.php:856
+#: modules/auto-fixer/class-wf-sn-fixes.php:865
 msgid "upgrade-insecure-requests; frame-ancestors 'self'"
 msgstr ""
 
-#: modules/auto-fixer/class-wf-sn-fixes.php:858
+#: modules/auto-fixer/class-wf-sn-fixes.php:867
 msgid "Allow JavaScript only from this website and Google Analytics:"
 msgstr ""
 
-#: modules/auto-fixer/class-wf-sn-fixes.php:859
+#: modules/auto-fixer/class-wf-sn-fixes.php:868
 msgid ""
 "upgrade-insecure-requests; frame-ancestors 'self'; script-src 'self' www."
 "google-analytics.com;"
 msgstr ""
 
-#: modules/auto-fixer/class-wf-sn-fixes.php:861
+#: modules/auto-fixer/class-wf-sn-fixes.php:870
 msgid ""
 "Scott Helme is a security researcher and has written a really in-depth "
 "walkthrough of Content Security Policy. "
 msgstr ""
 
-#: modules/auto-fixer/class-wf-sn-fixes.php:861
+#: modules/auto-fixer/class-wf-sn-fixes.php:870
 msgid "Content Security Policy - An Introduction"
 msgstr ""
 
-#: modules/auto-fixer/class-wf-sn-fixes.php:868
-#: modules/cloud-firewall/cloud-firewall.php:4038
-#: modules/events-logger/events-logger.php:1200
-#: modules/vulnerabilities/class-wf-sn-vu.php:1612
-#: modules/whitelabel/class-wf-sn-wl.php:418 security-ninja.php:2162
+#: modules/auto-fixer/class-wf-sn-fixes.php:877
+#: modules/cloud-firewall/cloud-firewall.php:4118
+#: modules/events-logger/events-logger.php:1201
+#: modules/vulnerabilities/class-wf-sn-vu.php:1607
+#: modules/whitelabel/class-wf-sn-wl.php:418 security-ninja.php:2128
 msgid "Save Changes"
+msgstr ""
+
+#: modules/auto-fixer/fixers/fix_anyone_can_register.php:7
+msgid "Disable Anyone can register"
+msgstr ""
+
+#: modules/auto-fixer/fixers/fix_anyone_can_register.php:9
+msgid "Fix will disable the \"Anyone can register\" option."
+msgstr ""
+
+#: modules/auto-fixer/fixers/fix_anyone_can_register.php:10
+#: modules/auto-fixer/fixers/fix_blog_site_url_check.php:14
+#: modules/auto-fixer/fixers/fix_bruteforce_login.php:10
+#: modules/auto-fixer/fixers/fix_check_failed_login_info.php:10
+#: modules/auto-fixer/fixers/fix_config_chmod.php:9
+#: modules/auto-fixer/fixers/fix_core_updates_check.php:10
+#: modules/auto-fixer/fixers/fix_debug_check.php:10
+#: modules/auto-fixer/fixers/fix_file_editor.php:10
+#: modules/auto-fixer/fixers/fix_plugins_ver_check.php:11
+#: modules/auto-fixer/fixers/fix_salt_keys_check.php:10
+#: modules/auto-fixer/fixers/fix_script_debug_check.php:10
+#: modules/auto-fixer/fixers/fix_themes_ver_check.php:9
+#: modules/auto-fixer/fixers/fix_uploads_browsable.php:10
+#: modules/auto-fixer/fixers/fix_user_exists.php:10
+#: modules/auto-fixer/fixers/fix_ver_check.php:10
+msgid "Fix applied successfully."
+msgstr ""
+
+#: modules/auto-fixer/fixers/fix_anyone_can_register.php:11
+#: modules/auto-fixer/fixers/fix_blog_site_url_check.php:15
+#: modules/auto-fixer/fixers/fix_check_failed_login_info.php:11
+#: modules/auto-fixer/fixers/fix_config_chmod.php:10
+#: modules/auto-fixer/fixers/fix_plugins_ver_check.php:12
+#: modules/auto-fixer/fixers/fix_themes_ver_check.php:10
+#: modules/auto-fixer/fixers/fix_ver_check.php:11
+msgid "Unable to apply fix."
+msgstr ""
+
+#: modules/auto-fixer/fixers/fix_application_passwords.php:20
+msgid "Please go to the Fixes menu to disable"
+msgstr ""
+
+#: modules/auto-fixer/fixers/fix_blog_site_url_check.php:7
+msgid "Change WordPress installation address"
+msgstr ""
+
+#. translators: %s: Current site URL
+#: modules/auto-fixer/fixers/fix_blog_site_url_check.php:11
+#, php-format
+msgid ""
+"WordPress installation address will be changed so it's not the same as the "
+"site address. Please login again after the fix is applied. Enter the new "
+"folder name/WordPress address: %s"
+msgstr ""
+
+#: modules/auto-fixer/fixers/fix_blog_site_url_check.php:68
+msgid "wp-content directory is in a non-default location. Aborting."
+msgstr ""
+
+#: modules/auto-fixer/fixers/fix_blog_site_url_check.php:77
+#, php-format
+msgid "%s already exists. Aborting."
+msgstr ""
+
+#: modules/auto-fixer/fixers/fix_blog_site_url_check.php:98
+#: modules/auto-fixer/fixers/fix_blog_site_url_check.php:110
+#, php-format
+msgid "%s could not be moved successfully. Aborting."
+msgstr ""
+
+#: modules/auto-fixer/fixers/fix_blog_site_url_check.php:151
+#, php-format
+msgid ""
+"WordPress files moved successfully. You need to login again to the admin "
+"panel url: %s/wp-admin/"
+msgstr ""
+
+#: modules/auto-fixer/fixers/fix_blog_site_url_check.php:159
+msgid ""
+"An error occurred and could not move the WordPress files into the new "
+"directory. No changes have been made."
+msgstr ""
+
+#: modules/auto-fixer/fixers/fix_blog_site_url_check.php:164
+msgid "Could not write index.php file"
+msgstr ""
+
+#: modules/auto-fixer/fixers/fix_blog_site_url_check.php:167
+msgid "Could not create new directory"
+msgstr ""
+
+#: modules/auto-fixer/fixers/fix_blog_site_url_check.php:170
+msgid "Enter a valid directory name"
+msgstr ""
+
+#: modules/auto-fixer/fixers/fix_bruteforce_login.php:7
+msgid "Fix weak user passwords"
+msgstr ""
+
+#: modules/auto-fixer/fixers/fix_bruteforce_login.php:11
+msgid "Could not change the username."
+msgstr ""
+
+#: modules/auto-fixer/fixers/fix_bruteforce_login.php:40
+msgid ""
+"This fix can change the password for users that have a weak one. Enter the "
+"new desired password for each user or leave the input field blank to assign "
+"a randomly generated password."
+msgstr ""
+
+#: modules/auto-fixer/fixers/fix_bruteforce_login.php:44
+#, php-format
+msgid ""
+"You are currently logged in as %s. Cannot set random password. If you leave "
+"this field empty the current password will not be changed."
+msgstr ""
+
+#: modules/auto-fixer/fixers/fix_bruteforce_login.php:67
+#: modules/auto-fixer/fixers/fix_bruteforce_login.php:74
+#, php-format
+msgid "Password for user %s set to %s."
+msgstr ""
+
+#: modules/auto-fixer/fixers/fix_bruteforce_login.php:80
+#, php-format
+msgid "Password for user %s was not changed."
+msgstr ""
+
+#: modules/auto-fixer/fixers/fix_bruteforce_login.php:94
+msgid "Some users still have weak passwords."
+msgstr ""
+
+#: modules/auto-fixer/fixers/fix_check_failed_login_info.php:7
+msgid "Hide unnecessary information on failed login attempts"
+msgstr ""
+
+#: modules/auto-fixer/fixers/fix_check_failed_login_info.php:9
+msgid ""
+"A universal \"wrong username or password\" message without any details will "
+"be displayed on all failed login attempts."
+msgstr ""
+
+#: modules/auto-fixer/fixers/fix_config_chmod.php:6
+msgid "Update wp-config.php permissions"
+msgstr ""
+
+#: modules/auto-fixer/fixers/fix_config_chmod.php:8
+msgid ""
+"<p><i>wp-config.php</i> file permissions will be changed to an optimal value "
+"(0440).</p>"
+msgstr ""
+
+#: modules/auto-fixer/fixers/fix_config_chmod.php:24
+msgid "Permission set to 0440"
+msgstr ""
+
+#: modules/auto-fixer/fixers/fix_config_location.php:7
+msgid "Move wp-config.php"
+msgstr ""
+
+#: modules/auto-fixer/fixers/fix_config_location.php:9
+msgid "Move <i>wp-config.php</i> one level up in the folder structure."
+msgstr ""
+
+#: modules/auto-fixer/fixers/fix_config_location.php:10
+msgid "<i>wp-config.php</i> moved successfully."
+msgstr ""
+
+#: modules/auto-fixer/fixers/fix_config_location.php:11
+msgid "<i>wp-config.php</i> move failed."
+msgstr ""
+
+#: modules/auto-fixer/fixers/fix_config_location.php:24
+msgid ""
+"A wp-config.php file already exists in the new location. Can't overwrite "
+"because it may belong to an existing installation."
+msgstr ""
+
+#: modules/auto-fixer/fixers/fix_config_location.php:29
+msgid "wp-config.php file is already in a non-default location."
+msgstr ""
+
+#: modules/auto-fixer/fixers/fix_core_updates_check.php:7
+#: modules/auto-fixer/fixers/fix_debug_check.php:7
+msgid "Enable automatic WordPress core updates"
+msgstr ""
+
+#: modules/auto-fixer/fixers/fix_core_updates_check.php:9
+msgid "Fix will enable automatic WordPress core updates."
+msgstr ""
+
+#: modules/auto-fixer/fixers/fix_core_updates_check.php:11
+msgid "Could not enable automatic updates."
+msgstr ""
+
+#: modules/auto-fixer/fixers/fix_db_table_prefix_check.php:22
+msgid "Change database table prefix"
+msgstr ""
+
+#: modules/auto-fixer/fixers/fix_db_table_prefix_check.php:24
+msgid ""
+"Knowing the names of your database tables can help an attacker dump the "
+"table's data and get to sensitive information like password hashes. Since WP "
+"table names are predefined, the only way you can change table names is by "
+"using a unique prefix. One that's different from \"wp_\" or any similar "
+"variation such as \"wordpress_\". WARNING: Make sure the wp-config.php is "
+"writable. Enter your new desired table prefix:"
+msgstr ""
+
+#: modules/auto-fixer/fixers/fix_db_table_prefix_check.php:26
+msgid "Prefix changed successfully"
+msgstr ""
+
+#: modules/auto-fixer/fixers/fix_db_table_prefix_check.php:27
+msgid "Could not change table prefix"
+msgstr ""
+
+#: modules/auto-fixer/fixers/fix_db_table_prefix_check.php:51
+#: security-ninja.php:563 security-ninja.php:579
+msgid "Security check failed."
+msgstr ""
+
+#: modules/auto-fixer/fixers/fix_db_table_prefix_check.php:57
+msgid "No fields submitted."
+msgstr ""
+
+#: modules/auto-fixer/fixers/fix_db_table_prefix_check.php:75
+#, php-format
+msgid ""
+"Table prefix is already changed to %s. Please reanalyze your website to "
+"update the status of this test."
+msgstr ""
+
+#: modules/auto-fixer/fixers/fix_db_table_prefix_check.php:89
+msgid "Cannot edit wp-config.php"
+msgstr ""
+
+#: modules/auto-fixer/fixers/fix_deactivated_plugins.php:7
+msgid "Delete inactive plugins"
+msgstr ""
+
+#: modules/auto-fixer/fixers/fix_deactivated_plugins.php:9
+msgid "Fix will delete inactive plugins. There is NO undo."
+msgstr ""
+
+#: modules/auto-fixer/fixers/fix_deactivated_plugins.php:10
+msgid "Plugins removed successfully."
+msgstr ""
+
+#: modules/auto-fixer/fixers/fix_deactivated_plugins.php:11
+msgid "Plugins removal failed."
+msgstr ""
+
+#: modules/auto-fixer/fixers/fix_deactivated_plugins.php:45
+#: modules/auto-fixer/fixers/fix_deactivated_themes.php:68
+msgid "Removed."
+msgstr ""
+
+#: modules/auto-fixer/fixers/fix_deactivated_plugins.php:47
+#: modules/auto-fixer/fixers/fix_deactivated_themes.php:70
+msgid "Could not be removed."
+msgstr ""
+
+#: modules/auto-fixer/fixers/fix_deactivated_themes.php:7
+msgid "Delete unused themes"
+msgstr ""
+
+#: modules/auto-fixer/fixers/fix_deactivated_themes.php:9
+msgid "Fix will delete unused themes. There is NO undo."
+msgstr ""
+
+#: modules/auto-fixer/fixers/fix_deactivated_themes.php:10
+msgid "Inactive themes removed successfully."
+msgstr ""
+
+#: modules/auto-fixer/fixers/fix_deactivated_themes.php:11
+msgid "Inactive Themes Removal Failed."
+msgstr ""
+
+#: modules/auto-fixer/fixers/fix_debug_check.php:9
+msgid "Go to the Fixes page to enable or disable."
+msgstr ""
+
+#: modules/auto-fixer/fixers/fix_debug_check.php:11
+msgid "Failed to disable debug mode."
+msgstr ""
+
+#: modules/auto-fixer/fixers/fix_file_editor.php:7
+msgid "Disable plugins/themes file editor"
+msgstr ""
+
+#: modules/auto-fixer/fixers/fix_file_editor.php:9
+msgid "Fix will disable the plugins and themes file editor."
+msgstr ""
+
+#: modules/auto-fixer/fixers/fix_file_editor.php:11
+msgid "Could not disable file editor."
 msgstr ""
 
 #: modules/auto-fixer/fixers/fix_plugins_ver_check.php:8
@@ -1679,25 +2208,34 @@ msgstr ""
 msgid "Update all plugins to the latest version."
 msgstr ""
 
-#: modules/auto-fixer/fixers/fix_plugins_ver_check.php:11
-msgid "Fix applied successfully."
+#: modules/auto-fixer/fixers/fix_plugins_ver_check.php:51
+msgid "Update Result"
 msgstr ""
 
-#: modules/auto-fixer/fixers/fix_plugins_ver_check.php:12
-msgid "Unable to apply fix."
-msgstr ""
-
-#: modules/auto-fixer/fixers/fix_plugins_ver_check.php:59
+#. translators: %1$s is the old version number, %2$s is the new version number
+#: modules/auto-fixer/fixers/fix_plugins_ver_check.php:60
+#: modules/auto-fixer/fixers/fix_themes_ver_check.php:65
 #, php-format
-msgid "updated from %1$s to %2$s"
+msgid "Updated from %1$s to %2$s"
 msgstr ""
 
-#: modules/auto-fixer/fixers/fix_plugins_ver_check.php:65
-msgid "update failed"
+#: modules/auto-fixer/fixers/fix_plugins_ver_check.php:66
+#: modules/auto-fixer/fixers/fix_themes_ver_check.php:76
+msgid "Update failed"
 msgstr ""
 
 #: modules/auto-fixer/fixers/fix_rpc_meta.php:6
 msgid "Disable XML-RPC"
+msgstr ""
+
+#: modules/auto-fixer/fixers/fix_rpc_meta.php:8
+msgid ""
+"If you're not using any Really Simple Discovery services such as pingbacks "
+"there's no need to advertise that endpoint (link) in the header.\n"
+"\t\t\tPlease note that for most sites this is not a security issue because "
+"they \"want to be discovered\" but if you want to hide the fact that you're "
+"using WP this fix will disable it.\n"
+"\t\t\tWe also block access to the xmlrpc.php file via the .htaccess file."
 msgstr ""
 
 #: modules/auto-fixer/fixers/fix_rpc_meta.php:11
@@ -1708,444 +2246,858 @@ msgstr ""
 msgid "Disable Failed"
 msgstr ""
 
+#: modules/auto-fixer/fixers/fix_rpc_meta.php:38
+#: modules/auto-fixer/fixers/fix_rpc_meta.php:61
+msgid "Block access to xmlrpc.php"
+msgstr ""
+
 #: modules/auto-fixer/fixers/fix_rpc_meta.php:45
 msgid "Cannot modify .htaccess file "
 msgstr ""
 
-#: modules/cloud-firewall/class-sn-geolocation.php:244
+#: modules/auto-fixer/fixers/fix_salt_keys_check.php:7
+msgid "Regenerate WordPress Security keys"
+msgstr ""
+
+#: modules/auto-fixer/fixers/fix_salt_keys_check.php:9
+msgid ""
+"Fix will regenerate all WordPress security/hash keys. After the fix is "
+"applied you will be asked to login again."
+msgstr ""
+
+#: modules/auto-fixer/fixers/fix_salt_keys_check.php:11
+msgid "Could not update keys."
+msgstr ""
+
+#: modules/auto-fixer/fixers/fix_script_debug_check.php:7
+msgid "Disable Script Debug Mode"
+msgstr ""
+
+#: modules/auto-fixer/fixers/fix_script_debug_check.php:9
+msgid "Fix will disable script debug mode."
+msgstr ""
+
+#: modules/auto-fixer/fixers/fix_script_debug_check.php:11
+msgid "Could not disable script debug mode."
+msgstr ""
+
+#: modules/auto-fixer/fixers/fix_themes_ver_check.php:6
+msgid "Update Outdated Themes"
+msgstr ""
+
+#: modules/auto-fixer/fixers/fix_themes_ver_check.php:8
+msgid "Fix will update all themes to the latest version."
+msgstr ""
+
+#: modules/auto-fixer/fixers/fix_themes_ver_check.php:53
+msgid "Update Result:"
+msgstr ""
+
+#: modules/auto-fixer/fixers/fix_uploads_browsable.php:7
+msgid "Make uploads folder non browsable"
+msgstr ""
+
+#: modules/auto-fixer/fixers/fix_uploads_browsable.php:9
+msgid "Fix will modify the uploads folder so it is not browsable."
+msgstr ""
+
+#: modules/auto-fixer/fixers/fix_uploads_browsable.php:11
+msgid "Could not apply fix."
+msgstr ""
+
+#: modules/auto-fixer/fixers/fix_uploads_browsable.php:39
+msgid ".htaccess file one level up in the directory structure not found."
+msgstr ""
+
+#: modules/auto-fixer/fixers/fix_uploads_browsable.php:47
+msgid ".htaccess file not found."
+msgstr ""
+
+#: modules/auto-fixer/fixers/fix_uploads_browsable.php:54
+msgid "Cannot read .htaccess file."
+msgstr ""
+
+#: modules/auto-fixer/fixers/fix_uploads_browsable.php:60
+msgid ""
+"Options -Indexes already exists in your .htaccess. Please reanalyze your "
+"website to update the test status."
+msgstr ""
+
+#: modules/auto-fixer/fixers/fix_uploads_browsable.php:68
+msgid "Could not write to .htaccess."
+msgstr ""
+
+#: modules/auto-fixer/fixers/fix_user_exists.php:6
+msgid "Change admin username"
+msgstr ""
+
+#: modules/auto-fixer/fixers/fix_user_exists.php:8
+msgid ""
+"Fix will change the admin username. <br /><span style=\"color:#F00;\">Once "
+"the fix is applied you will need to login again with the new username. "
+"Password will not be changed.</span><br /><br /> \n"
+"\t\t\t\t\t\t Please input your new desired username: "
+msgstr ""
+
+#: modules/auto-fixer/fixers/fix_user_exists.php:9
+msgid ""
+"Try not to use usernames like: \"root\", \"god\", \"null\" or similar ones."
+msgstr ""
+
+#: modules/auto-fixer/fixers/fix_user_exists.php:11
+msgid "Could not change username."
+msgstr ""
+
+#: modules/auto-fixer/fixers/fix_user_exists.php:29
+msgid ""
+"Username admin does not exist. Please reanalyze your website to update the "
+"test status."
+msgstr ""
+
+#: modules/auto-fixer/fixers/fix_user_exists.php:34
+msgid "Username field cannot be empty."
+msgstr ""
+
+#: modules/auto-fixer/fixers/fix_usernames_enumeration.php:7
+msgid "Prevent usernames discovery via user IDs"
+msgstr ""
+
+#: modules/auto-fixer/fixers/fix_usernames_enumeration.php:9
+msgid ""
+"Please go to the \"Fixes\" page and enable \"Disable Username Enumeration\""
+msgstr ""
+
+#: modules/auto-fixer/fixers/fix_ver_check.php:7
+msgid "Update Wordpress"
+msgstr ""
+
+#: modules/auto-fixer/fixers/fix_ver_check.php:9
+msgid "Fix will update WordPress to the latest version."
+msgstr ""
+
+#: modules/auto-fixer/fixers/fix_wlw_meta.php:16
+msgid "Remove Windows Live Writer Link from wordpress page header"
+msgstr ""
+
+#: modules/auto-fixer/fixers/fix_wlw_meta.php:18
+msgid "Please go to the \"Fixes\" page and enable \"Hide WLW\" to disable."
+msgstr ""
+
+#: modules/auto-fixer/fixers/fix_wp_header_meta.php:16
+msgid "Hide WP version info"
+msgstr ""
+
+#: modules/auto-fixer/fixers/fix_wp_header_meta.php:18
+msgid ""
+"Please go to the \"Fixes\" page and enable \"Hide WP Version\" if necessary."
+msgstr ""
+
+#: modules/cloud-firewall/class-sn-geolocation.php:254
 msgid "Requires PHP 5.4 to be able to download the IP2Location database"
 msgstr ""
 
-#: modules/cloud-firewall/cloud-firewall.php:438
+#: modules/cloud-firewall/class-sn-geolocation.php:294
+#, php-format
+msgid "Unable to download IP2location Database: %s"
+msgstr ""
+
+#: modules/cloud-firewall/cloud-firewall.php:474
 msgid "2FA disabled when unblocking IP."
 msgstr ""
 
-#: modules/cloud-firewall/cloud-firewall.php:444
+#: modules/cloud-firewall/cloud-firewall.php:480
 msgid "New IP added to the whitelist using the secret access URL."
 msgstr ""
 
-#: modules/cloud-firewall/cloud-firewall.php:486
+#: modules/cloud-firewall/cloud-firewall.php:522
 msgid "IP is blocked."
 msgstr ""
 
-#: modules/cloud-firewall/cloud-firewall.php:507
+#: modules/cloud-firewall/cloud-firewall.php:543
 msgid "Suspicious data detected during import"
 msgstr ""
 
-#: modules/cloud-firewall/cloud-firewall.php:570
+#: modules/cloud-firewall/cloud-firewall.php:606
 msgid "Suspicious Request"
 msgstr ""
 
-#: modules/cloud-firewall/cloud-firewall.php:586
-#: modules/cloud-firewall/cloud-firewall.php:1092
+#: modules/cloud-firewall/cloud-firewall.php:622
+#: modules/cloud-firewall/cloud-firewall.php:1137
 #: modules/visitor-log/class-wf-sn-visitor-log.php:144
 msgid "Blocked"
 msgstr ""
 
-#: modules/cloud-firewall/cloud-firewall.php:1083
+#: modules/cloud-firewall/cloud-firewall.php:1128
 msgid "Your IP:"
 msgstr ""
 
-#: modules/cloud-firewall/cloud-firewall.php:1220
+#: modules/cloud-firewall/cloud-firewall.php:1265
 #, php-format
 msgid "Removed %1$s IPs from the Blocklist - older than 24 hours."
 msgstr ""
 
-#: modules/cloud-firewall/cloud-firewall.php:1289
+#: modules/cloud-firewall/cloud-firewall.php:1334
 #, php-format
 msgid "Pruned firewall visitors log - %1$s days."
 msgstr ""
 
-#: modules/cloud-firewall/cloud-firewall.php:1529
-#: modules/cloud-firewall/cloud-firewall.php:2744
+#: modules/cloud-firewall/cloud-firewall.php:1574
+#: modules/cloud-firewall/cloud-firewall.php:2796
 msgid ""
 "Warning: Multiple failed login attempts will get you locked out temporarily."
 msgstr ""
 
-#: modules/cloud-firewall/cloud-firewall.php:1530
-#: modules/cloud-firewall/cloud-firewall.php:2643
-#: modules/cloud-firewall/cloud-firewall.php:2745
+#: modules/cloud-firewall/cloud-firewall.php:1575
+#: modules/cloud-firewall/cloud-firewall.php:2695
+#: modules/cloud-firewall/cloud-firewall.php:2797
 msgid "Something went wrong"
 msgstr ""
 
-#: modules/cloud-firewall/cloud-firewall.php:1531
-#: modules/cloud-firewall/cloud-firewall.php:2746
+#: modules/cloud-firewall/cloud-firewall.php:1576
+#: modules/cloud-firewall/cloud-firewall.php:2798
 msgid "You are not allowed to visit this website."
 msgstr ""
 
-#: modules/cloud-firewall/cloud-firewall.php:1545
+#: modules/cloud-firewall/cloud-firewall.php:1590
 msgid "Secure your account with two-factor authentication."
 msgstr ""
 
-#: modules/cloud-firewall/cloud-firewall.php:1546
+#: modules/cloud-firewall/cloud-firewall.php:1591
 msgid "Enter the code from your 2FA app to continue logging in."
 msgstr ""
 
-#: modules/cloud-firewall/cloud-firewall.php:1609
+#: modules/cloud-firewall/cloud-firewall.php:1654
 msgid "Missing IP."
 msgstr ""
 
-#: modules/cloud-firewall/cloud-firewall.php:1617
+#: modules/cloud-firewall/cloud-firewall.php:1662
 msgid "Please enter a valid IP address to test."
 msgstr ""
 
 #. translators: 1: IP - 2: The reason, leave as is.
-#: modules/cloud-firewall/cloud-firewall.php:1624
+#: modules/cloud-firewall/cloud-firewall.php:1669
 #, php-format
 msgid "%1$s is banned. %2$s"
 msgstr ""
 
 #. translators: 1: IP
-#: modules/cloud-firewall/cloud-firewall.php:1633
+#: modules/cloud-firewall/cloud-firewall.php:1678
 #, php-format
 msgid "%1$s is NOT banned."
 msgstr ""
 
-#: modules/cloud-firewall/cloud-firewall.php:1761
+#: modules/cloud-firewall/cloud-firewall.php:1806
 msgid "Email sent."
 msgstr ""
 
-#: modules/cloud-firewall/cloud-firewall.php:1767
-#: modules/events-logger/events-logger.php:887
+#: modules/cloud-firewall/cloud-firewall.php:1812
+#: modules/events-logger/events-logger.php:899
 msgid "Email could not be sent."
 msgstr ""
 
-#: modules/cloud-firewall/cloud-firewall.php:1798
+#: modules/cloud-firewall/cloud-firewall.php:1843
 msgid "Security Ninja Firewall secret access link"
 msgstr ""
 
-#: modules/cloud-firewall/cloud-firewall.php:2026
+#: modules/cloud-firewall/cloud-firewall.php:2071
 #, php-format
 msgid "%s blocked due to multiple failed login attempts. %d in %d min."
 msgstr ""
 
 #. translators: 1: IP address, 2: Error message
-#: modules/cloud-firewall/cloud-firewall.php:2636
+#: modules/cloud-firewall/cloud-firewall.php:2688
 #, php-format
 msgid "%1$s login error. Message: %2$s."
 msgstr ""
 
-#: modules/cloud-firewall/cloud-firewall.php:2647
+#: modules/cloud-firewall/cloud-firewall.php:2699
 msgid "Error"
 msgstr ""
 
-#: modules/cloud-firewall/cloud-firewall.php:3019
+#: modules/cloud-firewall/cloud-firewall.php:3099
 msgid "Important! Please READ!"
 msgstr ""
 
-#: modules/cloud-firewall/cloud-firewall.php:3020
+#: modules/cloud-firewall/cloud-firewall.php:3100
 msgid ""
 "In the unlikely situation that your IP gets banned, you will not be able to "
 "login or access the site. In that case you need the secret access link."
 msgstr ""
 
-#: modules/cloud-firewall/cloud-firewall.php:3022
+#: modules/cloud-firewall/cloud-firewall.php:3102
 msgid ""
 "It whitelists your IP and enables access. Please store the link in a safe "
 "place or use the form below to get it sent to your email address."
 msgstr ""
 
-#: modules/cloud-firewall/cloud-firewall.php:3025
+#: modules/cloud-firewall/cloud-firewall.php:3105
 msgid "Enabling firewall, please wait"
 msgstr ""
 
-#: modules/cloud-firewall/cloud-firewall.php:3026
+#: modules/cloud-firewall/cloud-firewall.php:3106
 msgid ""
 "Enter your email below to receive the secret access link in case you get "
 "locked out"
 msgstr ""
 
-#: modules/cloud-firewall/cloud-firewall.php:3031
+#: modules/cloud-firewall/cloud-firewall.php:3111
 msgid "Send secret access link"
 msgstr ""
 
-#: modules/cloud-firewall/cloud-firewall.php:3174
+#: modules/cloud-firewall/cloud-firewall.php:3254
 #, php-format
 msgid "Added/updated %1$s IPs from the blocklist."
 msgstr ""
 
-#: modules/cloud-firewall/cloud-firewall.php:3310
+#: modules/cloud-firewall/cloud-firewall.php:3390
 msgid "Firewall - Protect your website"
 msgstr ""
 
-#: modules/cloud-firewall/cloud-firewall.php:3320
+#: modules/cloud-firewall/cloud-firewall.php:3400
+#: modules/cloud-firewall/cloud-firewall.php:4130
 msgid "Enable Firewall"
 msgstr ""
 
-#: modules/cloud-firewall/cloud-firewall.php:3326
+#: modules/cloud-firewall/cloud-firewall.php:3406
 msgid "Block attacks to your website"
 msgstr ""
 
-#: modules/cloud-firewall/cloud-firewall.php:3329
+#: modules/cloud-firewall/cloud-firewall.php:3409
 msgid ""
 "Protect against 600+ million known bad IPs - The list is automatically "
 "updated several times a day."
 msgstr ""
 
-#: modules/cloud-firewall/cloud-firewall.php:3332
+#: modules/cloud-firewall/cloud-firewall.php:3412
 msgid ""
 "Protect against dangerous requests - SQL injections and other malicious page "
 "requests."
 msgstr ""
 
-#: modules/cloud-firewall/cloud-firewall.php:3335
+#: modules/cloud-firewall/cloud-firewall.php:3415
 msgid ""
 "Country Blocking - Prevent visitors from specific countries to visit your "
 "website."
 msgstr ""
 
-#: modules/cloud-firewall/cloud-firewall.php:3338
+#: modules/cloud-firewall/cloud-firewall.php:3418
 msgid ""
 "Redirect blocked visitors. Prevent visitors from even viewing your website."
 msgstr ""
 
-#: modules/cloud-firewall/cloud-firewall.php:3340
+#: modules/cloud-firewall/cloud-firewall.php:3420
 msgid "Login Form Protection. Prevent multiple repeated failed logins."
 msgstr ""
 
-#: modules/cloud-firewall/cloud-firewall.php:3342
+#: modules/cloud-firewall/cloud-firewall.php:3422
 msgid "Rename login URLs and confuse robots."
 msgstr ""
 
-#: modules/cloud-firewall/cloud-firewall.php:3351
+#: modules/cloud-firewall/cloud-firewall.php:3431
 #, php-format
 msgid "%1$s bad IPs in list. Last updated %2$s (%3$s) "
 msgstr ""
 
-#: modules/cloud-firewall/cloud-firewall.php:3356
-#: modules/cloud-firewall/cloud-firewall.php:3472
-#: modules/events-logger/events-logger.php:216
-#: modules/malware-scanner/malware-scanner.php:1878
-#: modules/vulnerabilities/class-wf-sn-vu.php:1646
+#. translators: %1$s: Type, %2$s: Formatted date, %3$s: Time difference
+#: modules/cloud-firewall/cloud-firewall.php:3436
+#: modules/cloud-firewall/cloud-firewall.php:3551
+#: modules/events-logger/events-logger.php:227
+#: modules/malware-scanner/malware-scanner.php:1904
+#: modules/vulnerabilities/class-wf-sn-vu.php:1642
 msgid "ago"
 msgstr ""
 
-#: modules/cloud-firewall/cloud-firewall.php:3372
+#: modules/cloud-firewall/cloud-firewall.php:3452
 #, php-format
 msgid "%s blocked visits so far."
 msgstr ""
 
-#: modules/cloud-firewall/cloud-firewall.php:3382
+#: modules/cloud-firewall/cloud-firewall.php:3462
 msgid "Disable Firewall"
 msgstr ""
 
-#: modules/cloud-firewall/cloud-firewall.php:3398
+#: modules/cloud-firewall/cloud-firewall.php:3466
+msgid "Secret Access URL"
+msgstr ""
+
+#: modules/cloud-firewall/cloud-firewall.php:3468
+msgid ""
+"Do not share this URL! Use it only to access your website if your IP gets "
+"banned."
+msgstr ""
+
+#: modules/cloud-firewall/cloud-firewall.php:3478
 msgid "Firewall Settings"
 msgstr ""
 
-#: modules/cloud-firewall/cloud-firewall.php:3404
+#: modules/cloud-firewall/cloud-firewall.php:3484
 msgid "Prevent Banned IPs from Accessing the Site"
 msgstr ""
 
-#: modules/cloud-firewall/cloud-firewall.php:3415
+#: modules/cloud-firewall/cloud-firewall.php:3495
 msgid ""
 "If set to ON cloud and local firewall will prevent banned IPs from accessing "
 "the site all together."
 msgstr ""
 
-#: modules/cloud-firewall/cloud-firewall.php:3417
+#: modules/cloud-firewall/cloud-firewall.php:3497
 msgid ""
 "If set to OFF they will not be able to log in, but will be able to view the "
 "site."
 msgstr ""
 
-#: modules/cloud-firewall/cloud-firewall.php:3431
+#: modules/cloud-firewall/cloud-firewall.php:3511
 msgid "Filter out page requests with suspicious query strings."
 msgstr ""
 
-#: modules/cloud-firewall/cloud-firewall.php:3462
+#: modules/cloud-firewall/cloud-firewall.php:3532
+msgid ""
+"The list of 600+ million IPs can sometimes block traffic that should not be "
+"blocked. Use this to turn off this feature."
+msgstr ""
+
+#: modules/cloud-firewall/cloud-firewall.php:3541
 #, php-format
 msgid "%s bad IPs blocked from logging in."
 msgstr ""
 
-#: modules/cloud-firewall/cloud-firewall.php:3470
+#: modules/cloud-firewall/cloud-firewall.php:3549
 #, php-format
 msgid "List last updated %1$s (%2$s)"
 msgstr ""
 
-#: modules/cloud-firewall/cloud-firewall.php:3503
+#: modules/cloud-firewall/cloud-firewall.php:3576
+msgid ""
+"Participate in the global bad IP network. Submit hack attempts to central "
+"database."
+msgstr ""
+
+#: modules/cloud-firewall/cloud-firewall.php:3582
 msgid "Block visits from these countries"
 msgstr ""
 
-#: modules/cloud-firewall/cloud-firewall.php:3526
+#: modules/cloud-firewall/cloud-firewall.php:3605
 msgid "Choose the countries you want to block."
 msgstr ""
 
-#: modules/cloud-firewall/cloud-firewall.php:3530
+#: modules/cloud-firewall/cloud-firewall.php:3609
 msgid ""
 "Be careful not to block USA if you depend on traffic from Google as Google "
 "crawls your website from USA."
 msgstr ""
 
-#: modules/cloud-firewall/cloud-firewall.php:3537
+#: modules/cloud-firewall/cloud-firewall.php:3616
 msgid "Message for blocked IPs"
 msgstr ""
 
-#: modules/cloud-firewall/cloud-firewall.php:3538
+#: modules/cloud-firewall/cloud-firewall.php:3617
 msgid ""
 "Message shown to blocked visitors when they try to access the site or log in."
 msgstr ""
 
-#: modules/cloud-firewall/cloud-firewall.php:3546
+#: modules/cloud-firewall/cloud-firewall.php:3621
+msgid "Or you can redirect blocked visitors"
+msgstr ""
+
+#: modules/cloud-firewall/cloud-firewall.php:3625
 msgid "Redirect blocked visitors"
 msgstr ""
 
-#: modules/cloud-firewall/cloud-firewall.php:3549
+#: modules/cloud-firewall/cloud-firewall.php:3628
 msgid ""
 "301 redirect blocked visitors to any URL. Leave empty to show message "
 "instead."
 msgstr ""
 
-#: modules/cloud-firewall/cloud-firewall.php:3555
+#: modules/cloud-firewall/cloud-firewall.php:3634
 msgid "Visitor Logging"
 msgstr ""
 
-#: modules/cloud-firewall/cloud-firewall.php:3561
+#: modules/cloud-firewall/cloud-firewall.php:3640
 msgid "Track visitors"
 msgstr ""
 
-#: modules/cloud-firewall/cloud-firewall.php:3571
+#: modules/cloud-firewall/cloud-firewall.php:3650
 msgid "Track all visitors and page requests to the website."
 msgstr ""
 
-#: modules/cloud-firewall/cloud-firewall.php:3594
-msgid "Login Form Protection"
-msgstr ""
-
-#: modules/cloud-firewall/cloud-firewall.php:3610
-msgid "Protect the login form for repeated login attempts."
-msgstr ""
-
-#: modules/cloud-firewall/cloud-firewall.php:3640
-msgid "2 minutes"
-msgstr ""
-
-#: modules/cloud-firewall/cloud-firewall.php:3644
-msgid "10 minutes"
-msgstr ""
-
-#: modules/cloud-firewall/cloud-firewall.php:3648
-msgid "20 minutes"
-msgstr ""
-
-#: modules/cloud-firewall/cloud-firewall.php:3652
-msgid "30 minutes"
-msgstr ""
-
-#: modules/cloud-firewall/cloud-firewall.php:3656
-msgid "1 hour"
-msgstr ""
-
-#: modules/cloud-firewall/cloud-firewall.php:3660
-msgid "2 hours"
-msgstr ""
-
-#: modules/cloud-firewall/cloud-firewall.php:3664
+#: modules/cloud-firewall/cloud-firewall.php:3655
+#: modules/cloud-firewall/cloud-firewall.php:3743
 msgid "1 day"
 msgstr ""
 
-#: modules/cloud-firewall/cloud-firewall.php:3668
-msgid "2 days"
+#: modules/cloud-firewall/cloud-firewall.php:3656
+msgid "3 days"
 msgstr ""
 
-#: modules/cloud-firewall/cloud-firewall.php:3672
+#: modules/cloud-firewall/cloud-firewall.php:3657
+#: modules/cloud-firewall/cloud-firewall.php:3751
 msgid "7 days"
 msgstr ""
 
-#: modules/cloud-firewall/cloud-firewall.php:3676
+#: modules/cloud-firewall/cloud-firewall.php:3658
+msgid "14 days"
+msgstr ""
+
+#: modules/cloud-firewall/cloud-firewall.php:3659
+msgid "30 days"
+msgstr ""
+
+#: modules/cloud-firewall/cloud-firewall.php:3662
+msgid "Keep visitor logs for"
+msgstr ""
+
+#: modules/cloud-firewall/cloud-firewall.php:3667
+msgid "How long to keep a log of visitors to your website."
+msgstr ""
+
+#: modules/cloud-firewall/cloud-firewall.php:3673
+msgid "Login Form Protection"
+msgstr ""
+
+#: modules/cloud-firewall/cloud-firewall.php:3679
+msgid "Protect the login form"
+msgstr ""
+
+#: modules/cloud-firewall/cloud-firewall.php:3689
+msgid "Protect the login form for repeated login attempts."
+msgstr ""
+
+#: modules/cloud-firewall/cloud-firewall.php:3694
+msgid "Login notice"
+msgstr ""
+
+#: modules/cloud-firewall/cloud-firewall.php:3697
+msgid ""
+"Useful on a multi-user site to warn people what happens if they fail to "
+"login too many times."
+msgstr ""
+
+#: modules/cloud-firewall/cloud-firewall.php:3719
+msgid "2 minutes"
+msgstr ""
+
+#: modules/cloud-firewall/cloud-firewall.php:3723
+msgid "10 minutes"
+msgstr ""
+
+#: modules/cloud-firewall/cloud-firewall.php:3727
+msgid "20 minutes"
+msgstr ""
+
+#: modules/cloud-firewall/cloud-firewall.php:3731
+msgid "30 minutes"
+msgstr ""
+
+#: modules/cloud-firewall/cloud-firewall.php:3735
+msgid "1 hour"
+msgstr ""
+
+#: modules/cloud-firewall/cloud-firewall.php:3739
+msgid "2 hours"
+msgstr ""
+
+#: modules/cloud-firewall/cloud-firewall.php:3747
+msgid "2 days"
+msgstr ""
+
+#: modules/cloud-firewall/cloud-firewall.php:3755
 msgid "1 month"
 msgstr ""
 
-#: modules/cloud-firewall/cloud-firewall.php:3680
+#: modules/cloud-firewall/cloud-firewall.php:3759
 msgid "1 year"
 msgstr ""
 
-#: modules/cloud-firewall/cloud-firewall.php:3684
+#: modules/cloud-firewall/cloud-firewall.php:3763
 msgid "forever"
 msgstr ""
 
-#: modules/cloud-firewall/cloud-firewall.php:3692
+#: modules/cloud-firewall/cloud-firewall.php:3771
 msgid "No"
 msgstr ""
 
-#: modules/cloud-firewall/cloud-firewall.php:3696
+#: modules/cloud-firewall/cloud-firewall.php:3775
 msgid "Yes"
 msgstr ""
 
-#: modules/cloud-firewall/cloud-firewall.php:3717
+#: modules/cloud-firewall/cloud-firewall.php:3780
+msgid "Auto-ban rules for failed login attempts"
+msgstr ""
+
+#: modules/cloud-firewall/cloud-firewall.php:3792
+msgid ""
+"Users who continuously make failed login attempts will get banned. Five "
+"failed attempts in five minutes is a good threshold."
+msgstr ""
+
+#: modules/cloud-firewall/cloud-firewall.php:3796
 msgid "Block \"admin\" login"
 msgstr ""
 
-#: modules/cloud-firewall/cloud-firewall.php:3728
+#: modules/cloud-firewall/cloud-firewall.php:3807
 msgid ""
 "Immediately block anyone trying to log in with the classic username "
 "\"admin\". These are most likely automated attempts to test for weak "
 "passwords."
 msgstr ""
 
-#: modules/cloud-firewall/cloud-firewall.php:3730
+#: modules/cloud-firewall/cloud-firewall.php:3809
 msgid ""
-" Warning: You should not turn this on if you have a user with username "
+"Warning: You should not turn this on if you have a user with username "
 "\"admin\"."
 msgstr ""
 
-#: modules/cloud-firewall/cloud-firewall.php:3734
+#: modules/cloud-firewall/cloud-firewall.php:3813
 msgid "Hide login errors"
 msgstr ""
 
-#: modules/cloud-firewall/cloud-firewall.php:3744
+#: modules/cloud-firewall/cloud-firewall.php:3823
 msgid ""
 "This makes it harder for automated scripts to see if the account they "
 "attempt to log into even exists."
 msgstr ""
 
-#: modules/cloud-firewall/cloud-firewall.php:3752
+#: modules/cloud-firewall/cloud-firewall.php:3831
 msgid ""
 "Error message to show on failed logins. Default: \"Something went wrong\"."
 msgstr ""
 
-#: modules/cloud-firewall/cloud-firewall.php:3845
+#: modules/cloud-firewall/cloud-firewall.php:3843
+msgid "Change Login URL"
+msgstr ""
+
+#: modules/cloud-firewall/cloud-firewall.php:3844
+msgid ""
+"Many automated hacking scripts look for the default wp-login.php file and "
+"the default /wp-admin URL to try to bruteforce their way in to your website. "
+"Change the default login URL to prevent this from happening."
+msgstr ""
+
+#: modules/cloud-firewall/cloud-firewall.php:3850
+msgid "Change login URL"
+msgstr ""
+
+#: modules/cloud-firewall/cloud-firewall.php:3862
+msgid ""
+"Warning: You will not be able to log in without the new URL, please remember "
+"to write down this information."
+msgstr ""
+
+#: modules/cloud-firewall/cloud-firewall.php:3867
+msgid "New login slug"
+msgstr ""
+
+#: modules/cloud-firewall/cloud-firewall.php:3870
+msgid "Only alphanumeric characters, underscore (_) and dash (-) are allowed."
+msgstr ""
+
+#: modules/cloud-firewall/cloud-firewall.php:3872
+msgid "Preview"
+msgstr ""
+
+#: modules/cloud-firewall/cloud-firewall.php:3878
+msgid "2FA - Two Factor Authentication"
+msgstr ""
+
+#: modules/cloud-firewall/cloud-firewall.php:3882
+msgid "Enable 2FA"
+msgstr ""
+
+#: modules/cloud-firewall/cloud-firewall.php:3894 security-ninja.php:821
+#: security-ninja.php:2691 security-ninja.php:2724 security-ninja.php:2958
+#: security-ninja.php:3332 sn-tests-description.php:432
+msgid "Warning"
+msgstr ""
+
+#: modules/cloud-firewall/cloud-firewall.php:3894
+msgid ""
+"Enabling this feature will mandate the setup and use of 2FA for login by the "
+"selected user roles."
+msgstr ""
+
+#: modules/cloud-firewall/cloud-firewall.php:3901
+msgid "Grace Period"
+msgstr ""
+
+#: modules/cloud-firewall/cloud-firewall.php:3904
+msgid "How many days to allow users to skip setting up 2FA."
+msgstr ""
+
+#: modules/cloud-firewall/cloud-firewall.php:3905
+msgid ""
+"Note: If you change the number of days after enabling 2FA, the last day will "
+"be recalculated."
+msgstr ""
+
+#: modules/cloud-firewall/cloud-firewall.php:3906
+msgid "Set the value to 0 to enforce 2FA straight away."
+msgstr ""
+
+#: modules/cloud-firewall/cloud-firewall.php:3911
+msgid "Setting this to 0 will require all users to set up 2FA immediately."
+msgstr ""
+
+#: modules/cloud-firewall/cloud-firewall.php:3924
 #, php-format
 msgid "The grace period will end on %s, which is in about %s."
 msgstr ""
 
-#: modules/cloud-firewall/cloud-firewall.php:3847
+#: modules/cloud-firewall/cloud-firewall.php:3926
 msgid ""
 "The grace period has ended. Two-factor authentication is now enforced for "
 "all selected users."
 msgstr ""
 
-#: modules/cloud-firewall/cloud-firewall.php:3918
+#: modules/cloud-firewall/cloud-firewall.php:3935
+msgid "Required Roles"
+msgstr ""
+
+#: modules/cloud-firewall/cloud-firewall.php:3952
+msgid "Only the selected roles will be required to use 2FA when logging in."
+msgstr ""
+
+#: modules/cloud-firewall/cloud-firewall.php:3956
+msgid "2FA Methods"
+msgstr ""
+
+#: modules/cloud-firewall/cloud-firewall.php:3961
+msgid "Application"
+msgstr ""
+
+#: modules/cloud-firewall/cloud-firewall.php:3963
+msgid "Allowed login methods. Currently only App option is available."
+msgstr ""
+
+#: modules/cloud-firewall/cloud-firewall.php:3968
+msgid "2FA Introduction"
+msgstr ""
+
+#: modules/cloud-firewall/cloud-firewall.php:3972
+msgid ""
+"This text will be displayed to users when they are prompted to set up two-"
+"factor authentication."
+msgstr ""
+
+#: modules/cloud-firewall/cloud-firewall.php:3978
+msgid "2FA Enter Code"
+msgstr ""
+
+#: modules/cloud-firewall/cloud-firewall.php:3981
+msgid "Shown next to the input field where the user enters their code."
+msgstr ""
+
+#: modules/cloud-firewall/cloud-firewall.php:3997
 msgid "IP handling"
 msgstr ""
 
-#: modules/cloud-firewall/cloud-firewall.php:3925
+#: modules/cloud-firewall/cloud-firewall.php:4004
 msgid "BLACKLIST IPs"
 msgstr ""
 
-#: modules/cloud-firewall/cloud-firewall.php:3929
+#: modules/cloud-firewall/cloud-firewall.php:4005
+msgid "Manually block these IPs. Write one IP or subnet mask per line."
+msgstr ""
+
+#: modules/cloud-firewall/cloud-firewall.php:4008
 msgid "Whitelist IPs"
 msgstr ""
 
-#: modules/cloud-firewall/cloud-firewall.php:3994
+#: modules/cloud-firewall/cloud-firewall.php:4009
+msgid "These IPs are never blocked. Write one IP or subnet mask per line."
+msgstr ""
+
+#: modules/cloud-firewall/cloud-firewall.php:4010
+#, php-format
+msgid "Your IP address is: %s"
+msgstr ""
+
+#: modules/cloud-firewall/cloud-firewall.php:4014
+msgid "Your webserver is:"
+msgstr ""
+
+#: modules/cloud-firewall/cloud-firewall.php:4018
+msgid "Whitelist WP Rocket IPs"
+msgstr ""
+
+#: modules/cloud-firewall/cloud-firewall.php:4030
+msgid ""
+"Enable this option to automatically whitelist IP addresses associated with "
+"WP Rocket, ensuring uninterrupted service."
+msgstr ""
+
+#: modules/cloud-firewall/cloud-firewall.php:4035
+msgid "Whitelist Uptimia IPs"
+msgstr ""
+
+#: modules/cloud-firewall/cloud-firewall.php:4046
+msgid "Enable this feature to whitelist IP addresses used by Uptimia."
+msgstr ""
+
+#: modules/cloud-firewall/cloud-firewall.php:4051
+msgid "Whitelist ManageWP IPs"
+msgstr ""
+
+#: modules/cloud-firewall/cloud-firewall.php:4062
+msgid ""
+"Enable this feature to whitelist IP addresses used by ManageWP, facilitating "
+"seamless integration and maintenance tasks."
+msgstr ""
+
+#: modules/cloud-firewall/cloud-firewall.php:4067
+msgid ""
+"Note: Some services automatically validate crawlers. This plugin allows "
+"traffic from Baidu, Bing (MSN), Google, Yahoo, Yandex, Petal Search, and "
+"Applebot if they can be successfully validated."
+msgstr ""
+
+#: modules/cloud-firewall/cloud-firewall.php:4073
 msgid "Locally Banned IPs"
 msgstr ""
 
-#: modules/cloud-firewall/cloud-firewall.php:3998
+#: modules/cloud-firewall/cloud-firewall.php:4077
 msgid "Test IP"
 msgstr ""
 
-#: modules/cloud-firewall/cloud-firewall.php:3999
+#: modules/cloud-firewall/cloud-firewall.php:4078
 msgid "IP address, ie: 213.45.66.12"
 msgstr ""
 
-#: modules/cloud-firewall/cloud-firewall.php:4000
+#: modules/cloud-firewall/cloud-firewall.php:4079
 msgid "Test if IP is Banned"
 msgstr ""
 
-#: modules/core-scanner/core-scanner.php:100
-#: modules/visitor-log/class-wf-sn-visitor-log.php:336
-msgid "Invalid nonce"
+#: modules/cloud-firewall/cloud-firewall.php:4089
+msgid "Currently Banned"
+msgstr ""
+
+#. translators: 1: IP address, 2: Time until ban expires
+#: modules/cloud-firewall/cloud-firewall.php:4094
+#, php-format
+msgid "<li>%1$s; time till ban expires: %2$s</li>"
+msgstr ""
+
+#: modules/cloud-firewall/cloud-firewall.php:4104
+msgid "Clear list of banned IPs"
+msgstr ""
+
+#: modules/cloud-firewall/cloud-firewall.php:4107
+msgid "No locally banned IPs"
+msgstr ""
+
+#: modules/cloud-firewall/cloud-firewall.php:4131
+msgid ""
+"To ensure you can regain access to your website if you get blocked, please "
+"enter your email address. You will be sent a secret access URL to help you "
+"regain access."
+msgstr ""
+
+#: modules/cloud-firewall/cloud-firewall.php:4132
+msgid "Enter your email"
+msgstr ""
+
+#: modules/cloud-firewall/cloud-firewall.php:4133
+msgid "Continue"
 msgstr ""
 
 #: modules/core-scanner/core-scanner.php:105
@@ -2214,12 +3166,6 @@ msgstr ""
 msgid "File does not exist or is not readable."
 msgstr ""
 
-#: modules/core-scanner/core-scanner.php:295
-#: modules/scheduled-scanner/scheduled-scanner.php:123
-#: modules/scheduled-scanner/scheduled-scanner.php:922
-msgid "Core Scanner"
-msgstr ""
-
 #: modules/core-scanner/core-scanner.php:395
 msgid "Could not get checksums with this locale, trying default checksums."
 msgstr ""
@@ -2229,338 +3175,443 @@ msgid ""
 "There was a problem getting information about the WordPress original files."
 msgstr ""
 
-#: modules/core-scanner/core-scanner.php:476
-#: modules/file-viewer/class-secnin-file-viewer.php:150
-#: modules/scheduled-scanner/scheduled-scanner.php:87
+#: modules/core-scanner/core-scanner.php:475
+#: modules/core-scanner/core-scanner.php:843
+#: modules/file-viewer/class-secnin-file-viewer.php:149
+#: modules/scheduled-scanner/scheduled-scanner.php:94
 msgid "You do not have sufficient permissions to access this page."
 msgstr ""
 
-#: modules/core-scanner/core-scanner.php:572
+#: modules/core-scanner/core-scanner.php:559
 msgid "The following files are unknown and should not be in your core folders"
 msgstr ""
 
-#: modules/core-scanner/core-scanner.php:574
-#: modules/scheduled-scanner/scheduled-scanner.php:1069
+#: modules/core-scanner/core-scanner.php:561
+#: modules/scheduled-scanner/scheduled-scanner.php:1086
 msgid ""
 "These are files not included with WordPress default installation and should "
 "not be in your core WordPress folders."
 msgstr ""
 
-#: modules/core-scanner/core-scanner.php:576
+#: modules/core-scanner/core-scanner.php:563
 msgid ""
 "These files can be leftovers from older WordPress installations, and are no "
 "longer needed."
 msgstr ""
 
-#: modules/core-scanner/core-scanner.php:579
+#: modules/core-scanner/core-scanner.php:566
 msgid "Delete all"
 msgstr ""
 
-#: modules/core-scanner/core-scanner.php:587
-#: modules/scheduled-scanner/scheduled-scanner.php:1063
+#: modules/core-scanner/core-scanner.php:574
+#: modules/scheduled-scanner/scheduled-scanner.php:1080
 msgid "The following WordPress core files have been modified"
 msgstr ""
 
-#: modules/core-scanner/core-scanner.php:591
+#: modules/core-scanner/core-scanner.php:578
 msgid ""
 "If you did not modify the following files yourself, this could indicate an "
 "infection on your website."
 msgstr ""
 
-#: modules/core-scanner/core-scanner.php:601
+#: modules/core-scanner/core-scanner.php:588
 msgid "Following core files are missing."
 msgstr ""
 
-#: modules/core-scanner/core-scanner.php:606
+#: modules/core-scanner/core-scanner.php:593
 msgid ""
 "Missing core files might indicate a bad auto-update or they simply were not "
 "copied on the server when the site was setup."
 msgstr ""
 
-#: modules/core-scanner/core-scanner.php:608
-#: modules/scheduled-scanner/scheduled-scanner.php:1081
+#: modules/core-scanner/core-scanner.php:595
+#: modules/scheduled-scanner/scheduled-scanner.php:1098
 msgid ""
 "If there is no legitimate reason for the files to be missing use the restore "
 "action to create them."
 msgstr ""
 
-#: modules/core-scanner/core-scanner.php:616
+#: modules/core-scanner/core-scanner.php:603
 msgid "No problems found"
 msgstr ""
 
-#. translators:
-#: modules/core-scanner/core-scanner.php:643
+#. translators: %1$s: Date and time of the last scan, %2$s: Number of files checked, %3$s: Time taken for the scan in seconds, %4$s: WordPress version, %5$s: Locale
+#: modules/core-scanner/core-scanner.php:630
 #, php-format
 msgid ""
 "Last scan at %1$s. %2$s files were checked in %3$s sec. WordPress version "
 "%4$s %5$s"
 msgstr ""
 
-#: modules/core-scanner/core-scanner.php:659
+#: modules/core-scanner/core-scanner.php:646
 #, php-format
 msgid "Error - hashes not found. Version: %s, Locale: %s"
 msgstr ""
 
-#: modules/core-scanner/core-scanner.php:794
+#: modules/core-scanner/core-scanner.php:781
 msgid "Scan core WordPress files and folders"
 msgstr ""
 
-#: modules/core-scanner/core-scanner.php:796
+#: modules/core-scanner/core-scanner.php:783
 msgid ""
 "Check for modified files in WordPress itself and detect extra files that "
 "should not be there."
 msgstr ""
 
-#: modules/core-scanner/core-scanner.php:803
+#: modules/core-scanner/core-scanner.php:790
 msgid "Scan core files"
 msgstr ""
 
 #. translators: %1$s is the date/time of next scan, %2$s is the time until next scan
-#: modules/core-scanner/core-scanner.php:814
+#: modules/core-scanner/core-scanner.php:801
 #, php-format
 msgid "Next scheduled scan: %1$s (%2$s from now)"
 msgstr ""
 
-#: modules/core-scanner/core-scanner.php:819
+#: modules/core-scanner/core-scanner.php:806
 msgid "No core scan currently scheduled."
 msgstr ""
 
-#: modules/core-scanner/core-scanner.php:918
+#: modules/core-scanner/core-scanner.php:849
+msgid "No filename provided."
+msgstr ""
+
+#: modules/core-scanner/core-scanner.php:859
+msgid "Unable to access the filesystem."
+msgstr ""
+
+#: modules/core-scanner/core-scanner.php:866
+msgid "Unable to download remote file source."
+msgstr ""
+
+#: modules/core-scanner/core-scanner.php:884
+msgid "Error writing file."
+msgstr ""
+
+#: modules/core-scanner/core-scanner.php:890
+msgid "Restored file"
+msgstr ""
+
+#: modules/core-scanner/core-scanner.php:893
+msgid "File restored successfully."
+msgstr ""
+
+#: modules/core-scanner/core-scanner.php:928
 msgid "Invalid filename."
 msgstr ""
 
-#: modules/core-scanner/core-scanner.php:930
-#: modules/core-scanner/core-scanner.php:935
+#: modules/core-scanner/core-scanner.php:939
 #, php-format
 msgid "Cannot delete %s"
 msgstr ""
 
-#: modules/core-scanner/core-scanner.php:942
-#: modules/core-scanner/core-scanner.php:945
+#: modules/core-scanner/core-scanner.php:948
 #, php-format
 msgid "Unknown error deleting %s"
 msgstr ""
 
-#: modules/core-scanner/core-scanner.php:949
-#, php-format
-msgid "File %s was deleted by user."
-msgstr ""
-
-#: modules/core-scanner/core-scanner.php:989
-#: modules/malware-scanner/malware-scanner.php:1379
+#: modules/core-scanner/core-scanner.php:984
+#: modules/malware-scanner/malware-scanner.php:1391
 msgid "View File"
 msgstr ""
 
-#: modules/core-scanner/core-scanner.php:993
+#: modules/core-scanner/core-scanner.php:988
 msgid "Restore"
 msgstr ""
 
-#: modules/core-scanner/core-scanner.php:997
-#: modules/malware-scanner/malware-scanner.php:1364
+#: modules/core-scanner/core-scanner.php:992
+#: modules/malware-scanner/malware-scanner.php:1376
 msgid "Delete"
 msgstr ""
 
 #: modules/events-logger/events-logger.php:181
-#: modules/events-logger/events-logger.php:932
-#: modules/events-logger/events-logger.php:943
+#: modules/events-logger/events-logger.php:940
+#: modules/events-logger/events-logger.php:951
 #: modules/visitor-log/class-wf-sn-visitor-log.php:160
 #: modules/visitor-log/class-wf-sn-visitor-log.php:178
 #: modules/visitor-log/class-wf-sn-visitor-log.php:186
 #: modules/visitor-log/class-wf-sn-visitor-log.php:469
 #: modules/visitor-log/class-wf-sn-visitor-log.php:497
-#: modules/vulnerabilities/class-wf-sn-vu.php:1477 security-ninja.php:770
-#: security-ninja.php:823 security-ninja.php:2809
+#: modules/vulnerabilities/class-wf-sn-vu.php:1261
+#: modules/vulnerabilities/class-wf-sn-vu.php:1367
+#: modules/vulnerabilities/class-wf-sn-vu.php:1472 security-ninja.php:772
+#: security-ninja.php:825 security-ninja.php:2773
 msgid "Details"
 msgstr ""
 
-#: modules/events-logger/events-logger.php:709
+#: modules/events-logger/events-logger.php:402
+#: modules/events-logger/events-logger.php:1156
+msgid "Events"
+msgstr ""
+
+#: modules/events-logger/events-logger.php:720
 msgid "Emptied the log."
 msgstr ""
 
 #. translators:
-#: modules/events-logger/events-logger.php:824
+#: modules/events-logger/events-logger.php:836
 #, php-format
 msgid ""
 "Recent events on %1$s: %2$s(more details are available in WordPress "
 "admin)%3$s%4$s"
 msgstr ""
 
-#: modules/events-logger/events-logger.php:839
+#: modules/events-logger/events-logger.php:851
 msgid "user deleted"
 msgstr ""
 
-#: modules/events-logger/events-logger.php:842
+#: modules/events-logger/events-logger.php:854
 msgid "WP cron"
 msgstr ""
 
-#: modules/events-logger/events-logger.php:844
-msgid "anonymous user"
-msgstr ""
-
 #: modules/events-logger/events-logger.php:856
-#, php-format
-msgid "<li>%1$s On %2$s @ %3$s by %4$s in %5$s module.</li>"
+msgid "Anonymous user"
 msgstr ""
 
-#: modules/events-logger/events-logger.php:872
+#: modules/events-logger/events-logger.php:868
+#, php-format
+msgid "%1$s On %2$s @ %3$s by %4$s in %5$s module."
+msgstr ""
+
+#: modules/events-logger/events-logger.php:884
 #, php-format
 msgid ""
-"Security Ninja - Events Logger email report settings can be adjusted in <a "
+"Events Logger email report settings can be adjusted in <a "
 "href=\"%s\">WordPress admin</a>"
 msgstr ""
 
-#: modules/events-logger/events-logger.php:885
+#: modules/events-logger/events-logger.php:897
 #, php-format
 msgid "[%s] Security Ninja - Events Logger report"
 msgstr ""
 
-#: modules/events-logger/events-logger.php:889
+#: modules/events-logger/events-logger.php:901
 msgid "Email update sent"
 msgstr ""
 
-#: modules/events-logger/events-logger.php:892
+#: modules/events-logger/events-logger.php:904
 msgid "Invalid email address."
 msgstr ""
 
-#: modules/events-logger/events-logger.php:922
-msgid "Events Logger"
-msgstr ""
-
-#: modules/events-logger/events-logger.php:928
-#: modules/events-logger/events-logger.php:939
+#: modules/events-logger/events-logger.php:936
+#: modules/events-logger/events-logger.php:947
 #: modules/visitor-log/class-wf-sn-visitor-log.php:466
 #: modules/visitor-log/class-wf-sn-visitor-log.php:494
 msgid "Time"
 msgstr ""
 
-#: modules/events-logger/events-logger.php:929
-#: modules/events-logger/events-logger.php:940
+#: modules/events-logger/events-logger.php:937
+#: modules/events-logger/events-logger.php:948
 msgid "Event"
 msgstr ""
 
-#: modules/events-logger/events-logger.php:930
-#: modules/events-logger/events-logger.php:941
+#: modules/events-logger/events-logger.php:938
+#: modules/events-logger/events-logger.php:949
 msgid "User"
 msgstr ""
 
-#: modules/events-logger/events-logger.php:931
-#: modules/events-logger/events-logger.php:942
+#: modules/events-logger/events-logger.php:939
+#: modules/events-logger/events-logger.php:950
 #: modules/visitor-log/class-wf-sn-visitor-log.php:164
 #: modules/visitor-log/class-wf-sn-visitor-log.php:470
 #: modules/visitor-log/class-wf-sn-visitor-log.php:498
 msgid "Action"
 msgstr ""
 
-#: modules/events-logger/events-logger.php:955
+#: modules/events-logger/events-logger.php:963
 msgid "Keep event logs for up to 7 days"
 msgstr ""
 
-#: modules/events-logger/events-logger.php:959
+#: modules/events-logger/events-logger.php:967
 msgid "Keep event logs for up to 15 days"
 msgstr ""
 
-#: modules/events-logger/events-logger.php:963
+#: modules/events-logger/events-logger.php:971
 msgid "Keep event logs for up to 30 days"
 msgstr ""
 
-#: modules/events-logger/events-logger.php:967
+#: modules/events-logger/events-logger.php:975
 msgid "Keep event logs for up to 45 days"
 msgstr ""
 
-#: modules/events-logger/events-logger.php:974
+#: modules/events-logger/events-logger.php:982
 msgid "Do not email any reports"
 msgstr ""
 
-#: modules/events-logger/events-logger.php:978
+#: modules/events-logger/events-logger.php:986
 msgid "Send one email for every 100 events"
 msgstr ""
 
-#: modules/events-logger/events-logger.php:982
+#: modules/events-logger/events-logger.php:990
 msgid "Send one email for every 200 events"
 msgstr ""
 
-#: modules/events-logger/events-logger.php:986
+#: modules/events-logger/events-logger.php:994
 msgid "Send one email for every 300 events"
 msgstr ""
 
-#: modules/events-logger/events-logger.php:993
+#: modules/events-logger/events-logger.php:1001
 msgid "Comments"
 msgstr ""
 
-#: modules/events-logger/events-logger.php:997
+#: modules/events-logger/events-logger.php:1005
 msgid "File editor"
 msgstr ""
 
-#: modules/events-logger/events-logger.php:1001
+#: modules/events-logger/events-logger.php:1009
 msgid "Installer"
 msgstr ""
 
-#: modules/events-logger/events-logger.php:1005
+#: modules/events-logger/events-logger.php:1013
 msgid "Media"
 msgstr ""
 
-#: modules/events-logger/events-logger.php:1009
+#: modules/events-logger/events-logger.php:1017
 msgid "Menus"
 msgstr ""
 
-#: modules/events-logger/events-logger.php:1013
+#: modules/events-logger/events-logger.php:1021
 msgid "Posts"
 msgstr ""
 
-#: modules/events-logger/events-logger.php:1021
-#: modules/events-logger/events-logger.php:1043
-#: modules/vulnerabilities/class-wf-sn-vu.php:1546
+#: modules/events-logger/events-logger.php:1029
+#: modules/events-logger/events-logger.php:1050
+#: modules/vulnerabilities/class-wf-sn-vu.php:1541
 #: modules/whitelabel/class-wf-sn-wl.php:355
 msgid "Settings"
 msgstr ""
 
-#: modules/events-logger/events-logger.php:1025
+#: modules/events-logger/events-logger.php:1033
 msgid "Taxonomies"
 msgstr ""
 
-#: modules/events-logger/events-logger.php:1029
+#: modules/events-logger/events-logger.php:1037
 msgid "Users"
 msgstr ""
 
-#: modules/events-logger/events-logger.php:1033
+#: modules/events-logger/events-logger.php:1041
 msgid "Widgets"
 msgstr ""
 
-#: modules/events-logger/events-logger.php:1037
+#: modules/events-logger/events-logger.php:1045
 msgid "WooCommerce"
 msgstr ""
 
-#: modules/events-logger/events-logger.php:1049
+#: modules/events-logger/events-logger.php:1056
 msgid "Enable events logging"
 msgstr ""
 
-#: modules/events-logger/events-logger.php:1060
+#: modules/events-logger/events-logger.php:1067
 msgid "If enabled events happening on your website will be logged here."
 msgstr ""
 
-#: modules/events-logger/events-logger.php:1061
+#: modules/events-logger/events-logger.php:1068
 msgid "Note - Some important events will still be logged here."
 msgstr ""
 
-#: modules/events-logger/events-logger.php:1066
+#: modules/events-logger/events-logger.php:1073
 msgid "Email Reports"
 msgstr ""
 
-#: modules/events-logger/events-logger.php:1095
-#: modules/scheduled-scanner/scheduled-scanner.php:834
+#: modules/events-logger/events-logger.php:1079
+msgid ""
+"Email reports with a specified number of latest events can be automatically "
+"emailed to alert the admin of any suspicious events. Default: <code>do not "
+"email any reports</code>"
+msgstr ""
+
+#: modules/events-logger/events-logger.php:1087
+msgid "Modules Included in Email Reports"
+msgstr ""
+
+#: modules/events-logger/events-logger.php:1093
+msgid ""
+"If you don't want to receive event reports from specific modules, deselect "
+"them. Default: all modules."
+msgstr ""
+
+#: modules/events-logger/events-logger.php:1098
+#: modules/scheduled-scanner/scheduled-scanner.php:840
 msgid "Email Recipient"
 msgstr ""
 
-#: modules/events-logger/events-logger.php:1113
+#: modules/events-logger/events-logger.php:1100
+msgid ""
+"One or more email addresses who will receive the reports. Separate more "
+"recipients with comma. Default: WP admin email."
+msgstr ""
+
+#: modules/events-logger/events-logger.php:1105
+msgid "Log Retention Policy"
+msgstr ""
+
+#: modules/events-logger/events-logger.php:1111
+msgid ""
+"In order to preserve disk space logs are automatically deleted based on this "
+"option. Default: keep logs for 7 days."
+msgstr ""
+
+#: modules/events-logger/events-logger.php:1116
 msgid "Miscellaneous"
 msgstr ""
 
-#: modules/events-logger/events-logger.php:1149
+#: modules/events-logger/events-logger.php:1117
+#: modules/scheduled-scanner/scheduled-scanner.php:945
+msgid "Delete all log entries"
+msgstr ""
+
+#: modules/events-logger/events-logger.php:1118
+msgid ""
+"Delete all logged events in the database. Please note that there is NO undo "
+"for this action."
+msgstr ""
+
+#: modules/events-logger/events-logger.php:1123
+msgid "Webhook Events"
+msgstr ""
+
+#: modules/events-logger/events-logger.php:1128
+#: modules/events-logger/events-logger.php:1132
+msgid "Webhook Active"
+msgstr ""
+
+#: modules/events-logger/events-logger.php:1143
+msgid "If enabled the webhook URL will be notified about the selected events."
+msgstr ""
+
+#: modules/events-logger/events-logger.php:1150
 msgid "Webhook URL"
 msgstr ""
 
-#: modules/events-logger/events-logger.php:1155
-msgid "Events"
+#: modules/events-logger/events-logger.php:1152
+msgid ""
+"Webhooks are sent as POST requests to the URL you specify. The request body "
+"contains a JSON object with information about the event that triggered the "
+"webhook. You can use this information to take action in your own systems."
+msgstr ""
+
+#: modules/events-logger/events-logger.php:1159
+msgid "Webhook Events Settings"
+msgstr ""
+
+#: modules/events-logger/events-logger.php:1169
+msgid "Firewall events - Notify about blocked visitors"
+msgstr ""
+
+#: modules/events-logger/events-logger.php:1180
+msgid "User logins - Notify on failed and successful logins"
+msgstr ""
+
+#: modules/events-logger/events-logger.php:1192
+msgid "Updates - Notify about WordPress, plugins, and themes updates"
+msgstr ""
+
+#: modules/events-logger/events-logger.php:1195
+msgid ""
+"Select the events you want to send as webhooks. Webhooks are sent as POST "
+"requests to the specified URL. Each request contains a JSON object with "
+"details about the event, enabling you to react or log these events in your "
+"system. Note: Changes apply to future events only."
 msgstr ""
 
 #: modules/events-logger/sn-el-modules.php:283
@@ -2577,12 +3628,12 @@ msgstr ""
 #: modules/events-logger/sn-el-modules.php:368
 #: modules/events-logger/sn-el-modules.php:432
 #: modules/events-logger/sn-el-modules.php:546
-#: modules/events-logger/sn-el-modules.php:635
-#: modules/events-logger/sn-el-modules.php:766
-#: modules/events-logger/sn-el-modules.php:893
-#: modules/events-logger/sn-el-modules.php:939
-#: modules/events-logger/sn-el-modules.php:1091
-#: modules/events-logger/sn-el-modules.php:1156
+#: modules/events-logger/sn-el-modules.php:639
+#: modules/events-logger/sn-el-modules.php:770
+#: modules/events-logger/sn-el-modules.php:897
+#: modules/events-logger/sn-el-modules.php:943
+#: modules/events-logger/sn-el-modules.php:1096
+#: modules/events-logger/sn-el-modules.php:1161
 #, php-format
 msgid "Unknown action or filter - %s."
 msgstr ""
@@ -2624,7 +3675,7 @@ msgstr ""
 
 #: modules/events-logger/sn-el-modules.php:479
 #: modules/events-logger/sn-el-modules.php:564
-msgid "no title"
+msgid "No title"
 msgstr ""
 
 #: modules/events-logger/sn-el-modules.php:490
@@ -2653,289 +3704,306 @@ msgid "%1$s %2$s deleted from trash."
 msgstr ""
 
 #: modules/events-logger/sn-el-modules.php:563
-msgid "no name"
+msgid "No name"
 msgstr ""
 
-#: modules/events-logger/sn-el-modules.php:568
+#: modules/events-logger/sn-el-modules.php:569
 #, php-format
 msgid "%1$s widget was added to %2$s sidebar."
 msgstr ""
 
-#: modules/events-logger/sn-el-modules.php:573
+#: modules/events-logger/sn-el-modules.php:574
 msgid "*unknown name*"
 msgstr ""
 
-#: modules/events-logger/sn-el-modules.php:575
+#: modules/events-logger/sn-el-modules.php:577
 #, php-format
 msgid "%1$s instance of %2$s widget updated in %3$s sidebar."
 msgstr ""
 
-#: modules/events-logger/sn-el-modules.php:603
-#: modules/events-logger/sn-el-modules.php:619
+#: modules/events-logger/sn-el-modules.php:605
 msgid "unnamed"
 msgstr ""
 
-#: modules/events-logger/sn-el-modules.php:605
+#: modules/events-logger/sn-el-modules.php:608
 #, php-format
 msgid "Widgets in %s sidebar were reordered."
 msgstr ""
 
 #: modules/events-logger/sn-el-modules.php:622
-msgid "unknown widget"
+msgid "Unnamed"
 msgstr ""
 
-#: modules/events-logger/sn-el-modules.php:624
+#: modules/events-logger/sn-el-modules.php:625
+msgid "Unknown widget"
+msgstr ""
+
+#: modules/events-logger/sn-el-modules.php:628
 #, php-format
 msgid "%1$s widget was removed from %2$s sidebar."
 msgstr ""
 
-#: modules/events-logger/sn-el-modules.php:655
+#: modules/events-logger/sn-el-modules.php:659
 #, php-format
 msgid "Plugin %s activated."
 msgstr ""
 
-#: modules/events-logger/sn-el-modules.php:666
+#: modules/events-logger/sn-el-modules.php:670
 #, php-format
 msgid "Plugin %s deactivated."
 msgstr ""
 
-#: modules/events-logger/sn-el-modules.php:673
+#: modules/events-logger/sn-el-modules.php:677
 #, php-format
 msgid "Theme %s activated."
 msgstr ""
 
-#: modules/events-logger/sn-el-modules.php:680
+#: modules/events-logger/sn-el-modules.php:684
 #, php-format
 msgid "WordPress core updated to v%s."
 msgstr ""
 
-#: modules/events-logger/sn-el-modules.php:702
-#: modules/events-logger/sn-el-modules.php:719
+#: modules/events-logger/sn-el-modules.php:706
+#: modules/events-logger/sn-el-modules.php:723
 #, php-format
 msgid "Theme %s updated."
 msgstr ""
 
-#: modules/events-logger/sn-el-modules.php:742
-#: modules/events-logger/sn-el-modules.php:756
+#: modules/events-logger/sn-el-modules.php:746
+#: modules/events-logger/sn-el-modules.php:760
 #, php-format
 msgid "Plugin %s updated."
 msgstr ""
 
-#: modules/events-logger/sn-el-modules.php:760
+#: modules/events-logger/sn-el-modules.php:764
 msgid "Unknown plugin updated."
 msgstr ""
 
-#: modules/events-logger/sn-el-modules.php:782
-#: modules/events-logger/sn-el-modules.php:791
-#: modules/events-logger/sn-el-modules.php:800
-#: modules/events-logger/sn-el-modules.php:818
-#: modules/events-logger/sn-el-modules.php:829
-#: modules/events-logger/sn-el-modules.php:839
-#: modules/events-logger/sn-el-modules.php:849
-#: modules/events-logger/sn-el-modules.php:859
-#: modules/events-logger/sn-el-modules.php:869
-#: modules/events-logger/sn-el-modules.php:882
-msgid "untitled"
+#: modules/events-logger/sn-el-modules.php:786
+#: modules/events-logger/sn-el-modules.php:795
+#: modules/events-logger/sn-el-modules.php:804
+#: modules/events-logger/sn-el-modules.php:822
+#: modules/events-logger/sn-el-modules.php:833
+#: modules/events-logger/sn-el-modules.php:843
+#: modules/events-logger/sn-el-modules.php:853
+#: modules/events-logger/sn-el-modules.php:863
+#: modules/events-logger/sn-el-modules.php:873
+#: modules/events-logger/sn-el-modules.php:886
+msgid "Untitled"
 msgstr ""
 
-#: modules/events-logger/sn-el-modules.php:784
+#: modules/events-logger/sn-el-modules.php:788
 #, php-format
 msgid "Duplicate comment by %1$s prevented on %2$s."
 msgstr ""
 
-#: modules/events-logger/sn-el-modules.php:793
+#: modules/events-logger/sn-el-modules.php:797
 #, php-format
 msgid "Comment flooding by %1$s prevented on %2$s."
 msgstr ""
 
-#: modules/events-logger/sn-el-modules.php:803
+#: modules/events-logger/sn-el-modules.php:807
 #, php-format
 msgid "New comment reply by %1$s created on %2$s."
 msgstr ""
 
-#: modules/events-logger/sn-el-modules.php:809
+#: modules/events-logger/sn-el-modules.php:813
 #, php-format
 msgid "New comment by %1$s created on %2$s."
 msgstr ""
 
-#: modules/events-logger/sn-el-modules.php:820
+#: modules/events-logger/sn-el-modules.php:824
 #, php-format
 msgid "Comment by %1$s on %2$s edited."
 msgstr ""
 
-#: modules/events-logger/sn-el-modules.php:831
+#: modules/events-logger/sn-el-modules.php:835
 #, php-format
 msgid "Comment by %1$s on %2$s trashed."
 msgstr ""
 
-#: modules/events-logger/sn-el-modules.php:841
+#: modules/events-logger/sn-el-modules.php:845
 #, php-format
 msgid "Comment by %1$s on %2$s restored."
 msgstr ""
 
-#: modules/events-logger/sn-el-modules.php:851
+#: modules/events-logger/sn-el-modules.php:855
 #, php-format
 msgid "Comment by %1$s on %2$s permanently deleted."
 msgstr ""
 
-#: modules/events-logger/sn-el-modules.php:861
+#: modules/events-logger/sn-el-modules.php:865
 #, php-format
 msgid "Comment by %1$s on %2$s marked as spam."
 msgstr ""
 
-#: modules/events-logger/sn-el-modules.php:871
+#: modules/events-logger/sn-el-modules.php:875
 #, php-format
 msgid "Comment by %1$s on %2$s unmarked as spam."
 msgstr ""
 
-#: modules/events-logger/sn-el-modules.php:884
+#: modules/events-logger/sn-el-modules.php:888
 #, php-format
 msgid "Comment by %1$s on %2$s %3$s."
 msgstr ""
 
-#: modules/events-logger/sn-el-modules.php:908
+#: modules/events-logger/sn-el-modules.php:912
 msgid "Permalink settings updated."
 msgstr ""
 
-#: modules/events-logger/sn-el-modules.php:915
-#: modules/events-logger/sn-el-modules.php:920
+#: modules/events-logger/sn-el-modules.php:919
+#: modules/events-logger/sn-el-modules.php:924
 #, php-format
 msgid "%s settings updated."
 msgstr ""
 
-#: modules/events-logger/sn-el-modules.php:927
+#: modules/events-logger/sn-el-modules.php:931
 msgid "Tag base option updated."
 msgstr ""
 
-#: modules/events-logger/sn-el-modules.php:931
+#: modules/events-logger/sn-el-modules.php:935
 msgid "Category base option updated."
 msgstr ""
 
-#: modules/events-logger/sn-el-modules.php:981
+#: modules/events-logger/sn-el-modules.php:985
 #, php-format
 msgid "WooCommerce - New product \"%s\"."
 msgstr ""
 
-#: modules/events-logger/sn-el-modules.php:990
+#: modules/events-logger/sn-el-modules.php:994
 #, php-format
 msgid "WooCommerce - Updated product #%d."
 msgstr ""
 
-#: modules/events-logger/sn-el-modules.php:1003
+#: modules/events-logger/sn-el-modules.php:1007
 #, php-format
 msgid "WooCommerce - New customer %s."
 msgstr ""
 
-#: modules/events-logger/sn-el-modules.php:1014
+#: modules/events-logger/sn-el-modules.php:1018
 #, php-format
 msgid "WooCommerce - New order #%d."
 msgstr ""
 
-#: modules/events-logger/sn-el-modules.php:1018
+#: modules/events-logger/sn-el-modules.php:1022
 msgid "WooCommerce - New order."
 msgstr ""
 
-#: modules/events-logger/sn-el-modules.php:1024
+#: modules/events-logger/sn-el-modules.php:1028
 msgid "WooCommerce - Deleted coupon."
 msgstr ""
 
-#: modules/events-logger/sn-el-modules.php:1028
+#: modules/events-logger/sn-el-modules.php:1032
 msgid "WooCommerce - Deleted customer."
 msgstr ""
 
-#: modules/events-logger/sn-el-modules.php:1032
+#: modules/events-logger/sn-el-modules.php:1036
 msgid "WooCommerce - Deleted order."
 msgstr ""
 
-#: modules/events-logger/sn-el-modules.php:1040
+#: modules/events-logger/sn-el-modules.php:1044
 #, php-format
 msgid "WooCommerce - Order #%d status changed from %s to %s."
 msgstr ""
 
-#: modules/events-logger/sn-el-modules.php:1047
+#: modules/events-logger/sn-el-modules.php:1051
 #, php-format
 msgid "WooCommerce - Order status changed from %s to %s."
 msgstr ""
 
-#: modules/events-logger/sn-el-modules.php:1061
+#: modules/events-logger/sn-el-modules.php:1065
 #, php-format
 msgid "WooCommerce - Order #%d refunded (Refund ID: %d)."
 msgstr ""
 
-#: modules/events-logger/sn-el-modules.php:1066
+#: modules/events-logger/sn-el-modules.php:1070
 msgid "WooCommerce - Order refunded."
 msgstr ""
 
-#: modules/events-logger/sn-el-modules.php:1077
+#. translators: %1$s is the original product name, %2$d is the original product ID, %3$s is the duplicate product name, %4$d is the duplicate product ID
+#: modules/events-logger/sn-el-modules.php:1082
 #, php-format
-msgid "WooCommerce - Duplicated product \"%s\" (ID: %d) to \"%s\" (ID: %d)."
+msgid ""
+"WooCommerce - Duplicated product \"%1$s\" (ID: %2$d) to \"%3$s\" (ID: %4$d)."
 msgstr ""
 
-#: modules/events-logger/sn-el-modules.php:1084
+#: modules/events-logger/sn-el-modules.php:1089
 msgid "WooCommerce - Duplicated product."
 msgstr ""
 
-#: modules/events-logger/sn-el-modules.php:1121
+#: modules/events-logger/sn-el-modules.php:1126
 #, php-format
 msgid "Finished analyzing the site in %s seconds."
 msgstr ""
 
-#: modules/events-logger/sn-el-modules.php:1128
+#: modules/events-logger/sn-el-modules.php:1133
 #, php-format
 msgid "Core Scanner finished scanning files in %s seconds."
 msgstr ""
 
-#: modules/events-logger/sn-el-modules.php:1135
+#: modules/events-logger/sn-el-modules.php:1140
 #, php-format
 msgid "Scheduled Scanner add-on finished a scheduled scan in %s seconds."
 msgstr ""
 
-#: modules/events-logger/sn-el-modules.php:1142
+#: modules/events-logger/sn-el-modules.php:1147
 #, php-format
 msgid "Malware Scanner add-on finished scanning and found %s suspicious files."
 msgstr ""
 
-#: modules/events-logger/sn-el-modules.php:1149
+#: modules/events-logger/sn-el-modules.php:1154
 #, php-format
 msgid "Remote Access was %s."
 msgstr ""
 
+#: modules/file-viewer/class-secnin-file-viewer.php:44
 #: modules/file-viewer/class-secnin-file-viewer.php:45
-#: modules/file-viewer/class-secnin-file-viewer.php:46
-#: modules/file-viewer/class-secnin-file-viewer.php:167
-#: modules/file-viewer/class-secnin-file-viewer.php:170
+#: modules/file-viewer/class-secnin-file-viewer.php:166
+#: modules/file-viewer/class-secnin-file-viewer.php:169
 msgid "Security Ninja File Viewer"
 msgstr ""
 
-#: modules/file-viewer/class-secnin-file-viewer.php:154
+#: modules/file-viewer/class-secnin-file-viewer.php:153
 msgid "Invalid nonce verification."
 msgstr ""
 
-#: modules/file-viewer/class-secnin-file-viewer.php:161
+#: modules/file-viewer/class-secnin-file-viewer.php:160
 msgid "Access to this file is restricted or the file does not exist."
 msgstr ""
 
-#: modules/file-viewer/class-secnin-file-viewer.php:174
+#: modules/file-viewer/class-secnin-file-viewer.php:173
 msgid "File:"
 msgstr ""
 
-#: modules/file-viewer/class-secnin-file-viewer.php:175
+#: modules/file-viewer/class-secnin-file-viewer.php:174
 msgid "Size:"
 msgstr ""
 
-#: modules/file-viewer/class-secnin-file-viewer.php:176
+#: modules/file-viewer/class-secnin-file-viewer.php:175
 msgid "Last Modified:"
 msgstr ""
 
-#: modules/file-viewer/class-secnin-file-viewer.php:177
+#: modules/file-viewer/class-secnin-file-viewer.php:176
 msgid "Permissions:"
 msgstr ""
 
-#: modules/file-viewer/class-secnin-file-viewer.php:257
+#. translators: %s: Normalized file path
+#: modules/file-viewer/class-secnin-file-viewer.php:230
+#, php-format
+msgid "Attempt to view file outside allowed directories: %s"
+msgstr ""
+
+#. translators: %s: File path
+#: modules/file-viewer/class-secnin-file-viewer.php:259
+#, php-format
+msgid "File not found or not readable: %s"
+msgstr ""
+
+#: modules/file-viewer/class-secnin-file-viewer.php:260
 msgid "File not found or not readable."
 msgstr ""
 
-#: modules/file-viewer/class-secnin-file-viewer.php:268
+#: modules/file-viewer/class-secnin-file-viewer.php:271
 msgid "File truncated..."
 msgstr ""
 
@@ -2973,132 +4041,132 @@ msgstr ""
 msgid "No results"
 msgstr ""
 
-#: modules/malware-scanner/malware-scanner.php:412
+#: modules/malware-scanner/malware-scanner.php:412 security-ninja.php:1367
 msgid "Malware"
 msgstr ""
 
-#: modules/malware-scanner/malware-scanner.php:464
-#, php-format
-msgid "Your last malware scan took %s "
-msgstr ""
-
-#: modules/malware-scanner/malware-scanner.php:787
+#: modules/malware-scanner/malware-scanner.php:789
 msgid "Invalid input."
 msgstr ""
 
-#: modules/malware-scanner/malware-scanner.php:865
+#: modules/malware-scanner/malware-scanner.php:867
 msgid "Modified Plugin Files"
 msgstr ""
 
-#: modules/malware-scanner/malware-scanner.php:937
+#: modules/malware-scanner/malware-scanner.php:952
 msgid "Unknown Files"
 msgstr ""
 
-#: modules/malware-scanner/malware-scanner.php:998
+#: modules/malware-scanner/malware-scanner.php:991
 #, php-format
 msgid "%d suspicious file found"
 msgid_plural "%d issues found"
 msgstr[0] ""
 msgstr[1] ""
 
-#: modules/malware-scanner/malware-scanner.php:1180
+#: modules/malware-scanner/malware-scanner.php:1126
+#, php-format
+msgid "Database scan completed. Found %d suspicious entries."
+msgstr ""
+
+#: modules/malware-scanner/malware-scanner.php:1131
+msgid "Database scan completed. No suspicious entries found."
+msgstr ""
+
+#: modules/malware-scanner/malware-scanner.php:1189
 msgid "Invalid option."
 msgstr ""
 
-#: modules/malware-scanner/malware-scanner.php:1368
+#: modules/malware-scanner/malware-scanner.php:1380
 msgid "Whitelist"
 msgstr ""
 
-#: modules/malware-scanner/malware-scanner.php:1372
+#: modules/malware-scanner/malware-scanner.php:1384
 msgid "Revert Whitelist"
 msgstr ""
 
-#: modules/malware-scanner/malware-scanner.php:1413
+#: modules/malware-scanner/malware-scanner.php:1425
 msgid "Located here:"
 msgstr ""
 
-#: modules/malware-scanner/malware-scanner.php:1502
+#: modules/malware-scanner/malware-scanner.php:1512
 msgid "Database table"
 msgstr ""
 
-#: modules/malware-scanner/malware-scanner.php:1822
+#: modules/malware-scanner/malware-scanner.php:1847
 #, php-format
 msgid "%s minute"
 msgid_plural "%s minutes"
 msgstr[0] ""
 msgstr[1] ""
 
-#: modules/malware-scanner/malware-scanner.php:1827
+#: modules/malware-scanner/malware-scanner.php:1852
 #, php-format
 msgid "%s hour"
 msgid_plural "%s hours"
 msgstr[0] ""
 msgstr[1] ""
 
-#: modules/malware-scanner/malware-scanner.php:1864 security-ninja.php:1331
-msgid "Malware Scanner"
-msgstr ""
-
 #. translators: Shows how many vulnerabilities are known and when list was updated
-#: modules/malware-scanner/malware-scanner.php:1876
+#: modules/malware-scanner/malware-scanner.php:1902
 #, php-format
 msgid "Malware patterns list last updated %1$s (%2$s)"
 msgstr ""
 
-#: modules/malware-scanner/malware-scanner.php:1889
+#: modules/malware-scanner/malware-scanner.php:1915
 #, php-format
 msgid "Warning - You are running PHP v. %1$s - Malware Scanner needs PHP 7+ "
 msgstr ""
 
-#: modules/malware-scanner/malware-scanner.php:1894
+#: modules/malware-scanner/malware-scanner.php:1920
 msgid "Why is this important?"
 msgstr ""
 
-#: modules/malware-scanner/malware-scanner.php:1894
+#: modules/malware-scanner/malware-scanner.php:1920
 msgid "Read more about PHP 7"
 msgstr ""
 
-#: modules/malware-scanner/malware-scanner.php:1896
+#: modules/malware-scanner/malware-scanner.php:1922
 msgid "Scan your website and plugins"
 msgstr ""
 
-#: modules/malware-scanner/malware-scanner.php:1902
+#: modules/malware-scanner/malware-scanner.php:1927
 msgid "Scan your website"
 msgstr ""
 
-#: modules/malware-scanner/malware-scanner.php:1907
+#: modules/malware-scanner/malware-scanner.php:1932
 msgid "Files were last scanned on"
 msgstr ""
 
-#: modules/malware-scanner/malware-scanner.php:1920
+#: modules/malware-scanner/malware-scanner.php:1947
 #, php-format
 msgid "Scanned %1$s files in %2$s directories."
 msgstr ""
 
-#: modules/malware-scanner/malware-scanner.php:1925
+#: modules/malware-scanner/malware-scanner.php:1952
 msgid "Depending on the size of your website this can take several minutes."
 msgstr ""
 
-#: modules/malware-scanner/malware-scanner.php:1947
+#: modules/malware-scanner/malware-scanner.php:1978
 #, php-format
 msgid "%d whitelisted file"
 msgid_plural "%d whitelisted files"
 msgstr[0] ""
 msgstr[1] ""
 
-#: modules/malware-scanner/malware-scanner.php:1990
+#: modules/malware-scanner/malware-scanner.php:2021
 msgid "These files are ignored from scans."
 msgstr ""
 
-#: modules/malware-scanner/malware-scanner.php:1994
+#: modules/malware-scanner/malware-scanner.php:2025
 msgid "Reset whitelisted files"
 msgstr ""
 
-#: modules/malware-scanner/malware-scanner.php:2061
+#: modules/malware-scanner/malware-scanner.php:2092
 msgid "Click the button to run the first test."
 msgstr ""
 
-#: modules/malware-scanner/malware-scanner.php:2067
+#: modules/malware-scanner/malware-scanner.php:2099
 msgid ""
 "Files are scanned using a heuristic analysis method that compares their "
 "content to patterns and code samples often used by in malicious scripts. It "
@@ -3107,14 +4175,14 @@ msgid ""
 "looks bad."
 msgstr ""
 
-#: modules/malware-scanner/malware-scanner.php:2068
+#: modules/malware-scanner/malware-scanner.php:2100
 msgid ""
 "That's why it is very important to go through the files manually and have a "
 "look at the suspicious lines of code. If you are certain they are ok - "
 "whitelist the file."
 msgstr ""
 
-#: modules/malware-scanner/malware-scanner.php:2069
+#: modules/malware-scanner/malware-scanner.php:2101
 msgid ""
 "Many popular plugins' and themes' files can appear on the scan list. Again "
 "this does not mean they will do harm to your site. It just means you need to "
@@ -3130,371 +4198,388 @@ msgstr ""
 msgid "Not activated."
 msgstr ""
 
+#: modules/rename-login/class-wf-sn-rename-login.php:289
+msgid "User tried to visit /wp-admin/ URL"
+msgstr ""
+
 #: modules/rename-login/class-wf-sn-rename-login.php:291
 msgid "ERROR 404 - Page not found!"
 msgstr ""
 
-#: modules/scheduled-scanner/scheduled-scanner.php:102 security-ninja.php:2800
-msgid "show details"
+#: modules/rename-login/class-wf-sn-rename-login.php:335
+msgid "User tried to visit wp-login.php"
 msgstr ""
 
-#: modules/scheduled-scanner/scheduled-scanner.php:106
-#: modules/scheduled-scanner/scheduled-scanner.php:920
+#: modules/scheduled-scanner/scheduled-scanner.php:109 security-ninja.php:2764
+msgid "Show details"
+msgstr ""
+
+#: modules/scheduled-scanner/scheduled-scanner.php:113
+#: modules/scheduled-scanner/scheduled-scanner.php:936
 msgid "Run time"
 msgstr ""
 
-#: modules/scheduled-scanner/scheduled-scanner.php:107
+#: modules/scheduled-scanner/scheduled-scanner.php:114
 #, php-format
 msgid "%s sec"
 msgstr ""
 
-#: modules/scheduled-scanner/scheduled-scanner.php:110
-#: modules/scheduled-scanner/scheduled-scanner.php:921 security-ninja.php:816
-msgid "Security Tests"
-msgstr ""
-
-#: modules/scheduled-scanner/scheduled-scanner.php:112
-#: modules/scheduled-scanner/scheduled-scanner.php:125
-msgid "Tests were not run."
-msgstr ""
-
-#: modules/scheduled-scanner/scheduled-scanner.php:115
-#: modules/scheduled-scanner/scheduled-scanner.php:128
-msgid "The results have changed since last scan."
-msgstr ""
-
 #: modules/scheduled-scanner/scheduled-scanner.php:117
-#: modules/scheduled-scanner/scheduled-scanner.php:130
-msgid "No changes in results since last scan."
+#: modules/scheduled-scanner/scheduled-scanner.php:937 security-ninja.php:818
+msgid "Security Tests"
 msgstr ""
 
 #: modules/scheduled-scanner/scheduled-scanner.php:119
 #: modules/scheduled-scanner/scheduled-scanner.php:132
+msgid "Tests were not run."
+msgstr ""
+
+#: modules/scheduled-scanner/scheduled-scanner.php:122
+#: modules/scheduled-scanner/scheduled-scanner.php:135
+msgid "The results have changed since last scan."
+msgstr ""
+
+#: modules/scheduled-scanner/scheduled-scanner.php:124
+#: modules/scheduled-scanner/scheduled-scanner.php:137
+msgid "No changes in results since last scan."
+msgstr ""
+
+#: modules/scheduled-scanner/scheduled-scanner.php:126
+#: modules/scheduled-scanner/scheduled-scanner.php:139
 msgid "View details"
 msgstr ""
 
-#: modules/scheduled-scanner/scheduled-scanner.php:139
+#: modules/scheduled-scanner/scheduled-scanner.php:146
 msgid "No logs found."
 msgstr ""
 
-#: modules/scheduled-scanner/scheduled-scanner.php:191
+#: modules/scheduled-scanner/scheduled-scanner.php:199 security-ninja.php:1381
 msgid "Scheduler"
 msgstr ""
 
-#: modules/scheduled-scanner/scheduled-scanner.php:226
-#: modules/scheduled-scanner/scheduled-scanner.php:865
+#: modules/scheduled-scanner/scheduled-scanner.php:234
+#: modules/scheduled-scanner/scheduled-scanner.php:872
 msgid "Security Ninja is testing Scheduled Scanner settings."
 msgstr ""
 
-#: modules/scheduled-scanner/scheduled-scanner.php:375
+#: modules/scheduled-scanner/scheduled-scanner.php:383
 msgid "Once Monthly"
 msgstr ""
 
-#: modules/scheduled-scanner/scheduled-scanner.php:393
-#: modules/scheduled-scanner/scheduled-scanner.php:1041
+#: modules/scheduled-scanner/scheduled-scanner.php:401
+#: modules/scheduled-scanner/scheduled-scanner.php:1057
 msgid "Nonce verification failed"
 msgstr ""
 
-#: modules/scheduled-scanner/scheduled-scanner.php:398
+#: modules/scheduled-scanner/scheduled-scanner.php:406
 msgid "You do not have sufficient permissions to access this page. task_ajax"
 msgstr ""
 
-#: modules/scheduled-scanner/scheduled-scanner.php:402
+#: modules/scheduled-scanner/scheduled-scanner.php:410
 msgid "Tasks completed successfully"
 msgstr ""
 
-#: modules/scheduled-scanner/scheduled-scanner.php:538
+#: modules/scheduled-scanner/scheduled-scanner.php:546
 msgid "Security status for"
 msgstr ""
 
-#: modules/scheduled-scanner/scheduled-scanner.php:538
+#: modules/scheduled-scanner/scheduled-scanner.php:546
 msgid "on"
 msgstr ""
 
-#: modules/scheduled-scanner/scheduled-scanner.php:540
+#: modules/scheduled-scanner/scheduled-scanner.php:548
 msgid "Scan ran"
 msgstr ""
 
-#: modules/scheduled-scanner/scheduled-scanner.php:543
+#: modules/scheduled-scanner/scheduled-scanner.php:551
 msgid "Run time:"
 msgstr ""
 
-#: modules/scheduled-scanner/scheduled-scanner.php:543
-msgid " sec"
+#: modules/scheduled-scanner/scheduled-scanner.php:551
+msgid "sec"
 msgstr ""
 
-#: modules/scheduled-scanner/scheduled-scanner.php:544
+#: modules/scheduled-scanner/scheduled-scanner.php:552
 msgid "Plugin version:"
 msgstr ""
 
-#: modules/scheduled-scanner/scheduled-scanner.php:548
+#: modules/scheduled-scanner/scheduled-scanner.php:556
 msgid "Security Testing Results: Tests were not run."
 msgstr ""
 
-#: modules/scheduled-scanner/scheduled-scanner.php:551
+#: modules/scheduled-scanner/scheduled-scanner.php:559
 msgid "Security Testing Results: Results have changed since last scan."
 msgstr ""
 
-#: modules/scheduled-scanner/scheduled-scanner.php:558
+#: modules/scheduled-scanner/scheduled-scanner.php:566
 msgid "Result:"
 msgstr ""
 
-#: modules/scheduled-scanner/scheduled-scanner.php:563
+#: modules/scheduled-scanner/scheduled-scanner.php:571
 msgid "Security Testing Results: No changes since last scan."
 msgstr ""
 
-#: modules/scheduled-scanner/scheduled-scanner.php:567
+#: modules/scheduled-scanner/scheduled-scanner.php:575
 msgid "Core Scanner results: Test were not run."
 msgstr ""
 
-#: modules/scheduled-scanner/scheduled-scanner.php:570
+#: modules/scheduled-scanner/scheduled-scanner.php:578
 msgid "Core Scanner results: Results have changed since last scan."
 msgstr ""
 
-#: modules/scheduled-scanner/scheduled-scanner.php:574
+#: modules/scheduled-scanner/scheduled-scanner.php:581
 msgid "Core Scanner results: No changes since last scan."
 msgstr ""
 
-#: modules/scheduled-scanner/scheduled-scanner.php:579
+#: modules/scheduled-scanner/scheduled-scanner.php:586
 msgid "Security Ninja Dashboard"
 msgstr ""
 
-#: modules/scheduled-scanner/scheduled-scanner.php:581
+#: modules/scheduled-scanner/scheduled-scanner.php:588
 msgid "Report from a scheduled scan of your website."
 msgstr ""
 
-#: modules/scheduled-scanner/scheduled-scanner.php:585
+#: modules/scheduled-scanner/scheduled-scanner.php:592
 msgid "See details here:"
 msgstr ""
 
-#: modules/scheduled-scanner/scheduled-scanner.php:595
+#: modules/scheduled-scanner/scheduled-scanner.php:602
 #, php-format
 msgid "This email was sent by %s from %s"
 msgstr ""
 
-#: modules/scheduled-scanner/scheduled-scanner.php:607
+#: modules/scheduled-scanner/scheduled-scanner.php:614
 #, php-format
 msgid "This email was sent by %1$s from %2$s"
 msgstr ""
 
-#: modules/scheduled-scanner/scheduled-scanner.php:636
+#: modules/scheduled-scanner/scheduled-scanner.php:643
 msgid "Invalid email address skipped"
 msgstr ""
 
-#: modules/scheduled-scanner/scheduled-scanner.php:651
+#: modules/scheduled-scanner/scheduled-scanner.php:658
 msgid "Sent email notification"
 msgstr ""
 
-#: modules/scheduled-scanner/scheduled-scanner.php:654
+#: modules/scheduled-scanner/scheduled-scanner.php:661
 msgid "Success"
 msgstr ""
 
-#: modules/scheduled-scanner/scheduled-scanner.php:654
+#: modules/scheduled-scanner/scheduled-scanner.php:661
 msgid "Failure"
 msgstr ""
 
-#: modules/scheduled-scanner/scheduled-scanner.php:664
+#: modules/scheduled-scanner/scheduled-scanner.php:671
 msgid "Email notification failed"
 msgstr ""
 
-#: modules/scheduled-scanner/scheduled-scanner.php:666
+#: modules/scheduled-scanner/scheduled-scanner.php:673
 msgid "No valid email addresses provided"
 msgstr ""
 
-#: modules/scheduled-scanner/scheduled-scanner.php:731
+#: modules/scheduled-scanner/scheduled-scanner.php:738
 msgid "Disable scheduled scans"
 msgstr ""
 
-#: modules/scheduled-scanner/scheduled-scanner.php:735
+#: modules/scheduled-scanner/scheduled-scanner.php:742
 msgid "Enable scheduled scans only for Security Testing"
 msgstr ""
 
-#: modules/scheduled-scanner/scheduled-scanner.php:739
+#: modules/scheduled-scanner/scheduled-scanner.php:746
 msgid "Enable scheduled scans only for Core Scanner"
 msgstr ""
 
-#: modules/scheduled-scanner/scheduled-scanner.php:743
+#: modules/scheduled-scanner/scheduled-scanner.php:750
 msgid "Enable scheduled scans for both"
 msgstr ""
 
-#: modules/scheduled-scanner/scheduled-scanner.php:752
+#: modules/scheduled-scanner/scheduled-scanner.php:759
 msgid "(recommended)"
 msgstr ""
 
-#: modules/scheduled-scanner/scheduled-scanner.php:765
+#: modules/scheduled-scanner/scheduled-scanner.php:772
 msgid "Never send any emails"
 msgstr ""
 
-#: modules/scheduled-scanner/scheduled-scanner.php:769
+#: modules/scheduled-scanner/scheduled-scanner.php:776
 msgid "Send an email each time the tests run"
 msgstr ""
 
-#: modules/scheduled-scanner/scheduled-scanner.php:773
+#: modules/scheduled-scanner/scheduled-scanner.php:780
 msgid "Send an email only when test results change"
 msgstr ""
 
-#: modules/scheduled-scanner/scheduled-scanner.php:779
+#: modules/scheduled-scanner/scheduled-scanner.php:786
 msgid "Scheduled scans are enabled and will run"
 msgstr ""
 
-#: modules/scheduled-scanner/scheduled-scanner.php:794
+#: modules/scheduled-scanner/scheduled-scanner.php:800
 msgid "Scheduled scans are not currently set."
 msgstr ""
 
-#: modules/scheduled-scanner/scheduled-scanner.php:797
+#: modules/scheduled-scanner/scheduled-scanner.php:803
 msgid "Scheduled scans are disabled"
 msgstr ""
 
-#: modules/scheduled-scanner/scheduled-scanner.php:810
+#: modules/scheduled-scanner/scheduled-scanner.php:816
 msgid "Scan Settings"
 msgstr ""
 
-#: modules/scheduled-scanner/scheduled-scanner.php:814
+#: modules/scheduled-scanner/scheduled-scanner.php:820
 msgid ""
 "Depending on the add-ons that are active you can choose to include them in "
 "scheduled scans or not."
 msgstr ""
 
-#: modules/scheduled-scanner/scheduled-scanner.php:818
+#: modules/scheduled-scanner/scheduled-scanner.php:824
 msgid "Scan Schedule"
 msgstr ""
 
-#: modules/scheduled-scanner/scheduled-scanner.php:822
+#: modules/scheduled-scanner/scheduled-scanner.php:828
 msgid ""
 "Running the scan once a day will ensure you get a prompt notice of any "
 "problems and at the same time don't overload the server."
 msgstr ""
 
-#: modules/scheduled-scanner/scheduled-scanner.php:826
+#: modules/scheduled-scanner/scheduled-scanner.php:832
 msgid "Email Report"
 msgstr ""
 
-#: modules/scheduled-scanner/scheduled-scanner.php:830
+#: modules/scheduled-scanner/scheduled-scanner.php:836
 msgid ""
 "Depending on the amount of email you like to receive you can get reports for "
 "all scans or just ones when results change."
 msgstr ""
 
-#: modules/scheduled-scanner/scheduled-scanner.php:836
+#: modules/scheduled-scanner/scheduled-scanner.php:842
 msgid ""
 "Email address of the person (usually the site admin) who'll receive the "
 "email reports."
 msgstr ""
 
-#: modules/scheduled-scanner/scheduled-scanner.php:837
+#: modules/scheduled-scanner/scheduled-scanner.php:843
 msgid "Separate multiple recipients with a comma \",\""
 msgstr ""
 
-#: modules/scheduled-scanner/scheduled-scanner.php:858
+#: modules/scheduled-scanner/scheduled-scanner.php:866
 msgid "Server Time:"
 msgstr ""
 
-#: modules/scheduled-scanner/scheduled-scanner.php:860
+#: modules/scheduled-scanner/scheduled-scanner.php:868
 msgid "Next Scheduled Scan:"
 msgstr ""
 
-#: modules/scheduled-scanner/scheduled-scanner.php:860
-msgid "from now"
+#: modules/scheduled-scanner/scheduled-scanner.php:868
+msgid "From now"
 msgstr ""
 
-#: modules/scheduled-scanner/scheduled-scanner.php:870
+#: modules/scheduled-scanner/scheduled-scanner.php:877
 msgid "Please read!"
 msgstr ""
 
-#: modules/scheduled-scanner/scheduled-scanner.php:871
+#: modules/scheduled-scanner/scheduled-scanner.php:878
 msgid ""
 "WordPress cron function depends on site visitors to regularly run its tasks. "
 "If your site has very few visitors the tasks wont be run on a regular, "
 "predefined interval."
 msgstr ""
 
-#: modules/scheduled-scanner/scheduled-scanner.php:878
+#: modules/scheduled-scanner/scheduled-scanner.php:885
 #, php-format
 msgid ""
 "Wptuts+ has a great <a href=\"%s\" target=\"_blank\">article</a> explaining "
 "how to make sure the cron does run even if you have very few visitors."
 msgstr ""
 
-#: modules/scheduled-scanner/scheduled-scanner.php:890
+#: modules/scheduled-scanner/scheduled-scanner.php:897
 msgid ""
 "Please test the settings after changing them to ensure you're getting the "
 "emails and that the testing finish in a timely manner."
 msgstr ""
 
-#: modules/scheduled-scanner/scheduled-scanner.php:914
+#: modules/scheduled-scanner/scheduled-scanner.php:930
 msgid "Scan log"
 msgstr ""
 
-#: modules/scheduled-scanner/scheduled-scanner.php:919
+#: modules/scheduled-scanner/scheduled-scanner.php:935
 msgid "Timestamp"
 msgstr ""
 
-#: modules/scheduled-scanner/scheduled-scanner.php:929
-msgid "Delete all log entries"
-msgstr ""
-
-#: modules/scheduled-scanner/scheduled-scanner.php:993
-#: modules/scheduled-scanner/scheduled-scanner.php:1011
+#: modules/scheduled-scanner/scheduled-scanner.php:1009
+#: modules/scheduled-scanner/scheduled-scanner.php:1027
 msgid "Status"
 msgstr ""
 
-#: modules/scheduled-scanner/scheduled-scanner.php:994
+#: modules/scheduled-scanner/scheduled-scanner.php:1010
 msgid "Test description"
 msgstr ""
 
-#: modules/scheduled-scanner/scheduled-scanner.php:995
+#: modules/scheduled-scanner/scheduled-scanner.php:1011
 msgid "Test results"
 msgstr ""
 
-#: modules/scheduled-scanner/scheduled-scanner.php:1012
+#: modules/scheduled-scanner/scheduled-scanner.php:1028
 msgid "Test Description"
 msgstr ""
 
-#: modules/scheduled-scanner/scheduled-scanner.php:1013
+#: modules/scheduled-scanner/scheduled-scanner.php:1029
 msgid "Test Results"
 msgstr ""
 
-#: modules/scheduled-scanner/scheduled-scanner.php:1018
+#: modules/scheduled-scanner/scheduled-scanner.php:1034
 msgid "Unknown Error."
 msgstr ""
 
-#: modules/scheduled-scanner/scheduled-scanner.php:1046
+#: modules/scheduled-scanner/scheduled-scanner.php:1062
 msgid "You do not have sufficient permissions to access this page. cs_details"
 msgstr ""
 
-#: modules/scheduled-scanner/scheduled-scanner.php:1063
+#: modules/scheduled-scanner/scheduled-scanner.php:1080
 msgid ""
 "If you did not modify the following files, you should review them to make "
 "sure no malicious code is there."
 msgstr ""
 
-#: modules/scheduled-scanner/scheduled-scanner.php:1069
+#: modules/scheduled-scanner/scheduled-scanner.php:1086
 msgid "Following files are unknown and should not be in your core folders"
 msgstr ""
 
-#: modules/scheduled-scanner/scheduled-scanner.php:1080
+#: modules/scheduled-scanner/scheduled-scanner.php:1097
 msgid "Following core files are missing and they should not be."
 msgstr ""
 
-#: modules/scheduled-scanner/scheduled-scanner.php:1081
+#: modules/scheduled-scanner/scheduled-scanner.php:1098
 msgid ""
 "Missing core files my indicate a bad auto-update or they simply were not "
 "copied on the server when the site was setup."
 msgstr ""
 
-#: modules/scheduled-scanner/scheduled-scanner.php:1094
+#: modules/scheduled-scanner/scheduled-scanner.php:1110
+msgid ""
+"The following core files are missing but are not essential for WordPress "
+"functionality:"
+msgstr ""
+
+#: modules/scheduled-scanner/scheduled-scanner.php:1111
+msgid ""
+"These files are part of the WordPress core but are not necessary for the "
+"basic operation of your site. Their absence does not indicate a security "
+"issue."
+msgstr ""
+
+#: modules/scheduled-scanner/scheduled-scanner.php:1125
 #, php-format
 msgid ""
 "A total of <span class=\"sn_count\">%1$s</span> files were scanned and <span "
 "class=\"sn_count\">%2$s</span> are unmodified and safe."
 msgstr ""
 
-#: modules/scheduled-scanner/scheduled-scanner.php:1102
+#: modules/scheduled-scanner/scheduled-scanner.php:1133
 #, php-format
 msgid "Problem loading Core Scanner Results - %s"
 msgstr ""
 
-#: modules/scheduled-scanner/scheduled-scanner.php:1103
+#: modules/scheduled-scanner/scheduled-scanner.php:1134
 msgid "Undocumented error."
 msgstr ""
 
@@ -3524,6 +4609,10 @@ msgstr ""
 
 #: modules/visitor-log/class-wf-sn-visitor-log.php:243
 msgid "Are you sure you want to block this IP?"
+msgstr ""
+
+#: modules/visitor-log/class-wf-sn-visitor-log.php:372
+msgid "No data"
 msgstr ""
 
 #: modules/visitor-log/class-wf-sn-visitor-log.php:398
@@ -3572,11 +4661,6 @@ msgstr ""
 msgid "Switch back to this window to resume live updates."
 msgstr ""
 
-#: modules/visitor-log/class-wf-sn-visitor-log.php:467
-#: modules/visitor-log/class-wf-sn-visitor-log.php:495
-msgid "IP"
-msgstr ""
-
 #: modules/visitor-log/class-wf-sn-visitor-log.php:468
 #: modules/visitor-log/class-wf-sn-visitor-log.php:496
 msgid "URL"
@@ -3586,49 +4670,49 @@ msgstr ""
 msgid "Scanned the themes and plugins for vulnerabilities after update."
 msgstr ""
 
-#: modules/vulnerabilities/class-wf-sn-vu.php:221
+#: modules/vulnerabilities/class-wf-sn-vu.php:220
 msgid "Vulnerabilities"
 msgstr ""
 
-#: modules/vulnerabilities/class-wf-sn-vu.php:512
+#: modules/vulnerabilities/class-wf-sn-vu.php:511
 #, php-format
 msgid "Successfully updated vulnerabilities for %s. (gz)"
 msgstr ""
 
-#: modules/vulnerabilities/class-wf-sn-vu.php:528
+#: modules/vulnerabilities/class-wf-sn-vu.php:527
 #, php-format
 msgid "Failed to decompress vulnerabilities for %s. (gz)"
 msgstr ""
 
-#: modules/vulnerabilities/class-wf-sn-vu.php:542
+#: modules/vulnerabilities/class-wf-sn-vu.php:541
 #, php-format
 msgid "Failed to retrieve response: %s"
 msgstr ""
 
-#: modules/vulnerabilities/class-wf-sn-vu.php:564
+#: modules/vulnerabilities/class-wf-sn-vu.php:563
 #, php-format
 msgid "Successfully updated vulnerabilities for %s."
 msgstr ""
 
-#: modules/vulnerabilities/class-wf-sn-vu.php:587
+#: modules/vulnerabilities/class-wf-sn-vu.php:586
 #, php-format
 msgid "Downloaded %s new vulnerability."
 msgid_plural "Downloaded %s new vulnerabilities."
 msgstr[0] ""
 msgstr[1] ""
 
-#: modules/vulnerabilities/class-wf-sn-vu.php:589
+#: modules/vulnerabilities/class-wf-sn-vu.php:588
 msgid "No new vulnerabilities detected."
 msgstr ""
 
-#: modules/vulnerabilities/class-wf-sn-vu.php:599
+#: modules/vulnerabilities/class-wf-sn-vu.php:598
 #, php-format
 msgid ""
 "%1$s Now tracking a total of %2$s known vulnerabilities. Last checked: %3$s. "
 "Update or replace vulnerable plugins promptly."
 msgstr ""
 
-#: modules/vulnerabilities/class-wf-sn-vu.php:608
+#: modules/vulnerabilities/class-wf-sn-vu.php:607
 #, php-format
 msgid ""
 "%1$s Now tracking a total of %2$s known vulnerabilities. Ensure your plugins "
@@ -3636,116 +4720,119 @@ msgid ""
 msgstr ""
 
 #. translators:
-#: modules/vulnerabilities/class-wf-sn-vu.php:622
+#: modules/vulnerabilities/class-wf-sn-vu.php:621
 #, php-format
 msgid "%s vulnerability added."
 msgid_plural "%s new vulnerabilites added."
 msgstr[0] ""
 msgstr[1] ""
 
-#: modules/vulnerabilities/class-wf-sn-vu.php:660
+#: modules/vulnerabilities/class-wf-sn-vu.php:659
 msgid ""
 "You are receiving this email because you have activated email warnings for "
 "the vulnerability scanner."
 msgstr ""
 
 #. translators: %1$s is the site name
-#: modules/vulnerabilities/class-wf-sn-vu.php:664
+#: modules/vulnerabilities/class-wf-sn-vu.php:663
 #, php-format
 msgid "Security Ninja has detected vulnerabilities on your website, %1$s."
 msgstr ""
 
-#: modules/vulnerabilities/class-wf-sn-vu.php:670
+#: modules/vulnerabilities/class-wf-sn-vu.php:669
 msgid "Plugin"
 msgstr ""
 
-#: modules/vulnerabilities/class-wf-sn-vu.php:681
+#: modules/vulnerabilities/class-wf-sn-vu.php:680
 msgid "Theme"
 msgstr ""
 
-#: modules/vulnerabilities/class-wf-sn-vu.php:690
+#: modules/vulnerabilities/class-wf-sn-vu.php:689
 msgid "View all vulnerabilities:"
 msgstr ""
 
-#: modules/vulnerabilities/class-wf-sn-vu.php:690
+#: modules/vulnerabilities/class-wf-sn-vu.php:689
+#: modules/vulnerabilities/class-wf-sn-vu.php:1346
+#: modules/vulnerabilities/class-wf-sn-vu.php:1452
 msgid "here"
 msgstr ""
 
-#: modules/vulnerabilities/class-wf-sn-vu.php:693
+#: modules/vulnerabilities/class-wf-sn-vu.php:692
 msgid "Thank you for using WP Security Ninja"
 msgstr ""
 
 #. Author of the plugin/theme
-#: modules/vulnerabilities/class-wf-sn-vu.php:693
+#: modules/vulnerabilities/class-wf-sn-vu.php:692
 #: modules/whitelabel/class-wf-sn-wl.php:391
 msgid "WP Security Ninja"
 msgstr ""
 
-#: modules/vulnerabilities/class-wf-sn-vu.php:696
+#: modules/vulnerabilities/class-wf-sn-vu.php:695
 msgid ""
 "For enhanced security, please ensure that all your plugins, themes, and "
 "WordPress itself are always up-to-date. Regular updates help protect your "
 "website from known vulnerabilities."
 msgstr ""
 
-#: modules/vulnerabilities/class-wf-sn-vu.php:702
+#: modules/vulnerabilities/class-wf-sn-vu.php:701
 msgid "Vulnerabilities detected on"
 msgstr ""
 
-#: modules/vulnerabilities/class-wf-sn-vu.php:711
+#: modules/vulnerabilities/class-wf-sn-vu.php:710
 msgid "Unknown error"
 msgstr ""
 
-#: modules/vulnerabilities/class-wf-sn-vu.php:716
+#: modules/vulnerabilities/class-wf-sn-vu.php:715
 #, php-format
 msgid "Email not sent to %s. Error: %s"
 msgstr ""
 
-#: modules/vulnerabilities/class-wf-sn-vu.php:726
+#: modules/vulnerabilities/class-wf-sn-vu.php:725
 #, php-format
 msgid "Vulnerabilities detected - Email warning sent to %s"
 msgstr ""
 
-#: modules/vulnerabilities/class-wf-sn-vu.php:1061
+#: modules/vulnerabilities/class-wf-sn-vu.php:1060
 msgid "Downloaded list of known WordPress versions and their status."
 msgstr ""
 
-#: modules/vulnerabilities/class-wf-sn-vu.php:1186
+#: modules/vulnerabilities/class-wf-sn-vu.php:1185 security-ninja.php:548
 msgid "Vulnerability Scanner"
 msgstr ""
 
-#: modules/vulnerabilities/class-wf-sn-vu.php:1187
+#: modules/vulnerabilities/class-wf-sn-vu.php:1186
 msgid ""
 "Warns you of any known vulnerabilities in the plugins and themes you have "
 "installed."
 msgstr ""
 
-#: modules/vulnerabilities/class-wf-sn-vu.php:1193
+#: modules/vulnerabilities/class-wf-sn-vu.php:1192
 msgid "Click here to learn more"
 msgstr ""
 
-#: modules/vulnerabilities/class-wf-sn-vu.php:1202
+#: modules/vulnerabilities/class-wf-sn-vu.php:1201
 msgid "Vulnerabilities found on your system!"
 msgstr ""
 
 #. translators: %s: WordPress version
-#: modules/vulnerabilities/class-wf-sn-vu.php:1213
-#, php-format
-msgid ""
-"This version of WordPress (%s) is considered <strong>INSECURE</strong>. You "
-"should upgrade as soon possible."
-msgstr ""
-
-#. translators: %s: WordPress version
+#: modules/vulnerabilities/class-wf-sn-vu.php:1212
 #: modules/vulnerabilities/class-wf-sn-vu.php:1220
 #, php-format
 msgid ""
-"This version of WordPress (%s) is considered <strong>OUTDATED</strong>. You "
-"should upgrade as soon possible."
+"This version of WordPress (%s) is considered %s. You should upgrade as soon "
+"as possible."
+msgstr ""
+
+#: modules/vulnerabilities/class-wf-sn-vu.php:1214
+msgid "INSECURE"
+msgstr ""
+
+#: modules/vulnerabilities/class-wf-sn-vu.php:1222
+msgid "OUTDATED"
 msgstr ""
 
 #. translators: %s: WordPress version
-#: modules/vulnerabilities/class-wf-sn-vu.php:1232
+#: modules/vulnerabilities/class-wf-sn-vu.php:1233
 #, php-format
 msgid ""
 "You are running WordPress version %s and there are known vulnerabilities "
@@ -3753,39 +4840,38 @@ msgid ""
 "as possible."
 msgstr ""
 
-#: modules/vulnerabilities/class-wf-sn-vu.php:1251
+#: modules/vulnerabilities/class-wf-sn-vu.php:1252
 msgid "Known vulnerabilities"
 msgstr ""
 
 #. translators: 1: WordPress version
-#: modules/vulnerabilities/class-wf-sn-vu.php:1274
+#: modules/vulnerabilities/class-wf-sn-vu.php:1275
 #, php-format
 msgid "Fixed in WordPress version %1$s"
 msgstr ""
 
 #. translators: %s: CVE ID
-#: modules/vulnerabilities/class-wf-sn-vu.php:1286
+#: modules/vulnerabilities/class-wf-sn-vu.php:1287
 #, php-format
 msgid "More details: %1$sRead more about %2$s%3$s%4$s"
 msgstr ""
 
-#: modules/vulnerabilities/class-wf-sn-vu.php:1312
+#: modules/vulnerabilities/class-wf-sn-vu.php:1313
 msgid ""
 "You should upgrade to latest version or find a different plugin as soon as "
 "possible."
 msgstr ""
 
 #. translators: %1$s: Plugin name, %2$s: Plugin version
-#: modules/vulnerabilities/class-wf-sn-vu.php:1322
+#: modules/vulnerabilities/class-wf-sn-vu.php:1323
 #, php-format
 msgid "Plugin: %1$s %2$s"
 msgstr ""
 
-#. translators: Recommendation to update particular plugin to specific version
-#: modules/vulnerabilities/class-wf-sn-vu.php:1339
-#: modules/vulnerabilities/class-wf-sn-vu.php:1449
+#. translators: %1$s: URL for the update, %2$s: Plugin name, %3$s: Minimum version required
+#: modules/vulnerabilities/class-wf-sn-vu.php:1340
 #, php-format
-msgid "<a href=\"%1$s\">Update %2$s to minimum version %3$s</a>"
+msgid "Update %2$s to minimum version %3$s"
 msgstr ""
 
 #: modules/vulnerabilities/class-wf-sn-vu.php:1382
@@ -3804,87 +4890,94 @@ msgstr ""
 msgid "Theme: %1$s %2$s"
 msgstr ""
 
-#: modules/vulnerabilities/class-wf-sn-vu.php:1494
+#: modules/vulnerabilities/class-wf-sn-vu.php:1449
+#, php-format
+msgid "Update %2$s to minimum version %3$s. You can do it %1$s."
+msgstr ""
+
+#: modules/vulnerabilities/class-wf-sn-vu.php:1489
 msgid "Read more"
 msgstr ""
 
-#: modules/vulnerabilities/class-wf-sn-vu.php:1532
+#: modules/vulnerabilities/class-wf-sn-vu.php:1527
 msgid "The vulnerability scanner is disabled"
 msgstr ""
 
-#: modules/vulnerabilities/class-wf-sn-vu.php:1536
+#: modules/vulnerabilities/class-wf-sn-vu.php:1531
 msgid "Great, no known vulnerabilities found on your website"
 msgstr ""
 
-#: modules/vulnerabilities/class-wf-sn-vu.php:1550
+#: modules/vulnerabilities/class-wf-sn-vu.php:1545
 msgid "Vulnerability scanning"
 msgstr ""
 
-#: modules/vulnerabilities/class-wf-sn-vu.php:1562
+#: modules/vulnerabilities/class-wf-sn-vu.php:1557
 msgid "Checking for known vulnerabilites."
 msgstr ""
 
-#: modules/vulnerabilities/class-wf-sn-vu.php:1567
+#: modules/vulnerabilities/class-wf-sn-vu.php:1562
 msgid "Admin counter"
 msgstr ""
 
-#: modules/vulnerabilities/class-wf-sn-vu.php:1579
+#: modules/vulnerabilities/class-wf-sn-vu.php:1574
 msgid "Disable warning notice in admin pages."
 msgstr ""
 
-#: modules/vulnerabilities/class-wf-sn-vu.php:1584
+#: modules/vulnerabilities/class-wf-sn-vu.php:1579
 msgid "Email warnings"
 msgstr ""
 
-#: modules/vulnerabilities/class-wf-sn-vu.php:1595
+#: modules/vulnerabilities/class-wf-sn-vu.php:1590
 msgid ""
 "Enable email notifications. Only when one or more vulnerabilites are "
 "detected."
 msgstr ""
 
-#: modules/vulnerabilities/class-wf-sn-vu.php:1600
+#: modules/vulnerabilities/class-wf-sn-vu.php:1595
 msgid "Email recipient"
 msgstr ""
 
-#: modules/vulnerabilities/class-wf-sn-vu.php:1605
+#: modules/vulnerabilities/class-wf-sn-vu.php:1600
 msgid ""
 "Who should get the warning? The system will send an email when a "
 "vulnerability is detected. Maximum one email per day."
 msgstr ""
 
 #. translators: Shows how many vulnerabilities
-#: modules/vulnerabilities/class-wf-sn-vu.php:1630
+#: modules/vulnerabilities/class-wf-sn-vu.php:1625
 #, php-format
 msgid "Vulnerability list contains %1$s known vulnerabilities."
 msgstr ""
 
-#: modules/vulnerabilities/class-wf-sn-vu.php:1641
+#: modules/vulnerabilities/class-wf-sn-vu.php:1636
 msgid "Last Updated"
 msgstr ""
 
-#: modules/vulnerabilities/class-wf-sn-vu.php:1666
+#: modules/vulnerabilities/class-wf-sn-vu.php:1662
 msgid "Path:"
 msgstr ""
 
-#: modules/vulnerabilities/class-wf-sn-vu.php:1698
+#: modules/vulnerabilities/class-wf-sn-vu.php:1694
 msgid "Vulnerability list updated"
 msgstr ""
 
 #. translators: Shown if one or multiple vulnerabilities found
 #. translators: Shown when one or multiple vulnerabilities found
-#: modules/vulnerabilities/class-wf-sn-vu.php:1764 security-ninja.php:767
+#: modules/vulnerabilities/class-wf-sn-vu.php:1760 security-ninja.php:769
 #, php-format
 msgid "You have %s known vulnerability on your website!"
 msgid_plural "You have %s known vulnerabilities on your website!"
 msgstr[0] ""
 msgstr[1] ""
 
-#: modules/vulnerabilities/class-wf-sn-vu.php:1769
+#: modules/vulnerabilities/class-wf-sn-vu.php:1765
 msgid "Dismiss warning for 24 hours."
 msgstr ""
 
-#: modules/whitelabel/class-wf-sn-wl.php:350
-msgid "Whitelabel"
+#: modules/whitelabel/class-wf-sn-wl.php:300
+#: modules/whitelabel/class-wf-sn-wl.php:310
+#: modules/whitelabel/class-wf-sn-wl.php:350 security-ninja.php:1395
+msgid "White label"
 msgstr ""
 
 #: modules/whitelabel/class-wf-sn-wl.php:358
@@ -3918,7 +5011,7 @@ msgstr ""
 
 #. Plugin Name of the plugin/theme
 #: modules/whitelabel/class-wf-sn-wl.php:381
-#: modules/wizard/class-wf-sn-wizard.php:530
+#: modules/wizard/class-wf-sn-wizard.php:539
 msgid "Security Ninja"
 msgstr ""
 
@@ -3962,361 +5055,400 @@ msgstr ""
 msgid "This is the little menu icon in the sidebar"
 msgstr ""
 
-#: modules/wizard/class-wf-sn-wizard.php:74
+#: modules/wizard/class-wf-sn-wizard.php:81
 #, php-format
 msgid "%s Install Wizard"
 msgstr ""
 
-#: modules/wizard/class-wf-sn-wizard.php:75
+#: modules/wizard/class-wf-sn-wizard.php:82
 msgid "Get started"
 msgstr ""
 
-#: modules/wizard/class-wf-sn-wizard.php:237
+#: modules/wizard/class-wf-sn-wizard.php:194
+msgid "Join the newsletter"
+msgstr ""
+
+#: modules/wizard/class-wf-sn-wizard.php:195
+msgid "Updates about the plugin and important WordPress security in general"
+msgstr ""
+
+#: modules/wizard/class-wf-sn-wizard.php:196
+msgid "Please note: The newsletter is currently available only in English."
+msgstr ""
+
+#: modules/wizard/class-wf-sn-wizard.php:203
+msgid "Name"
+msgstr ""
+
+#: modules/wizard/class-wf-sn-wizard.php:206
+msgid "Email"
+msgstr ""
+
+#: modules/wizard/class-wf-sn-wizard.php:209
+msgid "Subscribe"
+msgstr ""
+
+#: modules/wizard/class-wf-sn-wizard.php:220
+msgid "You can unsubscribe anytime. For more details, review our"
+msgstr ""
+
+#: modules/wizard/class-wf-sn-wizard.php:220
+msgid "Privacy Policy"
+msgstr ""
+
+#: modules/wizard/class-wf-sn-wizard.php:245
 msgid "Skip"
 msgstr ""
 
-#: modules/wizard/class-wf-sn-wizard.php:261
+#: modules/wizard/class-wf-sn-wizard.php:269
 msgid "Warning: Rerunning this wizard will overwrite your old settings."
 msgstr ""
 
-#: modules/wizard/class-wf-sn-wizard.php:297
+#: modules/wizard/class-wf-sn-wizard.php:305
 msgid "Thank you for choosing"
 msgstr ""
 
-#: modules/wizard/class-wf-sn-wizard.php:302
+#: modules/wizard/class-wf-sn-wizard.php:306
+msgid "Welcome"
+msgstr ""
+
+#: modules/wizard/class-wf-sn-wizard.php:310
 msgid "Start Wizard"
 msgstr ""
 
-#: modules/wizard/class-wf-sn-wizard.php:308
+#: modules/wizard/class-wf-sn-wizard.php:316
 msgid "Activate Firewall Protection"
 msgstr ""
 
-#: modules/wizard/class-wf-sn-wizard.php:313
-#: modules/wizard/class-wf-sn-wizard.php:323
+#: modules/wizard/class-wf-sn-wizard.php:317 security-ninja.php:1242
+#: security-ninja.php:1374
+msgid "Firewall"
+msgstr ""
+
+#: modules/wizard/class-wf-sn-wizard.php:321
+#: modules/wizard/class-wf-sn-wizard.php:331
 msgid "Activate"
 msgstr ""
 
-#: modules/wizard/class-wf-sn-wizard.php:318
+#: modules/wizard/class-wf-sn-wizard.php:326
 msgid "Activate Default Security Measures"
 msgstr ""
 
-#: modules/wizard/class-wf-sn-wizard.php:319
+#: modules/wizard/class-wf-sn-wizard.php:327
 msgid "Fixes"
 msgstr ""
 
-#: modules/wizard/class-wf-sn-wizard.php:328
+#: modules/wizard/class-wf-sn-wizard.php:336
 msgid "Thank you - All done "
 msgstr ""
 
-#: modules/wizard/class-wf-sn-wizard.php:329
+#: modules/wizard/class-wf-sn-wizard.php:337
 msgid "Done"
 msgstr ""
 
-#: modules/wizard/class-wf-sn-wizard.php:373
+#: modules/wizard/class-wf-sn-wizard.php:381
 msgid "Use this wizard to get you up and running in a few minutes."
 msgstr ""
 
-#: modules/wizard/class-wf-sn-wizard.php:375
+#: modules/wizard/class-wf-sn-wizard.php:383
 msgid "This wizard sets up standard best security practices for your website."
 msgstr ""
 
-#: modules/wizard/class-wf-sn-wizard.php:378
+#: modules/wizard/class-wf-sn-wizard.php:386
 #, php-format
 msgid ""
 "Click the button to get started or %sclick here to go to the dashboard%s."
 msgstr ""
 
-#: modules/wizard/class-wf-sn-wizard.php:397
+#: modules/wizard/class-wf-sn-wizard.php:405
 msgid "Additional protection measures for your website."
 msgstr ""
 
-#: modules/wizard/class-wf-sn-wizard.php:399
+#: modules/wizard/class-wf-sn-wizard.php:407
 msgid ""
-"Enhance your website's security with our comprehensive suite of default "
-"measures designed to protect against common vulnerabilities and ensure your "
-"site's integrity."
+"Strengthen your website's security with our comprehensive suite of "
+"protective measures, designed to guard against common vulnerabilities and "
+"ensure your site's integrity."
 msgstr ""
 
-#: modules/wizard/class-wf-sn-wizard.php:399
+#: modules/wizard/class-wf-sn-wizard.php:407
 msgid ""
-"This includes automatic updates for plugins, concealment of version "
-"information and development tools from your site's code, and the removal of "
-"unneeded files to keep your site clean and secure. Additionally, we "
-"strengthen your site's defenses with Secure Cookies and a selection of "
-"crucial security headers to safeguard against various types of cyber threats."
+"Our security features include concealing version information, removing "
+"unnecessary files, and implementing Secure Cookies along with essential "
+"security headers. These enhancements help defend your site against various "
+"cyber threats, keeping it safe and secure."
 msgstr ""
 
-#: modules/wizard/class-wf-sn-wizard.php:404
+#: modules/wizard/class-wf-sn-wizard.php:412
 msgid "Learn more about the default security measures"
 msgstr ""
 
-#: modules/wizard/class-wf-sn-wizard.php:423
+#: modules/wizard/class-wf-sn-wizard.php:431
 msgid ""
 "The firewall protects you against hack attempts, blocks known spammers and "
 "malicious IPs."
 msgstr ""
 
-#: modules/wizard/class-wf-sn-wizard.php:425
+#: modules/wizard/class-wf-sn-wizard.php:433
 msgid ""
 "Enable the Cloud Firewall list of 600 million+ bad IPs. The list is updated "
 "daily from many sources."
 msgstr ""
 
-#: modules/wizard/class-wf-sn-wizard.php:426
+#: modules/wizard/class-wf-sn-wizard.php:434
 msgid "Block suspicious queries (probing for security holes)"
 msgstr ""
 
-#: modules/wizard/class-wf-sn-wizard.php:427
+#: modules/wizard/class-wf-sn-wizard.php:435
 msgid "Protect your login form from mass attacks"
 msgstr ""
 
-#: modules/wizard/class-wf-sn-wizard.php:428
+#: modules/wizard/class-wf-sn-wizard.php:436
 msgid ""
 "Enable the Block IP network - automatically block IPs trying to hack other "
 "websites"
 msgstr ""
 
-#: modules/wizard/class-wf-sn-wizard.php:430
+#: modules/wizard/class-wf-sn-wizard.php:438
 msgid "In case you ever get locked out - Save this URL:"
 msgstr ""
 
-#: modules/wizard/class-wf-sn-wizard.php:433
+#: modules/wizard/class-wf-sn-wizard.php:441
 msgid "Visiting that URL will unblock your IP and allow you to log in."
 msgstr ""
 
-#: modules/wizard/class-wf-sn-wizard.php:451
+#: modules/wizard/class-wf-sn-wizard.php:459
 msgid "Great, you have now finished the getting started wizard!"
 msgstr ""
 
-#: modules/wizard/class-wf-sn-wizard.php:453
+#: modules/wizard/class-wf-sn-wizard.php:461
 msgid ""
 "Your website is now protected, but there are many more features to secure "
 "your website even further."
 msgstr ""
 
-#: modules/wizard/class-wf-sn-wizard.php:456
+#: modules/wizard/class-wf-sn-wizard.php:465
 #, php-format
-msgid ""
-"Visit our <a href=\"%1$s\" target=\"_blank\" rel=\"noopener\">documentation</"
-"a> or <a href=\"%2$s\" target=\"_blank\" rel=\"noopener\">reach out to our "
-"support</a> if you have any problems."
+msgid "Visit our %1$s or %2$s if you have any problems."
 msgstr ""
 
-#: modules/wizard/class-wf-sn-wizard.php:463
+#: modules/wizard/class-wf-sn-wizard.php:466
+msgid "Documentation"
+msgstr ""
+
+#: modules/wizard/class-wf-sn-wizard.php:467
+msgid "Reach out to our support"
+msgstr ""
+
+#: modules/wizard/class-wf-sn-wizard.php:472
 msgid "Finish Wizard"
 msgstr ""
 
-#: modules/wizard/class-wf-sn-wizard.php:523
+#: modules/wizard/class-wf-sn-wizard.php:532
 msgid "All done!"
 msgstr ""
 
 #. translators: %s: Link to Security Ninja dashboard
-#: modules/wizard/class-wf-sn-wizard.php:529
+#: modules/wizard/class-wf-sn-wizard.php:538
 #, php-format
 msgid "Click the button to get started or %s"
 msgstr ""
 
-#: modules/wizard/class-wf-sn-wizard.php:579
+#: modules/wizard/class-wf-sn-wizard.php:588
 msgid "Firewall enabled."
 msgstr ""
 
-#: modules/wizard/class-wf-sn-wizard.php:609
+#: modules/wizard/class-wf-sn-wizard.php:618
 msgid "Security Tests done"
 msgstr ""
 
-#: modules/wizard/class-wf-sn-wizard.php:631
+#: modules/wizard/class-wf-sn-wizard.php:640
 msgid "All finished."
 msgstr ""
 
-#: modules/wizard/class-wf-sn-wizard.php:693
+#: modules/wizard/class-wf-sn-wizard.php:696
 msgid "Default fixes enabled."
 msgstr ""
 
-#: security-ninja.php:556
+#: security-ninja.php:543
+msgid "Events module"
+msgstr ""
+
+#: security-ninja.php:544
+msgid "Events extensions"
+msgstr ""
+
+#: security-ninja.php:545
+msgid "Cloud Firewall"
+msgstr ""
+
+#: security-ninja.php:558
 msgid "Ran activation routines for"
 msgstr ""
 
-#: security-ninja.php:561 security-ninja.php:577
-msgid "Security check failed."
-msgstr ""
-
-#: security-ninja.php:570
+#: security-ninja.php:572
 msgid "Permission denied."
 msgstr ""
 
-#: security-ninja.php:817 security-ninja.php:2652
+#: security-ninja.php:819 security-ninja.php:2616
 msgid "Score"
 msgstr ""
 
-#: security-ninja.php:818 security-ninja.php:2646 security-ninja.php:2727
+#: security-ninja.php:820 security-ninja.php:2610 security-ninja.php:2691
 msgid "Passed"
 msgstr ""
 
-#: security-ninja.php:819 security-ninja.php:2727 security-ninja.php:2760
-#: security-ninja.php:2994 security-ninja.php:3368 sn-tests-description.php:384
-msgid "Warning"
-msgstr ""
-
-#: security-ninja.php:820 security-ninja.php:2650 security-ninja.php:2727
+#: security-ninja.php:822 security-ninja.php:2614 security-ninja.php:2691
 msgid "Failed"
 msgstr ""
 
-#: security-ninja.php:828
+#: security-ninja.php:830
 msgid "Run Security Tests"
 msgstr ""
 
-#: security-ninja.php:833
+#: security-ninja.php:835
 msgid "Test your website security - Run our tests"
 msgstr ""
 
-#: security-ninja.php:857
+#: security-ninja.php:859
 msgid "Latest Events"
 msgstr ""
 
-#: security-ninja.php:1001 security-ninja.php:1054
+#: security-ninja.php:1008
 msgid "Nonce verification failed."
 msgstr ""
 
-#: security-ninja.php:1010 security-ninja.php:1064 security-ninja.php:2311
-#: security-ninja.php:3109
+#: security-ninja.php:1018 security-ninja.php:2277 security-ninja.php:3073
 msgid "You do not have permission to do this."
 msgstr ""
 
-#: security-ninja.php:1025
-msgid "Automatic background updates enabled."
-msgstr ""
-
-#: security-ninja.php:1103
+#: security-ninja.php:1057
 msgid "Freemius opt choice selected."
 msgstr ""
 
-#: security-ninja.php:1110
+#: security-ninja.php:1064
 msgid "Freemius opt choice not found."
 msgstr ""
 
-#: security-ninja.php:1288
-msgid "Firewall"
-msgstr ""
-
-#: security-ninja.php:1290
+#: security-ninja.php:1244
 msgid "Scan Core files of WordPress"
 msgstr ""
 
-#: security-ninja.php:1434
+#: security-ninja.php:1388
 msgid "Event Log"
 msgstr ""
 
-#: security-ninja.php:1602
+#: security-ninja.php:1568
 msgid "Get help or create a support ticket"
 msgstr ""
 
-#: security-ninja.php:1602
+#: security-ninja.php:1568
 msgid "Support"
 msgstr ""
 
-#: security-ninja.php:1658
+#: security-ninja.php:1624
 msgid "Thank you for installing Security Ninja &hearts;"
 msgstr ""
 
-#: security-ninja.php:1664
+#: security-ninja.php:1630
 msgid "Use the Wizard button to get protected in a few minutes."
 msgstr ""
 
-#: security-ninja.php:1803
+#: security-ninja.php:1769
 #, php-format
 msgid "Latest from %s"
 msgstr ""
 
-#: security-ninja.php:2126
+#: security-ninja.php:2092
 msgid "Reset all users 2FA"
 msgstr ""
 
-#: security-ninja.php:2141
+#: security-ninja.php:2107
 msgid ""
 "Resets all users 2FA setup - forcing all users to start the setup process "
 "again before being able to log in."
 msgstr ""
 
-#: security-ninja.php:2150
+#: security-ninja.php:2116
 msgid "Remove settings when deactivating"
 msgstr ""
 
-#: security-ninja.php:2161
+#: security-ninja.php:2127
 msgid ""
 "If enabled all settings and data will be reset when you deactivate the "
 "plugin."
 msgstr ""
 
-#: security-ninja.php:2455
+#: security-ninja.php:2421
 msgid "Tests"
 msgstr ""
 
-#: security-ninja.php:2648
+#: security-ninja.php:2612
 msgid "Warnings"
 msgstr ""
 
-#: security-ninja.php:2702
+#: security-ninja.php:2666
 msgid "Test your website security"
 msgstr ""
 
-#: security-ninja.php:2724
+#: security-ninja.php:2688
 msgid "Run Tests"
 msgstr ""
 
-#: security-ninja.php:2727
+#: security-ninja.php:2691
 msgid "All"
 msgstr ""
 
-#: security-ninja.php:2727 security-ninja.php:2767
+#: security-ninja.php:2691 security-ninja.php:2731
 msgid "Untested"
 msgstr ""
 
-#: security-ninja.php:2734 security-ninja.php:2831
+#: security-ninja.php:2698 security-ninja.php:2795
 msgid "Select All"
 msgstr ""
 
-#: security-ninja.php:2738 security-ninja.php:2832
+#: security-ninja.php:2702 security-ninja.php:2796
 msgid "Security Test"
 msgstr ""
 
-#: security-ninja.php:2739
+#: security-ninja.php:2703
 msgid "Expand All"
 msgstr ""
 
-#: security-ninja.php:2758 security-ninja.php:2991 security-ninja.php:3364
+#: security-ninja.php:2722 security-ninja.php:2955 security-ninja.php:3328
 msgid "Fail"
 msgstr ""
 
-#: security-ninja.php:2762 security-ninja.php:2987 security-ninja.php:3366
+#: security-ninja.php:2726 security-ninja.php:2951 security-ninja.php:3330
 msgid "OK"
 msgstr ""
 
-#: security-ninja.php:2807
+#: security-ninja.php:2771
 msgid "Details &amp; Fix"
 msgstr ""
 
-#: security-ninja.php:2854
+#: security-ninja.php:2818
 msgid ""
 "Although these tests cover years of best practices in security, getting all "
 "test green does not guarantee your site will not get hacked. Likewise, "
 "having them all red does not mean you will get hacked."
 msgstr ""
 
-#: security-ninja.php:2857
+#: security-ninja.php:2821
 msgid ""
 "Please read each test's detailed information to see if it represents a real "
 "security issue for your site."
 msgstr ""
 
-#: security-ninja.php:2933
+#: security-ninja.php:2897
 msgid "Error. Please contact support"
 msgstr ""
 
-#: security-ninja.php:3141
+#: security-ninja.php:3105
 msgid "Could not set PHP time limit set_time_limit()"
 msgstr ""
 
-#: security-ninja.php:3340
+#: security-ninja.php:3304
 msgid "Security Tests - Completed Scanning"
 msgstr ""
 
@@ -4383,8 +5515,8 @@ msgid ""
 msgstr ""
 
 #: sn-tests-description.php:47 sn-tests-description.php:103
-#: sn-tests-description.php:129 sn-tests-description.php:154
-#: sn-tests-description.php:185
+#: sn-tests-description.php:135 sn-tests-description.php:160
+#: sn-tests-description.php:191
 msgid "You can also add this to your .htaccess file"
 msgstr ""
 
@@ -4395,9 +5527,9 @@ msgid ""
 msgstr ""
 
 #: sn-tests-description.php:55 sn-tests-description.php:82
-#: sn-tests-description.php:114 sn-tests-description.php:135
-#: sn-tests-description.php:163 sn-tests-description.php:195
-#: sn-tests-description.php:784
+#: sn-tests-description.php:114 sn-tests-description.php:141
+#: sn-tests-description.php:169 sn-tests-description.php:201
+#: sn-tests-description.php:854
 msgid "For Nginx add this to the nginx.conf under server block"
 msgstr ""
 
@@ -4429,17 +5561,15 @@ msgstr ""
 msgid "Check if server response headers contain X-Frame-Options"
 msgstr ""
 
-#: sn-tests-description.php:96
+#: sn-tests-description.php:98
 msgid ""
-"The X-Frame-Options response header indicates if a page is allowed to render "
-"a page in an &lt;iframe&gt;, &lt;frame&gt; or &lt;object&gt;. Avoid "
-"clickjacking attacks simply by not allowing your content to be embedded on "
-"other websites."
+"Warning: The fix is easy, but some sites have problems with the theme "
+"customizer preview when this code is enabled."
 msgstr ""
 
-#: sn-tests-description.php:100 sn-tests-description.php:127
-#: sn-tests-description.php:150 sn-tests-description.php:182
-#: sn-tests-description.php:206
+#: sn-tests-description.php:100 sn-tests-description.php:133
+#: sn-tests-description.php:156 sn-tests-description.php:188
+#: sn-tests-description.php:212
 msgid ""
 "Fixing is very easy. Open your theme's functions.php file and add the "
 "following:"
@@ -4455,76 +5585,85 @@ msgid ""
 "configuring this."
 msgstr ""
 
-#: sn-tests-description.php:124
+#: sn-tests-description.php:120
+#, php-format
+msgid "Read more about %s."
+msgstr ""
+
+#: sn-tests-description.php:121
+msgid "the different options on GeekFlare"
+msgstr ""
+
+#: sn-tests-description.php:130
 msgid "Check if server response headers contain X-Content-Type-Options"
 msgstr ""
 
-#: sn-tests-description.php:125
+#: sn-tests-description.php:131
 msgid ""
 "Setting this will force a browser to only load external resources if the "
 "content-type matches what is expected. This prevents malicious hidden code "
 "in unexpected files"
 msgstr ""
 
-#: sn-tests-description.php:142
+#: sn-tests-description.php:148
 msgid "Check if server response headers contain Permissions-Policy"
 msgstr ""
 
-#: sn-tests-description.php:144
+#: sn-tests-description.php:150
 msgid ""
 "This is a way to instruct a browser which features it can use on a website."
 msgstr ""
 
-#: sn-tests-description.php:146
+#: sn-tests-description.php:152
 msgid ""
 "With this you can explitly prevent access to the camera, microphone, "
 "geolocation and many other features."
 msgstr ""
 
-#: sn-tests-description.php:148
+#: sn-tests-description.php:154
 msgid "For a full and updated list check out the link."
 msgstr ""
 
-#: sn-tests-description.php:153
+#: sn-tests-description.php:159
 msgid ""
 "NOTE: This example disables everything, so if you have website that uses "
 "some of the features please check the link to Mozilla on more details on how "
 "to finetune."
 msgstr ""
 
-#: sn-tests-description.php:174
+#: sn-tests-description.php:180
 msgid "Check if server response headers contain Referrer-Policy"
 msgstr ""
 
-#: sn-tests-description.php:176
+#: sn-tests-description.php:182
 msgid ""
 "Referrer-Policy is a way to control when the \"referrer\" header information "
 "is allowed."
 msgstr ""
 
-#: sn-tests-description.php:178
+#: sn-tests-description.php:184
 msgid "This means which websites can see where visitors are referred from."
 msgstr ""
 
-#: sn-tests-description.php:180
+#: sn-tests-description.php:186
 msgid ""
 "The recommended setting \"same-origin\" allows you to still track data "
 "internally on your website, but no other website will know that a visitor "
 "came from a link on your website."
 msgstr ""
 
-#: sn-tests-description.php:204
+#: sn-tests-description.php:210
 msgid ""
 "WordPress comes with a powerful REST API system that allows access to "
 "different data in a structured format. We recommend you disable these links "
 "showing in the header."
 msgstr ""
 
-#: sn-tests-description.php:216
+#: sn-tests-description.php:222
 msgid "Check if WordPress core is up to date"
 msgstr ""
 
-#: sn-tests-description.php:217
+#: sn-tests-description.php:223
 msgid ""
 "Keeping the WordPress core up to date is one of the most important aspects "
 "of site security. If vulnerabilities are discovered in WordPress and a new "
@@ -4534,23 +5673,23 @@ msgid ""
 "always keep WordPress up to date."
 msgstr ""
 
-#: sn-tests-description.php:218
+#: sn-tests-description.php:224
 msgid ""
 "Thanks to automatic updates, upgrading is now very simple. Navigate to the "
 "\"Dashboard - Updates\" page and click the \"Update Now\" button."
 msgstr ""
 
-#: sn-tests-description.php:219
+#: sn-tests-description.php:225
 msgid ""
 "Important: Always create a backup of your files and database before "
 "performing any upgrades!"
 msgstr ""
 
-#: sn-tests-description.php:226
+#: sn-tests-description.php:232
 msgid "Check if automatic core updates are enabled"
 msgstr ""
 
-#: sn-tests-description.php:227
+#: sn-tests-description.php:233
 msgid ""
 "Unless you're running a highly customized WordPress site wich requires "
 "rigorous testing of all updates we recommend having automatic minor core "
@@ -4558,11 +5697,21 @@ msgid ""
 "significant way and should be applied as soon as WP releases them."
 msgstr ""
 
-#: sn-tests-description.php:235
+#: sn-tests-description.php:234
+msgid ""
+"Updates can be disabled via constants in wp-config.php or by a plugin. For "
+"details please see"
+msgstr ""
+
+#: sn-tests-description.php:234
+msgid "WP Codex"
+msgstr ""
+
+#: sn-tests-description.php:241
 msgid "Check if plugins are up to date"
 msgstr ""
 
-#: sn-tests-description.php:236
+#: sn-tests-description.php:242
 msgid ""
 "As with the WordPress core, keeping plugins up to date is one of the most "
 "important and easiest ways to keep your site secure. Since most plugins are "
@@ -4571,11 +5720,22 @@ msgid ""
 "vulnerabilities."
 msgstr ""
 
-#: sn-tests-description.php:244
+#: sn-tests-description.php:247
+#, php-format
+msgid ""
+"If you downloaded a plugin from the official WP repository you can easily "
+"check if there are any updates available, and update it by opening <a "
+"target=\"_blank\" href=\"%s\">Dashboard - Updates</a>. If you bought the "
+"plugin from somewhere else check the item's support on instructions how to "
+"upgrade manually. <b>Remember</b> - always backup your files and database "
+"before upgrading!"
+msgstr ""
+
+#: sn-tests-description.php:266
 msgid "Check if there are any deactivated plugins"
 msgstr ""
 
-#: sn-tests-description.php:245
+#: sn-tests-description.php:267
 msgid ""
 "If you are not using a plugin remove it from the WP plugins folder. It is "
 "that simple. There is no reason to keep it there and in case the code is "
@@ -4583,11 +5743,19 @@ msgid ""
 "hacker regardless of the fact the plugin is not active."
 msgstr ""
 
-#: sn-tests-description.php:253
+#: sn-tests-description.php:272
+#, php-format
+msgid ""
+"Open <a target=\"_blank\" href=\"%s\">plugins</a> and simply delete all "
+"plugins that are not active. Or login via FTP and move them to some folder "
+"that's not /wp-content/plugins/."
+msgstr ""
+
+#: sn-tests-description.php:290
 msgid "Check if themes are up to date"
 msgstr ""
 
-#: sn-tests-description.php:254
+#: sn-tests-description.php:291
 msgid ""
 "As with the WordPress core, keeping the themes up to date is one of the most "
 "important and easiest ways to keep your site secure. Since most themes are "
@@ -4597,7 +5765,7 @@ msgid ""
 "compatible with the latest version of WordPress."
 msgstr ""
 
-#: sn-tests-description.php:258
+#: sn-tests-description.php:296
 #, php-format
 msgid ""
 "If you downloaded a theme from the official WP repository you can easily "
@@ -4607,11 +5775,11 @@ msgid ""
 "<b>Remember</b> - always backup your files and database before upgrading!"
 msgstr ""
 
-#: sn-tests-description.php:276
+#: sn-tests-description.php:315
 msgid "Check if there are any unnecessary themes installed"
 msgstr ""
 
-#: sn-tests-description.php:278
+#: sn-tests-description.php:317
 msgid ""
 "If you're not using a theme remove it from the WP themes folder. There's no "
 "reason to keep it there and in case the code is malicious or it has some "
@@ -4619,24 +5787,24 @@ msgid ""
 "the theme is not active."
 msgstr ""
 
-#: sn-tests-description.php:279
+#: sn-tests-description.php:318
 msgid ""
 "Note: To accommodate the WP Health Test, the test filters out the latest "
 "default WP theme you have installed."
 msgstr ""
 
-#: sn-tests-description.php:283
+#: sn-tests-description.php:323
 #, php-format
 msgid ""
 "Open <a target=\"_blank\" href=\"%s\">Appearance - Themes</a> and use the "
 "list above to delete the themes you do not need."
 msgstr ""
 
-#: sn-tests-description.php:300
+#: sn-tests-description.php:341
 msgid "Check if full WP version info is revealed in page's meta data"
 msgstr ""
 
-#: sn-tests-description.php:301
+#: sn-tests-description.php:342
 msgid ""
 "You should be proud that your site is powered by WordPress and there's no "
 "need to hide that information. However disclosing the full WP version info "
@@ -4645,47 +5813,47 @@ msgid ""
 "of WordPress and target them with (0-day) exploits."
 msgstr ""
 
-#: sn-tests-description.php:302
+#: sn-tests-description.php:343
 msgid ""
 "Place the following code in your theme's functions.php file in order to "
 "remove the header meta version info:"
 msgstr ""
 
-#: sn-tests-description.php:312
+#: sn-tests-description.php:353
 msgid "Check if server response headers contain detailed PHP version info"
 msgstr ""
 
-#: sn-tests-description.php:313
+#: sn-tests-description.php:354
 msgid ""
 "As with the WordPress version it is not wise to disclose the exact PHP "
 "version you are using because it makes the job of attacking your site much "
 "easier."
 msgstr ""
 
-#: sn-tests-description.php:314
+#: sn-tests-description.php:355
 msgid ""
 "This issue is not directly WP related but it definitely affects your site."
 msgstr ""
 
-#: sn-tests-description.php:315
+#: sn-tests-description.php:356
 msgid ""
 "You will most probably have to ask your hosting company to configure the "
 "HTTP server not to show PHP version info but you can also try adding these "
 "directives to the .htacces file:"
 msgstr ""
 
-#: sn-tests-description.php:326
+#: sn-tests-description.php:367
 msgid "Check if user with username \"admin\" exists"
 msgstr ""
 
-#: sn-tests-description.php:327
+#: sn-tests-description.php:368
 msgid ""
 "If someone tries to guess your username and password or tries a brute-force "
 "attack they will most probably start with username \"admin\". This is the "
 "default username used by too many sites and should be removed."
 msgstr ""
 
-#: sn-tests-description.php:331
+#: sn-tests-description.php:373
 msgid ""
 "Create a new user and assign him the \"administrator\" role. Try not to use "
 "usernames like: \"root\", \"god\", \"null\" or similar ones. Once you have "
@@ -4693,11 +5861,11 @@ msgid ""
 "may have created to the new user."
 msgstr ""
 
-#: sn-tests-description.php:346
+#: sn-tests-description.php:389
 msgid "Check for display of unnecessary information on failed login attempts"
 msgstr ""
 
-#: sn-tests-description.php:347
+#: sn-tests-description.php:390
 msgid ""
 "By default on failed login attempts WordPress will tell you whether username "
 "or password is wrong. An attacker can use that to find out which usernames "
@@ -4705,7 +5873,7 @@ msgid ""
 "password."
 msgstr ""
 
-#: sn-tests-description.php:348
+#: sn-tests-description.php:391
 msgid ""
 "The solution to this problem is simple. Whether user enters a wrong username "
 "or wrong password we always tell him 'wrong username or password' so that he "
@@ -4713,11 +5881,11 @@ msgid ""
 "file and copy/paste the following code:"
 msgstr ""
 
-#: sn-tests-description.php:357
+#: sn-tests-description.php:400
 msgid "Check if all security keys and salts have proper values"
 msgstr ""
 
-#: sn-tests-description.php:358
+#: sn-tests-description.php:401
 msgid ""
 "Security keys are used to ensure better encryption of information stored in "
 "the user's cookies and hashed passwords. They make your site harder to hack "
@@ -4726,27 +5894,30 @@ msgid ""
 "see them again. Therefore there's no excuse for not setting them properly."
 msgstr ""
 
-#: sn-tests-description.php:362
-#, php-format
+#: sn-tests-description.php:404
 msgid ""
 "Security keys (there are eight) are defined in wp-config.php as constants on "
 "lines #49-56. They should be as unique and as long as possible. WordPress "
-"made a <a target=\"_blank\" href=\"%s\" rel=\"noopener\">great script</a> "
-"which helps you generate those strings. Please use it! After the script "
-"generates strings those 8 lines of code should look something like this:"
+"made a great script which helps you generate those strings. Please use it! "
+"After the script generates strings those 8 lines of code should look "
+"something like this:"
 msgstr ""
 
-#: sn-tests-description.php:384
+#: sn-tests-description.php:408
+msgid "Get new security keys"
+msgstr ""
+
+#: sn-tests-description.php:432
 msgid ""
-"do NOT use the keys above. They are just an example, publicly available and "
+"Do NOT use the keys above. They are just an example, publicly available and "
 "therefore not safe. Generate your own ones."
 msgstr ""
 
-#: sn-tests-description.php:389
+#: sn-tests-description.php:437
 msgid "Check if security keys and salts have been updated in the last 3 months"
 msgstr ""
 
-#: sn-tests-description.php:391
+#: sn-tests-description.php:439
 msgid ""
 "It's recommended to change the security keys and salts once in a while. The "
 "process will invalidate all existing cookies. This does mean that all users "
@@ -4754,7 +5925,7 @@ msgid ""
 "can login with an old or stolen cookie."
 msgstr ""
 
-#: sn-tests-description.php:395
+#: sn-tests-description.php:444
 #, php-format
 msgid ""
 "To edit the keys open wp-config.php, <a target=\"_blank\" href=\"%s\" "
@@ -4762,11 +5933,11 @@ msgid ""
 "old ones."
 msgstr ""
 
-#: sn-tests-description.php:412
+#: sn-tests-description.php:462
 msgid "Test the strength of WordPress database password"
 msgstr ""
 
-#: sn-tests-description.php:414
+#: sn-tests-description.php:464
 msgid ""
 "There is no such thing as an \"unimportant password\"! The same goes for "
 "WordPress database password. Although most servers are configured so that "
@@ -4775,17 +5946,17 @@ msgid ""
 "\"12345\"."
 msgstr ""
 
-#: sn-tests-description.php:415
+#: sn-tests-description.php:465
 msgid ""
 "Choose a proper password, at least 12 characters long with a combination of "
 "letters, numbers and special characters."
 msgstr ""
 
-#: sn-tests-description.php:416
+#: sn-tests-description.php:466
 msgid "To change the database password"
 msgstr ""
 
-#: sn-tests-description.php:417
+#: sn-tests-description.php:467
 msgid ""
 "1. Open cPanel, Plesk or any other hosting control panel you have. Find the "
 "option to change the database password and make the new password strong "
@@ -4794,146 +5965,549 @@ msgid ""
 "php and change the password"
 msgstr ""
 
-#: sn-tests-description.php:418
+#: sn-tests-description.php:468
 msgid ""
 "2. After the password is changed open wp-config.php and change the password"
 msgstr ""
 
-#: sn-tests-description.php:422
+#: sn-tests-description.php:472
 msgid ""
 "IMPORTANT: While you are changing the password your website will be offline."
 msgstr ""
 
-#: sn-tests-description.php:423
+#: sn-tests-description.php:473
 msgid ""
 "Random password suggestions - Feel free to use or make your own. Remember to "
 "change the database password BOTH places."
 msgstr ""
 
-#: sn-tests-description.php:437
+#: sn-tests-description.php:487
 msgid "Check if database table prefix is the default \"wp_\""
 msgstr ""
 
-#: sn-tests-description.php:446
-msgid "Check if site debug mode is enabled"
+#: sn-tests-description.php:489
+msgid ""
+"Knowing the names of your database tables can help an attacker dump the "
+"table's data and get to sensitive information like password hashes. Since WP "
+"table names are predefined the only way you can change table names is by "
+"using a unique prefix. One that's different from \"wp_\" or any similar "
+"variation such as \"wordpress_\"."
 msgstr ""
 
-#: sn-tests-description.php:458
-msgid "Check if the debug.log file exists."
+#: sn-tests-description.php:490
+msgid ""
+"If you're doing a fresh installation defining a unique table prefix is easy. "
+"Open wp-config.php and go to line #61 where the table prefix is defined. "
+"Enter something unique like \"frog99_\" and install WP."
 msgstr ""
 
-#: sn-tests-description.php:471
-msgid "For Nginx add this to the nginx.conf under server block."
+#: sn-tests-description.php:491
+msgid ""
+"If you already have WP site running and want to change the table prefix "
+"things are a bit more complicated and you should only do the change if "
+"you're comfortable doing some changes to your DB data via phpMyAdmin or a "
+"similar GUI."
+msgstr ""
+
+#: sn-tests-description.php:492
+msgid "Remember"
+msgstr ""
+
+#: sn-tests-description.php:492
+msgid ""
+"Always backup your files and database before making any changes to the "
+"database!"
 msgstr ""
 
 #: sn-tests-description.php:497
-msgid "Check if database debug mode is enabled"
+msgid "Check if site debug mode is enabled"
 msgstr ""
 
-#: sn-tests-description.php:506
-msgid "Check if JavaScript debug mode is enabled"
+#: sn-tests-description.php:499
+msgid ""
+"Having any kind of debug mode (general WP debug mode in this case) or error "
+"reporting mode enabled on a production site is extremely bad. Not only will "
+"it slow down your site, confuse your visitors with weird messages it will "
+"also give the potential attacker valuable information about your system."
 msgstr ""
 
-#: sn-tests-description.php:517
-msgid "Check if display_errors PHP directive is turned off"
+#: sn-tests-description.php:500
+msgid ""
+"General WordPress debugging mode is enabled/disabled by a constant defined "
+"in wp-config.php. Open that file and look for a line similar to:"
 msgstr ""
 
-#: sn-tests-description.php:530
-msgid "Check if WordPress installation address is the same as the site address"
+#: sn-tests-description.php:502 sn-tests-description.php:563
+msgid ""
+"Comment it out, delete it or replace with the following to disable debugging:"
+msgstr ""
+
+#: sn-tests-description.php:504
+msgid ""
+"If your blog still fails on this test after you made the changes it means "
+"some plugin is enabling debug mode. Disable plugins one by one to find out "
+"which one is doing it."
+msgstr ""
+
+#: sn-tests-description.php:510
+msgid "Check if the debug.log file exists."
+msgstr ""
+
+#: sn-tests-description.php:512
+msgid "The log file, debug.log should not be accessible via a browser."
+msgstr ""
+
+#: sn-tests-description.php:513
+msgid ""
+"This file is used when debugging and may contain sensitive information about "
+"your server. It is also a clear sign you are running WordPress."
+msgstr ""
+
+#: sn-tests-description.php:514
+msgid ""
+"You should either delete the file, usually located in /wp-content/debug.log "
+"or block access to it:"
+msgstr ""
+
+#: sn-tests-description.php:515
+msgid "Via .htaccess:"
+msgstr ""
+
+#: sn-tests-description.php:523
+msgid "For Nginx add this to the nginx.conf under server block."
+msgstr ""
+
+#: sn-tests-description.php:538
+msgid ""
+"The REST API is an advanced system that allows WordPress, its plugins and "
+"external services to communicate."
 msgstr ""
 
 #: sn-tests-description.php:539
-msgid "Check if wp-config.php file has the right permissions (chmod) set"
+msgid ""
+"Having the REST API enabled is not a security issue by itself, it is well "
+"tested and protected by the developers in the WordPress community."
 msgstr ""
 
-#: sn-tests-description.php:554
-msgid "Check users' password strength with a brute-force attack"
+#: sn-tests-description.php:540
+msgid ""
+"If you want to be certain and protect yourself from attacks via the REST API "
+"you can disable it completely or only allow authenticated users to have "
+"access."
 msgstr ""
 
-#: sn-tests-description.php:563
-msgid "Check if \"anyone can register\" option is enabled"
+#: sn-tests-description.php:541
+msgid ""
+"Warning: Some plugins and external services might not work properly if you "
+"block the REST API."
+msgstr ""
+
+#: sn-tests-description.php:548
+msgid "Check if database debug mode is enabled"
+msgstr ""
+
+#: sn-tests-description.php:550
+msgid ""
+"Having any kind of debug mode (WP database debug mode in this case) or error "
+"reporting mode enabled on a production server is extremely bad. Not only "
+"will it slow down your site, confuse your visitors with weird messages it "
+"will also give the potential attacker valuable information about your system."
+msgstr ""
+
+#: sn-tests-description.php:551
+msgid "WordPress DB debugging mode is enabled with the following command:"
+msgstr ""
+
+#: sn-tests-description.php:553
+msgid ""
+"In most cases this debugging mode is enabled by plugins so the only way to "
+"solve the problem is to disable plugins one by one and find out which one "
+"enabled debugging."
+msgstr ""
+
+#: sn-tests-description.php:558
+msgid "Check if JavaScript debug mode is enabled"
+msgstr ""
+
+#: sn-tests-description.php:560
+msgid ""
+"Having any kind of debug mode (WP JavaScript debug mode in this case) or "
+"error reporting mode enabled on a production server is extremely bad. Not "
+"only will it slow down your site, confuse your visitors with weird messages "
+"it will also give the potential attacker valuable information about your "
+"system."
+msgstr ""
+
+#: sn-tests-description.php:561
+msgid ""
+"WordPress JavaScript debugging mode is enabled/disabled by a constant "
+"defined in wp-config.php open your config file and look for a line similar "
+"to:"
+msgstr ""
+
+#: sn-tests-description.php:565
+msgid ""
+"If your blog still fails on this test after you made the change it means "
+"some plugin is enabling debug mode. Disable plugins one by one to find out "
+"which one is doing it."
 msgstr ""
 
 #: sn-tests-description.php:570
-msgid "Check if register_globals PHP directive is turned off"
+msgid "Check if display_errors PHP directive is turned off"
 msgstr ""
 
-#: sn-tests-description.php:583
-msgid "Check if safe mode is disabled"
+#: sn-tests-description.php:571
+msgid ""
+"Displaying any kind of debug info or similar information is extremely bad. "
+"If any PHP errors happen on your site they should be logged in a safe place "
+"and not displayed to visitors or potential attackers."
 msgstr ""
 
+#: sn-tests-description.php:572
+msgid ""
+"Open wp-config.php and place the following code just above the require_once "
+"function at the end of the file:"
+msgstr ""
+
+#: sn-tests-description.php:574
+msgid "If that doesn't work add the following line to your .htaccess file:"
+msgstr ""
+
+#: sn-tests-description.php:580
+msgid ""
+"If that fails as well, contact your hosting provider or try disabling "
+"plugins, one by one to find out which one enabled error displaying."
+msgstr ""
+
+#: sn-tests-description.php:585
+msgid "Check if WordPress installation address is the same as the site address"
+msgstr ""
+
+#: sn-tests-description.php:586
+msgid ""
+"Moving WP core files to any non-standard folder will make your site less "
+"vulnerable to automated attacks. Most scripts that script kiddies use rely "
+"on default file paths. If your blog is setup on www.site.com you can put WP "
+"files in ie: /var/www/vhosts/site.com/www/my-app/ instead of the obvious /"
+"var/www/vhosts/site.com/www/."
+msgstr ""
+
+#: sn-tests-description.php:587
+msgid "Site and WP address can easily be changed in"
+msgstr ""
+
+#: sn-tests-description.php:587 sn-tests-description.php:628
+msgid "Options - General"
+msgstr ""
+
+#. translators: %s: URL to WordPress.org article
 #: sn-tests-description.php:593
-msgid "Check if the expose_php PHP directive is turned off"
+#, php-format
+msgid ""
+"Check out this simple instruction from wordpress.org how to move your core "
+"WordPress files to another folder: %s"
+msgstr ""
+
+#: sn-tests-description.php:594
+msgid "Giving WordPress Its Own Directory"
+msgstr ""
+
+#: sn-tests-description.php:602
+msgid "Check if wp-config.php file has the right permissions (chmod) set"
 msgstr ""
 
 #: sn-tests-description.php:603
-msgid "Check if allow_url_include PHP directive is turned off"
+msgid ""
+"wp-config.php file contains sensitive information (database username and "
+"password) in plain text and should not be accessible to anyone except you "
+"and WP (or the web server to be more precise)."
 msgstr ""
 
-#: sn-tests-description.php:614
-msgid "Check if plugins/themes file editor is enabled"
+#: sn-tests-description.php:604
+msgid ""
+"What's the best chmod for your wp-config.php depends on the way your server "
+"is configured but there are some general guidelines you can follow."
 msgstr ""
 
-#: sn-tests-description.php:625
-msgid "Check if the uploads folder is browsable"
+#: sn-tests-description.php:606
+msgid ""
+"The official recommendation is trying to set to 444 which means all users "
+"have read-only rights to the file. This is a problem for some plugins that "
+"need to write to the file so you can try setting chmod to 644 or 640."
+msgstr ""
+
+#: sn-tests-description.php:608
+msgid ""
+"Try setting chmod to 0400 or 0440 and if the site works normally that's the "
+"best one to use"
+msgstr ""
+
+#: sn-tests-description.php:609
+msgid ""
+"The \"other\" users should have no privileges on the file so set the last "
+"octal digit to zero"
+msgstr ""
+
+#: sn-tests-description.php:610
+msgid ""
+"The \"group\" users shouldn't have any access right as well unless Apache "
+"falls under that category, so set group rights to 0 or 4"
+msgstr ""
+
+#: sn-tests-description.php:612
+#, php-format
+msgid ""
+"This can vary depending on your server configuration - please check more "
+"details on %s"
+msgstr ""
+
+#: sn-tests-description.php:617
+msgid "Check users' password strength with a brute-force attack"
+msgstr ""
+
+#: sn-tests-description.php:618
+msgid ""
+"By using a dictionary of 600 most commonly used passwords we do a brute-"
+"force attach on your site's user accounts. Any accounts that fail this test "
+"pose a serious security issue for the site because they are using passwords "
+"like \"12345\", \"qwerty\" or \"god\" which anyone can guess within minutes. "
+"Alert those users or change their passwords immediately."
+msgstr ""
+
+#: sn-tests-description.php:619
+msgid ""
+"Please note that the plugin tests only the first 5 users (starting from "
+"administrators). This limit is imposed to be sure we don't temporarily kill "
+"the database while doing the brute-force attack."
+msgstr ""
+
+#: sn-tests-description.php:620
+msgid ""
+"If you want to test more or all users open sn-test.php and change the line "
+"#763 which defines this limit."
+msgstr ""
+
+#: sn-tests-description.php:626
+msgid "Check if \"anyone can register\" option is enabled"
+msgstr ""
+
+#: sn-tests-description.php:627
+msgid ""
+"Unless you're running some kind of community based site this option needs to "
+"be disabled. Although it only provides the attacker limited access to your "
+"backend it's enough to start exploiting other security issues."
+msgstr ""
+
+#: sn-tests-description.php:628
+msgid "Go to"
+msgstr ""
+
+#: sn-tests-description.php:628
+msgid "and uncheck the \"Membership - anyone can register\" checkbox."
+msgstr ""
+
+#: sn-tests-description.php:633
+msgid "Check if register_globals PHP directive is turned off"
 msgstr ""
 
 #: sn-tests-description.php:634
-msgid "Check if user with ID \"1\" exists"
+msgid ""
+"This is one of the biggest security issues you can have on your site! If "
+"your hosting company has this directive enabled by default switch to another "
+"company immediately!"
+msgstr ""
+
+#: sn-tests-description.php:634
+msgid "https://php.net/manual/en/security.globals.php"
+msgstr ""
+
+#: sn-tests-description.php:634
+msgid "PHP manual"
+msgstr ""
+
+#: sn-tests-description.php:634
+msgid "has more info why this is so dangerous."
+msgstr ""
+
+#: sn-tests-description.php:635 sn-tests-description.php:648
+#: sn-tests-description.php:658 sn-tests-description.php:671
+msgid "If you have access to php.ini file locate"
+msgstr ""
+
+#: sn-tests-description.php:637 sn-tests-description.php:650
+#: sn-tests-description.php:660 sn-tests-description.php:673
+msgid "and change it to:"
+msgstr ""
+
+#: sn-tests-description.php:639
+msgid "Alternatively open .htaccess and put this directive into it:"
 msgstr ""
 
 #: sn-tests-description.php:641
+msgid ""
+"If you're still unable to disable register_globals contact a security "
+"professional."
+msgstr ""
+
+#: sn-tests-description.php:646
+msgid "Check if safe mode is disabled"
+msgstr ""
+
+#: sn-tests-description.php:647
+msgid ""
+"PHP safe mode is an attempt to solve the shared-server security problem. It "
+"is architecturally incorrect to try to solve this problem at the PHP level, "
+"but since the alternatives at the web server and OS levels aren't very "
+"realistic, many people, especially ISP's, use safe mode for now. If your "
+"hosting company still uses safe mode it might be a good idea to switch. This "
+"feature is deprecated in new version of PHP (5.3) which is also old by now."
+msgstr ""
+
+#: sn-tests-description.php:656
+msgid "Check if the expose_php PHP directive is turned off"
+msgstr ""
+
+#: sn-tests-description.php:657
+msgid ""
+"It's not wise to disclose the exact PHP version you're using because it "
+"makes the job of attacking your site much easier."
+msgstr ""
+
+#: sn-tests-description.php:666
+msgid "Check if allow_url_include PHP directive is turned off"
+msgstr ""
+
+#: sn-tests-description.php:668
+msgid ""
+"Setting allow_url_include to off in PHP is an important security measure. "
+"This configuration option determines whether PHP code can include files from "
+"remote locations, which would otherwise accept URLs as file paths if "
+"allow_url_include is enabled."
+msgstr ""
+
+#: sn-tests-description.php:669
+msgid ""
+"Having this PHP directive enabled will leave your site exposed to cross-site "
+"attacks (XSS). There's absolutely no valid reason to enable this directive, "
+"and using any PHP code that requires it is very risky."
+msgstr ""
+
+#: sn-tests-description.php:675
+msgid ""
+"If you're still unable to disable allow_url_include contact a security "
+"professional."
+msgstr ""
+
+#: sn-tests-description.php:679
+msgid "Check if plugins/themes file editor is enabled"
+msgstr ""
+
+#: sn-tests-description.php:680
+msgid ""
+"Plugins and themes file editor is a very convenient tool because it enables "
+"you to make quick changes without the need to use FTP. Unfortunately, it's "
+"also a security issue because it not only shows PHP source but it also "
+"enables the attacker to inject malicious code in your site if they manage to "
+"gain access to the admin."
+msgstr ""
+
+#: sn-tests-description.php:681
+msgid ""
+"The editor can easily be disabled by placing the following code in theme's "
+"functions.php file."
+msgstr ""
+
+#: sn-tests-description.php:690
+msgid "Check if the uploads folder is browsable"
+msgstr ""
+
+#: sn-tests-description.php:692
+msgid "Allowing anyone to view all files in the"
+msgstr ""
+
+#: sn-tests-description.php:692
+msgid "uploads folder"
+msgstr ""
+
+#: sn-tests-description.php:692
+msgid ""
+"Just by pointing the browser to it will allow them to easily download all "
+"your uploaded files. It's a security and a copyright issue."
+msgstr ""
+
+#: sn-tests-description.php:693
+msgid "To fix the problem open .htaccess and add this directive into it:"
+msgstr ""
+
+#: sn-tests-description.php:700
+msgid "Check if user with ID \"1\" exists"
+msgstr ""
+
+#: sn-tests-description.php:702
+#, no-php-format
+msgid ""
+"Although technically not a security issue having a user (which is in 99% "
+"cases the admin) with the ID 1 can help an attacker in some circumstances."
+msgstr ""
+
+#: sn-tests-description.php:703
+msgid ""
+"Fixing is easy; create a new user with the same privileges. Then delete the "
+"old one with ID 1 and tell WP to transfer all of his content to the new user."
+msgstr ""
+
+#: sn-tests-description.php:708
 msgid "Check if Windows Live Writer link is present in pages' header data"
 msgstr ""
 
-#: sn-tests-description.php:642
+#: sn-tests-description.php:709
 msgid ""
 "If you're not using Windows Live Writer there's really no valid reason to "
 "have it's link in the page header thus telling the whole world you're using "
 "WordPress."
 msgstr ""
 
-#: sn-tests-description.php:643
+#: sn-tests-description.php:710
 msgid ""
 "Fixing is very easy. Open your theme's functions.php file and add the "
 "following line:"
 msgstr ""
 
-#: sn-tests-description.php:649
+#: sn-tests-description.php:716
 msgid "Check if wp-config.php is present on the default location"
 msgstr ""
 
-#: sn-tests-description.php:650
+#: sn-tests-description.php:717
 msgid ""
 "If someone gains FTP access to your server this will not save you but it "
 "certainly cannot hurt to obfuscate your installation a bit."
 msgstr ""
 
-#: sn-tests-description.php:651
+#: sn-tests-description.php:718
 msgid ""
 "In order to fix this issue you have to move wp-config.php one level up in "
 "the folder structure. If the original location was:"
 msgstr ""
 
-#: sn-tests-description.php:653
-msgid "move the file to:"
+#: sn-tests-description.php:720
+msgid "Move the file to"
 msgstr ""
 
-#: sn-tests-description.php:655
+#: sn-tests-description.php:722
 msgid "Or for instance from"
 msgstr ""
 
-#: sn-tests-description.php:657
-msgid "to:"
+#: sn-tests-description.php:724
+msgid "To"
 msgstr ""
 
-#: sn-tests-description.php:663
+#: sn-tests-description.php:730
 msgid ""
 "Check if MySQL server is connectable from outside of the local network with "
 "the WP account"
 msgstr ""
 
-#: sn-tests-description.php:664
+#: sn-tests-description.php:731
 msgid ""
 "Since MySQL username and password are written in plain-text in wp-config.php "
 "it's advisable not to allow any client to use that account unless he's "
@@ -4941,7 +6515,7 @@ msgid ""
 "from any host will make some attacks much easier."
 msgstr ""
 
-#: sn-tests-description.php:665
+#: sn-tests-description.php:732
 msgid ""
 "Fixing this issue involves changing the MySQL user or server config and it "
 "is not something that can be described in a few words so we advise asking "
@@ -4951,49 +6525,59 @@ msgid ""
 "course, update wp-config.php with the new user details."
 msgstr ""
 
-#: sn-tests-description.php:670
+#: sn-tests-description.php:737
 msgid "Check if EditURI (XML-RPC) link is present in pages' header data"
 msgstr ""
 
-#: sn-tests-description.php:672
+#: sn-tests-description.php:739
 msgid ""
 "If you are not using any Really Simple Discovery services such as pingbacks "
 "there is no need to advertise that endpoint (link) in the header."
 msgstr ""
 
-#: sn-tests-description.php:673
+#: sn-tests-description.php:740
 msgid ""
 "Please note that for most sites this is not a security issue because they "
 "\"want to be discovered\" but if you want to hide the fact that you are "
 "using WordPress this is the way to go."
 msgstr ""
 
-#: sn-tests-description.php:674
+#: sn-tests-description.php:741
 msgid "Open your theme's functions.php file and add the following line:"
 msgstr ""
 
-#: sn-tests-description.php:689
+#: sn-tests-description.php:743
+msgid ""
+"Additionally, to completely disable XML-RPC functions add this also to the "
+"functions.php file:"
+msgstr ""
+
+#: sn-tests-description.php:745
+msgid "And also add this code to .htaccess to prevent DDoS attacks:"
+msgstr ""
+
+#: sn-tests-description.php:758
 msgid "Check if Timthumb script is used in the active theme"
 msgstr ""
 
-#: sn-tests-description.php:690
+#: sn-tests-description.php:759
 msgid ""
 "We do not recommend using the Timthumb script to manipulate images. Apart "
 "from the security issues some versions had, WordPress has its own built-in "
 "functions for manipulating images that should be used instead."
 msgstr ""
 
-#: sn-tests-description.php:691
+#: sn-tests-description.php:760
 msgid ""
 "Contact the theme developer and have him update the theme. It is unlikely "
 "you will be able to fix this issue yourself."
 msgstr ""
 
-#: sn-tests-description.php:696
+#: sn-tests-description.php:765
 msgid "Check if the server is vulnerable to the Shellshock bug #6271"
 msgstr ""
 
-#: sn-tests-description.php:697 sn-tests-description.php:705
+#: sn-tests-description.php:766 sn-tests-description.php:774
 msgid ""
 "Shellshock, also known as Bashdoor, is a family of security bugs in the "
 "widely used Unix Bash shell. Web servers use Bash to process certain "
@@ -5003,60 +6587,60 @@ msgid ""
 "it is very problematic."
 msgstr ""
 
-#: sn-tests-description.php:698 sn-tests-description.php:706
+#: sn-tests-description.php:767 sn-tests-description.php:775
 msgid "More details."
 msgstr ""
 
-#: sn-tests-description.php:699 sn-tests-description.php:707
+#: sn-tests-description.php:768 sn-tests-description.php:776
 msgid ""
 "Contact your server administrator and update the server's Bash shell "
 "immediately."
 msgstr ""
 
-#: sn-tests-description.php:704
+#: sn-tests-description.php:773
 msgid "Check if the server is vulnerable to the Shellshock bug #7169"
 msgstr ""
 
-#: sn-tests-description.php:713
+#: sn-tests-description.php:782
 msgid ""
 "You should run your entire site via HTTPS, it makes it more secure and "
 "Google will love it too."
 msgstr ""
 
-#: sn-tests-description.php:715
+#: sn-tests-description.php:784
 msgid ""
 "If for some reason you do not want to run the entire website with SSL, at "
 "least make the admin secure. Some hosting companies charge a lot for SSL "
 "certificates but you can get free ones on Let's Encrypt."
 msgstr ""
 
-#: sn-tests-description.php:717
+#: sn-tests-description.php:786
 msgid ""
 "If you do not have an SSL certificate you can still try and run the admin "
 "via HTTPS. Depending on how your server is configured, it might work. But "
 "getting a valid certificate is definitely a good thing to do."
 msgstr ""
 
-#: sn-tests-description.php:719
+#: sn-tests-description.php:788
 msgid ""
 "To enable SSL in admin open wp-config.php and add the following line to it:"
 msgstr ""
 
-#: sn-tests-description.php:728
+#: sn-tests-description.php:797
 msgid ""
 "If an attacker gains access to your wp-config.php file and gets the MySQL "
 "username and password, the attacker will be able to log in to that database "
 "and do whatever that account allows him to. "
 msgstr ""
 
-#: sn-tests-description.php:730
+#: sn-tests-description.php:799
 msgid ""
 "That is why it is important to keep the account's privileges to a bare "
 "minimum. For instance, if you're not installing any new plugins or updating "
 "WP that account doesn't need the CREATE or DROP table privileges."
 msgstr ""
 
-#: sn-tests-description.php:732
+#: sn-tests-description.php:801
 msgid ""
 "For regular, day-to-day usage these are the recommended privileges: SELECT, "
 "INSERT, UPDATE, and DELETE. When updating WordPress you will also need the "
@@ -5065,11 +6649,11 @@ msgid ""
 "modifications before."
 msgstr ""
 
-#: sn-tests-description.php:737
+#: sn-tests-description.php:806
 msgid "Check if active plugins have been updated in the last 12 months"
 msgstr ""
 
-#: sn-tests-description.php:738
+#: sn-tests-description.php:807
 msgid ""
 "Plugins that have not been updated in over a year and are potentially "
 "abandoned by their developers can pose a big security issue. Hackers can "
@@ -5078,7 +6662,7 @@ msgid ""
 "plugins. A more in-depth look into such plugins is available here:"
 msgstr ""
 
-#: sn-tests-description.php:740
+#: sn-tests-description.php:809
 msgid ""
 "There's not much you can do to fix the problem except finding a similar "
 "plugin that's properly maintained. If you are truly dependant on that one "
@@ -5086,11 +6670,11 @@ msgid ""
 "it or hire someone to do that for you."
 msgstr ""
 
-#: sn-tests-description.php:745
+#: sn-tests-description.php:814
 msgid "Check if active plugins are compatible with your version of WordPress"
 msgstr ""
 
-#: sn-tests-description.php:747
+#: sn-tests-description.php:816
 msgid ""
 "Plugins that are incompatible with your version of WordPress can cause "
 "unpredictable behavior, bring the site down and just in general cause "
@@ -5100,66 +6684,66 @@ msgid ""
 "WordPress that you should be using too."
 msgstr ""
 
-#: sn-tests-description.php:749
+#: sn-tests-description.php:818
 msgid ""
 "There is not much you can do to fix the problem except finding a similar "
-"plugin or contacting the author and asking to update it."
+"plugin or contacting the author and asking them to update it."
 msgstr ""
 
-#: sn-tests-description.php:755
+#: sn-tests-description.php:824
 msgid "Check the PHP version"
 msgstr ""
 
-#: sn-tests-description.php:757
+#: sn-tests-description.php:826
 msgid ""
 "Using an outdated version of PHP can expose your site to security "
 "vulnerabilities and limit your ability to use modern WordPress features and "
 "plugins."
 msgstr ""
 
-#: sn-tests-description.php:758
+#: sn-tests-description.php:827
 msgid ""
 "As of 2024, WordPress recommends using PHP 7.4 or higher, with PHP 8.1 or "
 "8.2 being ideal for optimal performance and security. PHP versions below 7.4 "
 "are no longer supported and should not be used."
 msgstr ""
 
-#: sn-tests-description.php:759
+#: sn-tests-description.php:828
 msgid ""
 "Contact your hosting provider to upgrade to a supported PHP version. If they "
 "cannot accommodate this request, consider moving your site to a hosting "
 "provider that offers modern PHP versions."
 msgstr ""
 
-#: sn-tests-description.php:764
+#: sn-tests-description.php:833
 msgid "Check the MySQL/MariaDB version"
 msgstr ""
 
-#: sn-tests-description.php:766
+#: sn-tests-description.php:835
 msgid ""
 "Using an outdated version of MySQL or MariaDB can make your site vulnerable "
 "to security issues and performance problems."
 msgstr ""
 
-#: sn-tests-description.php:767
+#: sn-tests-description.php:836
 msgid ""
 "As of 2024, it's recommended to use MySQL 8.0 or higher, or MariaDB 10.6 or "
 "higher. These versions offer improved security features and performance "
 "enhancements."
 msgstr ""
 
-#: sn-tests-description.php:768
+#: sn-tests-description.php:837
 msgid ""
 "If your hosting provider doesn't offer recent MySQL/MariaDB versions, "
 "consider upgrading your hosting plan or switching to a provider that "
 "prioritizes keeping their software up-to-date."
 msgstr ""
 
-#: sn-tests-description.php:773
+#: sn-tests-description.php:842
 msgid "Check if usernames can be fetched via user IDs"
 msgstr ""
 
-#: sn-tests-description.php:774
+#: sn-tests-description.php:843
 msgid ""
 "Usernames (unlike passwords) are not secret. By knowing someone's username, "
 "you can't login to their account. You need the password too. However, by "
@@ -5171,7 +6755,7 @@ msgid ""
 "redirect you to siteurl.com/author/username/ if the ID exists in the system."
 msgstr ""
 
-#: sn-tests-description.php:776
+#: sn-tests-description.php:845
 msgid "To fix this issue add the following lines to your .htaccess file:"
 msgstr ""
 

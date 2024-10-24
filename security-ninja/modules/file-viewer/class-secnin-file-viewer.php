@@ -7,7 +7,6 @@
 
 namespace WPSecurityNinja\Plugin;
 
-
 /**
  * Class FileViewer
  *
@@ -56,7 +55,7 @@ class FileViewer {
 	 * @return void
 	 */
 	public static function remove_admin_bar() {
-		if ( is_admin() && isset( $_GET['page'] ) && $_GET['page'] === 'sn-view-file' ) {
+		if ( is_admin() && isset( $_GET['page'] ) && 'sn-view-file' === $_GET['page'] ) {
 			add_filter( 'show_admin_bar', '__return_false' );
 			remove_all_actions( 'admin_notices' ); // Remove all admin notices.
 		}
@@ -68,7 +67,7 @@ class FileViewer {
 	 * @return void
 	 */
 	public static function hide_admin_interface() {
-		if ( is_admin() && isset( $_GET['page'] ) && $_GET['page'] === 'sn-view-file' ) {
+		if ( is_admin() && isset( $_GET['page'] ) && 'sn-view-file' === $_GET['page'] ) {
 			?>
 			<style>
 				#adminmenumain, #wpfooter, #screen-meta, #screen-meta-links, #wp-admin-bar-wp-logo {
@@ -154,7 +153,7 @@ class FileViewer {
 			wp_die( esc_html__( 'Invalid nonce verification.', 'security-ninja' ) );
 		}
 
-		$file_path = isset( $_GET['file'] ) ? sanitize_text_field( wp_unslash( $_GET['file'] ) ) : '';
+		$file_path      = isset( $_GET['file'] ) ? sanitize_text_field( wp_unslash( $_GET['file'] ) ) : '';
 		$highlight_line = isset( $_GET['line'] ) ? intval( $_GET['line'] ) : null;
 
 		if ( ! self::is_allowed_file( $file_path ) ) {
@@ -189,7 +188,7 @@ class FileViewer {
 	 * @return bool Whether the file is allowed to be viewed.
 	 */
 	private static function is_allowed_file( $file_path ) {
-		$allowed_dirs = array(
+		$allowed_dirs    = array(
 			ABSPATH . 'wp-content/',
 			ABSPATH . 'wp-admin/',
 			ABSPATH . 'wp-includes/',
@@ -204,9 +203,9 @@ class FileViewer {
 		}
 
 		// Check file extension
-		$allowed_extensions = array( 'php', 'js', 'css', 'txt', 'html', 'htm', 'log' );
-		$file_extension = strtolower( pathinfo( $normalized_path, PATHINFO_EXTENSION ) );
-		$allowed_files = array( 'debug.log', 'error_log' );
+		$allowed_extensions = array( 'php', 'js', 'css', 'txt', 'html', 'htm', 'log', 'inc', 'xml', 'json', 'md', 'yml', 'yaml', 'ini', 'sql' );
+		$file_extension     = strtolower( pathinfo( $normalized_path, PATHINFO_EXTENSION ) );
+		$allowed_files      = array( 'debug.log', 'error_log' );
 
 		if ( ! in_array( $file_extension, $allowed_extensions, true ) && ! in_array( basename( $normalized_path ), $allowed_files, true ) ) {
 			wf_sn_el_modules::log_event( 'File Viewer', 'Attempt to view disallowed file type: ' . $file_extension );
@@ -217,17 +216,18 @@ class FileViewer {
 			$normalized_dir = wp_normalize_path( $dir );
 			if ( strpos( $normalized_path, $normalized_dir ) === 0 ) {
 				if ( ! is_readable( $file_path ) ) {
-					wf_sn_el_modules::log_event( 'File Viewer', 'Attempt to view unreadable file: ' . $normalized_path );
+					\WPSecurityNinja\Plugin\wf_sn_el_modules::log_event( 'File Viewer', 'Attempt to view unreadable file: ' . $normalized_path );
 					return false;
 				}
 				if ( filesize( $file_path ) > self::MAX_FILE_SIZE ) {
-					wf_sn_el_modules::log_event( 'File Viewer', 'Attempt to view file exceeding size limit: ' . $normalized_path );
+					\WPSecurityNinja\Plugin\wf_sn_el_modules::log_event( 'File Viewer', 'Attempt to view file exceeding size limit: ' . self::MAX_FILE_SIZE );
 					return false;
 				}
 				return true;
 			}
 		}
-		wf_sn_el_modules::log_event( 'File Viewer', 'Attempt to view file outside allowed directories: ' . $normalized_path );
+		/* translators: %s: Normalized file path */
+		\WPSecurityNinja\Plugin\wf_sn_el_modules::log_event( 'File Viewer', sprintf( esc_html__( 'Attempt to view file outside allowed directories: %s', 'security-ninja' ), $normalized_path ) );
 		return false;
 	}
 
@@ -241,7 +241,7 @@ class FileViewer {
 		return array(
 			'path'          => $file_path,
 			'size'          => size_format( filesize( $file_path ) ),
-			'last_modified' => date( 'F d Y H:i:s', filemtime( $file_path ) ),
+			'last_modified' => gmdate( 'F d Y H:i:s', filemtime( $file_path ) ),
 			'permissions'   => substr( sprintf( '%o', fileperms( $file_path ) ), -4 ),
 		);
 	}
@@ -255,7 +255,8 @@ class FileViewer {
 	 */
 	private static function render_file( $file_path, $highlight_line ) {
 		if ( ! file_exists( $file_path ) || ! is_readable( $file_path ) ) {
-			wf_sn_el_modules::log_event( 'File Viewer', 'File not found or not readable: ' . $file_path );
+			/* translators: %s: File path */
+			\WPSecurityNinja\Plugin\wf_sn_el_modules::log_event( 'File Viewer', sprintf( esc_html__( 'File not found or not readable: %s', 'security-ninja' ), $file_path ) );
 			return '<p>' . esc_html__( 'File not found or not readable.', 'security-ninja' ) . '</p>';
 		}
 
@@ -264,8 +265,8 @@ class FileViewer {
 
 		$line_count = 0;
 		foreach ( $file as $line_num => $line ) {
-			$line_num++;
-			$line_count++;
+			++$line_num;
+			++$line_count;
 			if ( $line_count > 10000 ) { // Limit to 10,000 lines
 				$output .= '<span class="line">' . esc_html__( 'File truncated...', 'security-ninja' ) . '</span>';
 				break;

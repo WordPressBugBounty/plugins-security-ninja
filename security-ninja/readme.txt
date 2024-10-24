@@ -6,7 +6,7 @@ License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 Requires at least: 4.7
 Tested up to: 6.6.2
-Stable tag: 5.215
+Stable tag: 5.219
 Requires PHP: 7.4
 
 Scans for vulnerabilities, detects risky plugins, and guides you how to secure your site against hackers.
@@ -228,12 +228,41 @@ While we strive for universal compatibility, if you face any issues, our support
 
 == Screenshots ==
 
-1. Fast & easy to understand interface
-2. Security Ninja test results are simple and easy to read
-3. Every test has a detailed explanation and instructions on how to fix the problem
-4. Vulnerable plugins list with details and recommendations - prevent known problems in plugin.
+1. Fast & easy to understand interface.
+2. Security Ninja test results are simple and easy to read.
+3. Every test has a detailed explanation and instructions on how to fix the problem.
+4. Vulnerable plugins list with details and recommendations - prevent known exploits in plugins.
 
 == Changelog ==
+
+= 5.219 =
+* Improved translations in the plugin.
+* PRO: New Language Support!
+We’ve expanded the language support in Security Ninja Pro to better serve our global community. With this update, we’ve added full translations for 16 languages, allowing users to navigate the plugin more comfortably in their native language. Here are the newly supported languages: Danish (da_DK), German (de_DE), Spanish (es_ES), Finnish (fi_FI), French (fr_FR), Croatian (hr_HR), Icelandic (is_IS), Italian (it_IT), Korean (ko_KR), Norwegian Bokmål (nb_NO), Dutch (nl_NL), Portuguese (pt_PT), Russian (ru_RU), Swedish (sv_SE), Chinese (Simplified) (zh_CN) and Hindi (hi_IN).
+
+This update makes Security Ninja more accessible to millions of users worldwide, with full support for major languages in Europe, Asia, and beyond.
+
+
+= 5.218 =
+* Added headers to prevent caching on Cloudflare and other proxies.
+* Fixed compatibility issue with Fluent Bookings plugin. Thank you to everyone reporting this issue.
+* Added Divi Dashboard to the cloud firewall whitelist. Thank you James.
+* Trimmed 2FA module code.
+* Trimmed file viewer module code.
+* Trimmed unused code in the test descriptions and updated the strings for translation.
+* Translation updates.
+
+= 5.217 =
+* Fix: Events logger emails had a bug where the content generated list did not look correctly in the email.
+* Added .inc, .xml, .json, .md, .yml, .yaml, .sql and .ini as allowed file extensions for the file viewer.
+
+= 5.216 =
+* Refactored the code for enabling the firewall.
+* Fix: Resolved an issue with the scheduled scanner not running properly.
+* Further improvements to the cloud firewall.
+* Added WPCompress to the cloud firewall whitelist.
+* When disabling the firewall, 2FA is also disabled and all user 2fa secrets are deleted.
+* Improved translation strings, increased the amount of the plugin being translated.
 
 = 5.215 =
 * Fix: Resolved an issue with error messages showing up regarding \wf_sn_el_modules missing. Thank you everyone reporting this issue.

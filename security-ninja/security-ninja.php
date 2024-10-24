@@ -5,7 +5,7 @@ Plugin Name: Security Ninja
 Plugin URI: https://wpsecurityninja.com/
 Description: Check your site for <strong>security vulnerabilities</strong> and get precise suggestions for corrective actions on passwords, user accounts, file permissions, database security, version hiding, plugins, themes, security headers and other security aspects.
 Author: WP Security Ninja
-Version: 5.215
+Version: 5.219
 Author URI: https://wpsecurityninja.com/
 Text Domain: security-ninja
 Domain Path: /languages
@@ -407,21 +407,6 @@ if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
             }
         }
 
-        // Lars out - 2024-09-23
-        /*
-        		public static function checked($value, $current)
-        		{
-        			if (! is_array($current)) {
-        				$current = (array) $current;
-        			}
-        
-        			if (in_array($value, $current, true)) {
-        				return ' checked="checked"';
-        			}
-        
-        			return '';
-        		}
-        */
         /**
          * Custom logo URL for Freemius dialogue
          *
@@ -543,7 +528,7 @@ if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
             }
             ?>
 			<div id="secnin-dashboard-feed"></div>
-			<?php 
+		<?php 
         }
 
         /**
@@ -926,7 +911,7 @@ if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
             ?></a></p>
 			</div>
 			</div>
-		<?php 
+			<?php 
         }
 
         /**
@@ -1639,7 +1624,7 @@ if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
             $out = '<input type="submit" value="' . __( 'Run Tests', 'security-ninja' ) . '" id="run-selected-tests" class="button button-primary button-hero" name="Submit" />';
             $out .= '<span class="runtestsbn spinner"></span>';
             $out .= '<div id="secninja-tests-quickselect">';
-            $out .= '<span>Quick filter:</span><ul><li><a href="#" id="sn-quickselect-all">' . __( 'All', 'security-ninja' ) . '</a></li><li><a href="#" id="sn-quickselect-failed">' . __( 'Failed', 'security-ninja' ) . '</a></li><li><a href="#"  id="sn-quickselect-warning">' . __( 'Warning', 'security-ninja' ) . '</a></li><li><a href="#" id="sn-quickselect-okay">' . __( 'Passed', 'security-ninja' ) . '</a></li><li><a href="#" id="sn-quickselect-untested">' . __( 'Untested', 'security-ninja' ) . '</a></li></ul>';
+            $out .= '<span>' . __( 'Quick Filter', 'security-ninja' ) . ':</span><ul><li><a href="#" id="sn-quickselect-all">' . __( 'All', 'security-ninja' ) . '</a></li><li><a href="#" id="sn-quickselect-failed">' . __( 'Failed', 'security-ninja' ) . '</a></li><li><a href="#"  id="sn-quickselect-warning">' . __( 'Warning', 'security-ninja' ) . '</a></li><li><a href="#" id="sn-quickselect-okay">' . __( 'Passed', 'security-ninja' ) . '</a></li><li><a href="#" id="sn-quickselect-untested">' . __( 'Untested', 'security-ninja' ) . '</a></li></ul>';
             $out .= '</div>';
             $out .= '<table class="wp-list-table widefat striped" cellspacing="0" id="security-ninja">';
             $out .= '<thead><tr>';
@@ -1699,7 +1684,7 @@ if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
                         // empty - can be filled via ajax response
                         $out .= '<span class="sn-result-details"></span>';
                     }
-                    $out .= '<button type="button" class="toggle-row"> <span class="screen-reader-text">' . __( 'show details', 'security-ninja' ) . '</span> </button>';
+                    $out .= '<button type="button" class="toggle-row"> <span class="screen-reader-text">' . __( 'Show details', 'security-ninja' ) . '</span> </button>';
                     $testcssid = 'tdesc-test-id-' . $test_name;
                     $out .= '<div class="testdesc ' . esc_attr( $testcssid ) . '"></div>';
                     if ( class_exists( __NAMESPACE__ . '\\wf_sn_af_fix_' . $test_name ) && isset( $details['status'] ) && 10 !== $details['status'] ) {

@@ -130,8 +130,7 @@ class Wf_Sn_Vu {
      */
     public static function schedule_cron_jobs() {
         if ( !wp_next_scheduled( 'secnin_daily_vulnerability_warning_check' ) ) {
-            // Check in 10 minutes to give other cron jobs a chance to run first
-            wp_schedule_event( time() + 600, 'daily', 'secnin_daily_vulnerability_warning_check' );
+            wp_schedule_event( time() + 10, 'daily', 'secnin_daily_vulnerability_warning_check' );
         }
         $scheduled_event = wp_next_scheduled( 'secnin_update_vuln_list' );
         // Free version logic, executed only if the premium block above did not run
@@ -923,15 +922,17 @@ class Wf_Sn_Vu {
                     if ( 'insecure' === $get_wp_ver_status->{$wp_version} ) {
                         $wp_status = sprintf( 
                             /* translators: %s: WordPress version */
-                            __( 'This version of WordPress (%s) is considered <strong>INSECURE</strong>. You should upgrade as soon possible.', 'security-ninja' ),
-                            $wp_version
+                            __( 'This version of WordPress (%s) is considered %s. You should upgrade as soon as possible.', 'security-ninja' ),
+                            $wp_version,
+                            '<strong>' . esc_html__( 'INSECURE', 'security-ninja' ) . '</strong>'
                          );
                     }
                     if ( 'outdated' === $get_wp_ver_status->{$wp_version} ) {
                         $wp_status = sprintf( 
                             /* translators: %s: WordPress version */
-                            __( 'This version of WordPress (%s) is considered <strong>OUTDATED</strong>. You should upgrade as soon possible.', 'security-ninja' ),
-                            $wp_version
+                            __( 'This version of WordPress (%s) is considered %s. You should upgrade as soon as possible.', 'security-ninja' ),
+                            $wp_version,
+                            '<strong>' . esc_html__( 'OUTDATED', 'security-ninja' ) . '</strong>'
                          );
                     }
                 }
@@ -977,7 +978,9 @@ class Wf_Sn_Vu {
                         ?>" class="toggle" type="checkbox">
 										<label for="collapsible-<?php 
                         echo esc_attr( $key );
-                        ?>" class="lbl-toggle">Details</label>
+                        ?>" class="lbl-toggle"><?php 
+                        esc_html_e( 'Details', 'security-ninja' );
+                        ?></label>
 										<div class="collapsible-content">
 											<div class="content-inner">
 												<?php 
@@ -1054,20 +1057,15 @@ class Wf_Sn_Vu {
 										<p>
 											<?php 
                         $searchurl = filter_var( $searchurl, FILTER_SANITIZE_URL );
-                        printf(
-                            wp_kses( 
-                                // translators: Recommendation to update particular plugin to specific version
-                                __( '<a href="%1$s">Update %2$s to minimum version %3$s</a>', 'security-ninja' ),
-                                array(
-                                    'a' => array(
-                                        'href' => array(),
-                                    ),
-                                )
-                             ),
-                            esc_url( $searchurl ),
-                            esc_html( $found_vuln['name'] ),
-                            esc_html( $found_vuln['versionEndExcluding'] )
-                        );
+                        printf( wp_kses( 
+                            // translators: %1$s: URL for the update, %2$s: Plugin name, %3$s: Minimum version required
+                            __( 'Update %2$s to minimum version %3$s', 'security-ninja' ),
+                            array(
+                                'a' => array(
+                                    'href' => array(),
+                                ),
+                            )
+                         ) . ' <a href="' . esc_url( $searchurl ) . '">' . esc_html__( 'here', 'security-ninja' ) . '</a>', esc_html( $found_vuln['name'] ), esc_html( $found_vuln['versionEndExcluding'] ) );
                         ?>
 										</p>
 									</div>
@@ -1089,7 +1087,9 @@ class Wf_Sn_Vu {
                         ?>" class="toggle" type="checkbox">
 										<label for="collapsible-<?php 
                         echo esc_attr( $key );
-                        ?>" class="lbl-toggle">Details</label>
+                        ?>" class="lbl-toggle"><?php 
+                        esc_html_e( 'Details', 'security-ninja' );
+                        ?></label>
 										<div class="collapsible-content">
 											<div class="content-inner">
 												<?php 
@@ -1177,16 +1177,9 @@ class Wf_Sn_Vu {
 											<?php 
                         $searchurl = filter_var( $searchurl, FILTER_SANITIZE_URL );
                         printf(
-                            wp_kses( 
-                                // translators: Recommendation to update particular plugin to specific version
-                                __( '<a href="%1$s">Update %2$s to minimum version %3$s</a>', 'security-ninja' ),
-                                array(
-                                    'a' => array(
-                                        'href' => array(),
-                                    ),
-                                )
-                             ),
-                            esc_url( $searchurl ),
+                            // translators: %1$s: URL for the update, %2$s: Plugin name, %3$s: Minimum version required
+                            __( 'Update %2$s to minimum version %3$s. You can do it %1$s.', 'security-ninja' ),
+                            '<a href="' . esc_url( $searchurl ) . '">' . esc_html__( 'here', 'security-ninja' ) . '</a>',
                             esc_html( $found_vuln['name'] ),
                             esc_html( $found_vuln['versionEndExcluding'] )
                         );
@@ -1398,8 +1391,9 @@ class Wf_Sn_Vu {
                 foreach ( $last_modified as $type => $timestamp ) {
                     $time_diff = human_time_diff( $timestamp, current_time( 'timestamp' ) );
                     printf(
-                        '<li><strong>%s</strong>: %s (%s ' . esc_html__( 'ago', 'security-ninja' ) . ')</li>',
-                        esc_html( ucfirst( $type ) ),
+                        // translators: %1$s: Type, %2$s: Formatted date, %3$s: Time difference
+                        '%1$s: %2$s (%3$s ' . esc_html__( 'ago', 'security-ninja' ) . ')',
+                        '<strong>' . esc_html( ucfirst( $type ) ) . '</strong>',
                         esc_html( date_i18n( get_option( 'date_format' ) . ' ' . get_option( 'time_format' ), $timestamp ) ),
                         esc_html( $time_diff )
                     );

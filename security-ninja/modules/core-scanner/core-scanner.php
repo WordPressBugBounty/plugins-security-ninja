@@ -528,7 +528,7 @@ class Wf_Sn_Cs {
                     $results['out'] .= '</div></div>';
                 }
                 if ( $allisgood ) {
-                    $results['out'] .= '<p>' . __( 'No problems found' ) . '</p>';
+                    $results['out'] .= '<p>' . esc_html__( 'No problems found', 'security-ninja' ) . '</p>';
                 }
                 $results['out'] .= '</div><!-- #sn-cs-results -->';
             }
@@ -549,7 +549,7 @@ class Wf_Sn_Cs {
             $version = get_bloginfo( 'version' );
             $locale = get_locale();
             $results['last_scan'] = sprintf(
-                // translators:
+                // translators: %1$s: Date and time of the last scan, %2$s: Number of files checked, %3$s: Time taken for the scan in seconds, %4$s: WordPress version, %5$s: Locale
                 esc_html__( 'Last scan at %1$s. %2$s files were checked in %3$s sec. WordPress version %4$s %5$s', 'security-ninja' ),
                 gmdate( get_option( 'date_format' ) . ' ' . get_option( 'time_format' ), $results['last_run'] ),
                 number_format( $results['total'] ),
@@ -813,7 +813,7 @@ class Wf_Sn_Cs {
             wf_sn_el_modules::log_event(
                 'security_ninja',
                 'core_scanner',
-                'Restored file',
+                __( 'Restored file', 'security-ninja' ),
                 array(
                     'name' => $file,
                 )
