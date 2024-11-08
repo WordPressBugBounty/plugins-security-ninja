@@ -39,10 +39,10 @@ class Wf_Sn_Cs {
      */
     public static function init() {
         add_action( 'secnin_run_core_scanner', array(__NAMESPACE__ . '\\Wf_Sn_Cs', 'do_action_secnin_run_core_scanner') );
+        add_action( 'init', array(__NAMESPACE__ . '\\Wf_Sn_Cs', 'schedule_cron_jobs') );
         if ( current_user_can( 'manage_options' ) ) {
             // add tab to Security Ninja tabs
             add_filter( 'sn_tabs', array(__NAMESPACE__ . '\\Wf_Sn_Cs', 'sn_tabs') );
-            add_action( 'init', array(__NAMESPACE__ . '\\Wf_Sn_Cs', 'schedule_cron_jobs') );
             // enqueue scripts
             add_action( 'admin_enqueue_scripts', array(__NAMESPACE__ . '\\Wf_Sn_Cs', 'enqueue_scripts') );
             // register ajax endpoints

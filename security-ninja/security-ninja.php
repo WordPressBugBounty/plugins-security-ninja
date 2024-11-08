@@ -5,8 +5,10 @@ Plugin Name: Security Ninja
 Plugin URI: https://wpsecurityninja.com/
 Description: Check your site for <strong>security vulnerabilities</strong> and get precise suggestions for corrective actions on passwords, user accounts, file permissions, database security, version hiding, plugins, themes, security headers and other security aspects.
 Author: WP Security Ninja
-Version: 5.219
+Version: 5.220
 Author URI: https://wpsecurityninja.com/
+License: GPLv3
+License URI: https://www.gnu.org/licenses/gpl-3.0.html
 Text Domain: security-ninja
 Domain Path: /languages
 
@@ -233,7 +235,13 @@ if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
          * @return  void
          */
         public static function show_topbar() {
-            $topbar = '<img src="' . esc_url( WF_SN_PLUGIN_URL . 'images/sn-logo.svg' ) . '" height="28" alt="Visit wpsecurityninja.com" class="logoleft"><h1>Security Ninja <span>v.' . wf_sn::get_plugin_version() . '</span></h1>';
+            $icon_url = WF_SN_PLUGIN_URL . 'images/sn-logo.svg';
+            $menu_title = 'Security Ninja';
+            $topbar = '';
+            if ( !empty( $icon_url ) ) {
+                $topbar .= '<img src="' . $icon_url . '" height="28" alt="' . esc_attr( $menu_title ) . '" class="logoleft">';
+            }
+            $topbar .= '<h1>' . esc_html( $menu_title ) . ' <span>v.' . esc_html( wf_sn::get_plugin_version() ) . '</span></h1>';
             echo wp_kses_post( $topbar );
         }
 
@@ -1193,7 +1201,7 @@ if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
             $menu_slug = 'wf-sn';
             $icon_url = '';
             $position = null;
-            $icon_url = self::get_icon_svg();
+            $icon_url = '';
             $notification_count = false;
             if ( class_exists( __NAMESPACE__ . '\\Wf_Sn_Vu' ) ) {
                 $vu_options = wf_sn_vu::get_options();

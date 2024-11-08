@@ -2,11 +2,11 @@
 Contributors: lkoudal, cleverplugins, freemius
 Donate link: https://wpsecurityninja.com/
 Tags: security, malware, firewall, virus, login
-License: GPLv2 or later
-License URI: http://www.gnu.org/licenses/gpl-2.0.html
+License: GPLv3
+License URI: https://www.gnu.org/licenses/gpl-3.0.html
 Requires at least: 4.7
 Tested up to: 6.6.2
-Stable tag: 5.219
+Stable tag: 5.220
 Requires PHP: 7.4
 
 Scans for vulnerabilities, detects risky plugins, and guides you how to secure your site against hackers.
@@ -234,6 +234,15 @@ While we strive for universal compatibility, if you face any issues, our support
 4. Vulnerable plugins list with details and recommendations - prevent known exploits in plugins.
 
 == Changelog ==
+
+= 5.220 =
+* Fixed issue with the topbar not using the correct White label icon and title for some users.
+* Further improvements to the translation strings.
+* Enhancement: White label: Now having an empty icon URL will not show the icon in the topbar.
+* Added more debug logging to the scheduled scanner.
+* Added missing Bulgarian translation.* Enhancement: 2FA code input field not focusing automatically.
+* Fix - visitor log table was not created on some systems.
+* Tested up to WordPress 6.7.
 
 = 5.219 =
 * Improved translations in the plugin.
