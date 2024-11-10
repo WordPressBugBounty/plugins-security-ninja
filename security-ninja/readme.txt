@@ -5,8 +5,8 @@ Tags: security, malware, firewall, virus, login
 License: GPLv3
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 Requires at least: 4.7
-Tested up to: 6.6.2
-Stable tag: 5.220
+Tested up to: 6.7
+Stable tag: 5.221
 Requires PHP: 7.4
 
 Scans for vulnerabilities, detects risky plugins, and guides you how to secure your site against hackers.
@@ -234,6 +234,13 @@ While we strive for universal compatibility, if you face any issues, our support
 4. Vulnerable plugins list with details and recommendations - prevent known exploits in plugins.
 
 == Changelog ==
+
+= 5.221 =
+* Fixed issue with new QR code shown for some users already having 2FA enabled when trying to log in.
+* Fix issue with events logger not sending HTML emails.
+* Enhanced email reports in the events logger to look better.
+* Improved translation strings in events logger module.
+
 
 = 5.220 =
 * Fixed issue with the topbar not using the correct White label icon and title for some users.
