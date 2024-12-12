@@ -9,5 +9,6 @@ return array(
     'a9ed0d27b5a698798a89181429f162c5' => $vendorDir . '/khanamiryan/qrcode-detector-decoder/lib/Common/customFunctions.php',
     '5255c38a0faeba867671b61dfda6d864' => $vendorDir . '/paragonie/random_compat/lib/random.php',
     'decc78cc4436b1292c6c0d151b19445c' => $vendorDir . '/phpseclib/phpseclib/phpseclib/bootstrap.php',
+    '8d50dc88e56bace65e1e72f6017983ed' => $vendorDir . '/freemius/wordpress-sdk/start.php',
     '56823cacd97af379eceaf82ad00b928f' => $vendorDir . '/phpseclib/bcmath_compat/lib/bcmath.php',
 );

@@ -4,12 +4,13 @@
 
 namespace Composer\Autoload;
 
-class ComposerStaticInit14215d0d2948b5a4e5288569db0ba206
+class ComposerStaticInita78dab2d43a881f2ca1977e9fe709bf7
 {
     public static $files = array (
         'a9ed0d27b5a698798a89181429f162c5' => __DIR__ . '/..' . '/khanamiryan/qrcode-detector-decoder/lib/Common/customFunctions.php',
         '5255c38a0faeba867671b61dfda6d864' => __DIR__ . '/..' . '/paragonie/random_compat/lib/random.php',
         'decc78cc4436b1292c6c0d151b19445c' => __DIR__ . '/..' . '/phpseclib/phpseclib/phpseclib/bootstrap.php',
+        '8d50dc88e56bace65e1e72f6017983ed' => __DIR__ . '/..' . '/freemius/wordpress-sdk/start.php',
         '56823cacd97af379eceaf82ad00b928f' => __DIR__ . '/..' . '/phpseclib/bcmath_compat/lib/bcmath.php',
     );
 
@@ -473,9 +474,9 @@ class ComposerStaticInit14215d0d2948b5a4e5288569db0ba206
     public static function getInitializer(ClassLoader $loader)
     {
         return \Closure::bind(function () use ($loader) {
-            $loader->prefixLengthsPsr4 = ComposerStaticInit14215d0d2948b5a4e5288569db0ba206::$prefixLengthsPsr4;
-            $loader->prefixDirsPsr4 = ComposerStaticInit14215d0d2948b5a4e5288569db0ba206::$prefixDirsPsr4;
-            $loader->classMap = ComposerStaticInit14215d0d2948b5a4e5288569db0ba206::$classMap;
+            $loader->prefixLengthsPsr4 = ComposerStaticInita78dab2d43a881f2ca1977e9fe709bf7::$prefixLengthsPsr4;
+            $loader->prefixDirsPsr4 = ComposerStaticInita78dab2d43a881f2ca1977e9fe709bf7::$prefixDirsPsr4;
+            $loader->classMap = ComposerStaticInita78dab2d43a881f2ca1977e9fe709bf7::$classMap;
 
         }, null, ClassLoader::class);
     }

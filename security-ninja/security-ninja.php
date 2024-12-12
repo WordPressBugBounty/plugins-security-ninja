@@ -5,7 +5,7 @@ Plugin Name: Security Ninja
 Plugin URI: https://wpsecurityninja.com/
 Description: Check your site for <strong>security vulnerabilities</strong> and get precise suggestions for corrective actions on passwords, user accounts, file permissions, database security, version hiding, plugins, themes, security headers and other security aspects.
 Author: WP Security Ninja
-Version: 5.221
+Version: 5.222
 Author URI: https://wpsecurityninja.com/
 License: GPLv3
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
@@ -56,33 +56,37 @@ if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
     // Create a helper function for easy SDK access.
     function secnin_fs() {
         global $secnin_fs;
+        require_once dirname( __FILE__ ) . '/vendor/autoload.php';
         if ( !isset( $secnin_fs ) ) {
             // Activate multisite network integration.
             if ( !defined( 'WP_FS__PRODUCT_3690_MULTISITE' ) ) {
                 define( 'WP_FS__PRODUCT_3690_MULTISITE', true );
             }
-            // Include Freemius SDK.
-            require_once __DIR__ . '/freemius/start.php';
+            require_once dirname( __FILE__ ) . '/vendor/freemius/wordpress-sdk/start.php';
             $secnin_fs = fs_dynamic_init( array(
-                'id'              => '3690',
-                'slug'            => 'security-ninja',
-                'type'            => 'plugin',
-                'public_key'      => 'pk_f990ec18700a90c02db544f1aa986',
-                'is_premium'      => false,
-                'has_addons'      => true,
-                'has_paid_plans'  => true,
-                'trial'           => array(
+                'id'                  => '3690',
+                'slug'                => 'security-ninja',
+                'type'                => 'plugin',
+                'public_key'          => 'pk_f990ec18700a90c02db544f1aa986',
+                'is_premium'          => false,
+                'has_addons'          => true,
+                'has_paid_plans'      => true,
+                'trial'               => array(
                     'days'               => 30,
                     'is_require_payment' => true,
                 ),
-                'has_affiliation' => 'selected',
-                'menu'            => array(
+                'has_affiliation'     => 'selected',
+                'menu'                => array(
                     'slug'       => 'wf-sn',
                     'first-path' => 'admin.php?page=wf-sn',
                     'support'    => false,
                     'network'    => true,
                 ),
-                'is_live'         => true,
+                'parallel_activation' => [
+                    'enabled'                  => true,
+                    'premium_version_basename' => 'premium-slug/filename.php',
+                ],
+                'is_live'             => true,
             ) );
         }
         return $secnin_fs;
@@ -96,7 +100,6 @@ if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
     define( 'WF_SN_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
     define( 'WF_SN_PLUGIN_BASENAME', plugin_basename( __FILE__ ) );
     define( 'WF_SN_BASE_FILE', __FILE__ );
-    require_once WF_SN_PLUGIN_DIR . 'vendor/autoload.php';
     // Vulnerabilities
     include_once WF_SN_PLUGIN_DIR . 'modules/vulnerabilities/class-wf-sn-vu.php';
     // Core Scanner
@@ -2172,9 +2175,8 @@ if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
             // Maybe create table
             $table_name = $wpdb->prefix . 'wf_sn_tests';
             include_once ABSPATH . 'wp-admin/includes/upgrade.php';
-            global $wpdb;
             $charset = $wpdb->get_charset_collate();
-            $sql = "CREATE TABLE {$table_name} (\nid bigint(20) unsigned NOT NULL AUTO_INCREMENT,\ntestid varchar(30) NOT NULL,\ntimestamp datetime NOT NULL,\ntitle text,\nstatus tinyint(4) NOT NULL,\nscore tinyint(4) NOT NULL,\nruntime float DEFAULT NULL,\nmsg text,\ndetails text,\nPRIMARY KEY  (testid),\nKEY id (id)\n) {$charset};";
+            $sql = "CREATE TABLE {$table_name} (\n\t\t\t\t\tid bigint(20) unsigned NOT NULL AUTO_INCREMENT,\n\t\t\t\t\ttestid varchar(30) NOT NULL,\n\t\t\t\t\ttimestamp datetime NOT NULL,\n\t\t\t\t\ttitle text,\n\t\t\t\t\tstatus tinyint(4) NOT NULL,\n\t\t\t\t\tscore tinyint(4) NOT NULL,\n\t\t\t\t\truntime float DEFAULT NULL,\n\t\t\t\t\tmsg text,\n\t\t\t\t\tdetails text,\n\t\t\t\t\tPRIMARY KEY  (testid),\n\t\t\t\t\tKEY id (id)\n\t\t\t\t) {$charset};";
             dbDelta( $sql );
         }
 

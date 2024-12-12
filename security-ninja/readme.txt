@@ -5,8 +5,8 @@ Tags: security, malware, firewall, virus, login
 License: GPLv3
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 Requires at least: 4.7
-Tested up to: 6.7
-Stable tag: 5.221
+Tested up to: 6.7.1
+Stable tag: 5.222
 Requires PHP: 7.4
 
 Scans for vulnerabilities, detects risky plugins, and guides you how to secure your site against hackers.
@@ -235,12 +235,16 @@ While we strive for universal compatibility, if you face any issues, our support
 
 == Changelog ==
 
+= 5.222 =
+* Fix: Resolved rare PHP warnings related to undefined webhook settings in Events Logger.
+* New: Users IPs automatically added to the whitelist when activating the firewall. IPs are no longer added to the whitelist by successful login.
+* Updated Freemius SDK to 2.10.1
+
 = 5.221 =
 * Fixed issue with new QR code shown for some users already having 2FA enabled when trying to log in.
 * Fix issue with events logger not sending HTML emails.
 * Enhanced email reports in the events logger to look better.
 * Improved translation strings in events logger module.
-
 
 = 5.220 =
 * Fixed issue with the topbar not using the correct White label icon and title for some users.

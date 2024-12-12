@@ -12,7 +12,7 @@ namespace WPSecurityNinja\Plugin\chillerlan\QRCode\Data;
 
 use WPSecurityNinja\Plugin\chillerlan\QRCode\Common\{BitBuffer, EccLevel, Mode, Version};
 use WPSecurityNinja\Plugin\chillerlan\Settings\SettingsContainerInterface;
-use function sprintf;
+use function count, sprintf;
 
 /**
  * Processes the binary data and maps it on a QRMatrix which is then being returned
@@ -207,7 +207,7 @@ final class QRData{
 	/**
 	 * creates a BitBuffer and writes the string data to it
 	 *
-	 * @throws \chillerlan\QRCode\QRCodeException on data overflow
+	 * @throws \chillerlan\QRCode\Data\QRCodeDataException on data overflow
 	 */
 	private function writeBitBuffer():void{
 		$MAX_BITS = $this->eccLevel->getMaxBitsForVersion($this->version);
