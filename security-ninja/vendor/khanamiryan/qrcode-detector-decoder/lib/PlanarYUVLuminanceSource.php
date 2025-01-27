@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-namespace WPSecurityNinja\Plugin\Zxing;
+namespace Zxing;
 
 /**
  * This object extends LuminanceSource around an array of YUV data returned from the camera driver,

@@ -15,9 +15,9 @@
 * limitations under the License.
 */
 
-namespace WPSecurityNinja\Plugin\Zxing;
+namespace Zxing;
 
-use WPSecurityNinja\Plugin\Zxing\Common\BitMatrix;
+use Zxing\Common\BitMatrix;
 
 /**
  * This class is the core bitmap class used by ZXing to represent 1 bit data. Reader objects

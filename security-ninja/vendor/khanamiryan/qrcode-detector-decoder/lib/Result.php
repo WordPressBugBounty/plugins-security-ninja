@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-namespace WPSecurityNinja\Plugin\Zxing;
+namespace Zxing;
 
 /**
  * <p>Encapsulates the result of decoding a barcode within an image.</p>

@@ -15,7 +15,7 @@
 * limitations under the License.
 */
 
-namespace WPSecurityNinja\Plugin\Zxing\Common\Detector;
+namespace Zxing\Common\Detector;
 
 final class MathUtils
 {

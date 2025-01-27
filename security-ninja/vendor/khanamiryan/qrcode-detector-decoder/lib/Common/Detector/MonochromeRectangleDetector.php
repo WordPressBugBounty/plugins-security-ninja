@@ -6,11 +6,11 @@
  * Time: 21:23
  */
 
-namespace WPSecurityNinja\Plugin\Zxing\Common\Detector;
+namespace Zxing\Common\Detector;
 
-use WPSecurityNinja\Plugin\Zxing\BinaryBitmap;
-use WPSecurityNinja\Plugin\Zxing\NotFoundException;
-use WPSecurityNinja\Plugin\Zxing\ResultPoint;
+use Zxing\BinaryBitmap;
+use Zxing\NotFoundException;
+use Zxing\ResultPoint;
 
 /*
  *

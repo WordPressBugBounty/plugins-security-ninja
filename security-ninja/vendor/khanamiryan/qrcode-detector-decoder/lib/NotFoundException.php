@@ -15,7 +15,7 @@
 * limitations under the License.
 */
 
-namespace WPSecurityNinja\Plugin\Zxing;
+namespace Zxing;
 
 /**
  * Thrown when a barcode was not found in the image. It might have been

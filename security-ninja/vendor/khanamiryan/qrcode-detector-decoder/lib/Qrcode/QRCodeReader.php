@@ -15,17 +15,17 @@
  * limitations under the License.
  */
 
-namespace WPSecurityNinja\Plugin\Zxing\Qrcode;
+namespace Zxing\Qrcode;
 
-use WPSecurityNinja\Plugin\Zxing\BinaryBitmap;
-use WPSecurityNinja\Plugin\Zxing\ChecksumException;
-use WPSecurityNinja\Plugin\Zxing\Common\BitMatrix;
-use WPSecurityNinja\Plugin\Zxing\FormatException;
-use WPSecurityNinja\Plugin\Zxing\NotFoundException;
-use WPSecurityNinja\Plugin\Zxing\Qrcode\Decoder\Decoder;
-use WPSecurityNinja\Plugin\Zxing\Qrcode\Detector\Detector;
-use WPSecurityNinja\Plugin\Zxing\Reader;
-use WPSecurityNinja\Plugin\Zxing\Result;
+use Zxing\BinaryBitmap;
+use Zxing\ChecksumException;
+use Zxing\Common\BitMatrix;
+use Zxing\FormatException;
+use Zxing\NotFoundException;
+use Zxing\Qrcode\Decoder\Decoder;
+use Zxing\Qrcode\Detector\Detector;
+use Zxing\Reader;
+use Zxing\Result;
 
 /**
  * This implementation can detect and decode QR Codes in an image.

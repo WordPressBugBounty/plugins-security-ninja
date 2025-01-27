@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-namespace WPSecurityNinja\Plugin\Zxing\Qrcode\Decoder;
+namespace Zxing\Qrcode\Decoder;
 
 /**
  * <p>See ISO 18004:2006, 6.5.1. This enum encapsulates the four error correction levels

@@ -15,7 +15,7 @@
 * limitations under the License.
 */
 
-namespace WPSecurityNinja\Plugin\Zxing;
+namespace Zxing;
 
 /**
  * Thrown when a barcode was successfully detected, but some aspect of

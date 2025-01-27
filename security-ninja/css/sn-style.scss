@@ -78,7 +78,7 @@ color: #000000;
 
 .column.warningbox {
 	background-color: #e8eabe;
-	border:1px solid red;
+	border:1px solid #ea2327;
 }
 
 .column.warningbox h2 {
@@ -204,7 +204,7 @@ display: none;
 		padding: 5px 10px 5px 10px;
 		background: #fff;
 		border: 1px solid #ccd0d4;
-		border-left: 4px solid #dc3232;
+		border-left: 4px solid #ea2327;
 		box-shadow: 0 1px 1px rgba(0,0,0,.04);
 		margin: 5px 15px 2px 5px;
 		padding: 1px 12px;
@@ -339,7 +339,7 @@ display: none;
 	}
 
 	.secnotice-warning {
-		border-left-color: #dc3232;
+		border-left-color: #ea2327;
 	}
 
 	.tabtext {
@@ -647,13 +647,13 @@ Hide "see details" from tables in responsive mode
 }
 
 .toplevel_page_wf-sn .sn-error {
-	background: #ea7174;
+	background: #F90B31;
 }
 .toplevel_page_wf-sn .sn-warning {
-	background: #ffc977;
+	background: #e49a2c;
 }
 .toplevel_page_wf-sn .sn-success {
-	background: #99cc66;
+	background: #00824C;
 }
 
 .toplevel_page_wf-sn .sn-untested {
@@ -794,7 +794,7 @@ max-width: 200px;
 }
 
 .toplevel_page_wf-sn .green {
-	color: #99cc66;
+	color: #00824C;
 }
 
 .toplevel_page_wf-sn .orange {
@@ -1056,7 +1056,7 @@ margin: 50px 20px 50px 20px;
 
 
 #counters span.good {
-	color: #99cc66;
+	color: #00824C;
 	border-right: 1px solid #cccccc;
 	width: auto;
 	padding-right: 40px;
@@ -1064,7 +1064,7 @@ margin: 50px 20px 50px 20px;
 }
 
 #counters span.warning {
-	color: #ff9900;
+	color: #e49a2c;
 	border-right: 1px solid #cccccc;
 }
 
@@ -1175,7 +1175,7 @@ margin: 50px 20px 50px 20px;
 
 .sn-fixer-apply,
 .sn-fixer-finish{
-	background: #99cc66;
+	background: #00824C;
 	float: right;
 }
 

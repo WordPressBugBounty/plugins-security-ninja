@@ -1,10 +1,10 @@
 <?php
 declare(strict_types = 1);
 
-namespace WPSecurityNinja\Plugin\DASPRiD\Enum;
+namespace DASPRiD\Enum;
 
-use WPSecurityNinja\Plugin\DASPRiD\Enum\Exception\ExpectationException;
-use WPSecurityNinja\Plugin\DASPRiD\Enum\Exception\IllegalArgumentException;
+use DASPRiD\Enum\Exception\ExpectationException;
+use DASPRiD\Enum\Exception\IllegalArgumentException;
 use IteratorAggregate;
 use Serializable;
 use Traversable;

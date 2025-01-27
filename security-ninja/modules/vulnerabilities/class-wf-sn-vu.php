@@ -214,38 +214,18 @@ class Wf_Sn_Vu {
         if ( empty( $file_content ) || empty( $filename ) ) {
             return false;
         }
-        require_once ABSPATH . 'wp-admin/includes/file.php';
-        $url = wp_nonce_url( 'plugins.php' );
-        $creds = request_filesystem_credentials(
-            $url,
-            '',
-            false,
-            false,
-            null
-        );
-        if ( !$creds ) {
-            return false;
-            // Failed to get credentials
-        }
-        if ( !WP_Filesystem( $creds ) ) {
-            return false;
-            // Failed to initialize the filesystem
-        }
-        global $wp_filesystem;
         $upload_dir = wp_upload_dir();
-        $dir_path = $upload_dir['basedir'] . '/security-ninja/vulns/';
-        // Ensure the directory exists
-        if ( !$wp_filesystem->is_dir( $dir_path ) && !$wp_filesystem->mkdir( $dir_path, FS_CHMOD_DIR, true ) ) {
-            // Log failure to create directory
-            return false;
+        $sn_dir = trailingslashit( $upload_dir['basedir'] ) . 'security-ninja/vulns/';
+        // Create directory without trying to chown
+        if ( !file_exists( $sn_dir ) ) {
+            wp_mkdir_p( $sn_dir );
+            // Set directory permissions but don't try to chown
+            chmod( $sn_dir, 0755 );
+            // Create .htaccess to prevent direct access
+            $htaccess_content = "deny from all\n";
+            file_put_contents( $sn_dir . '.htaccess', $htaccess_content );
         }
-        $file_path = $dir_path . sanitize_file_name( $filename );
-        $result = $wp_filesystem->put_contents( $file_path, $file_content, FS_CHMOD_FILE );
-        if ( false === $result ) {
-            return false;
-        }
-        add_option( 'wf_sn_vu_outdated', time() );
-        return true;
+        return file_put_contents( $sn_dir . $filename, $file_content );
     }
 
     /**
@@ -1279,6 +1259,11 @@ class Wf_Sn_Vu {
 				<?php 
             }
         }
+        printf( 
+            // translators: Shows how many vulnerabilities
+            esc_html__( 'Vulnerability list contains %1$s known vulnerabilities.', 'security-ninja' ),
+            esc_html( number_format_i18n( $total_vulnerabilities ) )
+         );
         ?>
 			</div>
 			<div class="card">
@@ -1373,17 +1358,6 @@ class Wf_Sn_Vu {
 			</div><!-- .card -->
 			<?php 
         if ( self::$options['enable_vulns'] ) {
-            ?>
-				<p>
-					<?php 
-            printf( 
-                // translators: Shows how many vulnerabilities
-                esc_html__( 'Vulnerability list contains %1$s known vulnerabilities.', 'security-ninja' ),
-                esc_html( number_format_i18n( $total_vulnerabilities ) )
-             );
-            ?>
-				</p>
-				<?php 
             $last_modified = Wf_Sn_Vu::get_vulnerabilities_last_modified();
             if ( $last_modified ) {
                 echo '<h4>' . esc_html__( 'Last Updated', 'security-ninja' ) . '</h4>';

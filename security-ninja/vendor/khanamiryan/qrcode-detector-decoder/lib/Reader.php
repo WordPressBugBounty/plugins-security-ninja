@@ -1,6 +1,6 @@
 <?php
 
-namespace WPSecurityNinja\Plugin\Zxing;
+namespace Zxing;
 
 interface Reader
 {

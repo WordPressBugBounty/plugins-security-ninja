@@ -5,7 +5,7 @@ Plugin Name: Security Ninja
 Plugin URI: https://wpsecurityninja.com/
 Description: Check your site for <strong>security vulnerabilities</strong> and get precise suggestions for corrective actions on passwords, user accounts, file permissions, database security, version hiding, plugins, themes, security headers and other security aspects.
 Author: WP Security Ninja
-Version: 5.222
+Version: 5.225
 Author URI: https://wpsecurityninja.com/
 License: GPLv3
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
@@ -62,7 +62,7 @@ if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
             if ( !defined( 'WP_FS__PRODUCT_3690_MULTISITE' ) ) {
                 define( 'WP_FS__PRODUCT_3690_MULTISITE', true );
             }
-            require_once dirname( __FILE__ ) . '/vendor/freemius/wordpress-sdk/start.php';
+            // require_once dirname( __FILE__ ) . '/vendor/freemius/wordpress-sdk/start.php';
             $secnin_fs = fs_dynamic_init( array(
                 'id'                  => '3690',
                 'slug'                => 'security-ninja',
@@ -1008,7 +1008,7 @@ if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
             $pointer_content = '<h3>Security Ninja v.' . wf_sn::get_plugin_version() . '</h3>';
             $pointer_content .= '<p>' . __( 'Thank you for installing Security Ninja &hearts;', 'security-ninja' ) . '</p>';
             $link_to_url = admin_url( 'admin.php?page=wf-sn' );
-            $pointer_content .= '<p><a href="' . esc_url( $link_to_url ) . '" class="startsecnin alignright button button-primary">Get started</a></p>';
+            $pointer_content .= '<p><a href="' . esc_url( $link_to_url ) . '" class="startsecnin alignright button button-primary">' . esc_html__( 'Get started', 'security-ninja' ) . '</a></p>';
             if ( $show_pointer ) {
                 ?>
 				<script type="text/javascript">
@@ -1119,7 +1119,7 @@ if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
                 true
             );
             // Test if we should show pointer - introduced in version 5.118
-            if ( !self::is_plugin_page() && current_user_can( 'manage_options' ) ) {
+            if ( current_user_can( 'manage_options' ) ) {
                 // Check to see if user has already dismissed the pointer tour
                 $dismissed = array_filter( explode( ',', (string) get_user_meta( get_current_user_id(), 'dismissed_wp_pointers', true ) ) );
                 $do_tour = !in_array( 'secninja_tour_pointer', $dismissed, true );

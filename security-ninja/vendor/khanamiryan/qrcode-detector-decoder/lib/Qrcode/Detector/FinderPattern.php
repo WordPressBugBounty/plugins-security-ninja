@@ -15,9 +15,9 @@
  * limitations under the License.
  */
 
-namespace WPSecurityNinja\Plugin\Zxing\Qrcode\Detector;
+namespace Zxing\Qrcode\Detector;
 
-use WPSecurityNinja\Plugin\Zxing\ResultPoint;
+use  Zxing\ResultPoint;
 
 /**
  * <p>Encapsulates a finder pattern, which are the three square patterns found in

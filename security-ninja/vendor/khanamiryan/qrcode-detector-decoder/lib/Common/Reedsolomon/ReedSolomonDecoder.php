@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-namespace WPSecurityNinja\Plugin\Zxing\Common\Reedsolomon;
+namespace Zxing\Common\Reedsolomon;
 
 /**
  * <p>Implements Reed-Solomon decoding, as the name implies.</p>

@@ -15,7 +15,7 @@
 * limitations under the License.
 */
 
-namespace WPSecurityNinja\Plugin\Zxing\Common;
+namespace Zxing\Common;
 
 /**
  * <p>Encapsulates the result of detecting a barcode in an image. This includes the raw

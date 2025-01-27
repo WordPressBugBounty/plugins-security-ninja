@@ -15,18 +15,18 @@
 * limitations under the License.
 */
 
-namespace WPSecurityNinja\Plugin\Zxing\Qrcode\Detector;
+namespace Zxing\Qrcode\Detector;
 
-use WPSecurityNinja\Plugin\Zxing\Common\Detector\MathUtils;
-use WPSecurityNinja\Plugin\Zxing\Common\DetectorResult;
-use WPSecurityNinja\Plugin\Zxing\Common\GridSampler;
-use WPSecurityNinja\Plugin\Zxing\Common\PerspectiveTransform;
-use WPSecurityNinja\Plugin\Zxing\DecodeHintType;
-use WPSecurityNinja\Plugin\Zxing\FormatException;
-use WPSecurityNinja\Plugin\Zxing\NotFoundException;
-use WPSecurityNinja\Plugin\Zxing\Qrcode\Decoder\Version;
-use WPSecurityNinja\Plugin\Zxing\ResultPoint;
-use WPSecurityNinja\Plugin\Zxing\ResultPointCallback;
+use Zxing\Common\Detector\MathUtils;
+use Zxing\Common\DetectorResult;
+use Zxing\Common\GridSampler;
+use Zxing\Common\PerspectiveTransform;
+use Zxing\DecodeHintType;
+use Zxing\FormatException;
+use Zxing\NotFoundException;
+use Zxing\Qrcode\Decoder\Version;
+use Zxing\ResultPoint;
+use Zxing\ResultPointCallback;
 
 /**
  * <p>Encapsulates logic that can detect a QR Code in an image, even if the QR Code

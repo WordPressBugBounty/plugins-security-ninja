@@ -15,7 +15,7 @@
 * limitations under the License.
 */
 
-namespace WPSecurityNinja\Plugin\Zxing\Common\Reedsolomon;
+namespace Zxing\Common\Reedsolomon;
 
 /**
  * <p>Thrown when an exception occurs during Reed-Solomon decoding, such as when

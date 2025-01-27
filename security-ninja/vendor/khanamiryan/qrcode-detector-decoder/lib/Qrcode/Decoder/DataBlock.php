@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-namespace WPSecurityNinja\Plugin\Zxing\Qrcode\Decoder;
+namespace Zxing\Qrcode\Decoder;
 
 /**
  * <p>Encapsulates a block of data within a QR Code. QR Codes may split their data into

@@ -15,14 +15,14 @@
  * limitations under the License.
  */
 
-namespace WPSecurityNinja\Plugin\Zxing\Qrcode\Decoder;
+namespace Zxing\Qrcode\Decoder;
 
-use WPSecurityNinja\Plugin\Zxing\ChecksumException;
-use WPSecurityNinja\Plugin\Zxing\Common\BitMatrix;
-use WPSecurityNinja\Plugin\Zxing\Common\Reedsolomon\GenericGF;
-use WPSecurityNinja\Plugin\Zxing\Common\Reedsolomon\ReedSolomonDecoder;
-use WPSecurityNinja\Plugin\Zxing\Common\Reedsolomon\ReedSolomonException;
-use WPSecurityNinja\Plugin\Zxing\FormatException;
+use Zxing\ChecksumException;
+use Zxing\Common\BitMatrix;
+use Zxing\Common\Reedsolomon\GenericGF;
+use Zxing\Common\Reedsolomon\ReedSolomonDecoder;
+use Zxing\Common\Reedsolomon\ReedSolomonException;
+use Zxing\FormatException;
 
 /**
  * <p>The main class which implements QR Code decoding -- as opposed to locating and extracting

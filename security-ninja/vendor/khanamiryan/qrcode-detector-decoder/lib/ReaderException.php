@@ -15,7 +15,7 @@
 * limitations under the License.
 */
 
-namespace WPSecurityNinja\Plugin\Zxing;
+namespace Zxing;
 
 /**
  * The general exception class throw when something goes wrong during decoding of a barcode.

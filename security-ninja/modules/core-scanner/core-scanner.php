@@ -700,12 +700,12 @@ class Wf_Sn_Cs {
                 <p class="spinner"></p>
                 <p id="last_scan"></p>
             </div>
-        <?php 
+            <?php 
         echo '<input type="button" value="' . esc_html__( 'Scan core files', 'security-ninja' ) . '" id="sn-run-core-scan" class="button button-secondary button-small" />';
         ?>
         </div>
 
-        <?php 
+<?php 
         $next_scan = wp_next_scheduled( 'secnin_run_core_scanner' );
         if ( $next_scan ) {
             $time_until_next_scan = human_time_diff( current_time( 'timestamp' ), $next_scan );
@@ -781,18 +781,6 @@ class Wf_Sn_Cs {
         $org_file = wp_remote_get( $url );
         if ( is_wp_error( $org_file ) || 404 === wp_remote_retrieve_response_code( $org_file ) || empty( $org_file['body'] ) ) {
             $error_message = ( is_wp_error( $org_file ) ? $org_file->get_error_message() : __( 'Unable to download remote file source.', 'security-ninja' ) );
-            if ( secnin_fs()->is__premium_only() && secnin_fs()->can_use_premium_code() ) {
-                wf_sn_el_modules::log_event(
-                    'security_ninja',
-                    'core_scanner',
-                    'Cannot download file',
-                    array(
-                        'file'  => $file,
-                        'url'   => $url,
-                        'error' => $error_message,
-                    )
-                );
-            }
             wp_send_json_error( array(
                 'message' => $error_message,
             ) );

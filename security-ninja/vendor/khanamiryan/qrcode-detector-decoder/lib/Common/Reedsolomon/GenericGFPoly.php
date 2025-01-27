@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-namespace WPSecurityNinja\Plugin\Zxing\Common\Reedsolomon;
+namespace Zxing\Common\Reedsolomon;
 
 /**
  * <p>Represents a polynomial whose coefficients are elements of a GF.

@@ -1,6 +1,6 @@
 <?php
 
-namespace WPSecurityNinja\Plugin\Zxing\Qrcode\Decoder;
+namespace Zxing\Qrcode\Decoder;
 
 class QRCodeDecoderMetaData
 {

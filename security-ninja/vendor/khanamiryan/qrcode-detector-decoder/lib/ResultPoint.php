@@ -15,9 +15,9 @@
 * limitations under the License.
 */
 
-namespace WPSecurityNinja\Plugin\Zxing;
+namespace Zxing;
 
-use WPSecurityNinja\Plugin\Zxing\Common\Detector\MathUtils;
+use Zxing\Common\Detector\MathUtils;
 
 /**
  * <p>Encapsulates a point of interest in an image containing a barcode. Typically, this

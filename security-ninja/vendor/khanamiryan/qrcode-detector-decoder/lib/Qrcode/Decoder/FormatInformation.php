@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-namespace WPSecurityNinja\Plugin\Zxing\Qrcode\Decoder;
+namespace Zxing\Qrcode\Decoder;
 
 /**
  * <p>Encapsulates a QR Code's format information, including the data mask used and

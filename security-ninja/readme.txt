@@ -6,7 +6,7 @@ License: GPLv3
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 Requires at least: 4.7
 Tested up to: 6.7.1
-Stable tag: 5.222
+Stable tag: 5.225
 Requires PHP: 7.4
 
 Scans for vulnerabilities, detects risky plugins, and guides you how to secure your site against hackers.
@@ -235,6 +235,39 @@ While we strive for universal compatibility, if you face any issues, our support
 
 == Changelog ==
 
+= 5.225 =
+* Updated: Freemius SDK to 2.11.0
+* Updated language files.
+
+
+= 5.224 =
+* Improved: Enhanced UI with better color contrast in the test interface
+* Improved: Vulnerability scanner now shows how many vulnerabilities are in the list.
+* Enhanced: Improved Import/Export functionality:
+  * Fixed issues with firewall settings not importing correctly
+  * Added proper handling of boolean and array settings
+  * Improved validation and sanitization of imported data
+  * Added detailed import logs and success notifications
+  * Fixed scheduler settings import
+  * Preserved critical existing settings during import
+* Enhanced: Completely revamped 2FA setup flow:
+  * Improved session handling for more reliable authentication
+  * Better handling of grace period skipping
+  * UX: Added automatic focus on 2FA code input field
+  * Added proper login redirect handling
+  * Fixed issues with session persistence
+  * Improved error handling and user feedback
+* Fixed: Resolved compatibility issues with Nextend Social Login in 2FA module
+* Security: Strengthened session management in 2FA authentication process
+* Code refactoring for better maintainability and WordPress coding standards compliance
+
+= 5.223 =
+* Fix: Added missing URL column to visitor log database table to properly track request URLs.
+* Fix: Cleaning up the code for the 2FA module console log messages only showing for error events.
+* Fix: Create missing database tables when installing the plugin.
+* Added UptimeRobot IPs to the whitelist.
+* Updated: Freemius SDK to 2.10.1 and phpseclib to 2.0.48.
+
 = 5.222 =
 * Fix: Resolved rare PHP warnings related to undefined webhook settings in Events Logger.
 * New: Users IPs automatically added to the whitelist when activating the firewall. IPs are no longer added to the whitelist by successful login.
@@ -258,7 +291,7 @@ While we strive for universal compatibility, if you face any issues, our support
 = 5.219 =
 * Improved translations in the plugin.
 * PRO: New Language Support!
-We’ve expanded the language support in Security Ninja Pro to better serve our global community. With this update, we’ve added full translations for 16 languages, allowing users to navigate the plugin more comfortably in their native language. Here are the newly supported languages: Danish (da_DK), German (de_DE), Spanish (es_ES), Finnish (fi_FI), French (fr_FR), Croatian (hr_HR), Icelandic (is_IS), Italian (it_IT), Korean (ko_KR), Norwegian Bokmål (nb_NO), Dutch (nl_NL), Portuguese (pt_PT), Russian (ru_RU), Swedish (sv_SE), Chinese (Simplified) (zh_CN) and Hindi (hi_IN).
+We've expanded the language support in Security Ninja Pro to better serve our global community. With this update, we've added full translations for 16 languages, allowing users to navigate the plugin more comfortably in their native language. Here are the newly supported languages: Danish (da_DK), German (de_DE), Spanish (es_ES), Finnish (fi_FI), French (fr_FR), Croatian (hr_HR), Icelandic (is_IS), Italian (it_IT), Korean (ko_KR), Norwegian Bokmål (nb_NO), Dutch (nl_NL), Portuguese (pt_PT), Russian (ru_RU), Swedish (sv_SE), Chinese (Simplified) (zh_CN) and Hindi (hi_IN).
 
 This update makes Security Ninja more accessible to millions of users worldwide, with full support for major languages in Europe, Asia, and beyond.
 
@@ -292,6 +325,7 @@ This update makes Security Ninja more accessible to millions of users worldwide,
 
 = 5.214 =
 * Fixed issues with 2FA setup not working for some users.
+* Fix: Missing translations in the 2FA module.
 * Improved malware scanner better interface and improvements to the backend.
 * Started work reintroducing the database malwarescanner and preparing for a beta release.
 * Improvement to the license activation process.

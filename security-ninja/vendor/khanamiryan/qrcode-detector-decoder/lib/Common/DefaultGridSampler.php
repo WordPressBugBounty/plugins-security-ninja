@@ -15,9 +15,9 @@
 * limitations under the License.
 */
 
-namespace WPSecurityNinja\Plugin\Zxing\Common;
+namespace Zxing\Common;
 
-use WPSecurityNinja\Plugin\Zxing\NotFoundException;
+use Zxing\NotFoundException;
 
 /**
  * @author Sean Owen

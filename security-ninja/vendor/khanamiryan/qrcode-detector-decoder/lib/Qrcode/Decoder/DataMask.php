@@ -15,9 +15,9 @@
  * limitations under the License.
  */
 
-namespace WPSecurityNinja\Plugin\Zxing\Qrcode\Decoder;
+namespace Zxing\Qrcode\Decoder;
 
-use WPSecurityNinja\Plugin\Zxing\Common\BitMatrix;
+use Zxing\Common\BitMatrix;
 
 /**
  * <p>Encapsulates data masks for the data bits in a QR code, per ISO 18004:2006 6.8. Implementations

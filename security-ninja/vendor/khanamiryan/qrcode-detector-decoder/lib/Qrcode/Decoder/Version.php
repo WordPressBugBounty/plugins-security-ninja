@@ -15,10 +15,10 @@
 * limitations under the License.
 */
 
-namespace WPSecurityNinja\Plugin\Zxing\Qrcode\Decoder;
+namespace Zxing\Qrcode\Decoder;
 
-use WPSecurityNinja\Plugin\Zxing\Common\BitMatrix;
-use WPSecurityNinja\Plugin\Zxing\FormatException;
+use Zxing\Common\BitMatrix;
+use Zxing\FormatException;
 
 /**
  * See ISO 18004:2006 Annex D

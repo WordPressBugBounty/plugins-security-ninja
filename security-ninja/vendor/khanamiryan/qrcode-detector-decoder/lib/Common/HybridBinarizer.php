@@ -15,9 +15,9 @@
 * limitations under the License.
 */
 
-namespace WPSecurityNinja\Plugin\Zxing\Common;
+namespace Zxing\Common;
 
-use WPSecurityNinja\Plugin\Zxing\Binarizer;
+use Zxing\Binarizer;
 
 /**
  * This class implements a local thresholding algorithm, which while slower than the

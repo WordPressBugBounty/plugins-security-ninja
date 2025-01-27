@@ -1,9 +1,9 @@
 <?php
 
-namespace WPSecurityNinja\Plugin\Zxing;
+namespace Zxing;
 
-use WPSecurityNinja\Plugin\Zxing\Common\HybridBinarizer;
-use WPSecurityNinja\Plugin\Zxing\Qrcode\QRCodeReader;
+use Zxing\Common\HybridBinarizer;
+use Zxing\Qrcode\QRCodeReader;
 
 final class QrReader
 {

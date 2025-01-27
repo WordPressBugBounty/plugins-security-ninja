@@ -1,6 +1,6 @@
 <?php
 
-namespace WPSecurityNinja\Plugin\Zxing\Common;
+namespace Zxing\Common;
 
 /**
  * Encapsulates a Character Set ECI, according to "Extended Channel

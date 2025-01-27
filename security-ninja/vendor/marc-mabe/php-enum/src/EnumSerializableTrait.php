@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace WPSecurityNinja\Plugin\MabeEnum;
+namespace MabeEnum;
 
 use RuntimeException;
 use LogicException;

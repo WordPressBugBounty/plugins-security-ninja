@@ -1,6 +1,6 @@
 <?php
 
-namespace WPSecurityNinja\Plugin\Zxing;
+namespace Zxing;
 
 /**
  * This class is used to help decode images from files which arrive as GD Resource

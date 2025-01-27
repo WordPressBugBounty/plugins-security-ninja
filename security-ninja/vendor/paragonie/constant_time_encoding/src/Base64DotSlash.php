@@ -1,6 +1,6 @@
 <?php
 declare(strict_types=1);
-namespace WPSecurityNinja\Plugin\ParagonIE\ConstantTime;
+namespace ParagonIE\ConstantTime;
 
 /**
  *  Copyright (c) 2016 - 2022 Paragon Initiative Enterprises.

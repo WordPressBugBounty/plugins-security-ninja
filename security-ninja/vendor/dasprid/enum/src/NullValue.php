@@ -1,11 +1,11 @@
 <?php
 declare(strict_types = 1);
 
-namespace WPSecurityNinja\Plugin\DASPRiD\Enum;
+namespace DASPRiD\Enum;
 
-use WPSecurityNinja\Plugin\DASPRiD\Enum\Exception\CloneNotSupportedException;
-use WPSecurityNinja\Plugin\DASPRiD\Enum\Exception\SerializeNotSupportedException;
-use WPSecurityNinja\Plugin\DASPRiD\Enum\Exception\UnserializeNotSupportedException;
+use DASPRiD\Enum\Exception\CloneNotSupportedException;
+use DASPRiD\Enum\Exception\SerializeNotSupportedException;
+use DASPRiD\Enum\Exception\UnserializeNotSupportedException;
 
 final class NullValue
 {

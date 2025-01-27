@@ -15,10 +15,10 @@
 * limitations under the License.
 */
 
-namespace WPSecurityNinja\Plugin\Zxing\Common;
+namespace Zxing\Common;
 
-use WPSecurityNinja\Plugin\Zxing\Binarizer;
-use WPSecurityNinja\Plugin\Zxing\NotFoundException;
+use Zxing\Binarizer;
+use Zxing\NotFoundException;
 
 /**
  * This Binarizer implementation uses the old ZXing global histogram approach. It is suitable

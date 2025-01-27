@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-namespace WPSecurityNinja\Plugin\Zxing\Common;
+namespace Zxing\Common;
 
 /**
  * <p>This provides an easy abstraction to read bits at a time from a sequence of bytes, where the

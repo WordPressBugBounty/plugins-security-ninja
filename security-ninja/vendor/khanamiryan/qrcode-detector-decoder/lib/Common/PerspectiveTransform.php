@@ -15,7 +15,7 @@
 * limitations under the License.
 */
 
-namespace WPSecurityNinja\Plugin\Zxing\Common;
+namespace Zxing\Common;
 
 /**
  * <p>This class implements a perspective transform in two dimensions. Given four source and four

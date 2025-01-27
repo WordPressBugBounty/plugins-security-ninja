@@ -1,7 +1,7 @@
 <?php
 declare(strict_types = 1);
 
-namespace WPSecurityNinja\Plugin\DASPRiD\Enum\Exception;
+namespace DASPRiD\Enum\Exception;
 
 use Exception;
 

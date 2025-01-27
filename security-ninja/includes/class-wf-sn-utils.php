@@ -163,10 +163,8 @@ class Utils {
         if ( \PAnD::is_admin_notice_active( 'wfs-newsletter-30' ) ) {
             ?>
 			<div data-dismissible="wfs-newsletter-30" class="secnin-notice updated notice notice-info is-dismissible">
-				<h3><img src="<?php 
-            echo esc_url( WF_SN_PLUGIN_URL . 'images/sn-logo.svg' );
-            ?>" height="58" alt="Visit wpsecurityninja.com" class="logoleft"> Join the wpsecurityninja.com newsletter</h3>
-				<h4>Interesting articles and news about WordPress and internet security</h4>
+				<h3>Get WordPress Security Updates & Exclusive Deals</h3>
+				<h4>Join 10,000+ WordPress admins getting critical security alerts, pro tips, and special offers directly in their inbox from wpsecurityninja.com</h4>
 				<form class="ml-block-form" action="https://assets.mailerlite.com/jsonp/16490/forms/106309154087372203/subscribe" data-code="" method="post" target="_blank">
 					<table>
 						<tbody>
@@ -507,12 +505,14 @@ class Utils {
      */
     public static function add_freemius_extra_permission( $permissions ) {
         $permissions['wpsnapi'] = array(
+            'id'         => 'security_ninja_api',
             'icon-class' => 'dashicons dashicons-sos',
             'label'      => __( 'Security Ninja API', 'security-ninja' ),
             'desc'       => __( 'Sending and getting data from Security Ninja API servers.', 'security-ninja' ),
             'priority'   => 17,
         );
         $permissions['newsletter'] = array(
+            'id'         => 'security_ninja_newsletter',
             'icon-class' => 'dashicons dashicons-email-alt2',
             'label'      => __( 'Newsletter', 'security-ninja' ),
             'desc'       => __( 'You are added to our newsletter. Unsubscribe anytime.', 'security-ninja' ),

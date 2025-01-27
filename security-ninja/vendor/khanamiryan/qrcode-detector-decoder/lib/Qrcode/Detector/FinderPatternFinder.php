@@ -15,11 +15,11 @@
 * limitations under the License.
 */
 
-namespace WPSecurityNinja\Plugin\Zxing\Qrcode\Detector;
+namespace Zxing\Qrcode\Detector;
 
-use WPSecurityNinja\Plugin\Zxing\Common\BitMatrix;
-use WPSecurityNinja\Plugin\Zxing\NotFoundException;
-use WPSecurityNinja\Plugin\Zxing\ResultPoint;
+use Zxing\Common\BitMatrix;
+use Zxing\NotFoundException;
+use Zxing\ResultPoint;
 
 /**
  * <p>This class attempts to find finder patterns in a QR Code. Finder patterns are the square

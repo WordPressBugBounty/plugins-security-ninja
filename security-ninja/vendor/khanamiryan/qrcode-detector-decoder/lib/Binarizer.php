@@ -15,10 +15,10 @@
 * limitations under the License.
 */
 
-namespace WPSecurityNinja\Plugin\Zxing;
+namespace Zxing;
 
-use WPSecurityNinja\Plugin\Zxing\Common\BitArray;
-use WPSecurityNinja\Plugin\Zxing\Common\BitMatrix;
+use Zxing\Common\BitArray;
+use Zxing\Common\BitMatrix;
 
 /**
  * This class hierarchy provides a set of methods to convert luminance data to 1 bit data.

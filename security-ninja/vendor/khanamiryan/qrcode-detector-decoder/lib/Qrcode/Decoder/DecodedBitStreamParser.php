@@ -15,12 +15,12 @@
  * limitations under the License.
  */
 
-namespace WPSecurityNinja\Plugin\Zxing\Qrcode\Decoder;
+namespace Zxing\Qrcode\Decoder;
 
-use WPSecurityNinja\Plugin\Zxing\Common\BitSource;
-use WPSecurityNinja\Plugin\Zxing\Common\CharacterSetECI;
-use WPSecurityNinja\Plugin\Zxing\Common\DecoderResult;
-use WPSecurityNinja\Plugin\Zxing\FormatException;
+use Zxing\Common\BitSource;
+use Zxing\Common\CharacterSetECI;
+use Zxing\Common\DecoderResult;
+use Zxing\FormatException;
 
 /**
  * <p>QR Codes can encode text as bits in one of several modes, and can use multiple modes

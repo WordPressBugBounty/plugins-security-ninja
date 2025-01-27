@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-namespace WPSecurityNinja\Plugin\Zxing\Common\Reedsolomon;
+namespace Zxing\Common\Reedsolomon;
 
 /**
  * <p>This class contains utility methods for performing mathematical operations over

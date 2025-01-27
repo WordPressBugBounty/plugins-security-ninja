@@ -15,9 +15,9 @@
  * limitations under the License.
  */
 
-namespace WPSecurityNinja\Plugin\Zxing\Qrcode\Detector;
+namespace Zxing\Qrcode\Detector;
 
-use WPSecurityNinja\Plugin\Zxing\NotFoundException;
+use Zxing\NotFoundException;
 
 /**
  * <p>This class attempts to find alignment patterns in a QR Code. Alignment patterns look like finder

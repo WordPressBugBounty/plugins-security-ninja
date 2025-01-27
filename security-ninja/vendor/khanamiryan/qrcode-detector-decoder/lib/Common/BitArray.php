@@ -22,7 +22,7 @@
  * limitations under the License.
  */
 
-namespace WPSecurityNinja\Plugin\Zxing\Common;
+namespace Zxing\Common;
 
 /**
  * <p>A simple, fast array of bits, represented compactly by an array of ints internally.</p>
