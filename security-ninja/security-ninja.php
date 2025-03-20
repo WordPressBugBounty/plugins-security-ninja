@@ -5,7 +5,7 @@ Plugin Name: Security Ninja
 Plugin URI: https://wpsecurityninja.com/
 Description: Check your site for <strong>security vulnerabilities</strong> and get precise suggestions for corrective actions on passwords, user accounts, file permissions, database security, version hiding, plugins, themes, security headers and other security aspects.
 Author: WP Security Ninja
-Version: 5.225
+Version: 5.229
 Author URI: https://wpsecurityninja.com/
 License: GPLv3
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
@@ -56,7 +56,7 @@ if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
     // Create a helper function for easy SDK access.
     function secnin_fs() {
         global $secnin_fs;
-        require_once dirname( __FILE__ ) . '/vendor/autoload.php';
+        require_once __DIR__ . '/vendor/autoload.php';
         if ( !isset( $secnin_fs ) ) {
             // Activate multisite network integration.
             if ( !defined( 'WP_FS__PRODUCT_3690_MULTISITE' ) ) {
@@ -82,10 +82,10 @@ if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
                     'support'    => false,
                     'network'    => true,
                 ),
-                'parallel_activation' => [
+                'parallel_activation' => array(
                     'enabled'                  => true,
                     'premium_version_basename' => 'premium-slug/filename.php',
-                ],
+                ),
                 'is_live'             => true,
             ) );
         }
@@ -190,12 +190,6 @@ if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
                 );
                 add_action( 'admin_menu', array(__NAMESPACE__ . '\\Wf_Sn', 'admin_menu') );
                 add_action(
-                    'plugin_action_links_' . secnin_fs()->get_plugin_basename(),
-                    array(__NAMESPACE__ . '\\Utils', 'plugin_action_links'),
-                    PHP_INT_MAX,
-                    4
-                );
-                add_action(
                     'activated_plugin',
                     array(__NAMESPACE__ . '\\Wf_Sn', 'do_action_activated_plugin'),
                     10,
@@ -267,18 +261,11 @@ if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
             foreach ( $security_tests as $test_name => $test ) {
                 $class_with_namespace = __NAMESPACE__ . '\\Wf_Sn_Tests';
                 if ( !method_exists( $class_with_namespace, $test_name ) ) {
-                    if ( secnin_fs()->is__premium_only() && secnin_fs()->can_use_premium_code() ) {
-                        wf_sn_el_modules::log_event( 'security_ninja', 'security_tests', "Method {$test_name} does not exist in Wf_Sn" );
-                    }
                     continue;
                 }
                 // Call the method dynamically
                 $response = $class_with_namespace::$test_name();
                 if ( !is_array( $response ) || empty( $response ) ) {
-                    // Log error if the response is not valid
-                    if ( secnin_fs()->is__premium_only() && secnin_fs()->can_use_premium_code() ) {
-                        wf_sn_el_modules::log_event( 'security_ninja', 'security_tests', "Invalid response for test {$test_name}" );
-                    }
                     continue;
                 }
                 // Setting appropriate message
@@ -313,7 +300,7 @@ if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
                 update_option( 'security_tests_results', $resultssofar );
             }
             if ( secnin_fs()->is__premium_only() && secnin_fs()->can_use_premium_code() ) {
-                wf_sn_el_modules::log_event(
+                \WPSecurityNinja\Plugin\wf_sn_el_modules::log_event(
                     'security_ninja',
                     'security_tests',
                     'Finished running tests.',
@@ -938,7 +925,43 @@ if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
          * @return  mixed
          */
         public static function return_tabs( $intabs ) {
-            return $intabs;
+            $malware_tab = array(
+                'id'       => 'sn_malware',
+                'class'    => 'profeature',
+                'label'    => esc_html__( 'Malware', 'security-ninja' ),
+                'callback' => array(__NAMESPACE__ . '\\wf_sn', 'render_malware_page'),
+            );
+            $cloudfw_tab = array(
+                'id'       => 'sn_cf',
+                'class'    => 'profeature',
+                'label'    => esc_html__( 'Firewall', 'security-ninja' ),
+                'callback' => array(__NAMESPACE__ . '\\wf_sn', 'render_cloudfw_page'),
+            );
+            $schedule_tab = array(
+                'id'       => 'sn_schedule',
+                'class'    => 'profeature',
+                'label'    => esc_html__( 'Scheduler', 'security-ninja' ),
+                'callback' => array(__NAMESPACE__ . '\\wf_sn', 'render_scheduled_scanner_page'),
+            );
+            $logger_tab = array(
+                'id'       => 'sn_logger',
+                'class'    => 'profeature',
+                'label'    => __( 'Event Log', 'security-ninja' ),
+                'callback' => array(__NAMESPACE__ . '\\wf_sn', 'render_events_logger_page'),
+            );
+            $whitelabel_tab = array(
+                'id'       => 'sn_whitelabel',
+                'class'    => 'profeature',
+                'label'    => esc_html__( 'White label', 'security-ninja' ),
+                'callback' => array(__NAMESPACE__ . '\\Utils', 'render_whitelabel_page'),
+            );
+            $outtabs = $intabs;
+            $outtabs[] = $cloudfw_tab;
+            $outtabs[] = $schedule_tab;
+            $outtabs[] = $malware_tab;
+            $outtabs[] = $logger_tab;
+            $outtabs[] = $whitelabel_tab;
+            return $outtabs;
         }
 
         /**
@@ -1839,17 +1862,12 @@ if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
                     }
                     $json_response['msg'] = $response['msg'];
                     if ( 10 === $response['status'] ) {
-                        //$json_response['msg']   = sprintf( $security_tests[ $testid ]['msg_ok'], $response['msg'] );
-                        // $json_response['msg']   = $response['msg'];
                         $json_response['label'] = '<span class="wf-sn-label sn-success">' . __( 'OK', 'security-ninja' ) . '</span>';
                     } elseif ( 0 === $response['status'] ) {
-                        // $json_response['msg']   = $response['msg'];
                         $json_response['label'] = '<span class="wf-sn-label sn-error">' . __( 'Fail', 'security-ninja' ) . '</span>';
                     } else {
                         $json_response['label'] = '<span class="wf-sn-label sn-warning">' . __( 'Warning', 'security-ninja' ) . '</span>';
-                        // $json_response['msg'] = sprintf( $security_tests[ $testid ]['msg_warning'], $response['msg'] );
                     }
-                    // $details                 = $security_tests[ $testid ];
                     $json_response['status'] = $response['status'];
                     $testscorearr = array(
                         'testid'    => $testid,
@@ -2059,14 +2077,6 @@ if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
                     ) );
                 }
             }
-            // if ( ! current_user_can( 'manage_options' ) ) {
-            // 	wp_send_json_error(
-            // 		array(
-            // 			'success' => false,
-            // 			'message' => esc_html__( 'You do not have permission to do this.', 'security-ninja' ),
-            // 		)
-            // 	);
-            // }
             self::timerstart( 'wf_sn_run_all_tests' );
             $security_tests = wf_sn_tests::return_security_tests();
             $resultssofar = array();
@@ -2088,7 +2098,7 @@ if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
                     }
                     // Setting appropriate message
                     if ( 10 === intval( $response['status'] ) ) {
-                        //						$json_response['last_msg'] = sprintf( $test['msg_ok'], $response['msg'] );
+                        //                      $json_response['last_msg'] = sprintf( $test['msg_ok'], $response['msg'] );
                         // @todo
                         $json_response['last_msg'] = $response['msg'];
                     } elseif ( 0 === intval( $response['status'] ) ) {

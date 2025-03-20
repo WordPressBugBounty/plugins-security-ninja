@@ -5,43 +5,143 @@ Tags: security, malware, firewall, virus, login
 License: GPLv3
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 Requires at least: 4.7
-Tested up to: 6.7.1
-Stable tag: 5.225
+Tested up to: 6.7.2
+Stable tag: 5.229
 Requires PHP: 7.4
 
 Scans for vulnerabilities, detects risky plugins, and guides you how to secure your site against hackers.
 
 == Description ==
 
+Protect your WordPress website from hackers, malware, and security vulnerabilities with Security Ninja, a trusted WordPress security plugin since 2011. This all-in-one security solution safeguards your site with 50+ security tests, malware scanning, a firewall, brute force attack protection, and real-time vulnerability detection.
+
+Security Ninja Plugin proactively identifies security risks, ensuring your WordPress website stays secure without slowing it down. With features like automated security scans, login protection, IP blocking, and two-factor authentication (2FA), it provides comprehensive website protection against cyber threats.
+
+Whether you’re a beginner or an advanced user, Security Ninja is designed for effortless WordPress security management, keeping your site safe while you focus on growing your business. Install today and take control of your website’s security!
+
 This plugin can be downloaded for free without any paid subscription from <a href="https://wordpress.org/plugins/security-ninja/">the official WordPress repository</a>.
 
-Get started in minutes: 
+Security Ninja Installation and Setup Video Tutorial
 [youtube https://www.youtube.com/watch?v=L2Juu4m8KH8]
 
-For over a decade, **Security Ninja** has been the guardian of thousands of websites, empowering **site owners like you** to navigate the digital space with confidence. Instantly run **50+ security tests** to uncover hidden issues, ensuring your website's integrity and security. Embrace **Ninja's simplicity and ease of use** to fortify your site's defenses effortlessly.
+
+**Why Choose Security Ninja? – The Ultimate WordPress Security Plugin**
+
+- **Comprehensive Security Testing** – Run 50+ WordPress security tests to detect vulnerabilities before hackers exploit them.
+- **Enhanced Vulnerability Scanner** – Stay ahead of emerging threats with proactive alerts for vulnerabilities.
+- **Core Scanner** - Find and remove modified and unwanted files in your WordPress core files.
+- **Advanced Malware Scanner (PRO)** – Identify and remove malicious code, hidden threats, and suspicious files instantly.
+- **Powerful Firewall Protection (PRO)** – Block brute-force attacks, unauthorized logins, and suspicious IPs with real-time security.
+- **Secure Login & 2FA (PRO)** – Strengthen your WordPress login page with Two-Factor Authentication (2FA) and login attempt limits.
+- **Cloud-Based Threat Intelligence (PRO)** – Stay ahead of cybercriminals with real-time updates on the latest security threats.
+- **One-Click Security Fixes (PRO)** – Fix security issues instantly with an easy-to-use, beginner-friendly dashboard.
+- **Automated Security Scans & Reports (PRO)** – Schedule scans and get detailed reports sent to your inbox.
+- **Activity Log & User Tracking (PRO)** – Track all user actions on your WordPress website with a detailed activity log and receive alerts for suspicious activity.
+
+
+
+
+**Key Features of Security Ninja – The Ultimate WordPress Security Plugin**
+
+Security Ninja is a powerful WordPress security plugin designed to protect your website from hackers, malware, brute-force attacks, and security vulnerabilities. With 50+ security tests, real-time malware scanning, a firewall, and login protection, Security Ninja keeps your WordPress site secure without slowing it down.
+
+**Comprehensive WordPress Security Testing**
+
+Security Ninja performs 50+ advanced security tests to identify vulnerabilities before hackers exploit them. This includes:
+
+- **Brute-force protection** – Blocks unauthorized login attempts to prevent forced entry.
+- **File integrity monitoring** – Detects unauthorized changes to WordPress core files, themes, and plugins.
+- **Database security checks** – Identifies weak database permissions and potential SQL injection threats.
+- **User role audits** – Ensures no unauthorized administrator accounts exist.
+- **Security misconfiguration scans** – Identifies and fixes weak settings that could compromise security.
 
 **Enhanced Vulnerability Scanner**
-- **Stay Ahead of Threats**: Our vulnerability scanner proactively alerts you to known vulnerabilities, allowing you to address potential threats before they exploit your website.
-- **Comprehensive Protection**: Security Ninja not only checks and warns for common issues but also checks for **known vulnerabilities in plugins and themes**.
-- **Peace of Mind**: Knowing your site is monitored for the latest vulnerabilities means you can focus on what matters most—growing your business and creating content, worry-free.
+
+- **Stay Ahead of Threats** – Our vulnerability scanner proactively alerts you to known vulnerabilities, allowing you to address potential threats before they exploit your website.
+- **Comprehensive Protection** – Security Ninja not only checks and warns for common issues but also checks for known vulnerabilities in plugins and themes.
+- **Peace of Mind** – Knowing your site is monitored for the latest vulnerabilities means you can focus on what matters most, growing your business and creating content, worry-free.
 
 
-**Core Scanner - Comprehensive Protection for Your WordPress Installation**
+**Core Scanner – Comprehensive Protection for Your WordPress Installation**
 
-The **Core Scanner** module adds a critical layer of security by ensuring your WordPress installation remains untampered and free of unauthorized files.
+The Core Scanner module adds a critical layer of security by ensuring your WordPress installation remains untampered and free of unauthorized files.
 
-- **Full Core File Integrity Check**: Every file in your core WordPress folders is scanned to ensure it hasn't been modified or compromised.
+- **Full Core File Integrity Check**: Every file in your core WordPress folders is scanned to ensure it hasn’t been modified or compromised.
 - **Detection of Unknown Files**: The scanner flags any extra or unknown files in your core WordPress directories, alerting you to potential threats.
 - **Built-in File Viewer**: Review flagged files directly within your WordPress dashboard using the integrated file viewer for a clear and easy inspection.
 - **Restore Core Files**: If a core WordPress file has been altered, you can quickly restore it with a single click, ensuring your site is running the official version.
 - **Easy File Management**: For unknown or suspicious files, you have the option to delete them right from the interface, keeping your WordPress installation clean and secure.
 
-This module brings essential security functionality to your site, ensuring the integrity of your WordPress core files with minimal effort on your part.
 
 
+**Advanced Malware Scanner – Detect & Remove Malware Instantly (PRO)**
 
-**Join thousands of satisfied users who trust Security Ninja to keep their websites safe.** Start protecting your online presence today and help yourself to peace of mind.
+Security Ninja includes a high-performance malware scanner that automatically checks your WordPress core, plugins and themes for:
 
+- **Malicious scripts and backdoors** – Identifies hidden malware and harmful injections.
+- **Trojan and virus detection** – Scans for suspicious PHP and JavaScript entries.
+- **One-click malware removal** – Instantly quarantine and delete infected files.
+
+**WordPress Firewall & Real-Time Threat Protection (PRO)**
+
+The Web Application Firewall (WAF) blocks hacker attempts, bot attacks, and brute-force login attempts before they can damage your site.
+
+- **Real-time protection** – Prevents malicious traffic and automated hacking attempts.
+- **IP & Country Blocking** – Restrict access from high-risk countries and blacklisted IPs.
+- **Cloud-Based Threat Intelligence** – Updated with the latest security threats.
+
+**Login Security & Two-Factor Authentication (2FA) (PRO)**
+
+Your WordPress login page is a primary target for hackers. Security Ninja enhances login security with:
+
+- **Two-Factor Authentication (2FA)** – Requires additional verification for safer logins.
+- **Brute-force attack protection** – Limits failed login attempts to block unauthorized access.
+- **Rename login** - Getting a lot of requests to your login form? Hide it for spammers.
+
+**One-Click Security Fixes & WordPress Hardening (PRO)**
+
+Manually fixing security issues is time-consuming. Security Ninja provides one-click hardening to:
+
+- **Disable XML-RPC** – Blocks common DDoS attacks and brute-force exploits.
+- **Restrict file editing** – Prevents unauthorized theme and plugin modifications.
+- **Hide PHP error messages** – Stops hackers from exploiting sensitive error details.
+
+And many more fixes to harden your WordPress security!
+
+**Activity Log & User Tracking (PRO)**
+
+Keep track of all actions on your WordPress website with a detailed activity log:
+
+- Monitor failed login attempts, plugin activations, file changes, and user actions.
+- Receive email alerts whenever suspicious activity is detected.
+- Export security logs for audits and compliance reports.
+- The plugin includes webhook functionality so you can integrate with any other 3rd party service, maybe send updates in the company Slack channel when a hack attempt was thwarted?
+
+**Automated Security Scans & Reports (PRO)**
+
+Security Ninja performs scheduled security scans and sends reports directly to your inbox.
+
+- Set up daily, weekly, or monthly security scans.
+- Receive email alerts about vulnerabilities and malware infections.
+- Analyze detailed reports to keep your website secure.
+
+**Block Spam & Malicious Bots Instantly (PRO)**
+
+Hackers and spammers use bots to exploit WordPress websites. Security Ninja prevents:
+
+- **Fake registrations and spam comments** – Stops bots from even getting to your site.
+- **Malicious bot attacks** – Blocks scripts attempting to hack your site.
+- **Unwanted traffic** – Reduces server load by preventing unnecessary bot access.
+
+---
+
+**Join thousands of satisfied users who trust Security Ninja to keep their websites safe. Start protecting your online presence today and help yourself to peace of mind.**
+
+**Why Security Ninja is Best WordPress Security Plugin**
+
+Security Ninja is the best WordPress security plugin because it provides a comprehensive, lightweight, and easy-to-use solution to protect your website from hackers, malware, and vulnerabilities. With 50+ security tests, an advanced malware scanner, a firewall, and two-factor authentication (2FA), it ensures complete website protection without slowing down performance.
+
+Unlike bloated security plugins, Security Ninja is optimized for speed and efficiency. It offers one-click security fixes, automated scans, real-time threat detection, and login protection, making it ideal for beginners and advanced users alike. Trusted since 2011, it keeps thousands of websites secure while offering proactive protection against cyber threats.
 
 ===Extensions===
 * MainWP - The MainWP Dashboard allows administrators to manage many WordPress websites from a central location.
@@ -68,7 +168,7 @@ https://wordpress.org/plugins/security-ninja-for-mainwp/
 
 - **Optimization Beyond Security**: Improve your site's performance with database optimization tips, ensuring a seamless experience for your users.
 
-- **Knowledge Empowerment**: Each test comes with an easy-to-understand explanation, documentation, and actionable steps to fix identified issues.
+- **Knowledge**: Each test comes with an easy-to-understand explanation, documentation, and actionable steps to fix identified issues.
 
 - **Customized Security Insights**: Tailored security assessments to check critical updates and configurations specific to your WordPress setup for a personalized protection strategy.
 
@@ -235,12 +335,44 @@ While we strive for universal compatibility, if you face any issues, our support
 
 == Changelog ==
 
+= 5.229 =
+* 2025-03-20
+* Added checks for the unecessary themes to include theme from 2025, thank you Troy.
+* Added fix for incorrect CSP header values in the auto-fixer. Saving a header value containing a URL could lead to incorrect values being saved. Thank you Maxime.
+* Cleaning up temporary files - Thank you Heath.
+* Fixed: Scheduled Scanner now correctly respects the "Send an email only when test results change" setting, preventing daily emails when no changes are detected. Thank you Jean.
+* Fixed: Added a database update routine to fix missing URL column in visitor log table that was causing errors. Thank you Jean for reporting this issue.
+* Fixed: WordPress version detection issue, thanks to Tom for pointing it out.
+* Change: Renamed the license file from `license.txt` to `license_key.txt` for better clarity and consistency, this prevents overlap with tests trying to remove the file.
+
+= 5.228 =
+* 2025-02-03
+* Fix: Resolved PHP warnings in Events Logger related to undefined 'notify_new_admin' array key
+
+= 5.227 =
+* 2025-01-29
+* Security: Improved backup file encryption to prevent unauthorized access to sensitive configuration files
+* Security: Added file integrity verification to backup/restore functionality
+* Enhancement: Improved visitor log interface:
+  * Added refresh button for manual data updates
+  * Added pagination controls at both top and bottom of the table
+  * Improved error handling and display
+  * Enhanced data loading with server-side processing
+* Fix: Resolved PHP warnings in Events Logger related to undefined 'notify_new_admin' array key
+* Enhancement: Added default settings for Events Logger notifications to prevent PHP notices
+
+= 5.226 =
+* 2025-01-27
+* New: Added notification system for new administrator user creation, including direct database insertions - https://securityninja.productlift.dev/p/notify-when-a-new-admin-user-has-been-created-uLRYcA
+* New: Added periodic checks for unauthorized admin user creation through database manipulation
+
 = 5.225 =
+* 2025-01-27
 * Updated: Freemius SDK to 2.11.0
 * Updated language files.
 
-
 = 5.224 =
+* 2025-01-23
 * Improved: Enhanced UI with better color contrast in the test interface
 * Improved: Vulnerability scanner now shows how many vulnerabilities are in the list.
 * Enhanced: Improved Import/Export functionality:
@@ -262,6 +394,7 @@ While we strive for universal compatibility, if you face any issues, our support
 * Code refactoring for better maintainability and WordPress coding standards compliance
 
 = 5.223 =
+* 2025-01-17
 * Fix: Added missing URL column to visitor log database table to properly track request URLs.
 * Fix: Cleaning up the code for the 2FA module console log messages only showing for error events.
 * Fix: Create missing database tables when installing the plugin.
@@ -269,11 +402,13 @@ While we strive for universal compatibility, if you face any issues, our support
 * Updated: Freemius SDK to 2.10.1 and phpseclib to 2.0.48.
 
 = 5.222 =
+* 2024-12-12
 * Fix: Resolved rare PHP warnings related to undefined webhook settings in Events Logger.
 * New: Users IPs automatically added to the whitelist when activating the firewall. IPs are no longer added to the whitelist by successful login.
 * Updated Freemius SDK to 2.10.1
 
 = 5.221 =
+* 2024-11-10
 * Fixed issue with new QR code shown for some users already having 2FA enabled when trying to log in.
 * Fix issue with events logger not sending HTML emails.
 * Enhanced email reports in the events logger to look better.
@@ -394,334 +529,6 @@ This update makes Security Ninja more accessible to millions of users worldwide,
 * UI: Updated warning message and button text in the setup wizard.
 * Tested: Confirmed compatibility with WordPress 6.6.2.
 * Enhanced security and code quality in secnin-wizard.js
-
-= 5.207 = 
-* Fixed issue with White label feature warning in vulnerability module.
-
-= 5.206 = 
-* A linebreak too much in the test descriptions allowed some text to show up in the footer of the plugin. 
-
-= 5.205 =
-* Fixed bug not able to storing CIDR ranges.
-* Improved IP and CIDR validation logic to correctly handle both IPv4 and IPv6 addresses, including CIDR ranges.
-* Improved language translation strings for making more of the plugin translated.
-
-= 5.204 =
-* Fixed an issue in the Scheduled Scanner where email reports always indicated changes, even when none occurred. The reports now accurately reflect individual test changes.
-* Enhanced core scanner functionality for better performance and accuracy.
-* Improved security tests to provide more detailed results and clearer error messages.
-* Optimized internal code to reduce impact and improve efficiency. This is part of ongoing improvements.
-* Made minor adjustments to the file viewer for a smoother user experience.
-
-= 5.203 =
-* Fix: Resolved an issue that caused theme tests to fail for some users, ensuring smoother theme compatibility checks.
-
-= 5.202 =
-* New: Introduced a file viewer for both the Core Scanner and Malware Scanner, enhancing the plugin's security auditing capabilities.
-* Fix: Resolved installation and activation errors, including the missing 'bl_ips' table. Special thanks to Josh and others for reporting this issue.
-* Update: Upgraded to Freemius 2.7.4.
-
-= 5.201 =
-* Tests: Updated MySQL recommendation to align with the latest WordPress minimum requirements. Thanks to Kittipot for the contribution.
-* White Label Instructions: Enhanced the white label instructions for better clarity and ease of use.
-* Compatibility: Tested and confirmed compatibility up to WordPress version 6.6.1.
-* Added more details to the scheduled scanner tab to correctly show the next time the scans are scheduled.
-* Changes to the scheduled scanner email sending logic, emails should be sending more accurately now.
-* 2FA: Enabling 2FA no longer starts the setup process immediately.
-
-= 5.200 =
-* Updated wp-config.php file permissions test.
-* Updated and tested with WP 6.6.
-* Updated language files.
-* Fixes for 2FA issues.
-
-= 5.199 =
-* Fix in malware scanner whitelist, thank you Christian.
-* Fix tests results that gave wrong response to tests results and automatic fixing.
-
-= 5.198 =
-* Fixed a minor PHP notice triggered by the test for potential sensitive information leaks in headers. Special thanks to Koichi for reporting this issue.
-* Fixed a problem with the security headers test on some websites.
-
-= 5.197 =
-* Fix for White label not hiding on some specific configurations, thank you Michael.
-* Fix for saving blacklist IPs under firewall on some systems.
-* Fix for detecing TimThumb - the test was giving false positives even on modern themes such as WP Astra. Thank you everyone reporting this issue.
-
-= 5.196 =
-* Improved responses from security tests to include more details.
-* Enhanced handling of HTTP security headers including `Content-Security-Policy`, `Content-Security-Policy-Report-Only`, `Strict-Transport-Security`, `Referrer-Policy`, and `Permissions-Policy` to support case-insensitive checks and identification of duplicate headers. Thank you Marcel.
-* Enhanced error diagnostics in messages for failed tests to pinpoint the cause of failure more accurately.
-* Improved function that reverts whitelisted files.
-* Improved functionality that shows any results from the malware scanner.
-
-= 5.195 = 
-* Improved 2FA business logic. Special thanks to all users for their valuable feedback and suggestions.
-* Resolved an issue where the scheduled scanner was not running properly on some systems.
-* Scheduled Scanner: Added the ability to send reports to multiple email recipients. Separate email addresses with a comma.
-* Fixed the autofixer to correctly change the datatable prefix for your site. Thanks, Anthony!
-
-= 5.194 =
-* Regression fixes from issues in 5.192 + version bump to 5.194
-
-= 5.192 =
-* Enhancement: Added more details to security test reports and fixed minor issues.
-* Enhancement: Improved the vulnerability scanner's automatic update function to download new vulnerabilities on schedule when upgrading to the premium version.
-* Update: Enhanced the email notification system to send more reliable warnings when vulnerabilities are detected.
-* Improvement: Added extra checks to better detect and prevent spam registrations.
-* Bugfix: Fixed issue with firewall settings not saving properly on some new installations.
-* Improvement: Adjusted the firewall to block fewer requests for certain phrases. Thanks, Kamran.
-* Enhancement: Improved the `php_headers` function to check for sensitive server headers like `x-powered-by` and `x-debug-token`.
-* Update: Enhanced `php_headers` test to check not just for the presence of headers, but also for leaked information. Now, if the 'Server' header exists without detailed information, the test passes.
-* Update: Added internationalization for error and status messages using the 'security-ninja' language domain.
-* Update: Modified whitelisted plugin files.
-* Bugfix: Made minor fixes to the 2FA logic to correctly handle redirects after verifying the code.
-
-= 5.191 =
-* Tested up to WordPress 6.5.4
-* Enhanced crawler validation function now supports additional crawlers including Ahrefs, Microsoft, DuckDuckGo, Facebook, Apple, Yandex, Huawei, Common Crawl, Semrush, Swiftype, Sogou.
-* Introducing 2FA (Two-Factor Authentication) in beta! Test it out before deploying to all users.
-* Improved handling of locally banned IPs, enhancing plugin stability and performance.
-* WPMUDEV service IPs now automatically whitelisted for smoother integration.
-* Uptimia service now available for whitelisting IPs.
-* Resolved issue with remove 'Server' header functionality that failed on some installations. Note: Some webhosts overwrites the output.
-
-= 5.190 =
-* New: Added MainwP integration for White label. Remote control your white label settings.
-
-= 5.189 =
-* Enhancement: Improved automatic removal of unwanted files, including common backup and development files, as well as files matching specific patterns like `deleteme.wp*.php`. For more details, visit: https://wpsecurityninja.com/docs/security-fixes/remove-unwanted-files/
-* Enhancement: Added names of readme HTML files in various languages to the list of unwanted files.
-* Enhancement: Improved malware scanner with detailed information about validated plugins from the public repository.
-* Enhancement: Updated malware scanner page to align with the styling of the rest of the plugin and WordPress.
-* Bug Fix: Fixes to the email sending part of the vulnerability module.
-* Bug Fix: Resolved a JS issue in the event logger module.
-* Bug Fix: Fixed a cron job issue that could cause automatic removal of unwanted files to fail in certain situations.
-
-= 5.188 =
-* Improvement: Reworked the dashboard widget overview.
-* Improvement: Cleaned unused code and refactored functions to improve speed overall.
-
-= 5.187 =
-* Improvement: Stopped logging changes to posts without a title to avoid cluttering logs with irrelevant data.
-* Fix: Resolved an issue where the "Update Database Tables" button was not functioning correctly.
-* Improvement: If there is an error loading the events there is now a more helpful error message shown with more details that can help debug what is going on. Before there was a popup you had to click to continue.
-
-= 5.186 =
-* Fix: Scheduled Scanner not working properly in some configurations and did not execute the scheduled scans. Optimized the module to load faster and refactored part of the module.
-* Improved visitor checking, fixing an issue with blocked IPs still attempting logins. Thank you Shaun.
-
-= 5.185 =
-* Fix: Resolved an issue where the white label feature did not consistently rename the plugin in all locations when a new name was entered in the settings.
-* Fix: Addressed a problem with the white label feature where a blank image was displayed if no new image URL was provided. The image is now entirely removed in the absence of a suitable alternative.
-* Fix: Corrected events tracking issues related to WooCommerce actions.
-
-
-= 5.184 =
-* Improved cloud firewall IP detection - made the firewall faster.
-* Improved Events log - Among other only show details button if there are any details and to the way the time is presented.
-* Updated: collizo4sky/persist-admin-notices-dismissal from 1.4.4 to 1.4.5
-* Updated: phpseclib/bcmath_compat from 1.0.7 to 1.0.8
-
-= 5.183 =
-* **Enhanced Multisite Compatibility**: Corrected the counting of network activated plugins. Special thanks to Tom for identifying this issue.
-* **Image Size Fix**: Resolved an issue with the maximum image size when white label settings are enabled. Thanks to Aldin for pointing this out.
-* **Firewall Updates**: Introduced whitelisting for known services such as ManageWP and WP Rocket, now featuring easy one-click whitelisting.
-* **UI Enhancements**: Added country flags to the visitor log and events pages for improved user experience and visual identification.
-
-
-= 5.182 =
-* New: Events logger can now be deactivated; default is off.
-* Fix: Resolved PHP warnings in Scheduled Scanner by properly initializing default options.
-* Fix: "Add-ons" now hidden when white label feature is active. Thanks to Mr. 3 for the feedback.
-* Update: Changed the default warning message to "Warning: Multiple failed login attempts will result in a temporary lockout." Thanks to Anthony for the suggestion.
-* Adjustment: Modified firewall settings to reduce false blocks on login attempts. Thanks to Simon for the input.
-* Documentation: Updated instructions on how to customize or disable firewall filters. Details at https://wpsecurityninja.com/docs/firewall/customizing-firewall-filter-rules/
-
-= 5.181 = 
-* Added more details to blocked requests, eg. request_uri to help pinpoint patterns or methods. Thank you Bill.
-* Fixed an issue where white label feature was not available for some users. (Feature is for 20 or more site licenses).
-
-= 5.180 =
-* Resolved a problem with IP blocking that allowed repeated login attempts to go unchecked.
-
-= 5.179 =
-* Fixed problem where the license.txt and readme.html file was not automatically removed even if featured turned on. Thank you Ismael.
-* Merged 4 tests for unwanted files, eg readme.html and license text to the "unwanted files" test.
-* Added fix regarding removing PHP server info - Thank you Brian.
-* Fixed Whitelabel issue where several test descriptions included the plugin name. Thank you Mr.3
-* Hiding the newsletter signup box for customers.
-
-= 5.178 =
-* Added our first addon - MainWP
-
-= 5.177 =
-* Improvement for the White Label feature - Setting a maxiumum size if using SVG as an icon. Thank you Daniel.
-* Improvement to the security headers interface - removed redundant text.
-* Fix: Content-Security-Policy header did not load properly on some sites.
-* Improvement to the white label module.
-* Fix for running manual database updates.
-
-= 5.176 = 
-* Fix for a PHP warning in the vulnerability module if no vulnerabilites were found, thank you Stéphane.
-* Fix for country selection "No results found".
-* Updated 3rd party libraries
-
-= 5.175 =
-* Fix for where vulnerable theme version numbers would incorrectly match, eg. '6.4' would not be considered the same as '6.4.0' - Thank you @tischtennis
-* Added "Select All" and "Select None" for the country selection. Thank you comoweb.
-* Fix: Duplicate define() definitions in wp-config.php, Thank you Stéphane.
-
-= 5.174 = 
-* Fix: Problem saving the "Email report" setting in the Scheduled Scanner. Thank you Pawel.
-* Improved the Content Security Policy recommended header settings. Thank you Jeff for the suggestion.
-* Fix: Country blocking would not properly identify some IPs. Thank you DJ for reporting.
-
-= 5.173 =
-* Streamlined performance by eliminating unused dependencies such as the phpuseragentparser library.
-* Boosted loading speed through the optimization of redundant timing functions.
-* Verified compatibility with WordPress 6.5.
-* Introducing: A new filter 'securityninja_ignored_file_extensions' for enhanced customization.
-* Improved Scheduled Scanner interface and functionality.
-* Bug Fix: Resolved an issue with the Scheduled Scanner interface, special thanks to Pawel for reporting.
-* Bug Fix: Addressed a concern where Webhooks continued to send data despite being disabled. Once enabled, the system would persist in sending data.
-* Bug Fix: Users can now access posts even when "disable username enumeration" restricts frontend access while allowing backend accessibility.
-* Bug Fix: Scheduled Scanner settings not saving properly. Thank you Pawel.
-* Pro: Updated firewall rules to ensure enhanced protection.
-* Pro: Rectified a warning message within the rename login module. Thank you Dorel.
-* Updated to Freemius 2.7.0
-
-= 5.172 =
-* Fix error showing up on some installations after removing the X-XSS-Protection header. Thank you Franz.
-
-= 5.171 =
-* Optimized by removing redundant code, enhancing overall plugin performance.
-* Streamlined database interactions, significantly reducing the number of calls for faster operations.
-* Discontinued the use of the "X-XSS-Protection" header. Modern browsers have deprecated this feature due to advanced built-in XSS protections, eliminating false security assumptions and potential compatibility issues. Special thanks to Ivan for the recommendation.
-* Enhanced Webhook Features: Fixed PHP warnings related to the recent webhook integration, ensuring smoother operation.
-* Improved webhook logic for more efficient logging and faster webhook processing.
-* Export Functionality Bugfix: Addressed and corrected an issue where some users experienced errors during data export.
-* Security Enhancement: Introduced two new actions for improved security logging, specifically targeting attempts to access renamed login URLs: 'attempted_access_to_wp_admin_url' and 'attempted_access_to_wplogin_php'.
-
-
-= 5.170 =
-* Update 3rd party libraries
-* Language files updated.
-* New: Introducing Webhook functionality (Pro users). Send selected events to a webhook URL. Works great with Zapier.
-* Fix for reactivating plugin with empty firewall settings. This could cause a PHP Fatal Error warning.
-* Improvement to the Events logger settings page.
-
-= 5.169 =
-* Fixed: Resolved an issue where the installation date display error occurred if the initial date saving process was unsuccessful. Special thanks to Alberto for highlighting this.
-
-= 5.168 =
-* Enhancement: Now meticulously tracking each user's last login moment without depending on previously stored session data. Thank you Kittipot.
-* Improvement: Streamlined events log by retaining only IP addresses and User Agent details for logged-in users.
-* Fix: Sometimes not saving firewall settings properly. Thank you Ben.
-* Fix: Removed - Some unnecessary JavaScript was loaded outside of the plugin admin pages. Thank you Lars.
-* Update Freemius SDK to 2.6.2 
-* Added IP in sidebar for firewall events.
-
-= 5.167 =
-* Fix for the "Check if REST API is enabled". Thank you Dorel.
-
-= 5.166 =
-* Improved MainWP integration for MainWP users.
-* Improved integration with SN Vulnerability API server - GZ compression.
-* Improved "Remove unwanted files" fix to look for and delete even more files.
-* Fix for exporting - Thank you Dorel.
-* Fix for "Username enumeration" test - Thank you Dorel.
-* Added 10+ knowledgebase articles on https://wpsecurityninja.com/docs/
-* Updated 3rd party libraries.
-
-= 5.165 =
-* Update the events log pruning routines.
-* Code cleanup
-
-= 5.164 =
-* FIX: Clicking "Details" button in the events log. Now you can see all details properly. Thank you Tom.
-
-= 5.163 =
-* Fix for 'undefined array' - related to the newly introduced feature where you can change the login error message. Thank you Tom.
-* Fix for emails sent out by vulnerability module even if you had no vulnerabilites.
-
-= 5.162 =
-* Fix for compatibility with "Stop Spammers Security | Block Spam Users, Comments, Forms" - Thank you @bobf000.
-
-= 5.161 =
-* Fix - Vulnerability folder creation bug on some installations. Result was that some users could not download vulnerabilities first time the function ran.
-* New: Change the message shown to users when they fail to log in. Default "Something went wrong"
-
-= 5.160 =
-* Major Update with many improvements
-* New Feature: Users page - Show last time a user logged in. Help identify inactive users. Go to "Users" and check the added column "Last Login".
-* New: Added inline HelpScout beacon help for free users.
-* Improvement: Better email warnings with more details for any detected vulnerabilites.
-* Improvement: The plugin longer stores vulnerabilites in database, saves to a local file instead. This lowers the memory usage and overall speed.
-* Improvement: The events log now loads after pageload, and makes searching the log much easier and faster.
-* FIX: Upgrade from free to premium error - Fatal error "Cannot redeclare"
-* Improvement: Added details in sidebar for firewall activities.
-* WordPress 6.3.2 compatibility.
-* Improvement: Trimming backup folder /sn-backups/ monthly to keep only latest 15 backups.
-* Fix: Some autofixes not working correctly.
-* Fix: Missing help beacon for some users. Also, we just added over 100+ articles to the inline help.
-* Updated 3rd party libraries.
-
-= 5.159 =
-* Fix: "Check if Application Passwords are enabled" gave warning eventhough function was disabled. Thank you @tischtennis
-
-= 5.158 =
-* More details for debugging API connection issues.
-* Visitor log visual updates.
-* Updated Freemius SDK to 2.5.7
-
-= 5.157.1 =
-* Hotfix for referencing a wrong class name after moving to PHP namespaces in 5.157
-
-= 5.157 =
-* Speed: Plugin options are no longer autoloaded. Older users might notice an improvement in website speed - Thank you Parag.
-* Fix: When deleting an unwanted file via Core Scanner, the message reported an error even when file was successfully deleted.
-* Fix: Malware scan could fail due to unexpected output in JavaScript.
-* Improved visual layout problem in Events Logger.
-* Improved visual layout in the visitor log
-* General code improvements and cleaning.
-* Worked on PHP 8.2 compatibility - almost complete.
-
-= 5.156 =
-* Checked WP 6.2 compatibility
-* Updated Freemius SDK to 2.5.6
-
-= 5.155 =
-* NEW: Added details about blocked visitors on dashboard widget.
-* FIX: Notice that detected low memory incorrectly on systems with no limit memory setting (-1)
-* FIX: Warning notices regarding undefined array keys in the event logger. Thank you Jean-Claude :)
-
-= 5.154 =
-* FIX: PHP warning the first time the settings in the vulnerabilites module was updated.
-* Update the "Application Passwords" test to include info on how to disable the feature. Thank you @lsbk :-)
-* New: More details in email report, user IP and improved layout. Thank you Kevin for the suggestion.
-* New: You can now email events log reports to more than one recipient. Thank you Kevin.
-
-= 5.153 =
-* FIX: The two Shellshock tests would fail on some servers. Thank you Jeroen and Oliver.
-* FIX: A bug in the visitor log details when there is a lot of info to display.
-* FIX: The "Enable background plugin updates" notice was shown everywhere. Thank you Ian for pointing out.
-* Enable background plugin updates notice is now hidden forever when dismissed.
-* Change default time to store visitors to 7 days (much better for big sites with a lot of traffic)
-* Fix bug with unexpected results for tests to show up.
-* FIX: Remove unused code for plugins not updated for a while. Thank you.
-* "Outdated plugins" module completely removed for now to be reworked.
-* FIX: Scheduled Scanner tests with Core Scanner sometimes failed. Error found and fixed.
-* Updated language files for translators, thank you :-)
-
-= 5.152 = 
-* Fix for not cleaning up old files when downloading vulnerable plugin list. Thank you @michaing.
-* Fix for visitor log not working properly on some installations. Thank you Jean-Claude.
-* Fix for bug in events logger related to comments. Thank you Thomas.
-* Fix for descriptions not showing properly for some vulnerabilites.
-- Upgrading phpseclib/phpseclib (2.0.40 => 2.0.41)
-* Language files updated.
-
 
 ...
 

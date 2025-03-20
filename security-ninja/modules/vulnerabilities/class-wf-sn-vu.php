@@ -1037,15 +1037,20 @@ class Wf_Sn_Vu {
 										<p>
 											<?php 
                         $searchurl = filter_var( $searchurl, FILTER_SANITIZE_URL );
-                        printf( wp_kses( 
-                            // translators: %1$s: URL for the update, %2$s: Plugin name, %3$s: Minimum version required
-                            __( 'Update %2$s to minimum version %3$s', 'security-ninja' ),
-                            array(
-                                'a' => array(
-                                    'href' => array(),
-                                ),
-                            )
-                         ) . ' <a href="' . esc_url( $searchurl ) . '">' . esc_html__( 'here', 'security-ninja' ) . '</a>', esc_html( $found_vuln['name'] ), esc_html( $found_vuln['versionEndExcluding'] ) );
+                        printf(
+                            wp_kses( 
+                                // translators: %1$s: URL for the update, %2$s: Plugin name, %3$s: Minimum version required
+                                __( 'Update %2$s to minimum version %3$s <a href="%1$s">here</a>', 'security-ninja' ),
+                                array(
+                                    'a' => array(
+                                        'href' => array(),
+                                    ),
+                                )
+                             ),
+                            esc_url( $searchurl ),
+                            esc_html( $found_vuln['name'] ),
+                            esc_html( $found_vuln['versionEndExcluding'] )
+                        );
                         ?>
 										</p>
 									</div>

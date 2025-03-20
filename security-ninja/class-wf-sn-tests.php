@@ -813,8 +813,7 @@ class Wf_Sn_Tests extends WF_SN
 	 * @global
 	 * @return  mixed
 	 */
-	public static function rpc_meta()
-	{ // @todo ? mixed with edit-uri
+	public static function rpc_meta() {
 		$return = array();
 		$is_local = in_array($_SERVER['REMOTE_ADDR'], array('127.0.0.1', '::1'));
 
@@ -1398,6 +1397,12 @@ class Wf_Sn_Tests extends WF_SN
 		$return = array();
 		$all_themes = wp_get_themes();
 		$wp_themes_to_keep = array(
+			'twentythirty',
+			'twentytwentynine',
+			'twentytwentyeight',
+			'twentytwentyseven',
+			'twentytwentysix',
+			'twentytwentyfive',
 			'twentytwentyfour',
 			'twentytwentythree',
 			'twentytwentytwo',
@@ -2321,9 +2326,15 @@ class Wf_Sn_Tests extends WF_SN
 			$meta_tags = $matches[0];
 
 			foreach ($meta_tags as $meta_tag) {
+				// More specific check for WordPress core generator tag
 				if (
-					stripos($meta_tag, 'generator') !== false
-					&& stripos($meta_tag, get_bloginfo('version')) !== false
+					// Check for name="generator" attribute
+					(stripos($meta_tag, 'name="generator"') !== false || stripos($meta_tag, "name='generator'") !== false)
+					// Check for content that specifically mentions WordPress with the version
+					&& (
+						stripos($meta_tag, 'content="WordPress ' . get_bloginfo('version')) !== false 
+						|| stripos($meta_tag, "content='WordPress " . get_bloginfo('version')) !== false
+					)
 				) {
 					$return['status'] = 0;
 					$return['msg'] = __('The WordPress version is exposed in the meta generator tag, which is a security risk.', 'security-ninja');

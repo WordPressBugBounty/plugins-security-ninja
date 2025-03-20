@@ -276,7 +276,7 @@ class Utils {
             return;
         }
         // Check if license.txt exists in the plugin directory and use it to activate the license
-        $license_file = WF_SN_PLUGIN_DIR . 'license.txt';
+        $license_file = WF_SN_PLUGIN_DIR . 'license_key.txt';
         $license_key = '';
         if ( file_exists( $license_file ) ) {
             $file_contents = file( $license_file, FILE_IGNORE_NEW_LINES );
@@ -284,7 +284,7 @@ class Utils {
                 $license_key = trim( $file_contents[0] );
                 if ( empty( $license_key ) || strlen( $license_key ) !== 32 || strpos( $license_key, 'sk_' ) !== 0 ) {
                     $license_key = '';
-                    // TODO: Log invalid license key format for debugging
+                    error_log( __( 'Invalid license key format detected. Expected 32 characters starting with "sk_".', 'security-ninja' ), 0 );
                 }
             }
         }
@@ -312,32 +312,6 @@ class Utils {
         } else {
             update_option( 'secnin_fs_migrated2fs', 'failed', false );
         }
-    }
-
-    /**
-     * add settings link to plugins page
-     *
-     * @author  Lars Koudal
-     * @since   v0.0.1
-     * @version v1.0.0  Wednesday, January 13th, 2021.
-     * @access  public static
-     * @param   mixed $actions
-     * @param   mixed $plugin_file
-     * @param   mixed $plugin_data
-     * @param   mixed $context
-     * @return  mixed
-     */
-    public static function plugin_action_links(
-        $actions,
-        $plugin_file,
-        $plugin_data,
-        $context
-    ) {
-        if ( in_array( $plugin_file, array('security-ninja/security-ninja.php', 'security-ninja-premium/security-ninja.php'), true ) ) {
-            $settings_link = '<a href="tools.php?page=wf-sn" title="Security Ninja">' . __( 'Secure the site', 'security-ninja' ) . '</a>';
-            array_unshift( $actions, $settings_link );
-        }
-        return $actions;
     }
 
     /**
