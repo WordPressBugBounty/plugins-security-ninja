@@ -5,7 +5,7 @@ Plugin Name: Security Ninja
 Plugin URI: https://wpsecurityninja.com/
 Description: Check your site for <strong>security vulnerabilities</strong> and get precise suggestions for corrective actions on passwords, user accounts, file permissions, database security, version hiding, plugins, themes, security headers and other security aspects.
 Author: WP Security Ninja
-Version: 5.229
+Version: 5.230
 Author URI: https://wpsecurityninja.com/
 License: GPLv3
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
@@ -62,7 +62,6 @@ if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
             if ( !defined( 'WP_FS__PRODUCT_3690_MULTISITE' ) ) {
                 define( 'WP_FS__PRODUCT_3690_MULTISITE', true );
             }
-            // require_once dirname( __FILE__ ) . '/vendor/freemius/wordpress-sdk/start.php';
             $secnin_fs = fs_dynamic_init( array(
                 'id'                  => '3690',
                 'slug'                => 'security-ninja',
@@ -192,12 +191,6 @@ if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
                 add_action(
                     'activated_plugin',
                     array(__NAMESPACE__ . '\\Wf_Sn', 'do_action_activated_plugin'),
-                    10,
-                    2
-                );
-                add_filter(
-                    'plugin_row_meta',
-                    array(__NAMESPACE__ . '\\Wf_Sn', 'plugin_meta_links'),
                     10,
                     2
                 );
@@ -471,7 +464,7 @@ if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
                 esc_html_e( 'Details', 'security-ninja' );
                 ?></a></p>
 
-			<?php 
+				<?php 
             }
             $test_scores = self::return_test_scores();
             if ( isset( $test_scores['score'] ) && '0' !== $test_scores['score'] ) {
@@ -507,7 +500,7 @@ if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
                 ?>"><?php 
                 esc_html_e( 'Details', 'security-ninja' );
                 ?></a></p>
-			<?php 
+				<?php 
             } elseif ( '0' === $test_scores['score'] ) {
                 ?>
 				<h3><span class="dashicons dashicons-warning"></span> <strong>Test your website security - Run our tests</strong></h3>
@@ -516,7 +509,7 @@ if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
                 ?>"><?php 
                 esc_html_e( 'Run Security Tests', 'security-ninja' );
                 ?></a></p>
-			<?php 
+				<?php 
             } else {
                 ?>
 				<p><?php 
@@ -526,7 +519,7 @@ if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
             }
             ?>
 			<div id="secnin-dashboard-feed"></div>
-		<?php 
+			<?php 
         }
 
         /**
@@ -784,7 +777,7 @@ if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
 			</div>
 
 			</div>
-		<?php 
+			<?php 
         }
 
         /**
@@ -831,7 +824,7 @@ if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
             ?></a></p>
 
 			</div>
-		<?php 
+			<?php 
             echo '</div>';
         }
 
@@ -875,7 +868,7 @@ if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
             ?></a></p>
 			</div>
 			</div>
-		<?php 
+			<?php 
         }
 
         /**
@@ -982,39 +975,34 @@ if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
         }
 
         /**
-         * add links to plugin's description in plugins table
+         * Checks if the current page is a part of this plugin.
          *
          * @author  Lars Koudal
          * @since   v0.0.1
          * @version v1.0.0  Wednesday, January 13th, 2021.
          * @access  public static
-         * @param   mixed $links
-         * @param   mixed $file
-         * @return  mixed
-         */
-        public static function plugin_meta_links( $links, $file ) {
-            return $links;
-        }
-
-        /**
-         * Returns true if we are on one of the pages in this plugin
-         *
-         * @author  Lars Koudal
-         * @since   v0.0.1
-         * @version v1.0.0  Wednesday, January 13th, 2021.
-         * @access  public static
-         * @return  void
+         * @return  bool Returns true if the current page is a part of this plugin, otherwise false.
          */
         public static function is_plugin_page() {
             $current_screen = get_current_screen();
             if ( !$current_screen ) {
                 return false;
             }
-            if ( in_array( $current_screen->id, array('toplevel_page_wf-sn', 'security-ninja_page_wf-sn-visitor-log'), true ) || strpos( $current_screen->id, 'page_wf-sn-tools' ) !== false || strpos( $current_screen->id, 'page_wf-sn-fixes' ) !== false || strpos( $current_screen->id, 'admin_page_security-ninja-welcome' ) !== false || strpos( $current_screen->id, 'page_security-ninja-wizard' ) !== false || strpos( $current_screen->id, 'security-ninja-1_page_wf-sn-visitor-lo' ) !== false || strpos( $current_screen->id, 'security-ninja_page_wf-sn-visitor-log' ) !== false || strpos( $current_screen->id, 'security-ninja-2_page_wf-sn-visitor-log' ) !== false ) {
+            $plugin_pages = array(
+                'toplevel_page_wf-sn',
+                'security-ninja_page_wf-sn-visitor-log',
+                'page_wf-sn-tools',
+                'page_wf-sn-fixes',
+                'admin_page_security-ninja-welcome',
+                'page_security-ninja-wizard',
+                'security-ninja-1_page_wf-sn-visitor-lo',
+                'security-ninja_page_wf-sn-visitor-log',
+                'security-ninja-2_page_wf-sn-visitor-log'
+            );
+            if ( in_array( $current_screen->id, $plugin_pages, true ) ) {
                 return true;
-            } else {
-                return false;
             }
+            return false;
         }
 
         /**
@@ -1079,7 +1067,7 @@ if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
 
 					});
 				</script>
-			<?php 
+				<?php 
             }
         }
 
@@ -1164,7 +1152,7 @@ if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
                 );
                 wp_enqueue_style( 'wp-jquery-ui-dialog' );
                 wp_enqueue_script( 'jquery-ui-dialog' );
-                // Parsing data to sn-common.js via $cp_sn_data
+                // Parsing data to sn-common-min.js via $cp_sn_data
                 wp_register_script(
                     'sn-js',
                     WF_SN_PLUGIN_URL . 'js/min/sn-common-min.js',
@@ -1246,24 +1234,39 @@ if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
         }
 
         /**
-         * do_filter_debug_information.
+         * Filters and modifies debug information.
+         *
+         * This method filters out specific information from the debug data, such as sizes of WordPress directories and the Security Ninja plugin itself.
+         * It also checks if the premium code is active and if the whitelabel plugin is active, it removes the whitelabel plugin name from the active plugins list.
          *
          * @author  Lars Koudal
          * @since   v0.0.1
          * @version v1.0.0  Wednesday, January 13th, 2021.
          * @access  public static
-         * @param   mixed $info
-         * @return  mixed
+         * @param   array $info The debug information to be filtered.
+         * @return  array The filtered debug information.
          */
         public static function do_filter_debug_information( $info ) {
+            // Rename the label for 'wp-paths-sizes' to 'Directories'.
             $info['wp-paths-sizes']['label'] = 'Directories';
+            // Remove specific size fields from 'wp-paths-sizes'.
             unset($info['wp-paths-sizes']['fields']['wordpress_size']);
             unset($info['wp-paths-sizes']['fields']['uploads_size']);
             unset($info['wp-paths-sizes']['fields']['themes_size']);
             unset($info['wp-paths-sizes']['fields']['plugins_size']);
             unset($info['wp-paths-sizes']['fields']['database_size']);
             unset($info['wp-paths-sizes']['fields']['total_size']);
+            // Remove 'Security Ninja' from the list of active plugins.
             unset($info['wp-plugins-active']['fields']['Security Ninja']);
+            // Check if premium code is active and if whitelabel plugin is active.
+            if ( secnin_fs()->can_use_premium_code__premium_only() && \WPSecurityNinja\Plugin\Wf_Sn_Wl::is_active() ) {
+                // Get the new name of the whitelabel plugin.
+                $pluginname = \WPSecurityNinja\Plugin\Wf_Sn_Wl::get_new_name();
+                // Remove the whitelabel plugin name from the list of active plugins if it exists.
+                if ( isset( $info['wp-plugins-active']['fields'][$pluginname] ) ) {
+                    unset($info['wp-plugins-active']['fields'][$pluginname]);
+                }
+            }
             return $info;
         }
 
@@ -1608,7 +1611,7 @@ if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
         public static function get_test_results() {
             global $wpdb;
             $table_name = $wpdb->prefix . 'wf_sn_tests';
-            $testsresults = $wpdb->get_results( "SELECT * FROM {$table_name};", ARRAY_A );
+            $testsresults = $wpdb->get_results( 'SELECT * FROM ' . $wpdb->_real_escape( $table_name ), ARRAY_A );
             if ( !$testsresults ) {
                 return false;
             }
@@ -1636,7 +1639,7 @@ if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
             esc_html_e( 'Test your website security', 'security-ninja' );
             ?></h3>
 					<div class="testresults" id="testscores">
-						<?php 
+					<?php 
             $scores = self::return_test_scores();
             if ( isset( $scores['output'] ) ) {
                 $allowed_html = array(
@@ -1671,7 +1674,6 @@ if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
             $out .= '<tbody>';
             if ( is_array( $tests ) ) {
                 $stepid = 0;
-                // test Results
                 foreach ( $tests as $test_name => $details ) {
                     if ( 'ad_' === substr( $test_name, 0, 3 ) || '_' === $test_name[0] ) {
                         continue;
@@ -1757,17 +1759,17 @@ if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
             echo wp_kses( $out, $allowed_html );
             ?>
 					<p>
-						<?php 
+					<?php 
             esc_html_e( 'Although these tests cover years of best practices in security, getting all test green does not guarantee your site will not get hacked. Likewise, having them all red does not mean you will get hacked.', 'security-ninja' );
             ?>
 					</p>
 					<p>
-						<?php 
+					<?php 
             esc_html_e( "Please read each test's detailed information to see if it represents a real security issue for your site.", 'security-ninja' );
             ?>
 					</p>
 				</div>
-	<?php 
+			<?php 
         }
 
         /**
@@ -1827,7 +1829,14 @@ if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
             }
             if ( isset( $_POST['stepid'] ) ) {
                 $stepid = intval( $_POST['stepid'] );
-                $testarr = $_POST['testarr'];
+                // Validate and sanitize the testarr input
+                $testarr = array();
+                if ( isset( $_POST['testarr'] ) && is_array( $_POST['testarr'] ) ) {
+                    // Only allow alphanumeric characters, underscores, and hyphens in test IDs
+                    $testarr = array_filter( $_POST['testarr'], function ( $test_id ) {
+                        return preg_match( '/^[a-zA-Z0-9_-]+$/', $test_id );
+                    } );
+                }
                 if ( !isset( $testarr[$stepid] ) ) {
                     return false;
                 }
@@ -1839,11 +1848,9 @@ if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
                 }
                 if ( $response ) {
                     $json_response = array();
-                    // does the next element in the selected tests arr exist?
                     if ( isset( $testarr[$stepid + 1] ) ) {
                         $json_response['nexttest'] = $stepid + 1;
                     } else {
-                        // there are no more tests to be made so this is the last
                         $json_response['nexttest'] = -1;
                     }
                     $security_tests = wf_sn_tests::return_security_tests();
@@ -1943,10 +1950,10 @@ if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
         public static function run_tests( $return_response = false ) {
             if ( defined( 'DOING_AJAX' ) && DOING_AJAX ) {
                 // Attempt to verify the first nonce
-                $nonce_verified = wp_verify_nonce( $_REQUEST['_wpnonce'], 'wf_sn_run_tests' );
+                $nonce_verified = wp_verify_nonce( sanitize_text_field( $_REQUEST['_wpnonce'] ), 'wf_sn_run_tests' );
                 // If the first nonce verification fails, try the second nonce
                 if ( !$nonce_verified ) {
-                    $nonce_verified = wp_verify_nonce( $_REQUEST['_wpnonce'], 'secnin_scheduled_scanner' );
+                    $nonce_verified = wp_verify_nonce( sanitize_text_field( $_REQUEST['_wpnonce'] ), 'secnin_scheduled_scanner' );
                 }
                 // If both nonce verifications fail, terminate the AJAX call
                 if ( !$nonce_verified ) {
@@ -2064,13 +2071,15 @@ if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
          */
         public static function run_all_tests( $return_data = false ) {
             if ( defined( 'DOING_AJAX' ) && DOING_AJAX ) {
-                // Attempt to verify the first nonce
-                $nonce_verified = wp_verify_nonce( $_REQUEST['nonce'], 'wf_sn_run_tests' );
+                // Attempt to verify the first nonce.
+                $nonce_verified = wp_verify_nonce( sanitize_text_field( $_REQUEST['nonce'] ), 'wf_sn_run_tests' );
                 // If the first nonce verification fails, try the second nonce
                 if ( !$nonce_verified ) {
-                    $nonce_verified = wp_verify_nonce( $_REQUEST['nonce'], 'secnin_scheduled_scanner' );
+                    $nonce = wp_unslash( $_REQUEST['nonce'] );
+                    $nonce = sanitize_text_field( $nonce );
+                    $nonce_verified = wp_verify_nonce( $nonce, 'secnin_scheduled_scanner' );
                 }
-                // If both nonce verifications fail, terminate the AJAX call
+                // If both nonce verifications fail, terminate the AJAX call.
                 if ( !$nonce_verified ) {
                     wp_die( 'Nonce verification failed.', 'Nonce Verification', array(
                         'response' => 403,
@@ -2096,10 +2105,8 @@ if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
                     if ( !isset( $response['msg'] ) ) {
                         $response['msg'] = '';
                     }
-                    // Setting appropriate message
+                    // Setting appropriate message.
                     if ( 10 === intval( $response['status'] ) ) {
-                        //                      $json_response['last_msg'] = sprintf( $test['msg_ok'], $response['msg'] );
-                        // @todo
                         $json_response['last_msg'] = $response['msg'];
                     } elseif ( 0 === intval( $response['status'] ) ) {
                         $json_response['last_msg'] = $response['msg'];
@@ -2135,28 +2142,42 @@ if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
         }
 
         /**
-         * convert status integer to button
+         * Converts a status integer to a button.
+         *
+         * This method takes a status code as an integer and returns a string representing a button with a class indicating the status.
+         * The status codes are mapped to the following buttons:
+         * - 0: Fail (class "sn-error")
+         * - 10: OK (class "sn-success")
+         * - Any other value: Warning (class "sn-warning")
          *
          * @author  Lars Koudal
          * @since   v0.0.1
          * @version v1.0.0  Tuesday, December 7th, 2021.
          * @access  public static
-         * @param   mixed $int
-         * @return  mixed
+         * @param   int $statuscode The status code to convert.
+         * @return  string The HTML string representing the button.
          */
         public static function status( $statuscode ) {
-            if ( 0 === $statuscode ) {
-                $string = '<span class="sn-error">' . __( 'Fail', 'security-ninja' ) . '</span>';
-            } elseif ( 10 === $statuscode ) {
-                $string = '<span class="sn-success">' . __( 'OK', 'security-ninja' ) . '</span>';
-            } else {
-                $string = '<span class="sn-warning">' . __( 'Warning', 'security-ninja' ) . '</span>';
+            switch ( $statuscode ) {
+                case 0:
+                    $string = '<span class="sn-error">' . __( 'Fail', 'security-ninja' ) . '</span>';
+                    break;
+                case 10:
+                    $string = '<span class="sn-success">' . __( 'OK', 'security-ninja' ) . '</span>';
+                    break;
+                default:
+                    $string = '<span class="sn-warning">' . __( 'Warning', 'security-ninja' ) . '</span>';
+                    break;
             }
             return $string;
         }
 
         /**
-         * reset pointers on activation and save some info
+         * Resets pointers on activation and saves some information.
+         *
+         * This method is responsible for resetting pointers and saving specific information during the plugin's activation process.
+         * It checks if the plugin is being activated for the first time and sets the initial version and install time if so.
+         * Additionally, it may create a database table for storing security test results and performs other activation routines.
          *
          * @author  Lars Koudal
          * @since   v0.0.1
@@ -2166,9 +2187,9 @@ if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
          */
         public static function activate() {
             $options = self::get_options();
-            // Runs on first activation
+            // Runs on first activation.
             if ( empty( $options['first_version'] ) || empty( $options['first_install'] ) ) {
-                // Set first install and initial version installed
+                // Set first install and initial version installed.
                 $options['first_version'] = self::get_plugin_version();
                 $options['first_install'] = time();
                 update_option( 'wf_sn_options', $options, false );
@@ -2191,7 +2212,10 @@ if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
         }
 
         /**
-         * clean-up when deactivated
+         * Performs cleanup operations when the plugin is deactivated.
+         *
+         * This method checks if the option to remove settings on deactivation is set and if so, it should implement the removal functionality.
+         * Currently, the removal functionality is not implemented and is marked as a todo.
          *
          * @author  Lars Koudal
          * @since   v0.0.1
@@ -2201,16 +2225,16 @@ if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
          */
         public static function deactivate() {
             $centraloptions = self::get_options();
-            if ( !isset( $centraloptions['remove_settings_deactivate'] ) ) {
+            if ( !isset( $centraloptions['remove_settings_deactivate'] ) || !$centraloptions['remove_settings_deactivate'] ) {
                 return;
             }
-            if ( $centraloptions['remove_settings_deactivate'] ) {
-                // Nothing yet @todo - implement remove functionality here
-            }
+            // @todo - implement remove functionality here
         }
 
         /**
-         * clean-up when uninstalled
+         * Performs cleanup operations when the plugin is uninstalled.
+         *
+         * This method drops the security tests table, deletes various options and usermeta, and drops additional tables and options if the plugin is premium.
          *
          * @author  Lars Koudal
          * @since   v0.0.1
@@ -2220,14 +2244,16 @@ if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
          */
         public static function uninstall() {
             global $wpdb;
-            // Security tests table
+            // Drop security tests table
             $wpdb->query( $wpdb->prepare( 'DROP TABLE IF EXISTS %s', $wpdb->prefix . 'wf_sn_tests' ) );
+            // Delete options
             delete_option( 'wf_sn_results' );
             delete_option( 'wf_sn_options' );
             delete_option( 'wfsn_freemius_state' );
             delete_option( 'wf_sn_active_plugins' );
             delete_option( 'wf_sn_review_notice' );
             delete_option( 'wf_sn_tests' );
+            // Delete usermeta
             $wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->usermeta} WHERE meta_key = %s", 'sn_last_login' ) );
         }
 

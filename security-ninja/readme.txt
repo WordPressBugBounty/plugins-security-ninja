@@ -6,7 +6,7 @@ License: GPLv3
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 Requires at least: 4.7
 Tested up to: 6.7.2
-Stable tag: 5.229
+Stable tag: 5.230
 Requires PHP: 7.4
 
 Scans for vulnerabilities, detects risky plugins, and guides you how to secure your site against hackers.
@@ -335,6 +335,9 @@ While we strive for universal compatibility, if you face any issues, our support
 
 == Changelog ==
 
+= 5.230 =
+* Enhanced compatibility with Trafft Booking System - A workaround has been implemented to ensure seamless integration with our plugin, even when the Trafft Booking System is active.
+ 
 = 5.229 =
 * 2025-03-20
 * Added checks for the unecessary themes to include theme from 2025, thank you Troy.
