@@ -38,11 +38,7 @@ jQuery(document).on('click', '.secninfs-reset-activation', function (e) {
 jQuery(document).ready(function($) {
 
 
-
-
-
-
-
+// @todo - rework so it loads inside the "Firewall Summary" on the Overview tab
   if (jQuery('#sn_sidebar_latest').length > 0) {
     // Add a spinner to the target DIV
     jQuery('#sn_sidebar_latest').html('<div class="spinner" style="visibility: visible;"></div>');

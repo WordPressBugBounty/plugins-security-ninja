@@ -686,7 +686,7 @@ class Wf_Sn_Cs {
      */
     public static function core_page() {
         ?>
-        <div class="submit-test-container card">
+        <div class="submit-test-container">
 
             <h3><?php 
         echo esc_html__( 'Scan core WordPress files and folders', 'security-ninja' );
@@ -797,16 +797,6 @@ class Wf_Sn_Cs {
             ) );
         }
         self::scan_files();
-        if ( secnin_fs()->is__premium_only() && secnin_fs()->can_use_premium_code() ) {
-            wf_sn_el_modules::log_event(
-                'security_ninja',
-                'core_scanner',
-                __( 'Restored file', 'security-ninja' ),
-                array(
-                    'name' => $file,
-                )
-            );
-        }
         wp_send_json_success( array(
             'message' => __( 'File restored successfully.', 'security-ninja' ),
         ) );

@@ -1,7 +1,7 @@
 /*
 * Security Ninja
 * (c) Web factory Ltd, 2011 - 2019
-* (c) Cleverplugins 2019 -
+* (c) Larsik Corp 2019 -
 */
 
 /*.testresults p.vulndesc {
@@ -11,6 +11,24 @@
 .testresults .nvdlink {
 	font-size: 1em;
 }
+
+.vulnerability-container h3,
+.sninnerrow h3,
+.testresults h3 {
+	margin-top: 0px;
+}
+
+a.extlink::after {
+	text-decoration: none;
+	content: "\2197";
+	/* Unicode for the external link arrow */
+	margin-left: 4px;
+	/* Add some space between the link text and the icon */
+	font-size: 0.8em;
+	/* Adjust the size if necessary */
+}
+
+
 
 .nav-tab .warn-count {
 	display: inline-block;
@@ -28,6 +46,51 @@
 	text-align: center;
 	z-index: 26;
 }
+
+.sn-overview-container .score-container {
+	border-radius: 10px;
+	padding: 10px;
+	box-shadow: 0px 2px 4px 3px #00000012;
+
+}
+
+.sninnerrow {
+	display: flex;
+	flex-direction: column;
+	box-shadow: 0 2px 4px 3px #00000012;
+	padding: 10px;
+	border-radius: 10px;
+	margin:10px 10px 40px 10px;
+}
+
+.sn-overview-container .testsandvulns{
+	display:flex;
+	}
+	.sn-overview-container #testscores {
+	flex:1;
+	}
+
+	.sn-overview-container #testscores .score-container {
+		display: flex;
+		flex-direction: column; 
+	}
+
+.sninnerrow h3,
+.testsandvulns h3 {
+		color: #28A745;
+}
+
+	.sn-overview-container .testsandvulns .vulnerability-container {
+		display: flex; 
+		flex-direction: column; 
+	}
+
+	.sn-overview-container #snvulns {
+	display:flex;
+	flex:1;
+	flex-direction: column;
+	}
+
 
 .secnin_expand_all_details {
 	color:#888888;
@@ -232,6 +295,17 @@ display: none;
 		font-weight: bold;
 	}
 
+	.secnin_content_wrapper .wf-sn-button {
+    color: #fff;
+    background-color: #28a745;
+    margin-bottom: 10px;
+    border: 1px solid #28a745;
+}
+
+.secnin_content_wrapper .wf-sn-button:hover {
+color:#ffffff;
+	background-color: #0d6346;
+}
 
 	.wf-sn-label {
 
@@ -358,7 +432,7 @@ display: none;
 	.tabimage {
 		max-width: 1000px;
 		float: right;
-		width: 58%;
+		width: 42%;
 		position: relative;
 		border: 1px solid #cccccc;
 		background: #ffffff;
@@ -455,21 +529,23 @@ position: relative;
 }
 
 .sidebarsection.feature {
-
-	padding: 0.5em 0.8;
+	border-top-width: 0;
+	border-radius: 10px;
 	min-width: 255px;
 	max-width: 520px;
-	border: 1px solid #c3c4c7;
-	box-shadow: 0 1px 1px rgba(0, 0, 0, 0.04);
-	background: #fff;
-	box-sizing: border-box;
-
+	padding: 10px;
+	box-shadow: 0 1px 9px 3px #00000012;
+}
+.sidebarsection.feature h3,
+.sidebarsection.feature h3 .dashicons {
+color:#28A745;
 }
 
 .sidebarsection h3:first-of-type {
 	margin-top: 0px;
 }
 
+.sn-overview-container #snvulns,
 .testresults {
 	margin-top: 10px;
 
@@ -486,6 +562,7 @@ position: relative;
 	display: table;
 	width: 100%;
 	table-layout: fixed;
+	max-width: 1500px;
 }
 
 
@@ -532,11 +609,23 @@ Hide "see details" from tables in responsive mode
 	padding: 0px 10px 0px 0px;
 	vertical-align: top;
 }
+.secnin_content_cell #wf-sn-tabs .nav-tab-active {
+	background-color: #ffffff;
+border-bottom: 1px solid #ffffff;
+color: #28A745;
+
+}
+
+.secnin_content_cell .nav-tab-wrapper {
+border-bottom: 0px;
+}
 
 
 #sidebar-container {
 	width: 260px;
-	padding: 20px 0px 10px 20px;
+	padding: 20px 10px 10px 20px;
+	background-color: #ffffff;
+	border-top-right-radius: 10px;
 }
 
 #sidebar-container .linklist {
@@ -556,17 +645,24 @@ Hide "see details" from tables in responsive mode
 }
 
 
+#wf-sn-tabs .nav-tab {
+	margin-left: 0px;
+	border-left: 0px;
+}
 #wf-sn-tabs .nav-tab:first-of-type {
 	margin-left: 0;
+	border-left: 1px solid #c3c4c7;
+	border-top-left-radius: 10px;
 }
 
 #sn_tabscont {
 	margin: 0;
-	padding: 0;
+	padding: 0 0 0 10px;
 	vertical-align: top;
 	display: table-cell;
 	width:100%;
-
+	background: #ffffff;
+	border-left:1px solid #c3c4c7;
 }
 
 .wf-sn-tab {
@@ -585,6 +681,24 @@ Hide "see details" from tables in responsive mode
 #wf-sn-tabs .nav-tab.profeature.nav-tab-active {
 	opacity: 1;
 }
+#wf-sn-tabs .nav-tab {
+	background: #e9f7ec;
+}
+
+.wp-core-ui .fomlink a{
+	background-color: #28a745;
+	color: #fff;
+	border-color: #28a745;
+	box-shadow: 0 2px 3px 2px #00000012;
+
+}
+
+.wp-core-ui .fomlink a:hover {
+	background-color: #0d6346;
+	border-color: #0d6346;
+	box-shadow: unset;
+}
+
 
 
 #wf-sn-tabs .nav-tab.profeature {
@@ -609,7 +723,6 @@ Hide "see details" from tables in responsive mode
 	margin-right: 10px;
 	width: 28px;
 	height: 28px;
-	padding-top: 10px;
 }
 
 .secnin-notice h3 {
@@ -1312,4 +1425,153 @@ margin: 50px 20px 50px 20px;
     100% {
         transform: rotate(360deg);
     }
+}
+
+.upgradepro {
+	background: linear-gradient(211deg, #e1e1e1, transparent);
+}
+
+.sninnerrow.upgradepro h3 {
+	margin-top: 20px;
+	font-size: 24px;
+	text-align: center;
+}
+
+/* Security Events Table Styling */
+.sninnerrow table.wp-list-table {
+    margin-top: 15px;
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow: 0 2px 4px 3px #00000012;
+		margin-bottom: 30px;
+}
+
+.sninnerrow table.wp-list-table th {
+    background: #f8f9fa;
+    color: #28A745;
+    font-weight: 600;
+    padding: 12px 15px;
+}
+
+.sninnerrow table.wp-list-table td {
+    padding: 15px;
+    vertical-align: top;
+}
+
+.sninnerrow table.wp-list-table td:first-child {
+    width: 40%;
+}
+
+.sninnerrow table.wp-list-table td strong {
+    color: #28A745;
+    font-size: 1.1em;
+    display: block;
+    margin-bottom: 5px;
+}
+
+.wrap #sntopbar {
+	background-color: #ffffff;
+	border:1px solid #cecece;
+	border-radius: 10px;
+	padding: 10px;
+	margin-right: 10px;
+	margin-bottom: 20px;
+display:flex;
+align-items: center;
+    justify-content: space-between;
+}
+.wrap #sntopbar h1 {
+	margin-bottom: 0px;
+}
+
+.wrap #sntopbar .plugname {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+}
+.wrap #sntopbar .links {
+display: flex;
+margin-left: auto;
+}
+.wrap #sntopbar .links a.whatsnew {
+text-decoration: none;
+}
+
+
+
+.secnin-welcome-notice {
+	border-top-width: 0;
+	border-radius: 10px;
+	padding: 10px;
+	box-shadow: 0 1px 9px 3px #00000012;
+	border-bottom: 1px solid #ddd;
+	margin-bottom: 20px;
+	background-color: #ffffff;
+}
+
+.secnin-welcome-notice h2,
+.secnin-welcome-notice h3 {
+	color: #28A745;
+}
+
+.secnin-welcome-notice h2 {
+	margin-top: 0px;
+}
+
+.wrap #sntopbar .name {
+	display: flex;
+	font-size: 1.3em;
+	color: #282828;
+	font-weight: 600;
+	align-items: center;
+	gap: 5px; 
+}
+
+.wrap #sntopbar .links a {
+	display: flex;
+	align-items: center;
+margin-right: 10px;
+}
+
+
+.sninnerrow table.wp-list-table td small {
+    color: #666;
+    font-size: 0.9em;
+    display: block;
+    margin-top: 5px;
+}
+
+.sninnerrow table.wp-list-table td br {
+    margin: 5px 0;
+}
+
+.sninnerrow table.wp-list-table tr:hover {
+    background-color: #f8f9fa;
+}
+
+.sninnerrow table.wp-list-table a {
+    color: #28A745;
+    text-decoration: none;
+}
+
+.sninnerrow table.wp-list-table a:hover {
+    text-decoration: underline;
+}
+
+
+.benefits-container {
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: 10px;
+	max-width: 80%;
+	margin: 20px auto 20px auto;
+}
+
+.benefits-container div {
+
+	line-height: 1.5em;
+}
+
+.benefit-columns {
+	padding: 10px;
 }

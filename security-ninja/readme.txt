@@ -1,15 +1,15 @@
-=== Security Ninja - Secure Firewall & Secure Malware Scanner ===
+=== Security Ninja – WordPress Security Plugin & Firewall ===
 Contributors: lkoudal, cleverplugins, freemius
 Donate link: https://wpsecurityninja.com/
 Tags: security, malware, firewall, virus, login
 License: GPLv3
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 Requires at least: 4.7
-Tested up to: 6.7.2
-Stable tag: 5.230
+Tested up to: 6.8.1
+Stable tag: 5.235
 Requires PHP: 7.4
 
-Scans for vulnerabilities, detects risky plugins, and guides you how to secure your site against hackers.
+Ultimate WordPress security plugin with malware scanning, firewall, and login protection. Keep your site safe from threats effortlessly.
 
 == Description ==
 
@@ -17,7 +17,7 @@ Protect your WordPress website from hackers, malware, and security vulnerabiliti
 
 Security Ninja Plugin proactively identifies security risks, ensuring your WordPress website stays secure without slowing it down. With features like automated security scans, login protection, IP blocking, and two-factor authentication (2FA), it provides comprehensive website protection against cyber threats.
 
-Whether you’re a beginner or an advanced user, Security Ninja is designed for effortless WordPress security management, keeping your site safe while you focus on growing your business. Install today and take control of your website’s security!
+Whether you're a beginner or an advanced user, Security Ninja is designed for effortless WordPress security management, keeping your site safe while you focus on growing your business. Install today and take control of your website's security!
 
 This plugin can be downloaded for free without any paid subscription from <a href="https://wordpress.org/plugins/security-ninja/">the official WordPress repository</a>.
 
@@ -66,7 +66,7 @@ Security Ninja performs 50+ advanced security tests to identify vulnerabilities 
 
 The Core Scanner module adds a critical layer of security by ensuring your WordPress installation remains untampered and free of unauthorized files.
 
-- **Full Core File Integrity Check**: Every file in your core WordPress folders is scanned to ensure it hasn’t been modified or compromised.
+- **Full Core File Integrity Check**: Every file in your core WordPress folders is scanned to ensure it hasn't been modified or compromised.
 - **Detection of Unknown Files**: The scanner flags any extra or unknown files in your core WordPress directories, alerting you to potential threats.
 - **Built-in File Viewer**: Review flagged files directly within your WordPress dashboard using the integrated file viewer for a clear and easy inspection.
 - **Restore Core Files**: If a core WordPress file has been altered, you can quickly restore it with a single click, ensuring your site is running the official version.
@@ -335,7 +335,39 @@ While we strive for universal compatibility, if you face any issues, our support
 
 == Changelog ==
 
+= 5.235 =
+* 2025-05-13
+* NEW: "Overview" tab - Does exactly as it says, gives you a nice overview.
+* IMPROVED: Much improved interface, we have moved on from the traditional WordPress style and add a bit more color and flair. This is a work in progress but already the interface is much nicer to look at.
+* Added Fastpixel IPs to default whitelist.
+
+= 5.234 =
+* 2025-05-10
+* Enhanced WordPress Multisite compatibility and integration - thank you for reporting issues.
+* Resolved translation-related PHP warnings by updating language file loading to follow WordPress standards.
+* Introduced "What's New" feature for Pro users to view changelog directly within the plugin.
+* Added welcome message for new plugin installations to improve user onboarding.
+
+= 5.233 =
+* 2025-04-07
+* Fixed problem with custom login for some users, sorry for the hassle.
+
+= 5.232 =
+* 2025-04-03
+* Rewrote activation code, removed race conditions that created issues for some users.
+* Improved visitor logging interface.
+
+= 5.231 =
+* 2025-04-03
+* Enhanced admin user monitoring with improved detection of direct database admin creation, added detailed email notifications for suspicious admin user creation, and improved logging of admin user creation events; thank you Jean.
+* Fixed translation loading timing issue in rename-login module to comply with WordPress 6.7.0 standards 
+* Fix: Moved translation loading in Cloud Firewall module to init hook to comply with WordPress 6.7.0 requirements.
+* Enhancement: Improved whitelabel functionality with WordPress media uploader integration for plugin and menu icons.
+* Enhancement: Added image preview functionality for whitelabel icons.
+* Enhancement: Improved user experience in whitelabel settings with clear buttons for icon fields.
+
 = 5.230 =
+* 2025-03-31
 * Enhanced compatibility with Trafft Booking System - A workaround has been implemented to ensure seamless integration with our plugin, even when the Trafft Booking System is active.
  
 = 5.229 =

@@ -814,6 +814,19 @@ class Wf_Sn_Vu {
         return $total_vulnerabilities;
     }
 
+    public static function get_vuln_details() {
+        $vulns = self::load_vulnerabilities();
+        if ( !$vulns ) {
+            return false;
+        }
+        $vuln_details = array(
+            'plugins'   => self::count_vulns( $vulns->plugins ),
+            'themes'    => self::count_vulns( $vulns->themes ),
+            'wordpress' => self::count_vulns( $vulns->wordpress ),
+        );
+        return $vuln_details;
+    }
+
     /**
      * Helper method to count vulnerabilities in a more abstract way
      *
@@ -881,13 +894,11 @@ class Wf_Sn_Vu {
         }
         ?>
 		<div class="submit-test-container">
-			<div class="card">
+			<div class="section">
 				<h3><?php 
         esc_html_e( 'Vulnerability Scanner', 'security-ninja' );
         ?></h3>
-				<p><?php 
-        echo esc_html__( 'Warns you of any known vulnerabilities in the plugins and themes you have installed.', 'security-ninja' );
-        ?></p>
+
 				<?php 
         if ( isset( $vulnerabilities['wordpress'] ) || isset( $vulnerabilities['plugins'] ) || isset( $vulnerabilities['themes'] ) ) {
             ?>
@@ -1271,7 +1282,7 @@ class Wf_Sn_Vu {
          );
         ?>
 			</div>
-			<div class="card">
+			<div class="section">
 				<form method="post" action="options.php">
 					<?php 
         settings_fields( 'wf_sn_vu_settings_group' );
@@ -1532,8 +1543,6 @@ class Wf_Sn_Vu {
 
 }
 
-// setup environment when activated
-register_activation_hook( WF_SN_BASE_FILE, array(__NAMESPACE__ . '\\Wf_Sn_Vu', 'activate') );
 // hook everything up
 add_action( 'plugins_loaded', array(__NAMESPACE__ . '\\Wf_Sn_Vu', 'init') );
 // when deativated clean up

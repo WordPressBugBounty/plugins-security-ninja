@@ -8,12 +8,7 @@ if ( !defined( 'ABSPATH' ) ) {
 }
 global $secnin_fs;
 ?>
-
-
 <div class="secnin_content_cell" id="sidebar-container">
-
-
-
 
 	<div class="sidebarsection feature">
 		<h3><span class="dashicons dashicons-welcome-learn-more"></span> <?php 
@@ -34,11 +29,6 @@ esc_html_e( 'Even small sites are attacked by hackers', 'security-ninja' );
 echo esc_url( Utils::generate_sn_web_link( 'sidebar_link', '/wordpress-beginner-mistakes/' ) );
 ?>" target="_blank" rel="noopener"><?php 
 esc_html_e( 'New to WordPress? avoid these beginner mistakes', 'security-ninja' );
-?></a></li>
-			<li><a href="<?php 
-echo esc_url( Utils::generate_sn_web_link( 'sidebar_link', '/your-guide-to-wordpress-password-and-username-security/' ) );
-?>" target="_blank" rel="noopener"><?php 
-esc_html_e( 'Guide to Password and Username Security', 'security-ninja' );
 ?></a></li>
 			<li><a href="<?php 
 echo esc_url( Utils::generate_sn_web_link( 'sidebar_link', '/signs-wordpress-site-is-hacked/' ) );
@@ -167,13 +157,11 @@ if ( function_exists( 'secnin_fs' ) ) {
 						</div>
 					</div>
 				</div>
-
 			</div><!-- .snupgradebox -->
 			<?php 
     }
 }
 ?>
-
 	<div class="sidebarsection feature">
 		<h3><span class="dashicons dashicons-info"></span> <?php 
 esc_html_e( 'Plugin help', 'security-ninja' );
@@ -187,19 +175,53 @@ echo esc_url( 'https://wordpress.org/support/plugin/security-ninja/' );
 ?>" target="_blank" rel="noopener"><?php 
 esc_html_e( 'Support Forum', 'security-ninja' );
 ?></a></li>
+
 		</ul>
 		<ul class="linklist">
 			<li><a href="#" class="secninfs-reset-activation"><?php 
 esc_html_e( 'Reset Account', 'security-ninja' );
 ?></a></li>
 
-			<?php 
+<?php 
+if ( secnin_fs()->is_not_paying() ) {
+    ?>
+			<li><a href="#" class="secninfs-reset-activation"><?php 
+    esc_html_e( 'dfgsfgsdfgsdgf Account', 'security-ninja' );
+    ?></a></li>
+<?php 
+}
 ?>
 		</ul>
-	</div>
+	</div><!-- .sidebarsection -->
+	<?php 
+$show_pro_ad = true;
+if ( secnin_fs()->is_not_paying() ) {
+    ?>
+<div class="sidebarsection feature upgradepro">
+	<h3>Effortless Security for Your Site!</h3>
+	<ul>
+    <li><strong>Easy Setup:</strong> Install in minutes, no technical skills required.</li>
+    <li><strong>Automatic Protection:</strong> Real-time firewall and automated scans.</li>
+    <li><strong>Spam &amp; Bot Blocking:</strong> Keeps your site clean and visitors safe.</li>
+    <li><strong>Secure Logins:</strong> Protect your login page from attacks.</li>
+  </ul>
+  <p>
+    <em>Upgrade to Pro and get effortless security today!</em>
+  </p>
+
+	<p style="margin-top: 10px;text-align: center;">
+      <a href="https://wpsecurityninja.com/pricing/?utm_source=overview-tab&amp;utm_medium=plugin&amp;utm_content=explore-pro&amp;utm_campaign=security_ninja_v5.235" class="" target="_blank">Get started now!</a><br><small>30-days money back guarantee</small></p>
+</div>
+<?php 
+}
+?>
+
 	<div>
 		<input type="hidden" id="wfsn-secninfs-reset-activation-nonce" value="<?php 
 echo esc_attr( wp_create_nonce( 'wf_sn_reset_activation' ) );
 ?>">
 	</div>
-</div><!-- #sidebar-container --><?php 
+
+
+</div><!-- #sidebar-container -->
+<?php 

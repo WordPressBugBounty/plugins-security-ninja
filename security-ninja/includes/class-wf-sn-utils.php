@@ -539,20 +539,28 @@ class Utils {
         ?>
 		<div class="submit-test-container">
 			<div class="fomcont">
-				<h3>Whitelabel</h3>
-
+			<h3>Unlock Agency-Level Branding</h3>
 				<img src="<?php 
         echo esc_url( WF_SN_PLUGIN_URL . '/images/whitelabel.jpg' );
         ?>" alt="Whitelabel your security work." class="tabimage">
 
-				<p>Whitelabel allows you to hide the account and contact links in the menu. It also hides notifications made by the
-					processing company.</p>
 
-				<p>You can enter a new name for the plugin, as well as your company URL.</p>
+  
+  <p>
+    White label is the ultimate branding tool for agencies and professionals. Present a fully customized security solution to your clients, boosting your brand recognition and client loyalty. Hide WP Security Ninja branding, customize the plugin name, add your company URL, and even use your own logo.
+  </p>
+  <ul>
+    <li><strong>Increase Brand Visibility:</strong> Showcase your brand with every security scan and notification.</li>
+    <li><strong>Enhanced Client Loyalty:</strong> Provide a seamless, branded experience that keeps clients coming back.</li>
+  </ul>
+  <p>
+    <em>This feature is available for Pro users with 25+ site licenses.</em>
+  </p>
 
-				<p>Note that all help features are also removed, it is up to you to help your customers :-)</p>
 
-				<p><strong>This feature is available for Pro users with 25+ site licenses.</strong></p>
+
+
+
 				<p class="fomlink"><a target="_blank" href="<?php 
         echo esc_url( \WPSecurityNinja\Plugin\Utils::generate_sn_web_link( 'tab_whitelabel', '/' ) );
         ?>" class="button button-primary" rel="noopener"><?php 
