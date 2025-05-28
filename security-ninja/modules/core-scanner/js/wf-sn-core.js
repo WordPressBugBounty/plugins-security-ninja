@@ -20,7 +20,7 @@ jQuery(document).ready(function($) {
   });
   
   // Restore a file
-  $(document).on('click', 'button.sn-restore-source', function(e) {
+  $(document).on('click', 'a.sn-restore-source', function(e) {
     e.preventDefault();
     if (!confirm(wf_sn_cs.strings.confirm_restore)) {
       return false;
@@ -34,15 +34,16 @@ jQuery(document).ready(function($) {
       filename: filename,
       filehash: filehash
     }, function(response) {
-      if (response.success) {
+
+      if (response === 1) {
         jQuery('[data-hash="'+filehash+'"]').closest('li').fadeOut("slow", function() {
           jQuery(this).remove();
           get_latest_update(true);
         });
-        jQuery('#wf-sn-core-scanner-response').append('<p>' + response.data.message + '</p>');
       } 
       else {
-        jQuery('#wf-sn-core-scanner-response').append('<p class="error">' + wf_sn_cs.strings.error_occurred + ': ' + response.data.message + '</p>');
+        jQuery('#wf-sn-core-scanner-response').append('<p class="error">Error deleting file</p>');
+        console.log('response fra restore file', response);
         jQuery(this).removeAttr('disabled');
       }
     }, 'json');
@@ -103,7 +104,6 @@ jQuery(document).ready(function($) {
   function get_latest_update(forceupdate) {
     jQuery('#wf-sn-core-scanner-response').show();
     jQuery('#wf-sn-core-scanner-response #sn-cs-results').slideUp();
-    jQuery('#wf-sn-core-scanner-response #last_scan').slideUp();
     jQuery('#wf-sn-core-scanner-response .spinner').addClass('is-active');
     var data = {
       action: 'sn_core_run_scan',
@@ -113,12 +113,17 @@ jQuery(document).ready(function($) {
       data.doupdate = true;
     }
     $.post(ajaxurl, data, function(response) {
-      jQuery('#wf-sn-core-scanner-response .spinner').removeClass('is-active');
+      console.log('response', response);
+      jQuery('#wf-sn-core-scan-details .spinner').removeClass('is-active');
       if (response.data.out) {
-        jQuery('#wf-sn-core-scanner-response').append(response.data.out).slideDown();
+        jQuery('#wf-sn-core-scanner-response').replaceWith(response.data.out).slideDown();
+        
+        jQuery('#wf-sn-core-scan-details #files_checked').html(response.data.files_checked).slideDown();
+        jQuery('#wf-sn-core-scan-details #wp_version').html(response.data.wp_version).slideDown();
+        
       }
       if (response.data.last_scan) {
-        jQuery('#wf-sn-core-scanner-response #last_scan').html(response.data.last_scan).slideDown();
+        jQuery('#wf-sn-core-scan-details #last_scan').html(response.data.last_scan).slideDown();
       }
     }, 'json');
   }
@@ -126,8 +131,12 @@ jQuery(document).ready(function($) {
   // Run AJAX core scan and display returned results
   $(document).on('click', '#sn-run-core-scan', function(e) {
     e.preventDefault();
-    jQuery('#wf-sn-core-scanner-response #sn-cs-results').slideUp();
-    jQuery('#wf-sn-core-scanner-response #last_scan').slideUp();
+    // jQuery('#wf-sn-core-scanner-response #sn-cs-results').slideUp();
+    // jQuery('#wf-sn-core-scanner-response #last_scan').slideUp();
+    // jQuery('#wf-sn-core-scanner-response #files_checked').slideUp();
+    // jQuery('#wf-sn-core-scanner-response #run_time').slideUp();
+    // jQuery('#wf-sn-core-scanner-response #wp_version').slideUp();
+    // jQuery('#wf-sn-core-scanner-response #next_scan').slideUp();
     jQuery('#wf-sn-core-scanner-response .spinner').addClass('is-active');
     jQuery.post(ajaxurl, {
       action: 'sn_core_run_scan',
@@ -141,7 +150,18 @@ jQuery(document).ready(function($) {
       }
       if (response.data.last_scan) {
         jQuery('#wf-sn-core-scanner-response #last_scan').html(response.data.last_scan).slideDown();
+
       }
+      if (response.data.files_checked) {
+        jQuery('#wf-sn-core-scanner-response #files_checked').html(response.data.files_checked).slideDown();
+      }
+      if (response.data.wp_version) {
+        jQuery('#wf-sn-core-scanner-response #wp_version').html(response.data.wp_version).slideDown();
+      }
+      if (response.data.next_scan) {
+        jQuery('#wf-sn-core-scanner-response #next_scan').html(response.data.next_scan).slideDown();
+      }
+      location.reload();
     });
   });
 });

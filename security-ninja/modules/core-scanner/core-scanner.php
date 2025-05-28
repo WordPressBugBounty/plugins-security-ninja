@@ -405,6 +405,7 @@ class Wf_Sn_Cs {
                 'message' => __( 'You do not have sufficient permissions to access this page.', 'security-ninja' ),
                 'code'    => 'insufficient_permissions',
             ) );
+            wp_die();
         }
         $start_time = microtime( true );
         $results = get_option( 'wf_sn_cs_results', array() );
@@ -426,7 +427,6 @@ class Wf_Sn_Cs {
         $ver = get_bloginfo( 'version' );
         // Files ok to be missing
         $missing_ok = array(
-            'index.php',
             'readme.html',
             'license.txt',
             'wp-config-sample.php',
@@ -439,7 +439,6 @@ class Wf_Sn_Cs {
         );
         // Files ok to be modified
         $changed_ok = array(
-            'index.php',
             'wp-config.php',
             'wp-config-sample.php',
             'readme.html',
@@ -490,7 +489,6 @@ class Wf_Sn_Cs {
             $results['out'] = '';
             if ( isset( $results['last_run'] ) && $results['last_run'] ) {
                 $allisgood = true;
-                $results['out'] .= '<div id="sn-cs-results">';
                 if ( $results['unknown_bad'] ) {
                     $allisgood = false;
                     $results['out'] .= '<div class="sn-cs-changed-bad">';
@@ -511,7 +509,7 @@ class Wf_Sn_Cs {
                     $results['out'] .= '<div class="sn-cs-changed-bad"><div class="core-title">';
                     $results['out'] .= '<h4>' . __( 'The following WordPress core files have been modified', 'security-ninja' ) . '</h4>';
                     $results['out'] .= '</div>';
-                    $results['out'] .= '<div class="changedcont">';
+                    $results['out'] .= '<div class="">';
                     $results['out'] .= '<p>' . __( 'If you did not modify the following files yourself, this could indicate an infection on your website.', 'security-ninja' ) . '</p>';
                     $results['out'] .= self::list_files( $results['changed_bad'], true, true );
                     $results['out'] .= '</div></div>';
@@ -528,7 +526,10 @@ class Wf_Sn_Cs {
                     $results['out'] .= '</div></div>';
                 }
                 if ( $allisgood ) {
-                    $results['out'] .= '<p>' . esc_html__( 'No problems found', 'security-ninja' ) . '</p>';
+                    $results['out'] .= '<div class="sncard noerrorsfound">' . esc_html__( 'No problems found', 'security-ninja' ) . '</div>';
+                } else {
+                    $newout = '<div id="sn-cs-results" class="sncard snerror">' . $results['out'];
+                    $results['out'] = $newout;
                 }
                 $results['out'] .= '</div><!-- #sn-cs-results -->';
             }
@@ -548,15 +549,23 @@ class Wf_Sn_Cs {
             }
             $version = get_bloginfo( 'version' );
             $locale = get_locale();
-            $results['last_scan'] = sprintf(
-                // translators: %1$s: Date and time of the last scan, %2$s: Number of files checked, %3$s: Time taken for the scan in seconds, %4$s: WordPress version, %5$s: Locale
-                esc_html__( 'Last scan at %1$s. %2$s files were checked in %3$s sec. WordPress version %4$s %5$s', 'security-ninja' ),
-                gmdate( get_option( 'date_format' ) . ' ' . get_option( 'time_format' ), $results['last_run'] ),
+            $results['last_scan'] = sprintf( 
+                // translators: %1$s: Date and time of the last scan
+                esc_html__( 'Last scan at %1$s', 'security-ninja' ),
+                gmdate( get_option( 'date_format' ) . ' ' . get_option( 'time_format' ), $results['last_run'] )
+             );
+            $results['files_checked'] = sprintf( 
+                // translators: %1$s: Number of files checked, %2$s: Time taken for the scan in seconds
+                esc_html__( '%1$s files were checked in %2$s sec', 'security-ninja' ),
                 number_format( $results['total'] ),
-                number_format( $results['run_time'], 2 ),
+                number_format( $results['run_time'], 2 )
+             );
+            $results['wp_version'] = sprintf( 
+                // translators: %1$s: WordPress version, %2$s: Locale
+                esc_html__( 'WordPress version %1$s %2$s', 'security-ninja' ),
                 $version,
                 $locale
-            );
+             );
             update_option( 'wf_sn_cs_results', $results, false );
             wp_send_json_success( $results );
         } else {
@@ -686,10 +695,9 @@ class Wf_Sn_Cs {
      */
     public static function core_page() {
         ?>
-        <div class="submit-test-container">
-
-            <h3><?php 
-        echo esc_html__( 'Scan core WordPress files and folders', 'security-ninja' );
+        <div class="submit-test-container sncard settings-card">
+            <h3><span class="dashicons dashicons-text"></span> <?php 
+        echo esc_html__( 'Scan Core WordPress Files', 'security-ninja' );
         ?></h3>
 
             <p><?php 
@@ -697,27 +705,45 @@ class Wf_Sn_Cs {
         ?></p>
 
             <div id="wf-sn-core-scanner-response">
-                <p class="spinner"></p>
-                <p id="last_scan"></p>
+                <!-- <p class="spinner"></p> -->
+
             </div>
-            <?php 
-        echo '<input type="button" value="' . esc_html__( 'Scan core files', 'security-ninja' ) . '" id="sn-run-core-scan" class="button button-secondary button-small" />';
-        ?>
-        </div>
+
+
+            <div id="wf-sn-core-scan-details">
+                <p><?php 
+        esc_html_e( 'Last Scan', 'security-ninja' );
+        ?>: <span id="last_scan"></span></p>
+                <p><?php 
+        esc_html_e( 'Files Checked', 'security-ninja' );
+        ?>: <span id="files_checked"></span></p>
+                <p><?php 
+        esc_html_e( 'WordPress Version', 'security-ninja' );
+        ?>: <span id="wp_version"></span></p>
 
 <?php 
         $next_scan = wp_next_scheduled( 'secnin_run_core_scanner' );
         if ( $next_scan ) {
             $time_until_next_scan = human_time_diff( current_time( 'timestamp' ), $next_scan );
-            echo '<p>' . sprintf( 
+            echo '<p>' . esc_html__( 'Next Scheduled Scan', 'security-ninja' ) . ': <span id="next_scan">' . sprintf( 
                 /* translators: %1$s is the date/time of next scan, %2$s is the time until next scan */
-                esc_html__( 'Next scheduled scan: %1$s (%2$s from now)', 'security-ninja' ),
+                esc_html__( '%1$s (%2$s from now)', 'security-ninja' ),
                 esc_html( date_i18n( get_option( 'date_format' ) . ' ' . get_option( 'time_format' ), $next_scan ) ),
                 esc_html( $time_until_next_scan )
-             ) . '</p>';
+             ) . '</span></p>';
         } else {
-            echo '<p>' . esc_html__( 'No core scan currently scheduled.', 'security-ninja' ) . '</p>';
+            echo '<p id="next_scan">' . esc_html__( 'No core scan currently scheduled.', 'security-ninja' ) . '</p>';
         }
+        ?>
+            </div>
+            <?php 
+        echo '<input type="button" value="' . esc_html__( 'Scan Core Files', 'security-ninja' ) . '" id="sn-run-core-scan" class="snbtn button-secondary button-small" />';
+        ?>
+
+       
+        </div>
+
+<?php 
     }
 
     /**
@@ -875,19 +901,20 @@ class Wf_Sn_Cs {
         }
         $out = '<ul class="sn-file-list">';
         foreach ( $files as $file ) {
-            $file = esc_html( $file );
             $out .= '<li>';
-            $out .= '<span class="sn-file">' . $file . '</span>';
+            $out .= '<span class="sn-file">' . esc_html( $file ) . '</span>';
+            $out .= '<span class="sn-action-buttons">';
             if ( $view ) {
                 $file_view_url = \WPSecurityNinja\Plugin\FileViewer::generate_file_view_url( ABSPATH . $file );
                 $out .= ' <a href="' . esc_url( $file_view_url ) . '" class="button button-small" target="_blank">' . esc_html__( 'View File', 'security-ninja' ) . '</a>';
             }
             if ( $restore ) {
-                $out .= ' <button data-hash="' . esc_attr( wp_hash( ABSPATH . $file ) ) . '" data-file-short="' . esc_attr( $file ) . '" data-file="' . esc_attr( ABSPATH . $file ) . '" href="#restore-dialog" class="sn-restore-source button button-small">' . esc_html__( 'Restore', 'security-ninja' ) . '</button>';
+                $out .= ' <a data-hash="' . esc_attr( wp_hash( ABSPATH . $file ) ) . '" data-file-short="' . esc_attr( $file ) . '" data-file="' . esc_attr( ABSPATH . $file ) . '" href="#restore-dialog" class="sn-restore-source button button-small">' . esc_html__( 'Restore', 'security-ninja' ) . '</a>';
             }
             if ( $delete ) {
-                $out .= ' <button data-hash="' . esc_attr( wp_hash( ABSPATH . $file ) ) . '" data-file-short="' . esc_attr( $file ) . '" data-file="' . esc_attr( ABSPATH . $file ) . '" href="#delete-dialog" class="sn-delete-source button button-small">' . esc_html__( 'Delete', 'security-ninja' ) . '</button>';
+                $out .= ' <a data-hash="' . esc_attr( wp_hash( ABSPATH . $file ) ) . '" data-file-short="' . esc_attr( $file ) . '" data-file="' . esc_attr( ABSPATH . $file ) . '" href="#delete-dialog" class="sn-delete-source button button-small">' . esc_html__( 'Delete', 'security-ninja' ) . '</a>';
             }
+            $out .= '</span>';
             $out .= '</li>';
         }
         $out .= '</ul>';

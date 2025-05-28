@@ -8,6 +8,8 @@
 /* Resets Freemius activation via ajax call. */
 jQuery(document).on('click', '.secninfs-reset-activation', function (e) {
   
+
+
   e.preventDefault();
   
   jQuery('.wrap').prepend('<div class="secning-loading-popup"><p>Please wait<span class="spinner is-active"></span></p></div>');
@@ -38,7 +40,14 @@ jQuery(document).on('click', '.secninfs-reset-activation', function (e) {
 jQuery(document).ready(function($) {
 
 
+jQuery(document).on('click', '.secnin-welcome-notice .closeme', function() {
+  jQuery('.secnin-welcome-notice').slideUp();
+});
+
+  
+
 // @todo - rework so it loads inside the "Firewall Summary" on the Overview tab
+// @todo - we still using this?
   if (jQuery('#sn_sidebar_latest').length > 0) {
     // Add a spinner to the target DIV
     jQuery('#sn_sidebar_latest').html('<div class="spinner" style="visibility: visible;"></div>');

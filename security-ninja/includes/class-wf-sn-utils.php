@@ -162,7 +162,7 @@ class Utils {
         }
         if ( \PAnD::is_admin_notice_active( 'wfs-newsletter-30' ) ) {
             ?>
-			<div data-dismissible="wfs-newsletter-30" class="secnin-notice updated notice notice-info is-dismissible">
+			<div data-dismissible="wfs-newsletter-30" class="secnin-notice sncard is-dismissible snnotice">
 				<h3>Get WordPress Security Updates & Exclusive Deals</h3>
 				<h4>Join 10,000+ WordPress admins getting critical security alerts, pro tips, and special offers directly in their inbox from wpsecurityninja.com</h4>
 				<form class="ml-block-form" action="https://assets.mailerlite.com/jsonp/16490/forms/106309154087372203/subscribe" data-code="" method="post" target="_blank">
@@ -541,7 +541,7 @@ class Utils {
 			<div class="fomcont">
 			<h3>Unlock Agency-Level Branding</h3>
 				<img src="<?php 
-        echo esc_url( WF_SN_PLUGIN_URL . '/images/whitelabel.jpg' );
+        echo esc_url( WF_SN_PLUGIN_URL . 'images/whitelabel.jpg' );
         ?>" alt="Whitelabel your security work." class="tabimage">
 
 

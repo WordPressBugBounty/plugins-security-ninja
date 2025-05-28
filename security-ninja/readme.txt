@@ -6,7 +6,7 @@ License: GPLv3
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 Requires at least: 4.7
 Tested up to: 6.8.1
-Stable tag: 5.235
+Stable tag: 5.236
 Requires PHP: 7.4
 
 Ultimate WordPress security plugin with malware scanning, firewall, and login protection. Keep your site safe from threats effortlessly.
@@ -335,11 +335,16 @@ While we strive for universal compatibility, if you face any issues, our support
 
 == Changelog ==
 
+= 5.236 =
+* 2025-05-28
+* Major improvements to the interface. More changes to come, but already a much nicer interface with more features and polish.
+* Many minor improvements under the hood -
+
 = 5.235 =
 * 2025-05-13
-* NEW: "Overview" tab - Does exactly as it says, gives you a nice overview.
-* IMPROVED: Much improved interface, we have moved on from the traditional WordPress style and add a bit more color and flair. This is a work in progress but already the interface is much nicer to look at.
-* Added Fastpixel IPs to default whitelist.
+* NEW: Introducing the "Overview" Tab - A comprehensive dashboard providing a clear and concise summary of your website's security status.
+* IMPROVED: Revamped User Interface - Experience a modern and visually appealing interface, departing from the traditional WordPress aesthetic with enhanced color and design elements. This is an ongoing effort that will introduce more changes over the next releases.
+* UPDATED: Added Fastpixel IPs to the default whitelist for enhanced compatibility and reduced false positives.
 
 = 5.234 =
 * 2025-05-10

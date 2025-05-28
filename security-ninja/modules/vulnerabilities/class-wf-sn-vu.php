@@ -462,8 +462,7 @@ class Wf_Sn_Vu {
         // Ready to send email
         $email_notice_recipient = self::$options['email_notice_recipient'];
         $recipients = array_map( 'trim', explode( ',', $email_notice_recipient ) );
-        // HTML formatted message content
-        $message_content_html = '<p>' . esc_html__( 'You are receiving this email because you have activated email warnings for the vulnerability scanner.', 'security-ninja' ) . '</p>';
+        $message_content_html = '';
         $message_content_html .= '<p>' . sprintf( 
             // translators: %1$s is the site name
             esc_html__( 'Security Ninja has detected vulnerabilities on your website, %1$s.', 'security-ninja' ),
@@ -490,6 +489,8 @@ class Wf_Sn_Vu {
             }
         }
         $message_content_html .= '<p>' . esc_html__( 'View all vulnerabilities:', 'security-ninja' ) . ' <a href="' . esc_url( admin_url( 'admin.php?page=wf-sn#sn_vuln' ) ) . '" target="_blank">' . esc_html__( 'here', 'security-ninja' ) . '</a></p>';
+        $message_content_html .= '<p>' . esc_html__( 'You are receiving this email because you have activated email warnings for the vulnerability scanner.', 'security-ninja' ) . '</p>';
+        $message_content_html .= '<hr>';
         $url = Utils::generate_sn_web_link( 'email_vuln_warning_footer', '/' );
         $message_content_html .= '<p>' . esc_html__( 'Thank you for using WP Security Ninja', 'security-ninja' ) . ' - <a href="' . esc_url( $url ) . '" target="_blank">' . esc_html__( 'WP Security Ninja', 'security-ninja' ) . '</a></p>';
         // Additional security advice
@@ -894,10 +895,10 @@ class Wf_Sn_Vu {
         }
         ?>
 		<div class="submit-test-container">
-			<div class="section">
-				<h3><?php 
+			<div class="section sncard">
+				<h2><span class="dashicons dashicons-shield-alt"></span> <?php 
         esc_html_e( 'Vulnerability Scanner', 'security-ninja' );
-        ?></h3>
+        ?></h2>
 
 				<?php 
         if ( isset( $vulnerabilities['wordpress'] ) || isset( $vulnerabilities['plugins'] ) || isset( $vulnerabilities['themes'] ) ) {
@@ -1028,7 +1029,7 @@ class Wf_Sn_Vu {
 						<?php 
                 foreach ( $vulnerabilities['plugins'] as $key => $found_vuln ) {
                     ?>
-							<div class="card vulnplugin">
+							<div class="sncard vulnplugin snerror">
 								<h3>
 									<span class="dashicons dashicons-warning"></span>
 									<?php 
@@ -1151,7 +1152,7 @@ class Wf_Sn_Vu {
 						<?php 
                 foreach ( $vulnerabilities['themes'] as $key => $found_vuln ) {
                     ?>
-							<div class="card vulnplugin">
+							<div class="sncard vulnplugin snerror">
 								<h3>
 									<span class="dashicons dashicons-warning"></span>
 									<?php 
@@ -1266,36 +1267,37 @@ class Wf_Sn_Vu {
 						<h3><?php 
                 esc_html_e( 'The vulnerability scanner is disabled', 'security-ninja' );
                 ?></h3>
-					<?php 
-            } else {
-                ?>
-						<h3><?php 
-                esc_html_e( 'Great, no known vulnerabilities found on your website', 'security-ninja' );
-                ?></h3>
 				<?php 
+            } else {
+                echo '<div class="noerrorsfound"><h3>' . esc_html__( 'Great news!', 'security-ninja' ) . '</h3><p>' . esc_html__( 'No vulnerabilities found.', 'security-ninja' ) . '</p></div>';
+                printf( 
+                    // translators: Shows how many vulnerabilities
+                    esc_html__( 'Vulnerability list contains %1$s known vulnerabilities.', 'security-ninja' ),
+                    esc_html( number_format_i18n( $total_vulnerabilities ) )
+                 );
             }
         }
-        printf( 
-            // translators: Shows how many vulnerabilities
-            esc_html__( 'Vulnerability list contains %1$s known vulnerabilities.', 'security-ninja' ),
-            esc_html( number_format_i18n( $total_vulnerabilities ) )
-         );
         ?>
 			</div>
-			<div class="section">
+			<div class="section sncard settings-card">
 				<form method="post" action="options.php">
 					<?php 
         settings_fields( 'wf_sn_vu_settings_group' );
         ?>
-					<h3 class="ss_header"><?php 
+					<h2 class="ss_header"><span class="dashicons dashicons-admin-generic"></span> <?php 
         esc_html_e( 'Settings', 'security-ninja' );
-        ?></h3>
+        ?></h2>
 					<table class="form-table">
 						<tbody>
 							<tr valign="top">
-								<th scope="row"><label for="wf_sn_vu_settings_group_enable_vulns"><?php 
+								<th scope="row"><label for="wf_sn_vu_settings_group_enable_vulns">
+										<h3><?php 
         esc_html_e( 'Vulnerability scanning', 'security-ninja' );
-        ?></label></th>
+        ?></h3>
+										<p class="description"><?php 
+        esc_html_e( 'Checking for known vulnerabilites.', 'security-ninja' );
+        ?></p>
+									</label></th>
 								<td class="sn-cf-options">
 									<?php 
         Wf_Sn::create_toggle_switch( 'wf_sn_vu_settings_group_enable_vulns', array(
@@ -1304,16 +1306,19 @@ class Wf_Sn_Vu {
             'option_key'  => 'wf_sn_vu_settings_group[enable_vulns]',
         ) );
         ?>
-									<p class="description"><?php 
-        esc_html_e( 'Checking for known vulnerabilites.', 'security-ninja' );
-        ?></p>
+
 								</td>
 							</tr>
 
 							<tr valign="top">
-								<th scope="row"><label for="wf_sn_vu_settings_group_enable_admin_notification"><?php 
+								<th scope="row"><label for="wf_sn_vu_settings_group_enable_admin_notification">
+										<h3><?php 
         esc_html_e( 'Admin counter', 'security-ninja' );
-        ?></label></th>
+        ?></h3>
+										<p class="description"><?php 
+        esc_html_e( 'Disable warning notice in admin pages.', 'security-ninja' );
+        ?></p>
+									</label></th>
 								<td class="sn-cf-options">
 									<?php 
         Wf_Sn::create_toggle_switch( 'wf_sn_vu_settings_group_enable_admin_notification', array(
@@ -1321,16 +1326,19 @@ class Wf_Sn_Vu {
             'option_key'  => 'wf_sn_vu_settings_group[enable_admin_notification]',
         ) );
         ?>
-									<p class="description"><?php 
-        esc_html_e( 'Disable warning notice in admin pages.', 'security-ninja' );
-        ?></p>
+
 								</td>
 							</tr>
 
 							<tr valign="top">
-								<th scope="row"><label for="wf_sn_vu_settings_group_enable_email_notice"><?php 
+								<th scope="row"><label for="wf_sn_vu_settings_group_enable_email_notice">
+										<h3><?php 
         esc_html_e( 'Email warnings', 'security-ninja' );
-        ?></label></th>
+        ?></h3>
+										<p class="description"><?php 
+        esc_html_e( 'Enable email notifications. Only when one or more vulnerabilites are detected.', 'security-ninja' );
+        ?></p>
+									</label></th>
 								<td class="sn-cf-options">
 									<?php 
         Wf_Sn::create_toggle_switch( 'wf_sn_vu_settings_group_enable_email_notice', array(
@@ -1338,29 +1346,32 @@ class Wf_Sn_Vu {
             'option_key'  => 'wf_sn_vu_settings_group[enable_email_notice]',
         ) );
         ?>
-									<p class="description"><?php 
-        esc_html_e( 'Enable email notifications. Only when one or more vulnerabilites are detected.', 'security-ninja' );
-        ?></p>
+
 								</td>
 							</tr>
 
 							<tr>
-								<th scope="row"><label for="wf_sn_vu_settings_group_email_notice_recipient_"><?php 
+								<th scope="row"><label for="wf_sn_vu_settings_group_email_notice_recipient_">
+										<h3><?php 
         esc_html_e( 'Email recipient', 'security-ninja' );
-        ?></label></th>
-								<td>
+        ?></h3>
+										<p class="description">
+											<?php 
+        esc_html_e( 'Who should get the warning? The system will send an email when a vulnerability is detected. Maximum one email per day.', 'security-ninja' );
+        ?>
+										</p>
+									</label></th>
+								<td></td>
+							</tr>
+							<tr>
+								<td class="fullwidth">
 									<input name="wf_sn_vu_settings_group[email_notice_recipient]" type="text" value="<?php 
         echo esc_attr( self::$options['email_notice_recipient'] );
         ?>" class="regular-text" placeholder="">
-									<p class="description">
-										<?php 
-        esc_html_e( 'Who should get the warning? The system will send an email when a vulnerability is detected. Maximum one email per day.', 'security-ninja' );
-        ?>
-									</p>
 								</td>
 							</tr>
 							<tr>
-								<td colspan="2">
+								<td colspan="2" class="fullwidth">
 									<p class="submit"><input type="submit" value="<?php 
         esc_html_e( 'Save Changes', 'security-ninja' );
         ?>" class="input-button button-primary" name="Submit" />
@@ -1376,8 +1387,13 @@ class Wf_Sn_Vu {
         if ( self::$options['enable_vulns'] ) {
             $last_modified = Wf_Sn_Vu::get_vulnerabilities_last_modified();
             if ( $last_modified ) {
-                echo '<h4>' . esc_html__( 'Last Updated', 'security-ninja' ) . '</h4>';
-                echo '<ul class="sn-vuln-update-list">';
+                ?>
+					<div class="section sncard">
+						<h3><?php 
+                esc_html_e( 'Last Updated', 'security-ninja' );
+                ?></h3>
+						<div class="sn-vuln-update-list">
+							<?php 
                 foreach ( $last_modified as $type => $timestamp ) {
                     $time_diff = human_time_diff( $timestamp, current_time( 'timestamp' ) );
                     printf(
@@ -1388,7 +1404,10 @@ class Wf_Sn_Vu {
                         esc_html( $time_diff )
                     );
                 }
-                echo '</ul>';
+                ?>
+						</div>
+					</div>
+					<?php 
             }
         }
         ?>

@@ -5,7 +5,7 @@ Plugin Name: Security Ninja (Premium)
 Plugin URI: https://wpsecurityninja.com/
 Description: Check your site for <strong>security vulnerabilities</strong> and get precise suggestions for corrective actions on passwords, user accounts, file permissions, database security, version hiding, plugins, themes, security headers and other security aspects.
 Author: WP Security Ninja
-Version: 5.235
+Version: 5.236
 Author URI: https://wpsecurityninja.com/
 License: GPLv3
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
@@ -212,7 +212,7 @@ if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
                 add_action( 'admin_notices', array(__NAMESPACE__ . '\\Utils', 'do_admin_notices') );
                 add_action( 'wp_ajax_wf_sn_dismiss_review', array(__NAMESPACE__ . '\\Wf_Sn', 'wf_sn_dismiss_review') );
                 add_action( 'admin_footer', array(__NAMESPACE__ . '\\Utils', 'admin_footer') );
-                add_action( 'admin_notices', array(__NAMESPACE__ . '\\Utils', 'signup_to_newsletter') );
+                add_action( 'secnin_signup_to_newsletter', array(__NAMESPACE__ . '\\Utils', 'signup_to_newsletter') );
                 add_filter( 'manage_users_columns', array(__NAMESPACE__ . '\\Utils', 'add_user_last_login_column') );
                 add_filter(
                     'manage_users_custom_column',
@@ -244,7 +244,7 @@ if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
             $topbar .= '<div class="name">' . esc_html( $menu_title ) . ' <span>v.' . esc_html( wf_sn::get_plugin_version() ) . '</span></div></div>';
             $menu_links = '<a href="https://wordpress.org/support/plugin/security-ninja/" target="_blank" rel="noopener noreferrer" class="extlink">Support Forum</a>';
             if ( secnin_fs()->is_registered() && secnin_fs()->is_tracking_allowed() ) {
-                $menu_links .= '<a href="#" class="productlift-sidebar=caa739c4-554e-4526-9720-a600a6702a8e whatsnew">🚀</a>';
+                $menu_links .= '<a href="#" class="productlift-sidebar=caa739c4-554e-4526-9720-a600a6702a8e whatsnew">Updates 🚀</a>';
             }
             $topbar .= '<div class="links">' . $menu_links . '</div>';
             $topbar .= '</div>';
@@ -374,13 +374,18 @@ if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
             $value = (int) $options['value'];
             $saved_value = ( isset( $options['saved_value'] ) ? (int) $options['saved_value'] : 0 );
             $checked = ( $value === $saved_value ? ' checked' : '' );
-            $html = '<div class="toggle-wrapper">' . sprintf(
-                '<input type="checkbox" id="%1$s" value="%2$s" name="%3$s"%4$s>',
+            // $html = '  <input id="s2" type="checkbox" class="switch" checked>';
+            // echo $html; // @todo remove this
+            /*
+            <input type="checkbox" id="wf_sn_vu_settings_group_enable_vulns" value="1" name="wf_sn_vu_settings_group[enable_vulns]" checked="">
+            */
+            $html = sprintf(
+                '<input type="checkbox" id="%1$s" value="%2$s" class="switch" name="%3$s"%4$s>',
                 esc_attr( $name ),
                 esc_attr( $options['value'] ),
                 esc_attr( $options['option_key'] ),
                 $checked
-            ) . sprintf( '<label for="%1$s" class="toggle"><span class="toggle_handler"></span></label>', esc_attr( $name ) ) . '</div>';
+            );
             if ( $output ) {
                 echo wp_kses( $html, array(
                     'div'   => array(
@@ -391,6 +396,7 @@ if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
                         'id'      => array(),
                         'value'   => array(),
                         'name'    => array(),
+                        'class'   => array(),
                         'checked' => array(),
                     ),
                     'label' => array(
@@ -455,8 +461,8 @@ if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
             if ( $vulns ) {
                 $total = \WPSecurityNinja\Plugin\Wf_Sn_Vu::return_vuln_count();
                 ?>
-							<h3><span class="dashicons dashicons-warning"></span> <strong>
-							<?php 
+				<h3><span class="dashicons dashicons-warning"></span> <strong>
+						<?php 
                 // translators: Shown when one or multiple vulnerabilities found
                 echo esc_html( sprintf( _n(
                     'You have %s known vulnerability on your website!',
@@ -465,101 +471,99 @@ if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
                     'security-ninja'
                 ), number_format_i18n( $total ) ) );
                 ?>
-								</strong></h3>
-								<p><a href="
+					</strong></h3>
+				<p><a href="
 				<?php 
                 echo esc_url( admin_url( 'admin.php?page=wf-sn#sn_vuln' ) );
                 ?>
 										">
-								<?php 
+						<?php 
                 esc_html_e( 'Details', 'security-ninja' );
                 ?>
-								</a></p>
-								
-								<?php 
+					</a></p>
+
+			<?php 
             }
             $test_scores = self::return_test_scores();
             if ( isset( $test_scores['score'] ) && '0' !== $test_scores['score'] ) {
                 ?>
-								<div id="testscores">
-								<h3><span class="dashicons dashicons-warning"></span> <strong>
-								<?php 
+				<div id="testscores">
+					<h3><span class="dashicons dashicons-warning"></span> <strong>
+							<?php 
                 esc_html_e( 'Security Tests', 'security-ninja' );
                 ?>
-								</strong></h3>
-								<strong>
-								<?php 
+						</strong></h3>
+					<strong>
+						<?php 
                 esc_html_e( 'Score', 'security-ninja' );
                 ?>
-								</strong> <span class="result">
-								<?php 
+					</strong> <span class="result">
+						<?php 
                 echo intval( $test_scores['score'] );
                 ?>
-								%</span>
-								<strong>
-								<?php 
+						%</span>
+					<strong>
+						<?php 
                 esc_html_e( 'Passed', 'security-ninja' );
                 ?>
-								</strong> <span class="passed">
-								<?php 
+					</strong> <span class="passed">
+						<?php 
                 echo intval( $test_scores['good'] );
                 ?>
-								</span>
-								<strong>
-								<?php 
+					</span>
+					<strong>
+						<?php 
                 esc_html_e( 'Warning', 'security-ninja' );
                 ?>
-								</strong> <span class="warning">
-								<?php 
+					</strong> <span class="warning">
+						<?php 
                 echo intval( $test_scores['warning'] );
                 ?>
-								</span>
-								<strong>
-								<?php 
+					</span>
+					<strong>
+						<?php 
                 esc_html_e( 'Failed', 'security-ninja' );
                 ?>
-								</strong> <span class="bad">
-								<?php 
+					</strong> <span class="bad">
+						<?php 
                 echo intval( $test_scores['bad'] );
                 ?>
-								</span>
-								</div><!-- .testresults -->
-								
-								<p><a href="
+					</span>
+				</div><!-- .testresults -->
+
+				<p><a href="
 				<?php 
                 echo esc_url( admin_url( 'admin.php?page=wf-sn' ) );
                 ?>
 										">
-								<?php 
+						<?php 
                 esc_html_e( 'Details', 'security-ninja' );
                 ?>
-								</a></p>
-								<?php 
+					</a></p>
+			<?php 
             } elseif ( '0' === $test_scores['score'] ) {
                 ?>
-								<h3><span class="dashicons dashicons-warning"></span> <strong>Test your website security - Run our tests</strong></h3>
-								<p><a href="
-				<?php 
+				<h3><span class="dashicons dashicons-warning"></span> <strong>Test your website security - Run our tests</strong></h3>
+				<p><a href=" <?php 
                 echo esc_url( admin_url( 'admin.php?page=wf-sn' ) );
-                ?>
-										">
-								<?php 
+                ?>" class="greenbtn snbutton button">
+						<?php 
                 esc_html_e( 'Run Security Tests', 'security-ninja' );
                 ?>
-								</a></p>
-								<?php 
+					</a></p>
+			<?php 
             } else {
                 ?>
-								<p>
-								<?php 
+				<p>
+					<?php 
                 esc_html_e( 'Test your website security - Run our tests', 'security-ninja' );
                 ?>
-								</p>
-								<?php 
+				</p>
+				<?php 
             }
             ?>
-								<div id="secnin-dashboard-feed"></div>
-								<?php 
+			<div id="secnin-dashboard-feed"></div>
+		<?php 
         }
 
         /**
@@ -782,43 +786,43 @@ if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
         public static function render_events_logger_page() {
             echo '<div class="submit-test-container">';
             ?>
-														<div class="fomcont">
-														<h3>Events logger: Track every change, secure your site</h3>
-														
-														<img src="
+			<div class="fomcont">
+				<h3>Events logger: Track every change, secure your site</h3>
+
+				<img src="
 				<?php 
-            echo esc_url( WF_SN_PLUGIN_URL . '/images/event-log.jpg' );
+            echo esc_url( WF_SN_PLUGIN_URL . 'images/event-log.jpg' );
             ?>
 									" alt="The event logger monitors changes to your website." class="tabimage">
-														<p>
-														Stay informed and in control of your WordPress site with the Events Logger. Know exactly what's happening behind the scenes, from admin changes to front-end activity.
-														</p>
-														<p>
-														Troubleshoot issues faster, identify suspicious behavior, and maintain a secure, stable website. With Events Logger, you'll have the insights you need to protect your investment and keep your site running smoothly.
-														</p>
-														<ul>
-														<li><strong>Simple Audit Logging:</strong> Keep a detailed activity log of everything that happens on your website, making it easy to troubleshoot bugs and track changes.</li>
-														<li><strong>Comprehensive Event Tracking:</strong> Monitor over 50 different events, both in the admin area and on the front-end, with all the details you need.</li>
-														<li><strong>Easy Filtering:</strong> Quickly find the events you're looking for with powerful filtering options.</li>
-														<li><strong>Detailed Event Information:</strong> Know exactly when an action happened, how it happened, and who performed it.</li>
-														<li><strong>Email Alerts:</strong> Receive instant email notifications for selected groups of events, so you can stay on top of critical changes.</li>
-														</ul>
-														<p>
-														<em>Take control of your site's security and stability—activate Events Logger and start tracking every change today.</em>
-														</p>
-														
-														<p class="fomlink"><a target="_blank" href=" <?php 
+				<p>
+					Stay informed and in control of your WordPress site with the Events Logger. Know exactly what's happening behind the scenes, from admin changes to front-end activity.
+				</p>
+				<p>
+					Troubleshoot issues faster, identify suspicious behavior, and maintain a secure, stable website. With Events Logger, you'll have the insights you need to protect your investment and keep your site running smoothly.
+				</p>
+				<ul>
+					<li><strong>Simple Audit Logging:</strong> Keep a detailed activity log of everything that happens on your website, making it easy to troubleshoot bugs and track changes.</li>
+					<li><strong>Comprehensive Event Tracking:</strong> Monitor over 50 different events, both in the admin area and on the front-end, with all the details you need.</li>
+					<li><strong>Easy Filtering:</strong> Quickly find the events you're looking for with powerful filtering options.</li>
+					<li><strong>Detailed Event Information:</strong> Know exactly when an action happened, how it happened, and who performed it.</li>
+					<li><strong>Email Alerts:</strong> Receive instant email notifications for selected groups of events, so you can stay on top of critical changes.</li>
+				</ul>
+				<p>
+					<em>Take control of your site's security and stability—activate Events Logger and start tracking every change today.</em>
+				</p>
+
+				<p class="fomlink"><a target="_blank" href=" <?php 
             echo esc_url( \WPSecurityNinja\Plugin\Utils::generate_sn_web_link( 'tab_events_logger', '/events-logger/' ) );
             ?>" class="button button-primary" rel="noopener">
-														<?php 
+						<?php 
             esc_html_e( 'Learn more', 'security-ninja' );
             ?>
-														</a></p>
-														
-														</div>
-														
-														</div>
-														<?php 
+					</a></p>
+
+			</div>
+
+			</div>
+		<?php 
         }
 
         /**
@@ -833,49 +837,49 @@ if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
         public static function render_cloudfw_page() {
             echo '<div class="submit-test-container">';
             ?>
-														<div class="fomcont">
-														<h3>Advanced Firewall: Proactive Security for Your Site</h3>
-														
-														<img src="
+			<div class="fomcont">
+				<h3>Advanced Firewall: Proactive Security for Your Site</h3>
+
+				<img src="
 				<?php 
-            echo esc_url( WF_SN_PLUGIN_URL . '/images/firewall.jpg' );
+            echo esc_url( WF_SN_PLUGIN_URL . 'images/firewall.jpg' );
             ?>
 									" alt="
 									<?php 
             esc_html_e( 'Scan Core files of WordPress', 'security-ninja' );
             ?>
 									" class="tabimage">
-														
-														
-														
-														
-														<p>
-														Protect your website and your reputation with Firewall, your always-on security partner. Instantly block hackers, malware, and suspicious activity before they can do any harm. With Firewall, you get peace of mind knowing your site is shielded by both powerful local protection and a constantly evolving global threat database. Enjoy more control, fewer worries, and a safer experience for you and your visitors.
-														</p>
-														<ul>
-														<li><strong>Local Firewall Protection:</strong> Stop threats at the door with real-time monitoring and blocking of suspicious requests, right on your site.</li>
-														<li><strong>Global Threat Intelligence:</strong> Benefit from a dynamic database of over 600 million known malicious IP addresses, updated every six hours using data from millions of sites worldwide.</li>
-														<li><strong>Login Protection:</strong> Defend your login page with repeated failed login blocking, brute force prevention, and built-in two-factor authentication (2FA) for extra security.</li>
-														<li><strong>Country Blocking:</strong> Instantly restrict access from any country to keep your site safe from targeted regions.</li>
-														<li><strong>Manual Whitelisting &amp; Blacklisting:</strong> Take full control by manually allowing or blocking specific IP addresses as needed.</li>
-														<li><strong>Custom Block Responses:</strong> Show a personalized message to blocked visitors or redirect them to any URL you choose.</li>
-														</ul>
-														<p>
-														<em>Give your site the proactive protection it deserves—activate Firewall and stay one step ahead of online threats.</em>
-														</p>
-														
-														
-														
-														<p class="fomlink"><a target="_blank" href="<?php 
+
+
+
+
+				<p>
+					Protect your website and your reputation with Firewall, your always-on security partner. Instantly block hackers, malware, and suspicious activity before they can do any harm. With Firewall, you get peace of mind knowing your site is shielded by both powerful local protection and a constantly evolving global threat database. Enjoy more control, fewer worries, and a safer experience for you and your visitors.
+				</p>
+				<ul>
+					<li><strong>Local Firewall Protection:</strong> Stop threats at the door with real-time monitoring and blocking of suspicious requests, right on your site.</li>
+					<li><strong>Global Threat Intelligence:</strong> Benefit from a dynamic database of over 600 million known malicious IP addresses, updated every six hours using data from millions of sites worldwide.</li>
+					<li><strong>Login Protection:</strong> Defend your login page with repeated failed login blocking, brute force prevention, and built-in two-factor authentication (2FA) for extra security.</li>
+					<li><strong>Country Blocking:</strong> Instantly restrict access from any country to keep your site safe from targeted regions.</li>
+					<li><strong>Manual Whitelisting &amp; Blacklisting:</strong> Take full control by manually allowing or blocking specific IP addresses as needed.</li>
+					<li><strong>Custom Block Responses:</strong> Show a personalized message to blocked visitors or redirect them to any URL you choose.</li>
+				</ul>
+				<p>
+					<em>Give your site the proactive protection it deserves—activate Firewall and stay one step ahead of online threats.</em>
+				</p>
+
+
+
+				<p class="fomlink"><a target="_blank" href="<?php 
             echo esc_url( \WPSecurityNinja\Plugin\Utils::generate_sn_web_link( 'tab_firewall', '/cloud-firewall/' ) );
             ?>" class="button button-primary" rel="noopener">
-														<?php 
+						<?php 
             esc_html_e( 'Learn more', 'security-ninja' );
             ?>
-														</a></p>
-														
-														</div>
-														<?php 
+					</a></p>
+
+			</div>
+		<?php 
             echo '</div>';
         }
 
@@ -891,43 +895,41 @@ if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
         public static function render_malware_page() {
             echo '<div class="submit-test-container">';
             ?>
-														<div class="fomcont">
-														<h3>Malware scanner: Detect and eliminate hidden threats</h3>
-														
-														<img src="
-				<?php 
-            echo esc_url( WF_SN_PLUGIN_URL . '/images/malware-scanner.jpg' );
-            ?>
-									" alt="Find malicious files in your WordPress site" class="tabimage">
-														
-														<p>
-														Even the most secure websites can fall victim to malware. With Firewall and strong passwords, you’re already a step ahead—but hidden threats can still slip through.
-														</p>
-														<p>
-														That’s where the Malware Scanner comes in. Enjoy peace of mind knowing your site is regularly checked for malicious code, suspicious changes, and known attack patterns. Protect your reputation, your visitors, and your business with fast, thorough scans and clear results.
-														</p>
-														<ul>
-														<li><strong>Comprehensive Site Scanning:</strong> Quickly scan your entire website for code commonly found in malicious scripts and known attack signatures.</li>
-														<li><strong>Plugin Integrity Checks:</strong> Every public plugin from WordPress.org is verified against a master checklist to detect unauthorized file changes or tampering.</li>
-														<li><strong>Real-Time Alerts:</strong> Get instant notifications if suspicious code or modifications are found, so you can act before any damage is done.</li>
-														<li><strong>Easy-to-Understand Reports:</strong> See exactly what was scanned, what was found, and what steps to take next—no technical jargon required.</li>
-														<li><strong>Continuous Protection:</strong> Schedule regular scans to keep your site safe around the clock.</li>
-														</ul>
-														<p>
-														<em>Don’t let hidden threats compromise your hard work—activate Malware Scanner and keep your site clean, safe, and secure.</em>
-														</p>
-														<p class="fomlink"><a target="_blank" href="
+			<div class="fomcont">
+				<h3>Malware scanner: Detect and eliminate hidden threats</h3>
+
+				<img src="<?php 
+            echo esc_url( WF_SN_PLUGIN_URL . 'images/malware-scanner.jpg' );
+            ?>" alt="Find malicious files in your WordPress site" class="tabimage">
+
+				<p>
+					Even the most secure websites can fall victim to malware. With Firewall and strong passwords, you’re already a step ahead—but hidden threats can still slip through.
+				</p>
+				<p>
+					That’s where the Malware Scanner comes in. Enjoy peace of mind knowing your site is regularly checked for malicious code, suspicious changes, and known attack patterns. Protect your reputation, your visitors, and your business with fast, thorough scans and clear results.
+				</p>
+				<ul>
+					<li><strong>Comprehensive Site Scanning:</strong> Quickly scan your entire website for code commonly found in malicious scripts and known attack signatures.</li>
+					<li><strong>Plugin Integrity Checks:</strong> Every public plugin from WordPress.org is verified against a master checklist to detect unauthorized file changes or tampering.</li>
+					<li><strong>Real-Time Alerts:</strong> Get instant notifications if suspicious code or modifications are found, so you can act before any damage is done.</li>
+					<li><strong>Easy-to-Understand Reports:</strong> See exactly what was scanned, what was found, and what steps to take next—no technical jargon required.</li>
+					<li><strong>Continuous Protection:</strong> Schedule regular scans to keep your site safe around the clock.</li>
+				</ul>
+				<p>
+					<em>Don’t let hidden threats compromise your hard work—activate Malware Scanner and keep your site clean, safe, and secure.</em>
+				</p>
+				<p class="fomlink"><a target="_blank" href="
 				<?php 
             echo esc_url( \WPSecurityNinja\Plugin\Utils::generate_sn_web_link( 'tab_malware', '/malware-scanner/' ) );
             ?>
 																										" class="button button-primary" rel="noopener">
-														<?php 
+						<?php 
             esc_html_e( 'Learn more', 'security-ninja' );
             ?>
-														</a></p>
-														</div>
-														</div>
-														<?php 
+					</a></p>
+			</div>
+			</div>
+		<?php 
         }
 
         /**
@@ -942,32 +944,30 @@ if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
         public static function render_scheduled_scanner_page() {
             echo '<div class="submit-test-container">';
             ?>
-														<div class="fomcont">
-														<h3>Scheduled Scanner</h3>
-														
-														<img src="
-				<?php 
-            echo esc_url( WF_SN_PLUGIN_URL . '/images/scheduler.jpg' );
-            ?>
-									" alt="Scan the thousands of files that runs WordPress" class="tabimage">
-														
-														<p>The Scheduled Scanner gives you an additional peace of mind by automatically running Security Ninja and Core
-														Scanner tests every day.</p>
-														
-														<p>If any changes occur or your site gets hacked you will immediately get notified via email.</p>
-														
-														<p class="fomlink"><a target="_blank" href="
+			<div class="fomcont">
+				<h3>Scheduled Scanner</h3>
+
+				<img src="<?php 
+            echo esc_url( WF_SN_PLUGIN_URL . 'images/scheduler.jpg' );
+            ?>" alt="Scan the thousands of files that runs WordPress" class="tabimage">
+
+				<p>The Scheduled Scanner gives you an additional peace of mind by automatically running Security Ninja and Core
+					Scanner tests every day.</p>
+
+				<p>If any changes occur or your site gets hacked you will immediately get notified via email.</p>
+
+				<p class="fomlink"><a target="_blank" href="
 				<?php 
             echo esc_url( \WPSecurityNinja\Plugin\Utils::generate_sn_web_link( 'tab_scheduled_scanner', '/scheduled-scanner/' ) );
             ?>
 																										" class="button button-primary" rel="noopener">
-														<?php 
+						<?php 
             esc_html_e( 'Learn more', 'security-ninja' );
             ?>
-														</a></p>
-														</div>
-														</div>
-														<?php 
+					</a></p>
+			</div>
+			</div>
+			<?php 
         }
 
         /**
@@ -1101,54 +1101,53 @@ if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
             $pointer_content .= '<p><a href="' . esc_url( $link_to_url ) . '" class="startsecnin alignright button button-primary">' . esc_html__( 'Get started', 'security-ninja' ) . '</a></p>';
             if ( $show_pointer ) {
                 ?>
-															<script type="text/javascript">
-															jQuery(document).ready(function($) {
-																var $menu_item = $('#toplevel_page_wf-sn');
-																
-																$menu_item.pointer({
-																	content: '
+				<script type="text/javascript">
+					jQuery(document).ready(function($) {
+						var $menu_item = $('#toplevel_page_wf-sn');
+
+						$menu_item.pointer({
+							content: '
 							<?php 
                 echo wp_kses( $pointer_content, 'post' );
-                ?>
-												',
-																	position: {
-																		edge: 'left',
-																		align: 'center'
-																	},
-																	close: function() {
-																		$.post(ajaxurl, {
-																			pointer: 'secninja_tour_pointer',
-																			action: 'dismiss-wp-pointer'
-																		});
-																	}
-																}).pointer('open');
-																
-																
-																jQuery(document).on('click', '.startsecnin', function() {
-																	event.preventDefault(); // Prevent the default action of the <a> element
-																	
-																	// AJAX request to dismiss the pointer
-																	var dismissPointer = jQuery.post(ajaxurl, {
-																		pointer: 'secninja_tour_pointer',
-																		action: 'dismiss-wp-pointer'
-																	});
-																	
-																	// Wait for the AJAX request to complete
-																	dismissPointer.done(function(response) {
-																		// Close the pointer
-																		$menu_item.pointer('close');
-																		// Continue with any other actions, e.g., navigating to the link
-																		window.location.href = jQuery('.startsecnin').attr('href');
-																	});
-																	
-																	dismissPointer.fail(function(jqXHR, textStatus, errorThrown) {
-																		// Handle failure
-																	});
-																});
-																
-															});
-															</script>
-															<?php 
+                ?> ',
+							position: {
+								edge: 'left',
+								align: 'center'
+							},
+							close: function() {
+								$.post(ajaxurl, {
+									pointer: 'secninja_tour_pointer',
+									action: 'dismiss-wp-pointer'
+								});
+							}
+						}).pointer('open');
+
+
+						jQuery(document).on('click', '.startsecnin', function() {
+							event.preventDefault(); // Prevent the default action of the <a> element
+
+							// AJAX request to dismiss the pointer
+							var dismissPointer = jQuery.post(ajaxurl, {
+								pointer: 'secninja_tour_pointer',
+								action: 'dismiss-wp-pointer'
+							});
+
+							// Wait for the AJAX request to complete
+							dismissPointer.done(function(response) {
+								// Close the pointer
+								$menu_item.pointer('close');
+								// Continue with any other actions, e.g., navigating to the link
+								window.location.href = jQuery('.startsecnin').attr('href');
+							});
+
+							dismissPointer.fail(function(jqXHR, textStatus, errorThrown) {
+								// Handle failure
+							});
+						});
+
+					});
+				</script>
+			<?php 
             }
         }
 
@@ -1564,48 +1563,57 @@ if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
             );
             $tabs = apply_filters( 'sn_tabs', $tabs );
             ?>
-																					<div class="wrap">
-																					<?php 
+			<div class="wrap">
+				<?php 
             wf_sn::show_topbar();
             ?>
-																					<div class="secnin_content_wrapper">
-																					<?php 
-            ?>
-																					
-																					<div class="secnin_content_cell" id="secnin_content_top">
-																					
-																					<?php 
+				<div class="secnin_content_wrapper">
+					<div class="secnin_content_cell" id="secnin_content_top">
+
+						<?php 
             $show_welcome = isset( $_GET['welcome'] ) && '1' === sanitize_text_field( $_GET['welcome'] );
             if ( $show_welcome ) {
                 $docs_url = \WPSecurityNinja\Plugin\Utils::generate_sn_web_link( 'welcome_notice', '/docs/' );
                 $help_url = \WPSecurityNinja\Plugin\Utils::generate_sn_web_link( 'welcome_notice', '/help/' );
+                $getting_started = \WPSecurityNinja\Plugin\Utils::generate_sn_web_link( 'welcome_notice', '/get-started/' );
                 ?>
-																						<div class="secnin-welcome-notice">
-																						<h3><?php 
+							<div class="secnin-welcome-notice sncard">
+								<h2>👋 <?php 
                 esc_html_e( 'Welcome to Security Ninja!', 'security-ninja' );
+                ?></h2>
+								<h3><?php 
+                esc_html_e( 'Awesome move! You have just added a powerful layer of protection to your WordPress site.', 'security-ninja' );
                 ?></h3>
-																						<p><?php 
-                esc_html_e( 'Thank you for choosing Security Ninja to protect your WordPress site. Get started by running the security tests below to check your site for vulnerabilities.', 'security-ninja' );
+
+								<?php 
+                $letsstart = true;
+                if ( $letsstart ) {
+                    ?>
+<div class="sncard">
+<p>Let's kick things off — run your first security test below to quickly scan for any vulnerabilities hiding in your setup.</p>
+<a href="#sn_tests" class="button snbutton sectests greenbtn"><?php 
+                    esc_html_e( 'Run Security Tests', 'security-ninja' );
+                    ?></a>
+</div>
+
+
+<?php 
+                }
                 ?>
-																						</p>
-																						<p><?php 
-                esc_html_e( 'For more information, please refer to the', 'security-ninja' );
-                ?> <a href="<?php 
-                echo esc_url( $docs_url );
-                ?>" target="_blank"><?php 
-                esc_html_e( 'documentation', 'security-ninja' );
-                ?></a>.</p>
-																						<?php 
+
+<?php 
                 ?>
-																						
-																						
-																						</div>
-																						<?php 
+
+								<p>You're just a few clicks away from a safer, smarter website. Let's go!</p>
+								<div class="closeme">X</div>
+							</div>
+						<?php 
             }
+            do_action( 'secnin_signup_to_newsletter' );
             ?>
-																					
-																					<div class="nav-tab-wrapper" id="wf-sn-tabs">
-																					<?php 
+
+						<div class="nav-tab-wrapper" id="wf-sn-tabs">
+							<?php 
             foreach ( $tabs as $tab ) {
                 $extra = '';
                 $class = 'nav-tab ' . $tab['class'];
@@ -1624,9 +1632,9 @@ if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
                 }
             }
             ?>
-																							</div>
-																							<div id="sn_tabscont">
-																							<?php 
+						</div>
+						<div id="sn_tabscont">
+							<?php 
             foreach ( $tabs as $tab ) {
                 if ( !empty( $tab['callback'] ) ) {
                     $class = 'wf-sn-tab';
@@ -1639,13 +1647,13 @@ if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
                 }
             }
             ?>
-																							</div>
-																							<?php 
+						</div>
+						<?php 
             include_once 'includes/sidebar.php';
             ?>
-																							</div>
-																							</div>
-																							<?php 
+					</div>
+				</div>
+				<?php 
             if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
                 $helpscoutbeacon = '';
                 if ( secnin_fs()->is_registered() ) {
@@ -1722,14 +1730,14 @@ if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
             $response['bad'] = $bad;
             $response['warning'] = $warning;
             $response['score'] = $score;
-            $all_tests = Wf_Sn_Tests::return_security_tests();
+            // $all_tests           = Wf_Sn_Tests::return_security_tests();
             // generate output
             $output = '';
             $output .= '<div id="counters">';
-            $output .= '<span class="good">' . $good . '<br><i>' . __( 'Passed', 'security-ninja' ) . '</i></span>';
-            $output .= '<span class="warning">' . $warning . '<br><i>' . __( 'Warnings', 'security-ninja' ) . '</i></span>';
-            $output .= '<span class="bad">' . $bad . '<br><i>' . __( 'Failed', 'security-ninja' ) . '</i></span>';
-            $output .= '<span class="score">' . $score . '%<br><i>' . __( 'Score', 'security-ninja' ) . '</i></span>';
+            $output .= '<span class="edge good"><span class="val">' . $good . '</span><i>' . __( 'Passed', 'security-ninja' ) . '</i></span>';
+            $output .= '<span class="edge warning"><span class="val">' . $warning . '</span><i>' . __( 'Warnings', 'security-ninja' ) . '</i></span>';
+            $output .= '<span class="edge bad"><span class="val">' . $bad . '</span><i>' . __( 'Failed', 'security-ninja' ) . '</i></span>';
+            $output .= '<span class="edge score"><span class="val">' . $score . '%</span><i>' . __( 'Score', 'security-ninja' ) . '</i></span>';
             $output .= '</div>';
             $response['output'] = $output;
             return $response;
@@ -1770,14 +1778,20 @@ if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
         public static function tab_tests() {
             $testsresults = self::get_test_results();
             ?>
-																							<div class="submit-test-container">
-																							<h3>
-																							<?php 
+				<div class="submit-test-container">
+					<div class="sncard">
+					<h2><span class="dashicons dashicons-list-view"></span> 
+						<?php 
             esc_html_e( 'Test your website security', 'security-ninja' );
             ?>
-																							</h3>
-																							<div class="testresults" id="testscores">
-																							<?php 
+					</h2>
+					<p class="description">
+						<?php 
+            esc_html_e( 'Run comprehensive security tests to identify potential vulnerabilities and strengthen your website\'s defenses', 'security-ninja' );
+            ?>
+					</p>
+					<div class="testresults" id="testscores">
+						<?php 
             $scores = self::return_test_scores();
             if ( isset( $scores['output'] ) ) {
                 $allowed_html = array(
@@ -1793,21 +1807,25 @@ if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
                 echo wp_kses( $scores['output'], $allowed_html );
             }
             ?>
-																							</div>
-																							<?php 
+					</div>
+					</div>
+					<?php 
             $tests = wf_sn_tests::return_security_tests();
-            $out = '<input type="submit" value="' . __( 'Run Tests', 'security-ninja' ) . '" id="run-selected-tests" class="button button-primary button-hero" name="Submit" />';
+            $out = '<div id="runtestsrow"><input type="submit" value="' . __( 'Run Tests', 'security-ninja' ) . '" id="run-selected-tests" class="button button-primary button-hero" name="Submit" />';
             $out .= '<span class="runtestsbn spinner"></span>';
             $out .= '<div id="secninja-tests-quickselect">';
             $out .= '<span>' . __( 'Quick Filter', 'security-ninja' ) . ':</span><ul><li><a href="#" id="sn-quickselect-all">' . __( 'All', 'security-ninja' ) . '</a></li><li><a href="#" id="sn-quickselect-failed">' . __( 'Failed', 'security-ninja' ) . '</a></li><li><a href="#"  id="sn-quickselect-warning">' . __( 'Warning', 'security-ninja' ) . '</a></li><li><a href="#" id="sn-quickselect-okay">' . __( 'Passed', 'security-ninja' ) . '</a></li><li><a href="#" id="sn-quickselect-untested">' . __( 'Untested', 'security-ninja' ) . '</a></li></ul>';
-            $out .= '</div>';
-            $out .= '<table class="wp-list-table widefat striped" cellspacing="0" id="security-ninja">';
+            $out .= '</div></div>';
+            $out .= '<table class="wp-list-table widefat" cellspacing="0" id="security-ninja">';
             $out .= '<thead><tr>';
             $out .= '<td id="cb" class="manage-column column-cb check-column">';
             $out .= '<label class="screen-reader-text" for="cb-select-all-1">' . __( 'Select All', 'security-ninja' ) . '</label>';
             $out .= '<input id="cb-select-all-1" type="checkbox"></td>';
+            $out .= '<th>' . __( 'Status', 'security-ninja' ) . '</th>';
             $out .= '<th class="column-primary">' . __( 'Security Test', 'security-ninja' ) . '</th>';
-            $out .= '<th><span class="secnin_expand_all_details">' . __( 'Expand All', 'security-ninja' ) . '</span></th>';
+            $out .= '<th>' . __( 'Actions', 'security-ninja' );
+            // $out .= '<br><small><span class="secnin_expand_all_details">' . __('Expand all', 'security-ninja') . '</span></small>';
+            $out .= '</th>';
             $out .= '</tr></thead>';
             $out .= '<tbody>';
             if ( is_array( $tests ) ) {
@@ -1822,16 +1840,16 @@ if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
                     if ( isset( $testsresults['test'][$test_name]['status'] ) ) {
                         $out .= '<tr class="wf-sn-test-row-status-' . $testsresults['test'][$test_name]['status'] . ' test test_' . $test_name . '">';
                         if ( 0 === intval( $testsresults['test'][$test_name]['status'] ) ) {
-                            $outlabel = '<span class="wf-sn-label sn-error">' . __( 'Fail', 'security-ninja' ) . '</span>';
+                            $outlabel = '<span class="teststatus fail">' . __( '✗', 'security-ninja' ) . '</span>';
                         } elseif ( 5 === intval( $testsresults['test'][$test_name]['status'] ) ) {
-                            $outlabel = '<span class="wf-sn-label sn-warning">' . __( 'Warning', 'security-ninja' ) . '</span>';
+                            $outlabel = '<span class="teststatus warning">' . __( '&#9888;', 'security-ninja' ) . '</span>';
                         } elseif ( 10 === intval( $testsresults['test'][$test_name]['status'] ) ) {
-                            $outlabel = '<span class="wf-sn-label sn-success">' . __( 'OK', 'security-ninja' ) . '</span>';
+                            $outlabel = '<span class="teststatus pass">' . __( '✓', 'security-ninja' ) . '</span>';
                         }
                     } else {
                         // lars - kommenteret ud ellers kom der er et "d" med
                         $out .= '<tr class="wf-sn-test-row-status-null test test_' . $test_name . '">';
-                        $outlabel = '<span class="wf-sn-label sn-untested">' . __( 'Untested', 'security-ninja' ) . '</span>';
+                        $outlabel = '<span class="teststatus untested">' . __( 'Untested', 'security-ninja' ) . '</span>';
                     }
                     $checkedoutput = checked( true, true, false );
                     if ( !isset( $options['run_tests'] ) ) {
@@ -1845,7 +1863,8 @@ if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
                         }
                     }
                     $out .= '<th scope="row" class="check-column"><input id="cb-select-' . $stepid . '" type="checkbox" name="sntest[]" value="' . sanitize_key( $test_name ) . '" ' . $checkedoutput . '/></th>';
-                    $out .= '<td class="column-primary" data-colname="Test">' . $outlabel . '<label for="cb-select-' . $stepid . '"><span class="wf-sn-test-title">' . $details['title'] . '</span></label>';
+                    $out .= '<td scope="row" class="">' . $outlabel . '</td>';
+                    $out .= '<td class="column-primary" data-colname="Test"><label for="cb-select-' . $stepid . '"><span class="wf-sn-test-title">' . $details['title'] . '</span></label></br>';
                     if ( isset( $testsresults['test'][$test_name]['msg'] ) ) {
                         // only add details if failed or warning
                         $outmessage = $testsresults['test'][$test_name]['msg'];
@@ -1879,8 +1898,9 @@ if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
             }
             $out .= '</tbody>';
             $out .= '<tfoot><tr>';
-            $out .= '<td class="manage-column column-cb check-column"><label class="screen-reader-text" for="cb-select-all-2">' . __( 'Select All', 'security-ninja' ) . '</label><input id="cb-select-all-2" type="checkbox"></td>';
-            $out .= '<th class="column-primary">' . __( 'Security Test', 'security-ninja' ) . '</th><th></th>';
+            $out .= '<th class="manage-column column-cb check-column"><label class="screen-reader-text" for="cb-select-all-2">' . __( 'Select All', 'security-ninja' ) . '</label><input id="cb-select-all-2" type="checkbox"></th>';
+            $out .= '<th>ss</th>';
+            $out .= '<th class="column-primary">' . __( 'Security Test', 'security-ninja' ) . '</th><th>Actions</th>';
             $out .= '</tr></tfoot>';
             $out .= '</table>';
             $allowed_html = array_merge( wp_kses_allowed_html( 'post' ), array(
@@ -1896,18 +1916,18 @@ if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
             $out = apply_filters( 'sn_tests_table', $out, $tests );
             echo wp_kses( $out, $allowed_html );
             ?>
-																								<p>
-																								<?php 
+					<p>
+						<?php 
             esc_html_e( 'Although these tests cover years of best practices in security, getting all test green does not guarantee your site will not get hacked. Likewise, having them all red does not mean you will get hacked.', 'security-ninja' );
             ?>
-																								</p>
-																								<p>
-																								<?php 
+					</p>
+					<p>
+						<?php 
             esc_html_e( "Please read each test's detailed information to see if it represents a real security issue for your site.", 'security-ninja' );
             ?>
-																								</p>
-																								</div>
-																								<?php 
+					</p>
+				</div>
+	<?php 
         }
 
         /**

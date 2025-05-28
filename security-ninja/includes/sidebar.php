@@ -11,7 +11,7 @@ global $secnin_fs;
 <div class="secnin_content_cell" id="sidebar-container">
 
 	<div class="sidebarsection feature">
-		<h3><span class="dashicons dashicons-welcome-learn-more"></span> <?php 
+		<h3><span class="dashicons dashicons-info-outline"></span> <?php 
 esc_html_e( 'Learn more', 'security-ninja' );
 ?></h3>
 		<ul class="linklist">
@@ -163,7 +163,7 @@ if ( function_exists( 'secnin_fs' ) ) {
 }
 ?>
 	<div class="sidebarsection feature">
-		<h3><span class="dashicons dashicons-info"></span> <?php 
+		<h3><span class="dashicons dashicons-info-outline"></span> <?php 
 esc_html_e( 'Plugin help', 'security-ninja' );
 ?></h3>
 		<ul class="linklist">
@@ -178,15 +178,12 @@ esc_html_e( 'Support Forum', 'security-ninja' );
 
 		</ul>
 		<ul class="linklist">
-			<li><a href="#" class="secninfs-reset-activation"><?php 
-esc_html_e( 'Reset Account', 'security-ninja' );
-?></a></li>
 
 <?php 
 if ( secnin_fs()->is_not_paying() ) {
     ?>
 			<li><a href="#" class="secninfs-reset-activation"><?php 
-    esc_html_e( 'dfgsfgsdfgsdgf Account', 'security-ninja' );
+    esc_html_e( 'Reset Account', 'security-ninja' );
     ?></a></li>
 <?php 
 }
@@ -194,8 +191,8 @@ if ( secnin_fs()->is_not_paying() ) {
 		</ul>
 	</div><!-- .sidebarsection -->
 	<?php 
-$show_pro_ad = true;
-if ( secnin_fs()->is_not_paying() ) {
+$show_pro_ad = false;
+if ( secnin_fs()->is_not_paying() && $show_pro_ad ) {
     ?>
 <div class="sidebarsection feature upgradepro">
 	<h3>Effortless Security for Your Site!</h3>

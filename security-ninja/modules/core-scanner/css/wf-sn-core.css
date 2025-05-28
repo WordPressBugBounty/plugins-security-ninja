@@ -22,45 +22,15 @@
 	clear: both;
 	float: left;
 	width: 100%;
-display: none;
 	margin-bottom: 20px;
 }
-/*
-.toplevel_page_wf-sn .sn-cs-changed-bad p,
-.toplevel_page_wf-sn .sn-cs-missing-bad p,
-.toplevel_page_wf-sn .sn-cs-changed-ok p,
-.toplevel_page_wf-sn .sn-cs-missing-ok p,
-.toplevel_page_wf-sn .sn-cs-ok p {
-	font-size:12px;	font-weight:normal;
-	margin-bottom:15px;color: #666; padding:15px;
-	box-sizing:border-box;
-}
-*/
+
 .toplevel_page_wf-sn .sn-cs-changed-bad h4,
 .toplevel_page_wf-sn .sn-cs-missing-bad h4,
 .toplevel_page_wf-sn .sn-cs-changed-ok h4,
 .toplevel_page_wf-sn .sn-cs-missing-ok h4,
 .toplevel_page_wf-sn .sn-cs-ok h4 {
 	font-size:17px;
-}
-
-.sn-cs-missing-bad,
-.sn-cs-changed-bad,
-.sn-cs-changed-bad {
-	margin-bottom: 30px;
-
-}
-
-
-.toplevel_page_wf-sn .sn-cs-changed-bad h4::before {
-	content: "Error";
-	display: inline-block;
-	background-color: #ff0000;
-	color: #ffffff;
-	padding: 2px 5px;
-	font-size: 12px;
-	font-weight: bold;
-	margin-right: 10px;
 }
 
 .toplevel_page_wf-sn .sn-cs-changed-bad h4 {
@@ -72,18 +42,6 @@ display: none;
 	display:block;
 	margin-bottom: 0;
 }
-
-.toplevel_page_wf-sn .sn-cs-missing-bad h4::before {
-	content: "Warning";
-	display: inline-block;
-	background-color: #EFA800;
-	color: #ffffff;
-	padding: 2px 5px;
-	font-size: 12px;
-	font-weight: bold;
-	margin-right: 10px;
-}
-
 
 .toplevel_page_wf-sn .sn-cs-changed-ok h4 {
 	color:#6FBF00; margin-bottom: 0;
@@ -175,16 +133,6 @@ font-size: 13px
 	color: #ff0000;
 }
 
-.toplevel_page_wf-sn .core-title {
-	background: #f9f9f9;
-	padding: 15px;
-	margin-bottom: 10px;
-}
-
-.toplevel_page_wf-sn .core-title h4 {
-	font-size: 16px;
-}
-
 /*
 #sn-cs-results {
 
@@ -209,7 +157,6 @@ font-size: 13px
 .toplevel_page_wf-sn .sn-cs-changed-ok p,
 .toplevel_page_wf-sn .sn-cs-changed-bad p {
 	text-align: left;
-	width: 800px;
 	display: inline-block;
 }
 
@@ -230,9 +177,9 @@ font-size: 13px
 
 .toplevel_page_wf-sn .sn-file-list li {
 	text-align: right;
-	background: #f9f9f9;
-}
 
+}
+/*
 .toplevel_page_wf-sn .sn-file-list li span {
 	float: left;
 	padding-left: 25px;
@@ -240,35 +187,14 @@ font-size: 13px
 	text-align: left;
 	height: 38px;
 	line-height: 38px;
-
-
-
-
-	display: inline-block;
+	display: block;
 	color: #000000;
 	font-family: Consolas,Monaco,monospace;
 	font-size: 12px;
-
-
-
 }
-
+*/
 .toplevel_page_wf-sn .sn-cs-missing-ok .sn-file-list li span:before,
 .toplevel_page_wf-sn .sn-cs-changed-ok .sn-file-list li span:before {
-	display: inline-block;
-	content: '>';
-	font-size: 12px;
-	width: 15px;
-	height: 15px;
-	color: #ff0000;
-	text-align: center;
-	line-height: 19px;
-	position: absolute;
-	left: 5px;
-	top: 10px;
-}
-
-.toplevel_page_wf-sn .sn-file-list li span:before {
 	display: inline-block;
 	content: '>';
 	font-size: 12px;
