@@ -5,7 +5,7 @@ Plugin Name: Security Ninja (Premium)
 Plugin URI: https://wpsecurityninja.com/
 Description: Check your site for <strong>security vulnerabilities</strong> and get precise suggestions for corrective actions on passwords, user accounts, file permissions, database security, version hiding, plugins, themes, security headers and other security aspects.
 Author: WP Security Ninja
-Version: 5.236
+Version: 5.237
 Author URI: https://wpsecurityninja.com/
 License: GPLv3
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
@@ -1589,19 +1589,19 @@ if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
                 $letsstart = true;
                 if ( $letsstart ) {
                     ?>
-<div class="sncard">
-<p>Let's kick things off — run your first security test below to quickly scan for any vulnerabilities hiding in your setup.</p>
-<a href="#sn_tests" class="button snbutton sectests greenbtn"><?php 
+									<div class="sncard">
+										<p>Let's kick things off — run your first security test below to quickly scan for any vulnerabilities hiding in your setup.</p>
+										<a href="#sn_tests" class="button-large button snbtn greenbtn"><span class="dashicons dashicons-shield-alt"></span> <?php 
                     esc_html_e( 'Run Security Tests', 'security-ninja' );
                     ?></a>
-</div>
+									</div>
 
 
-<?php 
+								<?php 
                 }
                 ?>
 
-<?php 
+								<?php 
                 ?>
 
 								<p>You're just a few clicks away from a safer, smarter website. Let's go!</p>
@@ -1653,23 +1653,9 @@ if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
             ?>
 					</div>
 				</div>
-				<?php 
-            if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
-                $helpscoutbeacon = '';
-                if ( secnin_fs()->is_registered() ) {
-                    if ( secnin_fs()->is_tracking_allowed() ) {
-                        $helpscoutbeacon = '<script type="text/javascript">!function(e,t,n){function a(){var e=t.getElementsByTagName("script")[0],n=t.createElement("script");n.type="text/javascript",n.async=!0,n.src="https://beacon-v2.helpscout.net",e.parentNode.insertBefore(n,e)}if(e.Beacon=n=function(t,n,a){e.Beacon.readyQueue.push({method:t,options:n,data:a})},n.readyQueue=[],"complete"===t.readyState)return a();e.attachEvent?e.attachEvent("onload",a):e.addEventListener("load",a,!1)}(window,document,window.Beacon||function(){});</script><script type="text/javascript">window.Beacon("init", "5d0c1eff-d44a-48c4-beff-d88f5964e59e")</script>';
-                    }
-                }
-                $allowed_html = array(
-                    'script' => array(
-                        'type' => array(),
-                        'src'  => array(),
-                    ),
-                );
-                echo wp_kses( $helpscoutbeacon, $allowed_html );
-            }
-            echo '</div>';
+			</div>
+
+		<?php 
         }
 
         /**
@@ -1778,20 +1764,19 @@ if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
         public static function tab_tests() {
             $testsresults = self::get_test_results();
             ?>
-				<div class="submit-test-container">
-					<div class="sncard">
-					<h2><span class="dashicons dashicons-list-view"></span> 
-						<?php 
+			<div class="submit-test-container">
+				<h2><span class="dashicons dashicons-list-view"></span>
+					<?php 
             esc_html_e( 'Test your website security', 'security-ninja' );
             ?>
-					</h2>
-					<p class="description">
-						<?php 
+				</h2>
+				<p class="description">
+					<?php 
             esc_html_e( 'Run comprehensive security tests to identify potential vulnerabilities and strengthen your website\'s defenses', 'security-ninja' );
             ?>
-					</p>
-					<div class="testresults" id="testscores">
-						<?php 
+				</p>
+				<div class="testresults" id="testscores">
+					<?php 
             $scores = self::return_test_scores();
             if ( isset( $scores['output'] ) ) {
                 $allowed_html = array(
@@ -1807,9 +1792,9 @@ if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
                 echo wp_kses( $scores['output'], $allowed_html );
             }
             ?>
-					</div>
-					</div>
-					<?php 
+				</div>
+
+				<?php 
             $tests = wf_sn_tests::return_security_tests();
             $out = '<div id="runtestsrow"><input type="submit" value="' . __( 'Run Tests', 'security-ninja' ) . '" id="run-selected-tests" class="button button-primary button-hero" name="Submit" />';
             $out .= '<span class="runtestsbn spinner"></span>';
@@ -1899,7 +1884,7 @@ if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
             $out .= '</tbody>';
             $out .= '<tfoot><tr>';
             $out .= '<th class="manage-column column-cb check-column"><label class="screen-reader-text" for="cb-select-all-2">' . __( 'Select All', 'security-ninja' ) . '</label><input id="cb-select-all-2" type="checkbox"></th>';
-            $out .= '<th>ss</th>';
+            $out .= '<th></th>';
             $out .= '<th class="column-primary">' . __( 'Security Test', 'security-ninja' ) . '</th><th>Actions</th>';
             $out .= '</tr></tfoot>';
             $out .= '</table>';
@@ -1916,18 +1901,18 @@ if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
             $out = apply_filters( 'sn_tests_table', $out, $tests );
             echo wp_kses( $out, $allowed_html );
             ?>
-					<p>
-						<?php 
+				<p>
+					<?php 
             esc_html_e( 'Although these tests cover years of best practices in security, getting all test green does not guarantee your site will not get hacked. Likewise, having them all red does not mean you will get hacked.', 'security-ninja' );
             ?>
-					</p>
-					<p>
-						<?php 
+				</p>
+				<p>
+					<?php 
             esc_html_e( "Please read each test's detailed information to see if it represents a real security issue for your site.", 'security-ninja' );
             ?>
-					</p>
-				</div>
-	<?php 
+				</p>
+			</div>
+<?php 
         }
 
         /**

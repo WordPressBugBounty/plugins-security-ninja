@@ -99,7 +99,7 @@ class WF_SN_Overview_Tab {
             echo esc_html__( 'Tests failed', 'security-ninja' );
             ?></span></div>
           </div>
-          <div class="secscore-link"><a href="#sn_tests"><?php 
+          <div class="secscore-link"><a href="#sn_tests" class="button snbtn alignright"><?php 
             echo esc_html__( 'Visit Security Tests', 'security-ninja' );
             ?> &rarr;</a></div>
 
@@ -212,7 +212,7 @@ class WF_SN_Overview_Tab {
                 $summary .= ')';
             }
             echo '<p class="sn-updates-summary">' . wp_kses_post( $summary ) . '</p>';
-            echo '<div class="sn-updates-link"><a href="' . esc_url( admin_url( 'update-core.php' ) ) . '" class="snbtn gray">' . esc_html__( 'Go to WordPress Updates', 'security-ninja' ) . ' &rarr; </a></div>';
+            echo '<div class="sn-updates-link"><a href="' . esc_url( admin_url( 'update-core.php' ) ) . '" class="button snbtn alignright">' . esc_html__( 'Go to WordPress Updates', 'security-ninja' ) . ' &rarr; </a></div>';
             echo '</div>';
         }
         ?>

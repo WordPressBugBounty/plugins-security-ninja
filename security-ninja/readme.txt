@@ -5,8 +5,8 @@ Tags: security, malware, firewall, virus, login
 License: GPLv3
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 Requires at least: 4.7
-Tested up to: 6.8.1
-Stable tag: 5.236
+Tested up to: 6.8.2
+Stable tag: 5.237
 Requires PHP: 7.4
 
 Ultimate WordPress security plugin with malware scanning, firewall, and login protection. Keep your site safe from threats effortlessly.
@@ -20,10 +20,6 @@ Security Ninja Plugin proactively identifies security risks, ensuring your WordP
 Whether you're a beginner or an advanced user, Security Ninja is designed for effortless WordPress security management, keeping your site safe while you focus on growing your business. Install today and take control of your website's security!
 
 This plugin can be downloaded for free without any paid subscription from <a href="https://wordpress.org/plugins/security-ninja/">the official WordPress repository</a>.
-
-Security Ninja Installation and Setup Video Tutorial
-[youtube https://www.youtube.com/watch?v=L2Juu4m8KH8]
-
 
 **Why Choose Security Ninja? – The Ultimate WordPress Security Plugin**
 
@@ -330,15 +326,24 @@ While we strive for universal compatibility, if you face any issues, our support
 
 1. Fast & easy to understand interface.
 2. Security Ninja test results are simple and easy to read.
-3. Every test has a detailed explanation and instructions on how to fix the problem.
-4. Vulnerable plugins list with details and recommendations - prevent known exploits in plugins.
+3. Vulnerable plugins list with details and recommendations - prevent known exploits in plugins.
+4. Core scanner
+
 
 == Changelog ==
+
+= 5.237 =
+* 2025-06-01
+* NEW: The emails from the Scheduled Scanner now contain details if any changes have been detected in the scheduled scans. No need to log in to see details.
+* Removed HelpScout beacon - we are transferring to a new support ticket system.
+* IMPROVED: Further improving the visual interface we introduced recently.
+* Improving the code, making the plugin load faster in the admin interface.
+
 
 = 5.236 =
 * 2025-05-28
 * Major improvements to the interface. More changes to come, but already a much nicer interface with more features and polish.
-* Many minor improvements under the hood -
+* Many minor improvements under the hood. Reworking the interface cleaned up underlying code.
 
 = 5.235 =
 * 2025-05-13
