@@ -6,7 +6,7 @@ License: GPLv3
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 Requires at least: 4.7
 Tested up to: 6.8.2
-Stable tag: 5.237
+Stable tag: 5.239
 Requires PHP: 7.4
 
 Ultimate WordPress security plugin with malware scanning, firewall, and login protection. Keep your site safe from threats effortlessly.
@@ -332,6 +332,19 @@ While we strive for universal compatibility, if you face any issues, our support
 
 == Changelog ==
 
+= 5.239 = 
+* FIX: "Details" button in events log would sometimes expand details and also reload the entire page.
+* Improved visuals on the overview page for the firewall events.
+* Continued improving the visual layout of the plugin.
+* Improvements to visitor logging - better filtering of unecessary requests.
+
+= 5.238 =
+* 2025-06-05
+* NEW: Improved WooCommerce protection - Block countries from logging in or registering via WooCommerce. 
+* NEW: Added method to activate license in the main sidebar if license has not been activated yet.
+* IMPROVED: Updated the "Fixes" page with the new interface.
+* IMPROVED: Visitor Log page fixed minor issues and implemented the new interface.
+
 = 5.237 =
 * 2025-06-01
 * NEW: The emails from the Scheduled Scanner now contain details if any changes have been detected in the scheduled scans. No need to log in to see details.
@@ -580,5 +593,5 @@ This update makes Security Ninja more accessible to millions of users worldwide,
 Entire changelog can be seen here: <a href="https://wpsecurityninja.com/changelog/" target="_blank">changelog</a>
 
 == Upgrade Notice ==
-5.142
-Recommended update. Please consider enabling auto-updates for Security Ninja to always stay updated. <a href="https://wpsecurityninja.com/docs/installation-and-usage/automatic-background-updates/?utm_source=wordpressorg&utm_medium=content&utm_campaign=readme&utm_content=upgradenotice" target="_blank">Enable auto-updates</a>
+5.238
+Recommended update, major updates and improvements!

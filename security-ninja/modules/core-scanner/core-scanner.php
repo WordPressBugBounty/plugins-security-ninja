@@ -696,9 +696,9 @@ class Wf_Sn_Cs {
     public static function core_page() {
         ?>
         <div class="submit-test-container sncard settings-card">
-            <h3><span class="dashicons dashicons-text"></span> <?php 
+            <h2><span class="dashicons dashicons-text"></span> <?php 
         echo esc_html__( 'Scan Core WordPress Files', 'security-ninja' );
-        ?></h3>
+        ?></h2>
 
             <p><?php 
         esc_html_e( 'Check for modified files in WordPress itself and detect extra files that should not be there.', 'security-ninja' );

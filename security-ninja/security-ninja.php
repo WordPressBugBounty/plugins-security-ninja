@@ -5,7 +5,7 @@ Plugin Name: Security Ninja (Premium)
 Plugin URI: https://wpsecurityninja.com/
 Description: Check your site for <strong>security vulnerabilities</strong> and get precise suggestions for corrective actions on passwords, user accounts, file permissions, database security, version hiding, plugins, themes, security headers and other security aspects.
 Author: WP Security Ninja
-Version: 5.237
+Version: 5.239
 Author URI: https://wpsecurityninja.com/
 License: GPLv3
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
@@ -903,10 +903,10 @@ if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
             ?>" alt="Find malicious files in your WordPress site" class="tabimage">
 
 				<p>
-					Even the most secure websites can fall victim to malware. With Firewall and strong passwords, you’re already a step ahead—but hidden threats can still slip through.
+					Even the most secure websites can fall victim to malware. With Firewall and strong passwords, you're already a step ahead—but hidden threats can still slip through.
 				</p>
 				<p>
-					That’s where the Malware Scanner comes in. Enjoy peace of mind knowing your site is regularly checked for malicious code, suspicious changes, and known attack patterns. Protect your reputation, your visitors, and your business with fast, thorough scans and clear results.
+					That's where the Malware Scanner comes in. Enjoy peace of mind knowing your site is regularly checked for malicious code, suspicious changes, and known attack patterns. Protect your reputation, your visitors, and your business with fast, thorough scans and clear results.
 				</p>
 				<ul>
 					<li><strong>Comprehensive Site Scanning:</strong> Quickly scan your entire website for code commonly found in malicious scripts and known attack signatures.</li>
@@ -916,7 +916,7 @@ if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
 					<li><strong>Continuous Protection:</strong> Schedule regular scans to keep your site safe around the clock.</li>
 				</ul>
 				<p>
-					<em>Don’t let hidden threats compromise your hard work—activate Malware Scanner and keep your site clean, safe, and secure.</em>
+					<em>Don't let hidden threats compromise your hard work—activate Malware Scanner and keep your site clean, safe, and secure.</em>
 				</p>
 				<p class="fomlink"><a target="_blank" href="
 				<?php 

@@ -903,7 +903,7 @@ class Wf_Sn_Vu {
 				<?php 
         if ( isset( $vulnerabilities['wordpress'] ) || isset( $vulnerabilities['plugins'] ) || isset( $vulnerabilities['themes'] ) ) {
             ?>
-					<h2><?php 
+					<h2 class="warning"><span class="dashicons dashicons-sos"></span><?php 
             esc_html_e( 'Vulnerabilities found on your system!', 'security-ninja' );
             ?></h2>
 

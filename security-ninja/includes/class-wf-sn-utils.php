@@ -3,7 +3,6 @@
 namespace WPSecurityNinja\Plugin;
 
 use Wf_Sn;
-// this is an include only WP file
 if ( !defined( 'ABSPATH' ) ) {
     die;
 }
@@ -275,7 +274,7 @@ class Utils {
         if ( 'pending' !== get_option( 'secnin_fs_migrated2fs', 'pending' ) ) {
             return;
         }
-        // Check if license.txt exists in the plugin directory and use it to activate the license
+        // Check if license_key.txt exists in the plugin directory and use it to activate the license
         $license_file = WF_SN_PLUGIN_DIR . 'license_key.txt';
         $license_key = '';
         if ( file_exists( $license_file ) ) {
@@ -284,7 +283,7 @@ class Utils {
                 $license_key = trim( $file_contents[0] );
                 if ( empty( $license_key ) || strlen( $license_key ) !== 32 || strpos( $license_key, 'sk_' ) !== 0 ) {
                     $license_key = '';
-                    error_log( __( 'Invalid license key format detected. Expected 32 characters starting with "sk_".', 'security-ninja' ), 0 );
+                    error_log( 'WP Security Ninja: Invalid license key format detected. Expected 32 characters starting with "sk_".' );
                 }
             }
         }

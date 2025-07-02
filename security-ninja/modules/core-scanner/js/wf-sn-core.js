@@ -43,7 +43,6 @@ jQuery(document).ready(function($) {
       } 
       else {
         jQuery('#wf-sn-core-scanner-response').append('<p class="error">Error deleting file</p>');
-        console.log('response fra restore file', response);
         jQuery(this).removeAttr('disabled');
       }
     }, 'json');
@@ -113,7 +112,6 @@ jQuery(document).ready(function($) {
       data.doupdate = true;
     }
     $.post(ajaxurl, data, function(response) {
-      console.log('response', response);
       jQuery('#wf-sn-core-scan-details .spinner').removeClass('is-active');
       if (response.data.out) {
         jQuery('#wf-sn-core-scanner-response').replaceWith(response.data.out).slideDown();
@@ -131,12 +129,6 @@ jQuery(document).ready(function($) {
   // Run AJAX core scan and display returned results
   $(document).on('click', '#sn-run-core-scan', function(e) {
     e.preventDefault();
-    // jQuery('#wf-sn-core-scanner-response #sn-cs-results').slideUp();
-    // jQuery('#wf-sn-core-scanner-response #last_scan').slideUp();
-    // jQuery('#wf-sn-core-scanner-response #files_checked').slideUp();
-    // jQuery('#wf-sn-core-scanner-response #run_time').slideUp();
-    // jQuery('#wf-sn-core-scanner-response #wp_version').slideUp();
-    // jQuery('#wf-sn-core-scanner-response #next_scan').slideUp();
     jQuery('#wf-sn-core-scanner-response .spinner').addClass('is-active');
     jQuery.post(ajaxurl, {
       action: 'sn_core_run_scan',

@@ -175,16 +175,15 @@ echo esc_url( 'https://wordpress.org/support/plugin/security-ninja/' );
 ?>" target="_blank" rel="noopener"><?php 
 esc_html_e( 'Support Forum', 'security-ninja' );
 ?></a></li>
-
-		</ul>
-		<ul class="linklist">
-
 <?php 
 if ( secnin_fs()->is_not_paying() ) {
     ?>
-			<li><a href="#" class="secninfs-reset-activation"><?php 
-    esc_html_e( 'Reset Account', 'security-ninja' );
+			<li><a href="<?php 
+    echo esc_url( secnin_fs()->connect_again() );
+    ?>"><?php 
+    esc_html_e( 'Activate License', 'security-ninja' );
     ?></a></li>
+
 <?php 
 }
 ?>
@@ -212,13 +211,5 @@ if ( secnin_fs()->is_not_paying() && $show_pro_ad ) {
 <?php 
 }
 ?>
-
-	<div>
-		<input type="hidden" id="wfsn-secninfs-reset-activation-nonce" value="<?php 
-echo esc_attr( wp_create_nonce( 'wf_sn_reset_activation' ) );
-?>">
-	</div>
-
-
 </div><!-- #sidebar-container -->
 <?php 
