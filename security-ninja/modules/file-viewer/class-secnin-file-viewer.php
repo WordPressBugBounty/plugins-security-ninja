@@ -55,7 +55,9 @@ class FileViewer {
 	 * @return void
 	 */
 	public static function remove_admin_bar() {
-		if ( is_admin() && isset( $_GET['page'] ) && 'sn-view-file' === $_GET['page'] ) {
+		if ( is_admin() && isset( $_GET['page'], $_GET['_wpnonce'], $_GET['file'] ) &&
+			'sn-view-file' === $_GET['page'] &&
+			wp_verify_nonce( sanitize_key( $_GET['_wpnonce'] ), 'view_file_' . wp_unslash( $_GET['file'] ) ) ) {
 			add_filter( 'show_admin_bar', '__return_false' );
 			remove_all_actions( 'admin_notices' ); // Remove all admin notices.
 		}
@@ -67,7 +69,9 @@ class FileViewer {
 	 * @return void
 	 */
 	public static function hide_admin_interface() {
-		if ( is_admin() && isset( $_GET['page'] ) && 'sn-view-file' === $_GET['page'] ) {
+		if ( is_admin() && isset( $_GET['page'], $_GET['_wpnonce'], $_GET['file'] ) &&
+			'sn-view-file' === $_GET['page'] &&
+			wp_verify_nonce( sanitize_key( $_GET['_wpnonce'] ), 'view_file_' . wp_unslash( $_GET['file'] ) ) ) {
 			?>
 			<style>
 				#adminmenumain, #wpfooter, #screen-meta, #screen-meta-links, #wp-admin-bar-wp-logo {
@@ -92,6 +96,7 @@ class FileViewer {
 					line-height: 1.4em;
 					display: table;
 					width: 100%;
+					table-layout: fixed;
 				}
 				pre span.line {
 					display: table-row;
@@ -103,11 +108,15 @@ class FileViewer {
 					padding-right: 10px;
 					color: #888;
 					vertical-align: top;
+					white-space: nowrap;
 				}
 				pre span.line-content {
 					display: table-cell;
 					white-space: pre-wrap;
 					word-wrap: break-word;
+					word-break: break-all;
+					overflow-wrap: break-word;
+					max-width: 0;
 				}
 				#file-info {
 					display: flex;
@@ -149,11 +158,11 @@ class FileViewer {
 			wp_die( esc_html__( 'You do not have sufficient permissions to access this page.', 'security-ninja' ) );
 		}
 
-		if ( ! isset( $_GET['file'], $_GET['_wpnonce'] ) || ! wp_verify_nonce( sanitize_key( $_GET['_wpnonce'] ), 'view_file_' . wp_unslash($_GET['file'] ) ) ) {
+		if ( ! isset( $_GET['file'], $_GET['_wpnonce'] ) || ! wp_verify_nonce( sanitize_key( $_GET['_wpnonce'] ), 'view_file_' . wp_unslash( $_GET['file'] ) ) ) {
 			wp_die( esc_html__( 'Invalid nonce verification or missing file parameter.', 'security-ninja' ) );
 		}
 
-		$file_path = isset( $_GET['file'] ) ? sanitize_text_field( wp_unslash( $_GET['file'] ) ) : '';
+		$file_path      = isset( $_GET['file'] ) ? sanitize_text_field( wp_unslash( $_GET['file'] ) ) : '';
 		$highlight_line = isset( $_GET['line'] ) ? intval( $_GET['line'] ) : null;
 
 		if ( ! self::is_allowed_file( $file_path ) ) {
@@ -290,7 +299,7 @@ class FileViewer {
 	 */
 	public static function generate_file_view_url( $file_path, $highlight_line = null ) {
 		$url = admin_url( 'admin.php?page=sn-view-file' );
-		$url = add_query_arg( 'file', urlencode( $file_path ), $url );
+		$url = add_query_arg( 'file', rawurlencode( $file_path ), $url );
 		if ( $highlight_line ) {
 			$url = add_query_arg( 'line', intval( $highlight_line ), $url );
 		}

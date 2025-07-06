@@ -6,7 +6,7 @@ License: GPLv3
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 Requires at least: 4.7
 Tested up to: 6.8.2
-Stable tag: 5.239
+Stable tag: 5.240
 Requires PHP: 7.4
 
 Ultimate WordPress security plugin with malware scanning, firewall, and login protection. Keep your site safe from threats effortlessly.
@@ -67,7 +67,6 @@ The Core Scanner module adds a critical layer of security by ensuring your WordP
 - **Built-in File Viewer**: Review flagged files directly within your WordPress dashboard using the integrated file viewer for a clear and easy inspection.
 - **Restore Core Files**: If a core WordPress file has been altered, you can quickly restore it with a single click, ensuring your site is running the official version.
 - **Easy File Management**: For unknown or suspicious files, you have the option to delete them right from the interface, keeping your WordPress installation clean and secure.
-
 
 
 **Advanced Malware Scanner – Detect & Remove Malware Instantly (PRO)**
@@ -329,8 +328,16 @@ While we strive for universal compatibility, if you face any issues, our support
 3. Vulnerable plugins list with details and recommendations - prevent known exploits in plugins.
 4. Core scanner
 
-
 == Changelog ==
+
+= 5.240 =
+* *Enhanced Vulnerability Scanner Performance*: Implemented memory-efficient scanning to prevent memory exhaustion on large vulnerability databases. The scanner now processes vulnerability data line-by-line and includes automatic memory monitoring to ensure stable operation.
+* *New Ignore Feature*: Added ability to ignore specific plugins and themes from vulnerability scanning. Users can now exclude trusted plugins/themes from security alerts via the settings page.
+* *Child Theme Vulnerability Detection*: Enhanced theme vulnerability scanning to properly detect when child themes inherit vulnerabilities from their parent themes.
+* *Better Error Handling*: Enhanced error handling and recovery for vulnerability scanning operations.
+* IMPROVED: Better handling of firewall rules.
+* Added: ModularDS IPs are now always whitelisted.
+* Improved: File viewer now breaks long lines - Easier to view content.
 
 = 5.239 = 
 * FIX: "Details" button in events log would sometimes expand details and also reload the entire page.

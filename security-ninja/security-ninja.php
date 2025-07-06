@@ -5,7 +5,7 @@ Plugin Name: Security Ninja (Premium)
 Plugin URI: https://wpsecurityninja.com/
 Description: Check your site for <strong>security vulnerabilities</strong> and get precise suggestions for corrective actions on passwords, user accounts, file permissions, database security, version hiding, plugins, themes, security headers and other security aspects.
 Author: WP Security Ninja
-Version: 5.239
+Version: 5.240
 Author URI: https://wpsecurityninja.com/
 License: GPLv3
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
@@ -75,7 +75,7 @@ if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
                     'days'               => 30,
                     'is_require_payment' => true,
                 ),
-                'has_affiliation'     => 'selected',
+                'has_affiliation'     => false,
                 'menu'                => array(
                     'slug'       => 'wf-sn',
                     'first-path' => 'admin.php?page=wf-sn&welcome=1',
@@ -482,7 +482,7 @@ if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
                 ?>
 					</a></p>
 
-			<?php 
+				<?php 
             }
             $test_scores = self::return_test_scores();
             if ( isset( $test_scores['score'] ) && '0' !== $test_scores['score'] ) {
@@ -540,7 +540,7 @@ if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
                 esc_html_e( 'Details', 'security-ninja' );
                 ?>
 					</a></p>
-			<?php 
+				<?php 
             } elseif ( '0' === $test_scores['score'] ) {
                 ?>
 				<h3><span class="dashicons dashicons-warning"></span> <strong>Test your website security - Run our tests</strong></h3>
@@ -551,7 +551,7 @@ if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
                 esc_html_e( 'Run Security Tests', 'security-ninja' );
                 ?>
 					</a></p>
-			<?php 
+				<?php 
             } else {
                 ?>
 				<p>
@@ -563,7 +563,7 @@ if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
             }
             ?>
 			<div id="secnin-dashboard-feed"></div>
-		<?php 
+			<?php 
         }
 
         /**
@@ -822,7 +822,7 @@ if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
 			</div>
 
 			</div>
-		<?php 
+			<?php 
         }
 
         /**
@@ -870,16 +870,18 @@ if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
 
 
 
-				<p class="fomlink"><a target="_blank" href="<?php 
+				<p class="fomlink"><a target="_blank" href="
+				<?php 
             echo esc_url( \WPSecurityNinja\Plugin\Utils::generate_sn_web_link( 'tab_firewall', '/cloud-firewall/' ) );
-            ?>" class="button button-primary" rel="noopener">
+            ?>
+																										" class="button button-primary" rel="noopener">
 						<?php 
             esc_html_e( 'Learn more', 'security-ninja' );
             ?>
 					</a></p>
 
 			</div>
-		<?php 
+			<?php 
             echo '</div>';
         }
 
@@ -898,9 +900,11 @@ if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
 			<div class="fomcont">
 				<h3>Malware scanner: Detect and eliminate hidden threats</h3>
 
-				<img src="<?php 
+				<img src="
+				<?php 
             echo esc_url( WF_SN_PLUGIN_URL . 'images/malware-scanner.jpg' );
-            ?>" alt="Find malicious files in your WordPress site" class="tabimage">
+            ?>
+									" alt="Find malicious files in your WordPress site" class="tabimage">
 
 				<p>
 					Even the most secure websites can fall victim to malware. With Firewall and strong passwords, you're already a step ahead—but hidden threats can still slip through.
@@ -929,7 +933,7 @@ if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
 					</a></p>
 			</div>
 			</div>
-		<?php 
+			<?php 
         }
 
         /**
@@ -947,9 +951,11 @@ if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
 			<div class="fomcont">
 				<h3>Scheduled Scanner</h3>
 
-				<img src="<?php 
+				<img src="
+				<?php 
             echo esc_url( WF_SN_PLUGIN_URL . 'images/scheduler.jpg' );
-            ?>" alt="Scan the thousands of files that runs WordPress" class="tabimage">
+            ?>
+									" alt="Scan the thousands of files that runs WordPress" class="tabimage">
 
 				<p>The Scheduled Scanner gives you an additional peace of mind by automatically running Security Ninja and Core
 					Scanner tests every day.</p>
@@ -1109,7 +1115,8 @@ if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
 							content: '
 							<?php 
                 echo wp_kses( $pointer_content, 'post' );
-                ?> ',
+                ?>
+							',
 							position: {
 								edge: 'left',
 								align: 'center'
@@ -1147,7 +1154,7 @@ if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
 
 					});
 				</script>
-			<?php 
+				<?php 
             }
         }
 
@@ -1174,14 +1181,14 @@ if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
         /**
          * Enqueue CSS and JS scripts on plugin's pages
          *
-         * @author	Lars Koudal
-         * @author	Unknown
-         * @since	v0.0.1
-         * @version	v1.0.0	Wednesday, January 13th, 2021.	
-         * @version	v1.0.1	Sunday, May 11th, 2025.
-         * @access	public static
-         * @param	mixed	$hook	
-         * @return	void
+         * @author  Lars Koudal
+         * @author  Unknown
+         * @since   v0.0.1
+         * @version v1.0.0  Wednesday, January 13th, 2021.
+         * @version v1.0.1  Sunday, May 11th, 2025.
+         * @access  public static
+         * @param   mixed   $hook
+         * @return  void
          */
         public static function enqueue_scripts( $hook ) {
             if ( 'wp-admin/update.php' === $GLOBALS['pagenow'] ) {
@@ -1197,7 +1204,7 @@ if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
                 );
                 $utm_source = 'security_ninja_free';
                 wp_localize_script( 'security-ninja-dashboard', 'dashboardData', array(
-                    'headline'     => sprintf( __( 'Latest from %s', 'security-ninja' ), 'WPSecurityNinja.com' ),
+                    'headline'     => 'Latest from WPSecurityNinja.com',
                     'blog_link'    => \WPSecurityNinja\Plugin\Utils::generate_sn_web_link( 'dashboard', '/blog/' ),
                     'utm_source'   => esc_attr( $utm_source ),
                     'utm_medium'   => 'plugin',
@@ -1236,12 +1243,12 @@ if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
                 wp_enqueue_style( 'wp-jquery-ui-dialog' );
                 wp_enqueue_script( 'jquery-ui-dialog' );
                 if ( secnin_fs()->is_registered() && secnin_fs()->is_tracking_allowed() ) {
-                    // @todo sssss
                     wp_enqueue_script(
                         'security-ninja-widget-sdk',
                         'https://securityninja.productlift.dev/widgets_sdk',
                         array(),
-                        null,
+                        self::get_plugin_version(),
+                        // Add version to prevent caching issues
                         true
                     );
                 }
@@ -1597,7 +1604,7 @@ if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
 									</div>
 
 
-								<?php 
+									<?php 
                 }
                 ?>
 
@@ -1607,7 +1614,7 @@ if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
 								<p>You're just a few clicks away from a safer, smarter website. Let's go!</p>
 								<div class="closeme">X</div>
 							</div>
-						<?php 
+							<?php 
             }
             do_action( 'secnin_signup_to_newsletter' );
             ?>
@@ -1655,7 +1662,7 @@ if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
 				</div>
 			</div>
 
-		<?php 
+			<?php 
         }
 
         /**
@@ -1697,12 +1704,12 @@ if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
                 foreach ( $testsresults as $test_details ) {
                     $total += $test_details['score'];
                     if ( 10 === intval( $test_details['status'] ) ) {
-                        $good++;
+                        ++$good;
                         $score += $test_details['score'];
                     } elseif ( 0 === intval( $test_details['status'] ) ) {
-                        $bad++;
+                        ++$bad;
                     } else {
-                        $warning++;
+                        ++$warning;
                     }
                 }
             }
@@ -1912,7 +1919,7 @@ if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
             ?>
 				</p>
 			</div>
-<?php 
+			<?php 
         }
 
         /**

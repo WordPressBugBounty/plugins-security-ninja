@@ -99,6 +99,7 @@ class Wf_Sn_Vu {
             'enable_admin_notification' => true,
             'enable_email_notice'       => false,
             'email_notice_recipient'    => '',
+            'ignored_plugin_slugs'      => '',
         );
         // Ensure $options is an array
         if ( !is_array( $options ) ) {
@@ -628,59 +629,38 @@ class Wf_Sn_Vu {
         // Note - transient is deleted when updating settings.
         //if (false === ($found_vulnerabilities = get_transient('wf_sn_return_vulnerabilities'))) {
         global $wp_version;
-        $vuln_plugin_arr = false;
+        $found_vulnerabilities = array();
         $installed_plugins = false;
         if ( self::$options['enable_vulns'] ) {
+            $installed_plugins = get_plugins();
+            // Use memory-efficient plugin vulnerability checking
+            if ( $installed_plugins ) {
+                try {
+                    $plugin_vulnerabilities = self::check_plugin_vulnerabilities_memory_efficient( $installed_plugins );
+                    if ( !empty( $plugin_vulnerabilities ) ) {
+                        $found_vulnerabilities['plugins'] = $plugin_vulnerabilities;
+                    }
+                } catch ( \Exception $e ) {
+                    // Use original method as fallback
+                    $vulns = self::load_vulnerabilities();
+                    if ( !$vulns ) {
+                        self::update_vuln_list();
+                        $vulns = self::load_vulnerabilities();
+                    }
+                    if ( $vulns && isset( $vulns->plugins ) ) {
+                        $vuln_plugin_arr = self::object_to_array( $vulns->plugins );
+                        $plugin_vulnerabilities = self::check_plugin_vulnerabilities_legacy( $installed_plugins, $vuln_plugin_arr );
+                        if ( !empty( $plugin_vulnerabilities ) ) {
+                            $found_vulnerabilities['plugins'] = $plugin_vulnerabilities;
+                        }
+                    }
+                }
+            }
+            // Load other vulnerability data (WordPress and themes) - these are smaller files
             $vulns = self::load_vulnerabilities();
             if ( !$vulns ) {
                 self::update_vuln_list();
                 $vulns = self::load_vulnerabilities();
-            }
-            // offers problem here on free version? memory issue, maxes out 256mb
-            $vuln_plugin_arr = self::object_to_array( $vulns->plugins );
-            $installed_plugins = get_plugins();
-        }
-        // Tests for plugin problems
-        if ( $installed_plugins && $vuln_plugin_arr ) {
-            $found_vulnerabilities = array();
-            foreach ( $installed_plugins as $key => $ap ) {
-                $lookup_id = strtok( $key, '/' );
-                $findplugin = array_search( $lookup_id, array_column( $vuln_plugin_arr, 'slug' ), true );
-                if ( $findplugin ) {
-                    if ( isset( $vuln_plugin_arr[$findplugin]['versionEndExcluding'] ) && '' !== $vuln_plugin_arr[$findplugin]['versionEndExcluding'] ) {
-                        // check #1 - versionEndExcluding
-                        if ( version_compare( $ap['Version'], $vuln_plugin_arr[$findplugin]['versionEndExcluding'], '<' ) ) {
-                            $description = '';
-                            if ( isset( $vuln_plugin_arr[$findplugin]['description'] ) ) {
-                                $description = $vuln_plugin_arr[$findplugin]['description'];
-                            }
-                            $found_vulnerabilities['plugins'][$lookup_id] = array(
-                                'name'                => $ap['Name'],
-                                'desc'                => $description,
-                                'installedVersion'    => $ap['Version'],
-                                'versionEndExcluding' => $vuln_plugin_arr[$findplugin]['versionEndExcluding'],
-                                'CVE_ID'              => $vuln_plugin_arr[$findplugin]['CVE_ID'],
-                                'refs'                => $vuln_plugin_arr[$findplugin]['refs'],
-                            );
-                        }
-                    }
-                    // Checks via the versionImpact method
-                    if ( isset( $vuln_plugin_arr[$findplugin]['versionImpact'] ) && '' !== $vuln_plugin_arr[$findplugin]['versionImpact'] ) {
-                        if ( version_compare( $ap['Version'], $vuln_plugin_arr[$findplugin]['versionImpact'], '<=' ) ) {
-                            $found_vulnerabilities['plugins'][$lookup_id] = array(
-                                'name'             => $ap['Name'],
-                                'desc'             => $vuln_plugin_arr[$findplugin]['description'],
-                                'installedVersion' => $ap['Version'],
-                                'versionImpact'    => $vuln_plugin_arr[$findplugin]['versionImpact'],
-                                'CVE_ID'           => $vuln_plugin_arr[$findplugin]['CVE_ID'],
-                                'refs'             => $vuln_plugin_arr[$findplugin]['refs'],
-                            );
-                            if ( isset( $vuln_plugin_arr[$findplugin]['recommendation'] ) ) {
-                                $found_vulnerabilities['plugins'][$lookup_id]['recommendation'] = $vuln_plugin_arr[$findplugin]['recommendation'];
-                            }
-                        }
-                    }
-                }
             }
         }
         // ------------ Find WordPress vulnerabilities ------------
@@ -730,8 +710,18 @@ class Wf_Sn_Vu {
         if ( isset( $vulns->themes ) ) {
             $vuln_theme_arr = self::object_to_array( $vulns->themes );
         }
+        // Get ignored slugs (plugins & themes)
+        $ignored_slugs = array();
+        if ( !empty( self::$options['ignored_plugin_slugs'] ) ) {
+            $ignored_slugs = array_map( 'trim', explode( "\n", self::$options['ignored_plugin_slugs'] ) );
+            $ignored_slugs = array_filter( $ignored_slugs );
+        }
         if ( $themes && $vuln_theme_arr ) {
             foreach ( $themes as $key => $ap ) {
+                // Skip if this theme is in the ignored list
+                if ( in_array( $key, $ignored_slugs, true ) ) {
+                    continue;
+                }
                 $findtheme = array_search( $key, array_column( $vuln_theme_arr, 'slug' ), true );
                 if ( false !== $findtheme ) {
                     // $Matched theme array with details
@@ -755,7 +745,44 @@ class Wf_Sn_Vu {
                     }
                 }
             }
-            // 2 - Lookup child themes (look by Template value) @todo!
+            // 2 - Lookup child themes (look by Template value)
+            foreach ( $themes as $key => $ap ) {
+                // Skip if this theme is in the ignored list
+                if ( in_array( $key, $ignored_slugs, true ) ) {
+                    continue;
+                }
+                // Check if this is a child theme (has a Template value)
+                if ( !empty( $ap['Template'] ) && $ap['Template'] !== $key ) {
+                    // This is a child theme, check if its parent theme is vulnerable
+                    $parent_theme_slug = $ap['Template'];
+                    // Skip if parent theme is in the ignored list
+                    if ( in_array( $parent_theme_slug, $ignored_slugs, true ) ) {
+                        continue;
+                    }
+                    $find_parent_theme = array_search( $parent_theme_slug, array_column( $vuln_theme_arr, 'slug' ), true );
+                    if ( false !== $find_parent_theme ) {
+                        // Parent theme is vulnerable, so child theme is also vulnerable
+                        $parent_matched = $vuln_theme_arr[$find_parent_theme];
+                        if ( isset( $parent_matched['versionEndExcluding'] ) && '' !== $parent_matched['versionEndExcluding'] ) {
+                            $parent_matched['versionEndExcluding'] = rtrim( $parent_matched['versionEndExcluding'], '.0' );
+                            if ( version_compare( $ap['Version'], $parent_matched['versionEndExcluding'], '<' ) ) {
+                                $desc = '';
+                                if ( isset( $parent_matched['description'] ) ) {
+                                    $desc = $parent_matched['description'];
+                                }
+                                $found_vulnerabilities['themes'][$key] = array(
+                                    'name'                => $ap['Name'] . ' (Child Theme)',
+                                    'desc'                => $desc . ' - Parent theme: ' . $parent_theme_slug,
+                                    'installedVersion'    => $ap['Version'],
+                                    'versionEndExcluding' => $parent_matched['versionEndExcluding'],
+                                    'CVE_ID'              => $parent_matched['CVE_ID'],
+                                    'refs'                => $parent_matched['refs'],
+                                );
+                            }
+                        }
+                    }
+                }
+            }
         }
         if ( isset( $found_vulnerabilities ) ) {
             return $found_vulnerabilities;
@@ -1370,6 +1397,32 @@ class Wf_Sn_Vu {
         ?>" class="regular-text" placeholder="">
 								</td>
 							</tr>
+
+							<tr>
+								<th scope="row"><label for="wf_sn_vu_settings_group_ignored_plugin_slugs">
+										<h3><?php 
+        esc_html_e( 'Ignored Plugins & Themes', 'security-ninja' );
+        ?></h3>
+										<p class="description">
+											<?php 
+        esc_html_e( 'Enter plugin or theme folder names (one per line) that should be ignored during vulnerability scanning. These will be skipped even if vulnerabilities are detected.', 'security-ninja' );
+        ?>
+										</p>
+									</label></th>
+								<td></td>
+							</tr>
+							<tr>
+								<td class="fullwidth">
+									<textarea name="wf_sn_vu_settings_group[ignored_plugin_slugs]" rows="5" cols="50" class="large-text code" placeholder="plugin-folder-name"><?php 
+        echo esc_textarea( self::$options['ignored_plugin_slugs'] );
+        ?></textarea>
+									<p class="description">
+										<?php 
+        esc_html_e( 'Example: designthemes-core-features or twentytwentyfour', 'security-ninja' );
+        ?>
+									</p>
+								</td>
+							</tr>
 							<tr>
 								<td colspan="2" class="fullwidth">
 									<p class="submit"><input type="submit" value="<?php 
@@ -1515,6 +1568,7 @@ class Wf_Sn_Vu {
             'enable_admin_notification' => 0,
             'enable_email_notice'       => 0,
             'email_notice_recipient'    => '',
+            'ignored_plugin_slugs'      => '',
         );
         if ( !is_array( $values ) ) {
             return $old_options;
@@ -1530,6 +1584,18 @@ class Wf_Sn_Vu {
                     break;
                 case 'email_notice_recipient':
                     $sanitized_values[$key] = sanitize_text_field( $value );
+                    break;
+                case 'ignored_plugin_slugs':
+                    // Sanitize plugin slugs - remove empty lines and trim whitespace
+                    $slugs = explode( "\n", $value );
+                    $clean_slugs = array();
+                    foreach ( $slugs as $slug ) {
+                        $slug = trim( $slug );
+                        if ( !empty( $slug ) ) {
+                            $clean_slugs[] = sanitize_text_field( $slug );
+                        }
+                    }
+                    $sanitized_values[$key] = implode( "\n", $clean_slugs );
                     break;
                 default:
                     // Handle or log unknown keys
@@ -1558,6 +1624,235 @@ class Wf_Sn_Vu {
         delete_option( 'wf_sn_vu_settings' );
         delete_option( 'wf_sn_vu_vulns_notice' );
         delete_option( 'wf_sn_vu_last_email' );
+    }
+
+    /**
+     * Memory-efficient vulnerability check for specific plugins
+     * Processes vulnerability file line by line instead of loading entire file into memory
+     *
+     * @author  Lars Koudal
+     * @since   v0.0.1
+     * @version v1.0.0  Friday, January 1st, 2021.
+     * @version v1.0.1  Memory optimization - Friday, January 12th, 2024.
+     * @param   array   $installed_plugins Array of installed plugins
+     * @return  array   Array of found vulnerabilities
+     */
+    public static function check_plugin_vulnerabilities_memory_efficient( $installed_plugins ) {
+        require_once ABSPATH . 'wp-admin/includes/file.php';
+        global $wp_filesystem;
+        if ( empty( $wp_filesystem ) && !WP_Filesystem() ) {
+            return array();
+        }
+        $upload_dir = wp_upload_dir();
+        $file_path = $upload_dir['basedir'] . "/security-ninja/vulns/plugins_vulns.jsonl";
+        if ( !$wp_filesystem->exists( $file_path ) ) {
+            return array();
+        }
+        $found_vulnerabilities = array();
+        $plugin_slugs = array();
+        // Extract plugin slugs from installed plugins
+        foreach ( $installed_plugins as $key => $ap ) {
+            $plugin_slugs[] = strtok( $key, '/' );
+        }
+        // Get ignored plugin slugs
+        $ignored_slugs = array();
+        if ( !empty( self::$options['ignored_plugin_slugs'] ) ) {
+            $ignored_slugs = array_map( 'trim', explode( "\n", self::$options['ignored_plugin_slugs'] ) );
+            $ignored_slugs = array_filter( $ignored_slugs );
+            // Remove empty entries
+        }
+        // Get memory limit and set a safe threshold
+        $memory_limit = ini_get( 'memory_limit' );
+        $memory_limit_bytes = self::return_bytes( $memory_limit );
+        $safe_memory_threshold = $memory_limit_bytes * 0.7;
+        // Use 70% of available memory
+        // Log initial memory usage for debugging
+        $initial_memory = memory_get_usage( true );
+        // Open file and process line by line
+        $handle = $wp_filesystem->get_contents_array( $file_path );
+        if ( !$handle ) {
+            return array();
+        }
+        $line_count = 0;
+        $memory_usage = memory_get_usage( true );
+        foreach ( $handle as $line ) {
+            $line_count++;
+            // Check memory usage every 1000 lines
+            if ( $line_count % 1000 === 0 ) {
+                $current_memory = memory_get_usage( true );
+                if ( $current_memory > $safe_memory_threshold ) {
+                    break;
+                }
+            }
+            $decoded_line = json_decode( $line, true );
+            if ( !is_array( $decoded_line ) || !isset( $decoded_line['slug'] ) ) {
+                continue;
+            }
+            // Only process if this plugin is installed
+            $plugin_slug = $decoded_line['slug'];
+            if ( !in_array( $plugin_slug, $plugin_slugs, true ) ) {
+                continue;
+            }
+            // Skip if this plugin is in the ignored list
+            if ( in_array( $plugin_slug, $ignored_slugs, true ) ) {
+                continue;
+            }
+            // Find the installed plugin data
+            $installed_plugin = null;
+            foreach ( $installed_plugins as $key => $ap ) {
+                if ( strtok( $key, '/' ) === $plugin_slug ) {
+                    $installed_plugin = $ap;
+                    break;
+                }
+            }
+            if ( !$installed_plugin ) {
+                continue;
+            }
+            // Check for vulnerabilities
+            $is_vulnerable = false;
+            $vulnerability_data = array();
+            // Check versionEndExcluding
+            if ( isset( $decoded_line['versionEndExcluding'] ) && '' !== $decoded_line['versionEndExcluding'] ) {
+                if ( version_compare( $installed_plugin['Version'], $decoded_line['versionEndExcluding'], '<' ) ) {
+                    $is_vulnerable = true;
+                    $vulnerability_data = array(
+                        'name'                => $installed_plugin['Name'],
+                        'desc'                => ( isset( $decoded_line['description'] ) ? $decoded_line['description'] : '' ),
+                        'installedVersion'    => $installed_plugin['Version'],
+                        'versionEndExcluding' => $decoded_line['versionEndExcluding'],
+                        'CVE_ID'              => $decoded_line['CVE_ID'],
+                        'refs'                => ( isset( $decoded_line['refs'] ) ? $decoded_line['refs'] : array() ),
+                    );
+                }
+            }
+            // Check versionImpact
+            if ( !$is_vulnerable && isset( $decoded_line['versionImpact'] ) && '' !== $decoded_line['versionImpact'] ) {
+                if ( version_compare( $installed_plugin['Version'], $decoded_line['versionImpact'], '<=' ) ) {
+                    $is_vulnerable = true;
+                    $vulnerability_data = array(
+                        'name'             => $installed_plugin['Name'],
+                        'desc'             => ( isset( $decoded_line['description'] ) ? $decoded_line['description'] : '' ),
+                        'installedVersion' => $installed_plugin['Version'],
+                        'versionImpact'    => $decoded_line['versionImpact'],
+                        'CVE_ID'           => $decoded_line['CVE_ID'],
+                        'refs'             => ( isset( $decoded_line['refs'] ) ? $decoded_line['refs'] : array() ),
+                    );
+                    if ( isset( $decoded_line['recommendation'] ) ) {
+                        $vulnerability_data['recommendation'] = $decoded_line['recommendation'];
+                    }
+                }
+            }
+            if ( $is_vulnerable ) {
+                $found_vulnerabilities[$plugin_slug] = $vulnerability_data;
+            }
+        }
+        return $found_vulnerabilities;
+    }
+
+    /**
+     * Get list of installed plugin slugs for the settings page
+     *
+     * @author  Lars Koudal
+     * @since   v0.0.1
+     * @version v1.0.0  Friday, January 12th, 2024.
+     * @return  array Array of plugin slugs
+     */
+    public static function get_installed_plugin_slugs() {
+        $plugins = get_plugins();
+        $slugs = array();
+        foreach ( $plugins as $key => $plugin ) {
+            $slug = strtok( $key, '/' );
+            $slugs[$slug] = $plugin['Name'] . ' (' . $slug . ')';
+        }
+        return $slugs;
+    }
+
+    /**
+     * Convert memory limit string to bytes
+     *
+     * @param   string  $val Memory limit string (e.g., '256M', '1G')
+     * @return  int     Memory limit in bytes
+     */
+    private static function return_bytes( $val ) {
+        $val = trim( $val );
+        $last = strtolower( $val[strlen( $val ) - 1] );
+        $val = (int) $val;
+        switch ( $last ) {
+            case 'g':
+                $val *= 1024;
+            case 'm':
+                $val *= 1024;
+            case 'k':
+                $val *= 1024;
+        }
+        return $val;
+    }
+
+    /**
+     * Legacy plugin vulnerability checking method (fallback)
+     * Uses the original approach of loading all vulnerabilities into memory
+     *
+     * @author  Lars Koudal
+     * @since   v0.0.1
+     * @version v1.0.0  Friday, January 1st, 2021.
+     * @version v1.0.1  Memory optimization - Friday, January 12th, 2024.
+     * @param   array   $installed_plugins Array of installed plugins
+     * @param   array   $vuln_plugin_arr   Array of all plugin vulnerabilities
+     * @return  array   Array of found vulnerabilities
+     */
+    public static function check_plugin_vulnerabilities_legacy( $installed_plugins, $vuln_plugin_arr ) {
+        $found_vulnerabilities = array();
+        // Get ignored plugin slugs
+        $ignored_slugs = array();
+        if ( !empty( self::$options['ignored_plugin_slugs'] ) ) {
+            $ignored_slugs = array_map( 'trim', explode( "\n", self::$options['ignored_plugin_slugs'] ) );
+            $ignored_slugs = array_filter( $ignored_slugs );
+            // Remove empty entries
+        }
+        foreach ( $installed_plugins as $key => $ap ) {
+            $lookup_id = strtok( $key, '/' );
+            // Skip if this plugin is in the ignored list
+            if ( in_array( $lookup_id, $ignored_slugs, true ) ) {
+                continue;
+            }
+            $findplugin = array_search( $lookup_id, array_column( $vuln_plugin_arr, 'slug' ), true );
+            if ( $findplugin ) {
+                if ( isset( $vuln_plugin_arr[$findplugin]['versionEndExcluding'] ) && '' !== $vuln_plugin_arr[$findplugin]['versionEndExcluding'] ) {
+                    // check #1 - versionEndExcluding
+                    if ( version_compare( $ap['Version'], $vuln_plugin_arr[$findplugin]['versionEndExcluding'], '<' ) ) {
+                        $description = '';
+                        if ( isset( $vuln_plugin_arr[$findplugin]['description'] ) ) {
+                            $description = $vuln_plugin_arr[$findplugin]['description'];
+                        }
+                        $found_vulnerabilities[$lookup_id] = array(
+                            'name'                => $ap['Name'],
+                            'desc'                => $description,
+                            'installedVersion'    => $ap['Version'],
+                            'versionEndExcluding' => $vuln_plugin_arr[$findplugin]['versionEndExcluding'],
+                            'CVE_ID'              => $vuln_plugin_arr[$findplugin]['CVE_ID'],
+                            'refs'                => $vuln_plugin_arr[$findplugin]['refs'],
+                        );
+                    }
+                }
+                // Checks via the versionImpact method
+                if ( isset( $vuln_plugin_arr[$findplugin]['versionImpact'] ) && '' !== $vuln_plugin_arr[$findplugin]['versionImpact'] ) {
+                    if ( version_compare( $ap['Version'], $vuln_plugin_arr[$findplugin]['versionImpact'], '<=' ) ) {
+                        $found_vulnerabilities[$lookup_id] = array(
+                            'name'             => $ap['Name'],
+                            'desc'             => $vuln_plugin_arr[$findplugin]['description'],
+                            'installedVersion' => $ap['Version'],
+                            'versionImpact'    => $vuln_plugin_arr[$findplugin]['versionImpact'],
+                            'CVE_ID'           => $vuln_plugin_arr[$findplugin]['CVE_ID'],
+                            'refs'             => $vuln_plugin_arr[$findplugin]['refs'],
+                        );
+                        if ( isset( $vuln_plugin_arr[$findplugin]['recommendation'] ) ) {
+                            $found_vulnerabilities[$lookup_id]['recommendation'] = $vuln_plugin_arr[$findplugin]['recommendation'];
+                        }
+                    }
+                }
+            }
+        }
+        return $found_vulnerabilities;
     }
 
 }
