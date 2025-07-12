@@ -5,7 +5,7 @@ Plugin Name: Security Ninja (Premium)
 Plugin URI: https://wpsecurityninja.com/
 Description: Check your site for <strong>security vulnerabilities</strong> and get precise suggestions for corrective actions on passwords, user accounts, file permissions, database security, version hiding, plugins, themes, security headers and other security aspects.
 Author: WP Security Ninja
-Version: 5.240
+Version: 5.241
 Author URI: https://wpsecurityninja.com/
 License: GPLv3
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
@@ -112,7 +112,11 @@ if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
     include_once WF_SN_PLUGIN_DIR . 'modules/core-scanner/core-scanner.php';
     // File viewer
     include_once WF_SN_PLUGIN_DIR . 'modules/file-viewer/class-secnin-file-viewer.php';
+    // REST API
+    include_once WF_SN_PLUGIN_DIR . 'modules/rest-api/class-wf-sn-rest-api.php';
+    include_once WF_SN_PLUGIN_DIR . 'modules/rest-api/class-wf-sn-rest-api-admin.php';
     include_once WF_SN_PLUGIN_DIR . 'includes/class-wf-sn-utils.php';
+    include_once WF_SN_PLUGIN_DIR . 'includes/class-wf-sn-crypto.php';
     class Wf_Sn {
         /**
          * Plugin version
@@ -374,11 +378,6 @@ if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
             $value = (int) $options['value'];
             $saved_value = ( isset( $options['saved_value'] ) ? (int) $options['saved_value'] : 0 );
             $checked = ( $value === $saved_value ? ' checked' : '' );
-            // $html = '  <input id="s2" type="checkbox" class="switch" checked>';
-            // echo $html; // @todo remove this
-            /*
-            <input type="checkbox" id="wf_sn_vu_settings_group_enable_vulns" value="1" name="wf_sn_vu_settings_group[enable_vulns]" checked="">
-            */
             $html = sprintf(
                 '<input type="checkbox" id="%1$s" value="%2$s" class="switch" name="%3$s"%4$s>',
                 esc_attr( $name ),
@@ -655,86 +654,6 @@ if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
             delete_option( 'secnin_fs_migrated2fs' );
             secnin_fs()->connect_again();
             wp_send_json_success();
-        }
-
-        /**
-         * Ajax callback to handle freemius opt in/out.
-         *
-         * @author  Lars Koudal
-         * @author  Unknown
-         * @since   v0.0.1
-         * @version v1.0.0  Tuesday, January 12th, 2021.
-         * @version v1.0.1  Tuesday, February 22nd, 2022.
-         * @access  public static
-         * @return  void
-         */
-        public static function secnin_fs_opt_in() {
-            $nonce = sanitize_text_field( $_POST['opt_nonce'] );
-            $choice = sanitize_text_field( $_POST['choice'] );
-            if ( empty( $nonce ) || !wp_verify_nonce( $nonce, 'wfsn-freemius-opt' ) ) {
-                echo wp_json_encode( array(
-                    'success' => false,
-                    'message' => esc_html__( 'Nonce verification failed.', 'security-ninja' ),
-                ) );
-                exit;
-            }
-            if ( !current_user_can( 'manage_options' ) ) {
-                wp_send_json_error( array(
-                    'success' => false,
-                    'message' => esc_html__( 'You do not have permission to do this.', 'security-ninja' ),
-                ) );
-            }
-            // Check if choice is not empty.
-            if ( !empty( $choice ) ) {
-                if ( 'yes' === $choice ) {
-                    if ( !is_multisite() ) {
-                        secnin_fs()->opt_in();
-                        // Opt in.
-                    } else {
-                        // Get sites.
-                        $sites = \Freemius::get_sites();
-                        $sites_data = array();
-                        if ( !empty( $sites ) ) {
-                            foreach ( $sites as $site ) {
-                                $sites_data[] = secnin_fs()->get_site_info( $site );
-                            }
-                        }
-                        secnin_fs()->opt_in(
-                            false,
-                            false,
-                            false,
-                            false,
-                            false,
-                            false,
-                            false,
-                            false,
-                            $sites_data
-                        );
-                    }
-                    // Update freemius state.
-                    update_site_option( 'wfsn_freemius_state', 'in' );
-                } elseif ( 'no' === $choice ) {
-                    if ( !is_multisite() ) {
-                        secnin_fs()->skip_connection();
-                        // Opt out.
-                    } else {
-                        secnin_fs()->skip_connection( null, true );
-                        // Opt out for all websites.
-                    }
-                    // Update freemius state.
-                    update_site_option( 'wfsn_freemius_state', 'skipped' );
-                }
-                echo wp_json_encode( array(
-                    'success' => true,
-                    'message' => esc_html__( 'Freemius opt choice selected.', 'security-ninja' ),
-                ) );
-            } else {
-                echo wp_json_encode( array(
-                    'success' => false,
-                    'message' => esc_html__( 'Freemius opt choice not found.', 'security-ninja' ),
-                ) );
-            }
-            exit;
         }
 
         /**
@@ -1029,22 +948,6 @@ if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
         }
 
         /**
-         * some things have to be loaded earlier
-         *
-         * @author  Lars Koudal
-         * @author  Unknown
-         * @since   v0.0.1
-         * @version v1.0.0  Wednesday, January 13th, 2021.
-         * @version v1.0.1  Tuesday, October 18th, 2022.
-         * @version v1.0.2  Tuesday, August 1st, 2023.
-         * @access  public static
-         * @return  void
-         */
-        public static function plugins_loaded() {
-            self::get_plugin_version();
-        }
-
-        /**
          * Checks if the current page is a part of this plugin.
          *
          * @author  Lars Koudal
@@ -1070,6 +973,8 @@ if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
                 // Visitor log
                 'wf-sn-tools',
                 // Tools page
+                'wf-sn-rest-api',
+                // REST API page
                 'wf-sn-fixes',
                 // Fixes page
                 'security-ninja-welcome',
@@ -1112,11 +1017,9 @@ if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
 						var $menu_item = $('#toplevel_page_wf-sn');
 
 						$menu_item.pointer({
-							content: '
-							<?php 
+							content: '<?php 
                 echo wp_kses( $pointer_content, 'post' );
-                ?>
-							',
+                ?>',
 							position: {
 								edge: 'left',
 								align: 'center'
@@ -1156,26 +1059,6 @@ if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
 				</script>
 				<?php 
             }
-        }
-
-        /**
-         * This function is used to reload the admin page.
-         * $page = the admin page we are passing (index.php or options-general.php)
-         * $tab = the NEXT pointer array key we want to display
-         *
-         * @author  Lars Koudal
-         * @since   v0.0.1
-         * @version v1.0.0  Thursday, April 29th, 2021.
-         * @access  public static
-         * @param   mixed $page
-         * @param   mixed $tab
-         * @return  mixed
-         */
-        public static function get_admin_url( $page, $tab ) {
-            $url = admin_url();
-            $url .= $page;
-            $url = add_query_arg( 'tab', $tab, $url );
-            return $url;
         }
 
         /**
@@ -1334,43 +1217,7 @@ if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
                     $icon_url
                 );
             }
-        }
-
-        /**
-         * Filters and modifies debug information.
-         *
-         * This method filters out specific information from the debug data, such as sizes of WordPress directories and the Security Ninja plugin itself.
-         * It also checks if the premium code is active and if the whitelabel plugin is active, it removes the whitelabel plugin name from the active plugins list.
-         *
-         * @author  Lars Koudal
-         * @since   v0.0.1
-         * @version v1.0.0  Wednesday, January 13th, 2021.
-         * @access  public static
-         * @param   array $info The debug information to be filtered.
-         * @return  array The filtered debug information.
-         */
-        public static function do_filter_debug_information( $info ) {
-            // Rename the label for 'wp-paths-sizes' to 'Directories'.
-            $info['wp-paths-sizes']['label'] = 'Directories';
-            // Remove specific size fields from 'wp-paths-sizes'.
-            unset($info['wp-paths-sizes']['fields']['wordpress_size']);
-            unset($info['wp-paths-sizes']['fields']['uploads_size']);
-            unset($info['wp-paths-sizes']['fields']['themes_size']);
-            unset($info['wp-paths-sizes']['fields']['plugins_size']);
-            unset($info['wp-paths-sizes']['fields']['database_size']);
-            unset($info['wp-paths-sizes']['fields']['total_size']);
-            // Remove 'Security Ninja' from the list of active plugins.
-            unset($info['wp-plugins-active']['fields']['Security Ninja']);
-            // Check if premium code is active and if whitelabel plugin is active.
-            if ( secnin_fs()->can_use_premium_code__premium_only() && \WPSecurityNinja\Plugin\Wf_Sn_Wl::is_active() ) {
-                // Get the new name of the whitelabel plugin.
-                $pluginname = \WPSecurityNinja\Plugin\Wf_Sn_Wl::get_new_name();
-                // Remove the whitelabel plugin name from the list of active plugins if it exists.
-                if ( isset( $info['wp-plugins-active']['fields'][$pluginname] ) ) {
-                    unset($info['wp-plugins-active']['fields'][$pluginname]);
-                }
-            }
-            return $info;
+            // REST API submenu is handled by Wf_Sn_Rest_Api_Admin class
         }
 
         /**
@@ -1666,24 +1513,6 @@ if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
         }
 
         /**
-         * Compares two array values by for usort()
-         *
-         * @author  Lars Koudal
-         * @since   v0.0.1
-         * @version v1.0.0  Thursday, January 14th, 2021.
-         * @access  public static
-         * @param   mixed $a
-         * @param   mixed $b
-         * @return  mixed
-         */
-        public static function cmp_status_score( $a, $b ) {
-            if ( $a === $b ) {
-                return 0;
-            }
-            return ( $a['status'] < $b['status'] ? -1 : 1 );
-        }
-
-        /**
          * returns the current score of the tests + output
          *
          * @author  Lars Koudal
@@ -1723,7 +1552,6 @@ if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
             $response['bad'] = $bad;
             $response['warning'] = $warning;
             $response['score'] = $score;
-            // $all_tests           = Wf_Sn_Tests::return_security_tests();
             // generate output
             $output = '';
             $output .= '<div id="counters">';
@@ -2018,6 +1846,45 @@ if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
                         $response['msg'] = '';
                     }
                     $json_response['msg'] = $response['msg'];
+                    // Get the previous status from the database table
+                    $previous_status = null;
+                    global $wpdb;
+                    $table_name = $wpdb->prefix . 'wf_sn_tests';
+                    $previous_test = $wpdb->get_row( $wpdb->prepare( "SELECT status FROM {$table_name} WHERE testid = %s", $testid ) );
+                    if ( $previous_test ) {
+                        $previous_status = $previous_test->status;
+                    }
+                    // Check if status changed - ensure both are integers for comparison
+                    $previous_status_int = ( $previous_status !== null ? intval( $previous_status ) : null );
+                    $new_status_int = intval( $response['status'] );
+                    $status_changed = $previous_status_int !== $new_status_int;
+                    // Determine change direction for highlighting
+                    $change_direction = null;
+                    if ( $status_changed && $previous_status_int !== null ) {
+                        if ( $new_status_int === 10 && $previous_status_int < 10 ) {
+                            $change_direction = 'improved';
+                            // Went from fail/warning to pass
+                        } elseif ( $new_status_int < 10 && $previous_status_int === 10 ) {
+                            $change_direction = 'declined';
+                            // Went from pass to fail/warning
+                        } else {
+                            $change_direction = 'changed';
+                            // Other status changes
+                        }
+                    }
+                    $json_response['status_changed'] = $status_changed;
+                    $json_response['previous_status'] = $previous_status_int;
+                    $json_response['new_status'] = $new_status_int;
+                    $json_response['change_direction'] = $change_direction;
+                    // Return the correct status icon HTML for the frontend
+                    if ( 10 === $response['status'] ) {
+                        $json_response['status_icon'] = '<span class="teststatus pass">' . __( '✓', 'security-ninja' ) . '</span>';
+                    } elseif ( 0 === $response['status'] ) {
+                        $json_response['status_icon'] = '<span class="teststatus fail">' . __( '✗', 'security-ninja' ) . '</span>';
+                    } else {
+                        $json_response['status_icon'] = '<span class="teststatus warning">' . __( '&#9888;', 'security-ninja' ) . '</span>';
+                    }
+                    // Keep the label for backward compatibility
                     if ( 10 === $response['status'] ) {
                         $json_response['label'] = '<span class="wf-sn-label sn-success">' . __( 'OK', 'security-ninja' ) . '</span>';
                     } elseif ( 0 === $response['status'] ) {
@@ -2414,4 +2281,3 @@ register_activation_hook( __FILE__, array(__NAMESPACE__ . '\\WF_SN', 'activate')
 register_deactivation_hook( __FILE__, array(__NAMESPACE__ . '\\WF_SN', 'deactivate') );
 register_uninstall_hook( __FILE__, array(__NAMESPACE__ . '\\WF_SN', 'uninstall') );
 add_action( 'init', array(__NAMESPACE__ . '\\WF_SN', 'init') );
-add_action( 'plugins_loaded', array(__NAMESPACE__ . '\\WF_SN', 'plugins_loaded') );

@@ -6,7 +6,7 @@ License: GPLv3
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 Requires at least: 4.7
 Tested up to: 6.8.2
-Stable tag: 5.240
+Stable tag: 5.241
 Requires PHP: 7.4
 
 Ultimate WordPress security plugin with malware scanning, firewall, and login protection. Keep your site safe from threats effortlessly.
@@ -330,6 +330,30 @@ While we strive for universal compatibility, if you face any issues, our support
 
 == Changelog ==
 
+= 5.241 =
+* IMPROVED: Vulnerability Scanner - Fixed details display and theme update links
+  * Fixed collapsible "Details" sections not showing CVE information properly
+  * Corrected theme vulnerability update links to point to themes.php instead of plugins.php
+  * Improved details logic to show CVE links even when no other references are available
+  * Enhanced vulnerability display with better error handling and user experience
+* IMPROVED: Added a button to allow manual vulnerability scans.
+* IMPROVED: Enhanced test interface with visual feedback - Tests now show color-coded highlights to indicate status changes, making it easier to see which tests have improved, declined, or changed. Thanks to user feedback for this improvement!
+* IMPROVED: Icons on tests are now easier to see with a quick glance, thank you for the user feedback.
+* NEW: 404 Guard. Monitor excessive 404 errors and block abusive visitors automatically. Finetune settings as needed in our new settings page - "Firewall" -> "404 Guard"!
+* NEW: WooCommerce Protection tab in Firewall – dedicated security settings for WooCommerce stores!
+* NEW: Rate limiting for WooCommerce actions – limit excessive checkout, add-to-cart.
+* NEW: Coupon Code Brute Force Protection – automatically blocks IPs that attempt too many invalid coupon codes with temporary bans.
+* FIX: "Update Database" button was not working correctly - Thank you Wan.
+* FIX: Child theme vulnerability detection bug - Fixed incorrect logic that was causing child themes to be flagged as vulnerable when comparing child theme version against parent theme vulnerability threshold. Thank you Ivan.
+* FIX: Bug with deleting individual detected files in core scanner (Delete All worked fine). Thank you Wan.
+* FIX: "Update Database" button - Thank you Wan.
+* FIX: Child theme vulnerability detection bug - Fixed incorrect logic that was causing child themes to be flagged as vulnerable when comparing child theme version against parent theme vulnerability threshold. Thank you Ivan.
+* FIX: Bug with deleting individual detected files in core scanner (Delete All worked fine). Thank you Wan.
+* FIX: Prevent Banned IPs from Accessing the Site setting now works correctly - when set to OFF, banned IPs can visit the site but are blocked from login pages. Thank you Sascha.
+* IMPROVED: Brute force protection for the lost password feature!
+* IMPROVED: Loading time - Improved internal logic for loading faster.
+
+
 = 5.240 =
 * *Enhanced Vulnerability Scanner Performance*: Implemented memory-efficient scanning to prevent memory exhaustion on large vulnerability databases. The scanner now processes vulnerability data line-by-line and includes automatic memory monitoring to ensure stable operation.
 * *New Ignore Feature*: Added ability to ignore specific plugins and themes from vulnerability scanning. Users can now exclude trusted plugins/themes from security alerts via the settings page.
@@ -384,7 +408,7 @@ While we strive for universal compatibility, if you face any issues, our support
 
 = 5.232 =
 * 2025-04-03
-* Rewrote activation code, removed race conditions that created issues for some users.
+* Rewritten activation code, removed race conditions that created issues for some users.
 * Improved visitor logging interface.
 
 = 5.231 =
@@ -600,5 +624,5 @@ This update makes Security Ninja more accessible to millions of users worldwide,
 Entire changelog can be seen here: <a href="https://wpsecurityninja.com/changelog/" target="_blank">changelog</a>
 
 == Upgrade Notice ==
-5.238
+5.241
 Recommended update, major updates and improvements!

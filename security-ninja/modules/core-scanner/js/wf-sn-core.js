@@ -49,7 +49,7 @@ jQuery(document).ready(function($) {
   });
   
   // Delete a file
-  $(document).on('click', 'button.sn-delete-source', function(e) {
+  $(document).on('click', 'button.sn-delete-source, a.sn-delete-source', function(e) {
     e.preventDefault();
     if (!confirm(wf_sn_cs.strings.confirm_delete)) {
       return false;

@@ -41,6 +41,11 @@ class Wf_Sn_Vu {
         );
         add_action( 'delete_theme', array(__NAMESPACE__ . '\\wf_sn_vu', 'do_action_upgrader_process_complete') );
         add_action( 'delete_plugin', array(__NAMESPACE__ . '\\wf_sn_vu', 'do_action_upgrader_process_complete') );
+        // Add AJAX handlers for manual vulnerability scan
+        add_action( 'wp_ajax_secnin_manual_vuln_scan', array(__NAMESPACE__ . '\\wf_sn_vu', 'handle_manual_vuln_scan') );
+        add_action( 'wp_ajax_nopriv_secnin_manual_vuln_scan', array(__NAMESPACE__ . '\\wf_sn_vu', 'handle_manual_vuln_scan_denied') );
+        // Add admin scripts for manual scan functionality
+        add_action( 'admin_enqueue_scripts', array(__NAMESPACE__ . '\\wf_sn_vu', 'enqueue_admin_scripts') );
     }
 
     /**
@@ -626,19 +631,36 @@ class Wf_Sn_Vu {
      * @return  array
      */
     public static function return_vulnerabilities() {
-        // Note - transient is deleted when updating settings.
-        //if (false === ($found_vulnerabilities = get_transient('wf_sn_return_vulnerabilities'))) {
+        // Use persistent storage instead of transients for better reliability
+        $found_vulnerabilities = get_option( 'wf_sn_vulnerabilities_cache', false );
+        $cache_timestamp = get_option( 'wf_sn_vulnerabilities_cache_timestamp', 0 );
+        $cache_expiry = 24 * HOUR_IN_SECONDS;
+        // 24 hours instead of 1 hour
+        // Check if cache is still valid
+        if ( $found_vulnerabilities && time() - $cache_timestamp < $cache_expiry ) {
+            return $found_vulnerabilities;
+        }
         global $wp_version;
         $found_vulnerabilities = array();
         $installed_plugins = false;
         if ( self::$options['enable_vulns'] ) {
             $installed_plugins = get_plugins();
+            $scan_summary = array(
+                'plugins'                     => array(),
+                'themes'                      => array(),
+                'wordpress'                   => array(),
+                'total_vulnerabilities_found' => 0,
+            );
             // Use memory-efficient plugin vulnerability checking
             if ( $installed_plugins ) {
                 try {
-                    $plugin_vulnerabilities = self::check_plugin_vulnerabilities_memory_efficient( $installed_plugins );
-                    if ( !empty( $plugin_vulnerabilities ) ) {
-                        $found_vulnerabilities['plugins'] = $plugin_vulnerabilities;
+                    $plugin_scan_result = self::check_plugin_vulnerabilities_memory_efficient( $installed_plugins );
+                    if ( !empty( $plugin_scan_result['vulnerabilities'] ) ) {
+                        $found_vulnerabilities['plugins'] = $plugin_scan_result['vulnerabilities'];
+                        $scan_summary['plugins'] = $plugin_scan_result['stats'];
+                        $scan_summary['total_vulnerabilities_found'] += $plugin_scan_result['stats']['vulnerabilities_found'];
+                    } else {
+                        $scan_summary['plugins'] = $plugin_scan_result['stats'];
                     }
                 } catch ( \Exception $e ) {
                     // Use original method as fallback
@@ -652,6 +674,7 @@ class Wf_Sn_Vu {
                         $plugin_vulnerabilities = self::check_plugin_vulnerabilities_legacy( $installed_plugins, $vuln_plugin_arr );
                         if ( !empty( $plugin_vulnerabilities ) ) {
                             $found_vulnerabilities['plugins'] = $plugin_vulnerabilities;
+                            $scan_summary['total_vulnerabilities_found'] += count( $plugin_vulnerabilities );
                         }
                     }
                 }
@@ -662,9 +685,92 @@ class Wf_Sn_Vu {
                 self::update_vuln_list();
                 $vulns = self::load_vulnerabilities();
             }
+            // Memory-efficient theme vulnerability checking
+            $all_themes = wp_get_themes();
+            $themes = array();
+            // Build theme data manually
+            foreach ( $all_themes as $theme ) {
+                $themes[$theme->stylesheet] = array(
+                    'Name'      => $theme->get( 'Name' ),
+                    'Author'    => $theme->get( 'Author' ),
+                    'AuthorURI' => $theme->get( 'AuthorURI' ),
+                    'Version'   => $theme->get( 'Version' ),
+                    'Template'  => $theme->get( 'Template' ),
+                    'Status'    => $theme->get( 'Status' ),
+                );
+            }
+            if ( $themes ) {
+                try {
+                    $theme_scan_result = self::check_theme_vulnerabilities_memory_efficient( $themes );
+                    if ( !empty( $theme_scan_result['vulnerabilities'] ) ) {
+                        $found_vulnerabilities['themes'] = $theme_scan_result['vulnerabilities'];
+                        $scan_summary['themes'] = $theme_scan_result['stats'];
+                        $scan_summary['total_vulnerabilities_found'] += $theme_scan_result['stats']['vulnerabilities_found'];
+                    } else {
+                        $scan_summary['themes'] = $theme_scan_result['stats'];
+                    }
+                } catch ( \Exception $e ) {
+                    // Use original theme scanning method as fallback
+                    $vuln_theme_arr = false;
+                    if ( isset( $vulns->themes ) ) {
+                        $vuln_theme_arr = self::object_to_array( $vulns->themes );
+                    }
+                    // Get ignored slugs (plugins & themes)
+                    $ignored_slugs = array();
+                    if ( !empty( self::$options['ignored_plugin_slugs'] ) ) {
+                        $ignored_slugs = array_map( 'trim', explode( "\n", self::$options['ignored_plugin_slugs'] ) );
+                        $ignored_slugs = array_filter( $ignored_slugs );
+                    }
+                    if ( $themes && $vuln_theme_arr ) {
+                        $theme_vulnerabilities = array();
+                        $themes_checked = 0;
+                        $themes_ignored = 0;
+                        foreach ( $themes as $key => $ap ) {
+                            // Skip if this theme is in the ignored list
+                            if ( in_array( $key, $ignored_slugs, true ) ) {
+                                $themes_ignored++;
+                                continue;
+                            }
+                            $themes_checked++;
+                            $findtheme = array_search( $key, array_column( $vuln_theme_arr, 'slug' ), true );
+                            if ( false !== $findtheme ) {
+                                $matched = $vuln_theme_arr[$findtheme];
+                                if ( isset( $matched['versionEndExcluding'] ) && '' !== $vuln_theme_arr[$findtheme]['versionEndExcluding'] ) {
+                                    $matched['versionEndExcluding'] = rtrim( $matched['versionEndExcluding'], '.0' );
+                                    if ( version_compare( $ap['Version'], $matched['versionEndExcluding'], '<' ) ) {
+                                        $desc = '';
+                                        if ( isset( $matched['description'] ) ) {
+                                            $desc = $matched['description'];
+                                        }
+                                        $theme_vulnerabilities[$key] = array(
+                                            'name'                => $ap['Name'],
+                                            'desc'                => $desc,
+                                            'installedVersion'    => $ap['Version'],
+                                            'versionEndExcluding' => $matched['versionEndExcluding'],
+                                            'CVE_ID'              => $matched['CVE_ID'],
+                                            'refs'                => $matched['refs'],
+                                        );
+                                    }
+                                }
+                            }
+                        }
+                        if ( !empty( $theme_vulnerabilities ) ) {
+                            $found_vulnerabilities['themes'] = $theme_vulnerabilities;
+                            $scan_summary['total_vulnerabilities_found'] += count( $theme_vulnerabilities );
+                        }
+                        $scan_summary['themes'] = array(
+                            'themes_checked'         => $themes_checked,
+                            'themes_ignored'         => $themes_ignored,
+                            'vulnerabilities_found'  => count( $theme_vulnerabilities ),
+                            'total_themes_installed' => count( $themes ),
+                        );
+                    }
+                }
+            }
         }
         // ------------ Find WordPress vulnerabilities ------------
         $wordpressarr = false;
+        $wp_vulnerabilities_found = 0;
         if ( isset( $vulns->wordpress ) ) {
             $wordpressarr = self::object_to_array( $vulns->wordpress );
         }
@@ -687,106 +793,30 @@ class Wf_Sn_Vu {
                         $found_vulnerabilities['wordpress'][$lookup_id]['recommendation'] = $wpvuln['recommendation'];
                     }
                     ++$lookup_id;
+                    ++$wp_vulnerabilities_found;
                 }
             }
         }
-        // Find vulnerable themes
-        // Build new empty Array to store the themes
-        $themes = array();
-        // Loads theme data
-        $all_themes = wp_get_themes();
-        // Build theme data manually
-        foreach ( $all_themes as $theme ) {
-            $themes[$theme->stylesheet] = array(
-                'Name'      => $theme->get( 'Name' ),
-                'Author'    => $theme->get( 'Author' ),
-                'AuthorURI' => $theme->get( 'AuthorURI' ),
-                'Version'   => $theme->get( 'Version' ),
-                'Template'  => $theme->get( 'Template' ),
-                'Status'    => $theme->get( 'Status' ),
-            );
-        }
-        $vuln_theme_arr = false;
-        if ( isset( $vulns->themes ) ) {
-            $vuln_theme_arr = self::object_to_array( $vulns->themes );
-        }
-        // Get ignored slugs (plugins & themes)
-        $ignored_slugs = array();
-        if ( !empty( self::$options['ignored_plugin_slugs'] ) ) {
-            $ignored_slugs = array_map( 'trim', explode( "\n", self::$options['ignored_plugin_slugs'] ) );
-            $ignored_slugs = array_filter( $ignored_slugs );
-        }
-        if ( $themes && $vuln_theme_arr ) {
-            foreach ( $themes as $key => $ap ) {
-                // Skip if this theme is in the ignored list
-                if ( in_array( $key, $ignored_slugs, true ) ) {
-                    continue;
-                }
-                $findtheme = array_search( $key, array_column( $vuln_theme_arr, 'slug' ), true );
-                if ( false !== $findtheme ) {
-                    // $Matched theme array with details
-                    $matched = $vuln_theme_arr[$findtheme];
-                    if ( isset( $matched['versionEndExcluding'] ) && '' !== $vuln_theme_arr[$findtheme]['versionEndExcluding'] ) {
-                        $matched['versionEndExcluding'] = rtrim( $matched['versionEndExcluding'], '.0' );
-                        if ( version_compare( $ap['Version'], $matched['versionEndExcluding'], '<' ) ) {
-                            $desc = '';
-                            if ( isset( $matched['description'] ) ) {
-                                $desc = $matched['description'];
-                            }
-                            $found_vulnerabilities['themes'][$key] = array(
-                                'name'                => $ap['Name'],
-                                'desc'                => $desc,
-                                'installedVersion'    => $ap['Version'],
-                                'versionEndExcluding' => $matched['versionEndExcluding'],
-                                'CVE_ID'              => $matched['CVE_ID'],
-                                'refs'                => $matched['refs'],
-                            );
-                        }
-                    }
-                }
-            }
-            // 2 - Lookup child themes (look by Template value)
-            foreach ( $themes as $key => $ap ) {
-                // Skip if this theme is in the ignored list
-                if ( in_array( $key, $ignored_slugs, true ) ) {
-                    continue;
-                }
-                // Check if this is a child theme (has a Template value)
-                if ( !empty( $ap['Template'] ) && $ap['Template'] !== $key ) {
-                    // This is a child theme, check if its parent theme is vulnerable
-                    $parent_theme_slug = $ap['Template'];
-                    // Skip if parent theme is in the ignored list
-                    if ( in_array( $parent_theme_slug, $ignored_slugs, true ) ) {
-                        continue;
-                    }
-                    $find_parent_theme = array_search( $parent_theme_slug, array_column( $vuln_theme_arr, 'slug' ), true );
-                    if ( false !== $find_parent_theme ) {
-                        // Parent theme is vulnerable, so child theme is also vulnerable
-                        $parent_matched = $vuln_theme_arr[$find_parent_theme];
-                        if ( isset( $parent_matched['versionEndExcluding'] ) && '' !== $parent_matched['versionEndExcluding'] ) {
-                            $parent_matched['versionEndExcluding'] = rtrim( $parent_matched['versionEndExcluding'], '.0' );
-                            if ( version_compare( $ap['Version'], $parent_matched['versionEndExcluding'], '<' ) ) {
-                                $desc = '';
-                                if ( isset( $parent_matched['description'] ) ) {
-                                    $desc = $parent_matched['description'];
-                                }
-                                $found_vulnerabilities['themes'][$key] = array(
-                                    'name'                => $ap['Name'] . ' (Child Theme)',
-                                    'desc'                => $desc . ' - Parent theme: ' . $parent_theme_slug,
-                                    'installedVersion'    => $ap['Version'],
-                                    'versionEndExcluding' => $parent_matched['versionEndExcluding'],
-                                    'CVE_ID'              => $parent_matched['CVE_ID'],
-                                    'refs'                => $parent_matched['refs'],
-                                );
-                            }
-                        }
-                    }
-                }
-            }
-        }
+        // Add WordPress scan summary
+        $scan_summary['wordpress'] = array(
+            'wordpress_checked'     => 1,
+            'vulnerabilities_found' => $wp_vulnerabilities_found,
+            'current_version'       => $wp_version,
+        );
+        $scan_summary['total_vulnerabilities_found'] += $wp_vulnerabilities_found;
+        // Store results persistently instead of using transients
         if ( isset( $found_vulnerabilities ) ) {
+            // Store scan summary in a separate option for reporting
+            update_option( 'wf_sn_scan_summary', $scan_summary, false );
+            // Cache the results for 24 hours using persistent storage
+            update_option( 'wf_sn_vulnerabilities_cache', $found_vulnerabilities, false );
+            update_option( 'wf_sn_vulnerabilities_cache_timestamp', time(), false );
             return $found_vulnerabilities;
         } else {
+            // Cache empty results for 24 hours
+            update_option( 'wf_sn_vulnerabilities_cache', false, false );
+            update_option( 'wf_sn_vulnerabilities_cache_timestamp', time(), false );
+            update_option( 'wf_sn_scan_summary', $scan_summary, false );
             return false;
         }
     }
@@ -917,393 +947,29 @@ class Wf_Sn_Vu {
             $theme_vulns_count = count( $vulns->themes );
             $wp_vulns_count = count( $vulns->wordpress );
             $total_vulnerabilities = $plugin_vulns_count + $wp_vulns_count + $theme_vulns_count;
-            // Used for the output of WordPress version being used
-            $wp_status = '';
         }
+        // Get scan summary for better display
+        $scan_summary = get_option( 'wf_sn_scan_summary', false );
+        // Generate HTML for displaying vulnerability results
+        $output = self::generate_vulnerability_display( $vulnerabilities, $scan_summary );
         ?>
 		<div class="submit-test-container">
 			<div class="section sncard">
 				<h2><span class="dashicons dashicons-shield-alt"></span> <?php 
         esc_html_e( 'Vulnerability Scanner', 'security-ninja' );
         ?></h2>
-
 				<?php 
-        if ( isset( $vulnerabilities['wordpress'] ) || isset( $vulnerabilities['plugins'] ) || isset( $vulnerabilities['themes'] ) ) {
-            ?>
-					<h2 class="warning"><span class="dashicons dashicons-sos"></span><?php 
-            esc_html_e( 'Vulnerabilities found on your system!', 'security-ninja' );
-            ?></h2>
-
-					<?php 
-            if ( isset( $vulnerabilities['wordpress'] ) ) {
-                $get_wp_ver_status = self::get_wp_ver_status();
-                if ( isset( $get_wp_ver_status->{$wp_version} ) ) {
-                    if ( 'insecure' === $get_wp_ver_status->{$wp_version} ) {
-                        $wp_status = sprintf( 
-                            /* translators: %s: WordPress version */
-                            __( 'This version of WordPress (%s) is considered %s. You should upgrade as soon as possible.', 'security-ninja' ),
-                            $wp_version,
-                            '<strong>' . esc_html__( 'INSECURE', 'security-ninja' ) . '</strong>'
-                         );
-                    }
-                    if ( 'outdated' === $get_wp_ver_status->{$wp_version} ) {
-                        $wp_status = sprintf( 
-                            /* translators: %s: WordPress version */
-                            __( 'This version of WordPress (%s) is considered %s. You should upgrade as soon as possible.', 'security-ninja' ),
-                            $wp_version,
-                            '<strong>' . esc_html__( 'OUTDATED', 'security-ninja' ) . '</strong>'
-                         );
-                    }
-                }
-                ?>
-						<div class="vuln vulnwordpress">
-							<p>
-								<?php 
-                printf( 
-                    /* translators: %s: WordPress version */
-                    esc_html__( 'You are running WordPress version %s and there are known vulnerabilities that have been fixed in later versions. You should upgrade WordPress as soon as possible.', 'security-ninja' ),
-                    esc_html( $wp_version )
-                 );
-                ?>
-							</p>
-							<?php 
-                if ( '' !== $wp_status ) {
-                    ?>
-								<div class="vulnrecommendation">
-									<h2>
-										<?php 
-                    echo wp_kses_post( $wp_status );
-                    ?>
-									</h2>
-								</div>
-							<?php 
-                }
-                ?>
-
-							<p><?php 
-                esc_html_e( 'Known vulnerabilities', 'security-ninja' );
-                ?></p>
-
-							<?php 
-                foreach ( $vulnerabilities['wordpress'] as $key => $wpvuln ) {
-                    if ( isset( $wpvuln['versionEndExcluding'] ) ) {
-                        ?>
-									<h3><span class="dashicons dashicons-warning"></span> <?php 
-                        echo esc_html( 'WordPress ' . $wpvuln['CVE_ID'] );
-                        ?></h3>
-									<div class="wrap-collabsible">
-										<input id="collapsible-<?php 
-                        echo esc_attr( $key );
-                        ?>" class="toggle" type="checkbox">
-										<label for="collapsible-<?php 
-                        echo esc_attr( $key );
-                        ?>" class="lbl-toggle"><?php 
-                        esc_html_e( 'Details', 'security-ninja' );
-                        ?></label>
-										<div class="collapsible-content">
-											<div class="content-inner">
-												<?php 
-                        if ( isset( $wpvuln['desc'] ) && '' !== $wpvuln['desc'] ) {
-                            ?>
-													<p class="vulndesc"><?php 
-                            echo esc_html( $wpvuln['desc'] );
-                            ?></p>
-												<?php 
-                        }
-                        ?>
-												<p class="vulnDetails">
-													<?php 
-                        printf( 
-                            /* translators: 1: WordPress version */
-                            esc_html__( 'Fixed in WordPress version %1$s', 'security-ninja' ),
-                            esc_attr( $wpvuln['versionEndExcluding'] )
-                         );
-                        ?>
-												</p>
-												<?php 
-                        if ( isset( $wpvuln['CVE_ID'] ) && '' !== $wpvuln['CVE_ID'] ) {
-                            ?>
-													<p><span class="nvdlink">
-															<?php 
-                            printf(
-                                /* translators: %s: CVE ID */
-                                esc_html__( 'More details: %1$sRead more about %2$s%3$s%4$s', 'security-ninja' ),
-                                '<a href="' . esc_url( 'https://nvd.nist.gov/vuln/detail/' . $wpvuln['CVE_ID'] ) . '" target="_blank" rel="noopener">',
-                                esc_html( $wpvuln['CVE_ID'] ),
-                                '</a>'
-                            );
-                            ?>
-														</span></p>
-												<?php 
-                        }
-                        ?>
-											</div>
-										</div>
-									</div>
-							<?php 
-                    }
-                }
-                ?>
-						</div><!-- .vuln vulnwordpress -->
-					<?php 
-            }
-            // display list of vulns in plugins
-            if ( isset( $vulnerabilities['plugins'] ) ) {
-                ?>
-						<p><?php 
-                esc_html_e( 'You should upgrade to latest version or find a different plugin as soon as possible.', 'security-ninja' );
-                ?></p>
-						<?php 
-                foreach ( $vulnerabilities['plugins'] as $key => $found_vuln ) {
-                    ?>
-							<div class="sncard vulnplugin snerror">
-								<h3>
-									<span class="dashicons dashicons-warning"></span>
-									<?php 
-                    printf( 
-                        /* translators: %1$s: Plugin name, %2$s: Plugin version */
-                        esc_html__( 'Plugin: %1$s %2$s', 'security-ninja' ),
-                        '<span class="plugin-name">' . esc_html( $found_vuln['name'] ) . '</span>',
-                        '<span class="ver">v. ' . esc_html( $found_vuln['installedVersion'] ) . '</span>'
-                     );
-                    ?>
-								</h3>
-								<?php 
-                    if ( isset( $found_vuln['versionEndExcluding'] ) ) {
-                        $searchurl = admin_url( 'plugins.php?s=' . rawurlencode( $found_vuln['name'] ) . '&plugin_status=all' );
-                        ?>
-									<div class="vulnrecommendation">
-										<p>
-											<?php 
-                        $searchurl = filter_var( $searchurl, FILTER_SANITIZE_URL );
-                        printf(
-                            wp_kses( 
-                                // translators: %1$s: URL for the update, %2$s: Plugin name, %3$s: Minimum version required
-                                __( 'Update %2$s to minimum version %3$s <a href="%1$s">here</a>', 'security-ninja' ),
-                                array(
-                                    'a' => array(
-                                        'href' => array(),
-                                    ),
-                                )
-                             ),
-                            esc_url( $searchurl ),
-                            esc_html( $found_vuln['name'] ),
-                            esc_html( $found_vuln['versionEndExcluding'] )
-                        );
-                        ?>
-										</p>
-									</div>
-								<?php 
-                    } elseif ( isset( $found_vuln['recommendation'] ) && '' !== $found_vuln['recommendation'] ) {
-                        ?>
-									<div class="vulnrecommendation">
-										<p><strong><?php 
-                        echo wp_kses_post( $found_vuln['recommendation'] );
-                        ?></strong></p>
-									</div>
-								<?php 
-                    }
-                    if ( isset( $found_vuln['desc'] ) || isset( $found_vuln['refs'] ) ) {
-                        ?>
-									<div class="wrap-collabsible">
-										<input id="collapsible-<?php 
-                        echo esc_attr( $key );
-                        ?>" class="toggle" type="checkbox">
-										<label for="collapsible-<?php 
-                        echo esc_attr( $key );
-                        ?>" class="lbl-toggle"><?php 
-                        esc_html_e( 'Details', 'security-ninja' );
-                        ?></label>
-										<div class="collapsible-content">
-											<div class="content-inner">
-												<?php 
-                        if ( isset( $found_vuln['desc'] ) && '' !== $found_vuln['desc'] ) {
-                            ?>
-													<p class="vulndesc"><?php 
-                            echo wp_kses_post( $found_vuln['desc'] );
-                            ?></p>
-													<?php 
-                        }
-                        if ( isset( $found_vuln['refs'] ) && '' !== $found_vuln['refs'] ) {
-                            $refs = json_decode( $found_vuln['refs'] );
-                            if ( is_array( $refs ) ) {
-                                ?>
-														<h4><?php 
-                                esc_html_e( 'Read more:', 'security-ninja' );
-                                ?></h4>
-														<ul>
-															<?php 
-                                if ( isset( $found_vuln['CVE_ID'] ) && '' !== $found_vuln['CVE_ID'] ) {
-                                    ?>
-																<li><a href="<?php 
-                                    echo esc_url( 'https://nvd.nist.gov/vuln/detail/' . $found_vuln['CVE_ID'] );
-                                    ?>" target="_blank" class="exlink" rel="noopener"><?php 
-                                    echo esc_attr( $found_vuln['CVE_ID'] );
-                                    ?></a></li>
-															<?php 
-                                }
-                                foreach ( $refs as $ref ) {
-                                    ?>
-																<li><a href="<?php 
-                                    echo esc_url( $ref->url );
-                                    ?>" target="_blank" class="exlink" rel="noopener"><?php 
-                                    echo esc_html( self::remove_http( $ref->name ) );
-                                    ?></a></li>
-															<?php 
-                                }
-                                ?>
-														</ul>
-												<?php 
-                            }
-                        }
-                        ?>
-											</div>
-										</div>
-									</div>
-								<?php 
-                    }
-                    ?>
-							</div><!-- .vuln .vulnplugin -->
-						<?php 
-                }
-            }
-            // end plugins
-            // display list of vulns in themes
-            if ( isset( $vulnerabilities['themes'] ) ) {
-                ?>
-
-						<p><?php 
-                esc_html_e( 'Warning - Vulnerable themes found! Note: comparison is made by folder name. Please verify the theme before deleting.', 'security-ninja' );
-                ?></p>
-
-						<?php 
-                foreach ( $vulnerabilities['themes'] as $key => $found_vuln ) {
-                    ?>
-							<div class="sncard vulnplugin snerror">
-								<h3>
-									<span class="dashicons dashicons-warning"></span>
-									<?php 
-                    printf( 
-                        /* translators: %1$s: Theme name, %2$s: Theme version */
-                        esc_html__( 'Theme: %1$s %2$s', 'security-ninja' ),
-                        '<span class="theme-name">' . esc_html( $found_vuln['name'] ) . '</span>',
-                        '<span class="ver">v. ' . esc_html( $found_vuln['installedVersion'] ) . '</span>'
-                     );
-                    ?>
-								</h3>
-
-								<?php 
-                    if ( isset( $found_vuln['versionEndExcluding'] ) ) {
-                        $searchurl = admin_url( 'plugins.php?s=' . rawurlencode( $found_vuln['name'] ) . '&plugin_status=all' );
-                        ?>
-									<div class="vulnrecommendation">
-										<p>
-											<?php 
-                        $searchurl = filter_var( $searchurl, FILTER_SANITIZE_URL );
-                        printf(
-                            // translators: %1$s: URL for the update, %2$s: Plugin name, %3$s: Minimum version required
-                            __( 'Update %2$s to minimum version %3$s. You can do it %1$s.', 'security-ninja' ),
-                            '<a href="' . esc_url( $searchurl ) . '">' . esc_html__( 'here', 'security-ninja' ) . '</a>',
-                            esc_html( $found_vuln['name'] ),
-                            esc_html( $found_vuln['versionEndExcluding'] )
-                        );
-                        ?>
-										</p>
-									</div>
-								<?php 
-                    } elseif ( isset( $found_vuln['recommendation'] ) && '' !== $found_vuln['recommendation'] ) {
-                        ?>
-									<div class="vulnrecommendation">
-										<p><strong><?php 
-                        echo esc_html( $found_vuln['recommendation'] );
-                        ?></strong></p>
-									</div>
-								<?php 
-                    }
-                    if ( isset( $found_vuln['desc'] ) || isset( $found_vuln['refs'] ) ) {
-                        ?>
-									<div class="wrap-collabsible">
-										<input id="collapsible-<?php 
-                        echo esc_attr( $key );
-                        ?>" class="toggle" type="checkbox">
-										<label for="collapsible-<?php 
-                        echo esc_attr( $key );
-                        ?>" class="lbl-toggle"><?php 
-                        esc_html_e( 'Details', 'security-ninja' );
-                        ?></label>
-										<div class="collapsible-content">
-											<div class="content-inner">
-												<?php 
-                        if ( isset( $found_vuln['desc'] ) && '' !== $found_vuln['desc'] ) {
-                            ?>
-													<p class="vulndesc"><?php 
-                            echo esc_html( $found_vuln['desc'] );
-                            ?></p>
-												<?php 
-                        }
-                        ?>
-												<?php 
-                        if ( isset( $found_vuln['refs'] ) && '' !== $found_vuln['refs'] ) {
-                            $refs = json_decode( $found_vuln['refs'] );
-                            if ( is_array( $refs ) ) {
-                                ?>
-														<h4><?php 
-                                esc_html_e( 'Read more', 'security-ninja' );
-                                ?>:</h4>
-														<ul>
-															<?php 
-                                if ( isset( $found_vuln['CVE_ID'] ) && '' !== $found_vuln['CVE_ID'] ) {
-                                    ?>
-																<li><a href="<?php 
-                                    echo esc_url( 'https://nvd.nist.gov/vuln/detail/' . $found_vuln['CVE_ID'] );
-                                    ?>" target="_blank" class="exlink" rel="noopener"><?php 
-                                    echo esc_attr( $found_vuln['CVE_ID'] );
-                                    ?></a></li>
-															<?php 
-                                }
-                                foreach ( $refs as $ref ) {
-                                    ?>
-																<li><a href="<?php 
-                                    echo esc_url( $ref->url );
-                                    ?>" target="_blank" class="exlink" rel="noopener"><?php 
-                                    echo esc_html( self::remove_http( $ref->name ) );
-                                    ?></a></li>
-															<?php 
-                                }
-                                ?>
-														</ul>
-												<?php 
-                            }
-                        }
-                        ?>
-											</div>
-										</div>
-									</div>
-								<?php 
-                    }
-                    ?>
-							</div><!-- .vuln .vulnplugin -->
-						<?php 
-                }
-            }
-            // end themes
-        } else {
-            // No update if feature disabled
-            if ( !self::$options['enable_vulns'] ) {
-                ?>
-						<h3><?php 
-                esc_html_e( 'The vulnerability scanner is disabled', 'security-ninja' );
-                ?></h3>
-				<?php 
-            } else {
-                echo '<div class="noerrorsfound"><h3>' . esc_html__( 'Great news!', 'security-ninja' ) . '</h3><p>' . esc_html__( 'No vulnerabilities found.', 'security-ninja' ) . '</p></div>';
-                printf( 
-                    // translators: Shows how many vulnerabilities
-                    esc_html__( 'Vulnerability list contains %1$s known vulnerabilities.', 'security-ninja' ),
-                    esc_html( number_format_i18n( $total_vulnerabilities ) )
-                 );
-            }
-        }
+        $allowed_tags = wp_kses_allowed_html( 'post' );
+        $allowed_tags['input'] = array(
+            'id'      => true,
+            'class'   => true,
+            'type'    => true,
+            'checked' => true,
+            'name'    => true,
+            'value'   => true,
+            'for'     => true,
+        );
+        echo wp_kses( $output, $allowed_tags );
         ?>
 			</div>
 			<div class="section sncard settings-card">
@@ -1436,6 +1102,31 @@ class Wf_Sn_Vu {
 
 				</form>
 			</div><!-- .card -->
+
+			<?php 
+        if ( self::$options['enable_vulns'] ) {
+            ?>
+			<div class="section sncard">
+				<h2><span class="dashicons dashicons-update"></span> <?php 
+            esc_html_e( 'Manual Vulnerability Scan', 'security-ninja' );
+            ?></h2>
+				<p><?php 
+            esc_html_e( 'Click the button below to perform a manual vulnerability scan. This will check your installed plugins, themes, and WordPress version against the latest vulnerability database.', 'security-ninja' );
+            ?></p>
+				
+				<div class="manual-scan-container">
+					<button type="button" id="secnin-manual-vuln-scan" class="button button-primary snbutton">
+						<?php 
+            esc_html_e( 'Run Manual Scan', 'security-ninja' );
+            ?>
+					</button>
+					<span id="secnin-scan-status" class="scan-status" style="display: none;"></span>
+				</div>
+			</div>
+			<?php 
+        }
+        ?>
+
 			<?php 
         if ( self::$options['enable_vulns'] ) {
             $last_modified = Wf_Sn_Vu::get_vulnerabilities_last_modified();
@@ -1624,6 +1315,9 @@ class Wf_Sn_Vu {
         delete_option( 'wf_sn_vu_settings' );
         delete_option( 'wf_sn_vu_vulns_notice' );
         delete_option( 'wf_sn_vu_last_email' );
+        delete_option( 'wf_sn_vulnerabilities_cache' );
+        delete_option( 'wf_sn_vulnerabilities_cache_timestamp' );
+        delete_option( 'wf_sn_scan_summary' );
     }
 
     /**
@@ -1634,8 +1328,9 @@ class Wf_Sn_Vu {
      * @since   v0.0.1
      * @version v1.0.0  Friday, January 1st, 2021.
      * @version v1.0.1  Memory optimization - Friday, January 12th, 2024.
+     * @version v1.0.2  Enhanced reporting - Friday, January 12th, 2024.
      * @param   array   $installed_plugins Array of installed plugins
-     * @return  array   Array of found vulnerabilities
+     * @return  array   Array with vulnerabilities and scan statistics
      */
     public static function check_plugin_vulnerabilities_memory_efficient( $installed_plugins ) {
         require_once ABSPATH . 'wp-admin/includes/file.php';
@@ -1650,6 +1345,13 @@ class Wf_Sn_Vu {
         }
         $found_vulnerabilities = array();
         $plugin_slugs = array();
+        $scan_stats = array(
+            'plugins_checked'         => 0,
+            'plugins_ignored'         => 0,
+            'vulnerabilities_found'   => 0,
+            'lines_processed'         => 0,
+            'total_plugins_installed' => count( $installed_plugins ),
+        );
         // Extract plugin slugs from installed plugins
         foreach ( $installed_plugins as $key => $ap ) {
             $plugin_slugs[] = strtok( $key, '/' );
@@ -1666,8 +1368,6 @@ class Wf_Sn_Vu {
         $memory_limit_bytes = self::return_bytes( $memory_limit );
         $safe_memory_threshold = $memory_limit_bytes * 0.7;
         // Use 70% of available memory
-        // Log initial memory usage for debugging
-        $initial_memory = memory_get_usage( true );
         // Open file and process line by line
         $handle = $wp_filesystem->get_contents_array( $file_path );
         if ( !$handle ) {
@@ -1677,6 +1377,7 @@ class Wf_Sn_Vu {
         $memory_usage = memory_get_usage( true );
         foreach ( $handle as $line ) {
             $line_count++;
+            $scan_stats['lines_processed']++;
             // Check memory usage every 1000 lines
             if ( $line_count % 1000 === 0 ) {
                 $current_memory = memory_get_usage( true );
@@ -1695,6 +1396,7 @@ class Wf_Sn_Vu {
             }
             // Skip if this plugin is in the ignored list
             if ( in_array( $plugin_slug, $ignored_slugs, true ) ) {
+                $scan_stats['plugins_ignored']++;
                 continue;
             }
             // Find the installed plugin data
@@ -1708,6 +1410,7 @@ class Wf_Sn_Vu {
             if ( !$installed_plugin ) {
                 continue;
             }
+            $scan_stats['plugins_checked']++;
             // Check for vulnerabilities
             $is_vulnerable = false;
             $vulnerability_data = array();
@@ -1744,27 +1447,13 @@ class Wf_Sn_Vu {
             }
             if ( $is_vulnerable ) {
                 $found_vulnerabilities[$plugin_slug] = $vulnerability_data;
+                $scan_stats['vulnerabilities_found']++;
             }
         }
-        return $found_vulnerabilities;
-    }
-
-    /**
-     * Get list of installed plugin slugs for the settings page
-     *
-     * @author  Lars Koudal
-     * @since   v0.0.1
-     * @version v1.0.0  Friday, January 12th, 2024.
-     * @return  array Array of plugin slugs
-     */
-    public static function get_installed_plugin_slugs() {
-        $plugins = get_plugins();
-        $slugs = array();
-        foreach ( $plugins as $key => $plugin ) {
-            $slug = strtok( $key, '/' );
-            $slugs[$slug] = $plugin['Name'] . ' (' . $slug . ')';
-        }
-        return $slugs;
+        return array(
+            'vulnerabilities' => $found_vulnerabilities,
+            'stats'           => $scan_stats,
+        );
     }
 
     /**
@@ -1853,6 +1542,556 @@ class Wf_Sn_Vu {
             }
         }
         return $found_vulnerabilities;
+    }
+
+    /**
+     * Handle manual vulnerability scan AJAX request
+     *
+     * @author  Lars Koudal
+     * @since   v0.0.1
+     * @version v1.0.0  Friday, January 12th, 2024.
+     * @return  void
+     */
+    public static function handle_manual_vuln_scan() {
+        // Security checks
+        if ( !current_user_can( 'manage_options' ) ) {
+            wp_die( __( 'You do not have sufficient permissions to access this page.', 'security-ninja' ) );
+        }
+        // Verify nonce
+        if ( !isset( $_POST['nonce'] ) || !wp_verify_nonce( $_POST['nonce'], 'secnin_manual_vuln_scan' ) ) {
+            wp_die( __( 'Security check failed.', 'security-ninja' ) );
+        }
+        // Check if vulnerability scanning is enabled
+        if ( !self::$options['enable_vulns'] ) {
+            wp_send_json_error( array(
+                'message' => __( 'Vulnerability scanning is disabled.', 'security-ninja' ),
+            ) );
+        }
+        // Rate limiting - prevent too frequent scans
+        $last_scan = get_transient( 'secnin_manual_vuln_scan_last' );
+        if ( $last_scan && time() - $last_scan < 60 ) {
+            // 1 minute cooldown
+            wp_send_json_error( array(
+                'message' => __( 'Please wait at least 1 minute between manual scans.', 'security-ninja' ),
+            ) );
+        }
+        // Set transient to prevent rapid successive scans
+        set_transient( 'secnin_manual_vuln_scan_last', time(), 60 );
+        // Clear cached results to force fresh scan
+        delete_option( 'wf_sn_vulnerabilities_cache' );
+        delete_option( 'wf_sn_vulnerabilities_cache_timestamp' );
+        delete_option( 'wf_sn_scan_summary' );
+        // Perform the vulnerability scan
+        $vulnerabilities = self::return_vulnerabilities();
+        // Get scan summary for detailed reporting
+        $scan_summary = get_option( 'wf_sn_scan_summary', false );
+        // Count vulnerabilities found
+        $vuln_count = 0;
+        if ( $vulnerabilities ) {
+            if ( isset( $vulnerabilities['plugins'] ) ) {
+                $vuln_count += count( $vulnerabilities['plugins'] );
+            }
+            if ( isset( $vulnerabilities['themes'] ) ) {
+                $vuln_count += count( $vulnerabilities['themes'] );
+            }
+            if ( isset( $vulnerabilities['wordpress'] ) ) {
+                $vuln_count += count( $vulnerabilities['wordpress'] );
+            }
+        }
+        // Build detailed completion message
+        $completion_message = '';
+        if ( $scan_summary ) {
+            $completion_message = sprintf(
+                __( 'Scan completed successfully! Checked %1$s plugins, %2$s themes, and WordPress %3$s against the vulnerability database.', 'security-ninja' ),
+                number_format_i18n( $scan_summary['plugins']['plugins_checked'] ?? 0 ),
+                number_format_i18n( $scan_summary['themes']['themes_checked'] ?? 0 ),
+                $scan_summary['wordpress']['current_version'] ?? 'unknown'
+            );
+            if ( $vuln_count > 0 ) {
+                $completion_message .= ' ' . sprintf( _n(
+                    'Found %s vulnerability.',
+                    'Found %s vulnerabilities.',
+                    $vuln_count,
+                    'security-ninja'
+                ), number_format_i18n( $vuln_count ) );
+            } else {
+                $completion_message .= ' ' . __( 'No vulnerabilities found.', 'security-ninja' );
+            }
+        } else {
+            $completion_message = sprintf( _n(
+                'Scan completed. Found %s vulnerability.',
+                'Scan completed. Found %s vulnerabilities.',
+                $vuln_count,
+                'security-ninja'
+            ), number_format_i18n( $vuln_count ) );
+        }
+        // Return success response
+        wp_send_json_success( array(
+            'message'             => $completion_message,
+            'vuln_count'          => $vuln_count,
+            'has_vulnerabilities' => $vuln_count > 0,
+            'scan_summary'        => $scan_summary,
+        ) );
+    }
+
+    /**
+     * Handle unauthorized AJAX requests for manual vulnerability scan
+     *
+     * @author  Lars Koudal
+     * @since   v0.0.1
+     * @version v1.0.0  Friday, January 12th, 2024.
+     * @return  void
+     */
+    public static function handle_manual_vuln_scan_denied() {
+        wp_die( __( 'You do not have permission to perform this action.', 'security-ninja' ) );
+    }
+
+    /**
+     * Enqueue admin scripts for manual vulnerability scan
+     *
+     * @author  Lars Koudal
+     * @since   v0.0.1
+     * @version v1.0.0  Friday, January 12th, 2024.
+     * @return  void
+     */
+    public static function enqueue_admin_scripts() {
+        // Only enqueue on Security Ninja admin pages
+        if ( !wf_sn::is_plugin_page() ) {
+            return;
+        }
+        // Enqueue the manual scan JavaScript file
+        wp_enqueue_script(
+            'secnin-manual-vuln-scan',
+            plugins_url( 'js/min/manual-vuln-scan-min.js', WF_SN_BASE_FILE ),
+            array('jquery'),
+            wf_sn::$version,
+            true
+        );
+        // Localize script for AJAX URL
+        wp_localize_script( 'secnin-manual-vuln-scan', 'secnin_ajax', array(
+            'ajaxurl' => admin_url( 'admin-ajax.php' ),
+            'nonce'   => wp_create_nonce( 'secnin_manual_vuln_scan' ),
+            'strings' => array(
+                'scanning'           => __( 'Scanning...', 'security-ninja' ),
+                'scanning_for_vulns' => __( 'Scanning for vulnerabilities...', 'security-ninja' ),
+                'scan_completed'     => __( 'Scan completed successfully. Reloading the page!', 'security-ninja' ),
+                'scan_failed'        => __( 'Scan failed!', 'security-ninja' ),
+                'error_occurred'     => __( 'An error occurred during the scan. Please try again.', 'security-ninja' ),
+                'run_scan'           => __( 'Run Manual Scan', 'security-ninja' ),
+            ),
+        ) );
+    }
+
+    /**
+     * Get a summary of the latest vulnerability scan
+     * This can be used by other modules to display scan information
+     *
+     * @author  Lars Koudal
+     * @since   v0.0.1
+     * @version v1.0.0  Friday, January 12th, 2024.
+     * @return  array   Array with scan summary and vulnerability count
+     */
+    public static function get_scan_summary() {
+        $vulnerabilities = self::return_vulnerabilities();
+        $scan_summary = get_option( 'wf_sn_scan_summary', false );
+        $vuln_count = 0;
+        if ( $vulnerabilities ) {
+            if ( isset( $vulnerabilities['plugins'] ) ) {
+                $vuln_count += count( $vulnerabilities['plugins'] );
+            }
+            if ( isset( $vulnerabilities['themes'] ) ) {
+                $vuln_count += count( $vulnerabilities['themes'] );
+            }
+            if ( isset( $vulnerabilities['wordpress'] ) ) {
+                $vuln_count += count( $vulnerabilities['wordpress'] );
+            }
+        }
+        return array(
+            'vulnerabilities'     => $vulnerabilities,
+            'scan_summary'        => $scan_summary,
+            'vuln_count'          => $vuln_count,
+            'has_vulnerabilities' => $vuln_count > 0,
+        );
+    }
+
+    /**
+     * Memory-efficient vulnerability check for themes
+     * Processes vulnerability file line by line instead of loading entire file into memory
+     *
+     * @author  Lars Koudal
+     * @since   v0.0.1
+     * @version v1.0.0  Friday, January 12th, 2024.
+     * @param   array   $installed_themes Array of installed themes
+     * @return  array   Array with vulnerabilities and scan statistics
+     */
+    public static function check_theme_vulnerabilities_memory_efficient( $installed_themes ) {
+        require_once ABSPATH . 'wp-admin/includes/file.php';
+        global $wp_filesystem;
+        if ( empty( $wp_filesystem ) && !WP_Filesystem() ) {
+            return array(
+                'vulnerabilities' => array(),
+                'stats'           => array(
+                    'themes_checked'         => 0,
+                    'themes_ignored'         => 0,
+                    'vulnerabilities_found'  => 0,
+                    'lines_processed'        => 0,
+                    'total_themes_installed' => count( $installed_themes ),
+                ),
+            );
+        }
+        $upload_dir = wp_upload_dir();
+        $file_path = $upload_dir['basedir'] . "/security-ninja/vulns/themes_vulns.jsonl";
+        if ( !$wp_filesystem->exists( $file_path ) ) {
+            return array(
+                'vulnerabilities' => array(),
+                'stats'           => array(
+                    'themes_checked'         => 0,
+                    'themes_ignored'         => 0,
+                    'vulnerabilities_found'  => 0,
+                    'lines_processed'        => 0,
+                    'total_themes_installed' => count( $installed_themes ),
+                ),
+            );
+        }
+        $found_vulnerabilities = array();
+        $theme_slugs = array();
+        $scan_stats = array(
+            'themes_checked'         => 0,
+            'themes_ignored'         => 0,
+            'vulnerabilities_found'  => 0,
+            'lines_processed'        => 0,
+            'total_themes_installed' => count( $installed_themes ),
+        );
+        // Extract theme slugs from installed themes
+        foreach ( $installed_themes as $key => $theme_data ) {
+            $theme_slugs[] = $key;
+        }
+        // Get ignored theme slugs
+        $ignored_slugs = array();
+        if ( !empty( self::$options['ignored_plugin_slugs'] ) ) {
+            $ignored_slugs = array_map( 'trim', explode( "\n", self::$options['ignored_plugin_slugs'] ) );
+            $ignored_slugs = array_filter( $ignored_slugs );
+            // Remove empty entries
+        }
+        // Open file and process line by line
+        $handle = $wp_filesystem->get_contents_array( $file_path );
+        if ( !$handle ) {
+            return array(
+                'vulnerabilities' => array(),
+                'stats'           => $scan_stats,
+            );
+        }
+        $line_count = 0;
+        foreach ( $handle as $line ) {
+            $line_count++;
+            $scan_stats['lines_processed']++;
+            $decoded_line = json_decode( $line, true );
+            if ( !is_array( $decoded_line ) || !isset( $decoded_line['slug'] ) ) {
+                continue;
+            }
+            // Only process if this theme is installed
+            $theme_slug = $decoded_line['slug'];
+            if ( !in_array( $theme_slug, $theme_slugs, true ) ) {
+                continue;
+            }
+            // Skip if this theme is in the ignored list
+            if ( in_array( $theme_slug, $ignored_slugs, true ) ) {
+                $scan_stats['themes_ignored']++;
+                continue;
+            }
+            // Find the installed theme data
+            $installed_theme = null;
+            if ( isset( $installed_themes[$theme_slug] ) ) {
+                $installed_theme = $installed_themes[$theme_slug];
+            }
+            if ( !$installed_theme ) {
+                continue;
+            }
+            $scan_stats['themes_checked']++;
+            // Check for vulnerabilities
+            $is_vulnerable = false;
+            $vulnerability_data = array();
+            // Check versionEndExcluding
+            if ( isset( $decoded_line['versionEndExcluding'] ) && '' !== $decoded_line['versionEndExcluding'] ) {
+                $decoded_line['versionEndExcluding'] = rtrim( $decoded_line['versionEndExcluding'], '.0' );
+                if ( version_compare( $installed_theme['Version'], $decoded_line['versionEndExcluding'], '<' ) ) {
+                    $is_vulnerable = true;
+                    $vulnerability_data = array(
+                        'name'                => $installed_theme['Name'],
+                        'desc'                => ( isset( $decoded_line['description'] ) ? $decoded_line['description'] : '' ),
+                        'installedVersion'    => $installed_theme['Version'],
+                        'versionEndExcluding' => $decoded_line['versionEndExcluding'],
+                        'CVE_ID'              => $decoded_line['CVE_ID'],
+                        'refs'                => ( isset( $decoded_line['refs'] ) ? $decoded_line['refs'] : array() ),
+                    );
+                }
+            }
+            if ( $is_vulnerable ) {
+                $found_vulnerabilities[$theme_slug] = $vulnerability_data;
+                $scan_stats['vulnerabilities_found']++;
+            }
+        }
+        return array(
+            'vulnerabilities' => $found_vulnerabilities,
+            'stats'           => $scan_stats,
+        );
+    }
+
+    /**
+     * Generate HTML for displaying vulnerability results
+     * This function can be reused across different pages
+     *
+     * @author  Lars Koudal
+     * @since   v0.0.1
+     * @version v1.0.0  Friday, January 12th, 2024.
+     * @param   array   $vulnerabilities Array of found vulnerabilities
+     * @param   array   $scan_summary    Optional scan summary statistics
+     * @return  string  HTML output for vulnerability display
+     */
+    public static function generate_vulnerability_display( $vulnerabilities, $scan_summary = null ) {
+        global $wp_version;
+        $output = '';
+        // Check if any vulnerabilities were found
+        $has_vulnerabilities = false;
+        if ( $vulnerabilities ) {
+            if ( isset( $vulnerabilities['plugins'] ) && !empty( $vulnerabilities['plugins'] ) ) {
+                $has_vulnerabilities = true;
+            }
+            if ( isset( $vulnerabilities['themes'] ) && !empty( $vulnerabilities['themes'] ) ) {
+                $has_vulnerabilities = true;
+            }
+            if ( isset( $vulnerabilities['wordpress'] ) && !empty( $vulnerabilities['wordpress'] ) ) {
+                $has_vulnerabilities = true;
+            }
+        }
+        if ( $has_vulnerabilities ) {
+            $output .= '<h2 class="warning"><span class="dashicons dashicons-sos"></span>' . esc_html__( 'Vulnerabilities found on your system!', 'security-ninja' ) . '</h2>';
+            // Display WordPress vulnerabilities
+            if ( isset( $vulnerabilities['wordpress'] ) && !empty( $vulnerabilities['wordpress'] ) ) {
+                $get_wp_ver_status = self::get_wp_ver_status();
+                $wp_status = '';
+                if ( isset( $get_wp_ver_status->{$wp_version} ) ) {
+                    if ( 'insecure' === $get_wp_ver_status->{$wp_version} ) {
+                        $wp_status = sprintf( 
+                            /* translators: %s: WordPress version */
+                            __( 'This version of WordPress (%s) is considered %s. You should upgrade as soon as possible.', 'security-ninja' ),
+                            $wp_version,
+                            '<strong>' . esc_html__( 'INSECURE', 'security-ninja' ) . '</strong>'
+                         );
+                    }
+                    if ( 'outdated' === $get_wp_ver_status->{$wp_version} ) {
+                        $wp_status = sprintf( 
+                            /* translators: %s: WordPress version */
+                            __( 'This version of WordPress (%s) is considered %s. You should upgrade as soon as possible.', 'security-ninja' ),
+                            $wp_version,
+                            '<strong>' . esc_html__( 'OUTDATED', 'security-ninja' ) . '</strong>'
+                         );
+                    }
+                }
+                $output .= '<div class="vuln vulnwordpress">';
+                $output .= '<p>' . sprintf( 
+                    /* translators: %s: WordPress version */
+                    esc_html__( 'You are running WordPress version %s and there are known vulnerabilities that have been fixed in later versions. You should upgrade WordPress as soon as possible.', 'security-ninja' ),
+                    esc_html( $wp_version )
+                 ) . '</p>';
+                if ( '' !== $wp_status ) {
+                    $output .= '<div class="vulnrecommendation"><h2>' . wp_kses_post( $wp_status ) . '</h2></div>';
+                }
+                $output .= '<p>' . esc_html__( 'Known vulnerabilities', 'security-ninja' ) . '</p>';
+                foreach ( $vulnerabilities['wordpress'] as $key => $wpvuln ) {
+                    if ( isset( $wpvuln['versionEndExcluding'] ) ) {
+                        $output .= '<h3><span class="dashicons dashicons-warning"></span> ' . esc_html( 'WordPress ' . $wpvuln['CVE_ID'] ) . '</h3>';
+                        $output .= '<div class="wrap-collabsible">';
+                        $output .= '<input id="collapsible-' . esc_attr( $key ) . '" class="toggle" type="checkbox">';
+                        $output .= '<label for="collapsible-' . esc_attr( $key ) . '" class="lbl-toggle">' . esc_html__( 'Details', 'security-ninja' ) . '</label>';
+                        $output .= '<div class="collapsible-content">';
+                        $output .= '<div class="content-inner">';
+                        if ( isset( $wpvuln['desc'] ) && '' !== $wpvuln['desc'] ) {
+                            $output .= '<p class="vulndesc">' . esc_html( $wpvuln['desc'] ) . '</p>';
+                        }
+                        $output .= '<p class="vulnDetails">' . sprintf( 
+                            /* translators: 1: WordPress version */
+                            esc_html__( 'Fixed in WordPress version %1$s', 'security-ninja' ),
+                            esc_attr( $wpvuln['versionEndExcluding'] )
+                         ) . '</p>';
+                        if ( isset( $wpvuln['CVE_ID'] ) && '' !== $wpvuln['CVE_ID'] ) {
+                            $output .= '<p><span class="nvdlink">' . sprintf(
+                                /* translators: %s: CVE ID */
+                                esc_html__( 'More details: %1$sRead more about %2$s%3$s%4$s', 'security-ninja' ),
+                                '<a href="' . esc_url( 'https://nvd.nist.gov/vuln/detail/' . $wpvuln['CVE_ID'] ) . '" target="_blank" rel="noopener">',
+                                esc_html( $wpvuln['CVE_ID'] ),
+                                '</a>'
+                            ) . '</span></p>';
+                        }
+                        $output .= '</div></div></div>';
+                    }
+                }
+                $output .= '</div>';
+            }
+            // Display plugin vulnerabilities
+            if ( isset( $vulnerabilities['plugins'] ) && !empty( $vulnerabilities['plugins'] ) ) {
+                $output .= '<p>' . esc_html__( 'You should upgrade to latest version or find a different plugin as soon as possible.', 'security-ninja' ) . '</p>';
+                foreach ( $vulnerabilities['plugins'] as $key => $found_vuln ) {
+                    $output .= '<div class="sncard vulnplugin snerror">';
+                    $output .= '<h3><span class="dashicons dashicons-warning"></span>';
+                    $output .= sprintf( 
+                        /* translators: %1$s: Plugin name, %2$s: Plugin version */
+                        esc_html__( 'Plugin: %1$s %2$s', 'security-ninja' ),
+                        '<span class="plugin-name">' . esc_html( $found_vuln['name'] ) . '</span>',
+                        '<span class="ver">v. ' . esc_html( $found_vuln['installedVersion'] ) . '</span>'
+                     );
+                    $output .= '</h3>';
+                    if ( isset( $found_vuln['versionEndExcluding'] ) ) {
+                        $searchurl = admin_url( 'plugins.php?s=' . rawurlencode( $found_vuln['name'] ) . '&plugin_status=all' );
+                        $output .= '<div class="vulnrecommendation"><p>';
+                        $output .= sprintf(
+                            wp_kses( 
+                                // translators: %1$s: URL for the update, %2$s: Plugin name, %3$s: Minimum version required
+                                __( 'Update %2$s to minimum version %3$s <a href="%1$s">here</a>', 'security-ninja' ),
+                                array(
+                                    'a' => array(
+                                        'href' => array(),
+                                    ),
+                                )
+                             ),
+                            esc_url( $searchurl ),
+                            esc_html( $found_vuln['name'] ),
+                            esc_html( $found_vuln['versionEndExcluding'] )
+                        );
+                        $output .= '</p></div>';
+                    }
+                    // Always show details section if we have any vulnerability information
+                    $has_details = false;
+                    if ( isset( $found_vuln['desc'] ) && '' !== $found_vuln['desc'] ) {
+                        $has_details = true;
+                    }
+                    if ( isset( $found_vuln['refs'] ) && '' !== $found_vuln['refs'] ) {
+                        $has_details = true;
+                    }
+                    if ( isset( $found_vuln['CVE_ID'] ) && '' !== $found_vuln['CVE_ID'] ) {
+                        $has_details = true;
+                    }
+                    if ( $has_details ) {
+                        $output .= '<div class="wrap-collabsible">';
+                        $output .= '<input id="collapsible-' . esc_attr( $key ) . '" class="toggle" type="checkbox">';
+                        $output .= '<label for="collapsible-' . esc_attr( $key ) . '" class="lbl-toggle">' . esc_html__( 'Details', 'security-ninja' ) . '</label>';
+                        $output .= '<div class="collapsible-content">';
+                        $output .= '<div class="content-inner">';
+                        if ( isset( $found_vuln['desc'] ) && '' !== $found_vuln['desc'] ) {
+                            $output .= '<p class="vulndesc">' . wp_kses_post( $found_vuln['desc'] ) . '</p>';
+                        }
+                        if ( isset( $found_vuln['refs'] ) && '' !== $found_vuln['refs'] ) {
+                            $refs = json_decode( $found_vuln['refs'] );
+                            if ( is_array( $refs ) ) {
+                                $output .= '<h4>' . esc_html__( 'Read more:', 'security-ninja' ) . '</h4><ul>';
+                                if ( isset( $found_vuln['CVE_ID'] ) && '' !== $found_vuln['CVE_ID'] ) {
+                                    $output .= '<li><a href="' . esc_url( 'https://nvd.nist.gov/vuln/detail/' . $found_vuln['CVE_ID'] ) . '" target="_blank" class="exlink" rel="noopener">' . esc_attr( $found_vuln['CVE_ID'] ) . '</a></li>';
+                                }
+                                foreach ( $refs as $ref ) {
+                                    $output .= '<li><a href="' . esc_url( $ref->url ) . '" target="_blank" class="exlink" rel="noopener">' . esc_html( self::remove_http( $ref->name ) ) . '</a></li>';
+                                }
+                                $output .= '</ul>';
+                            }
+                        } else {
+                            if ( isset( $found_vuln['CVE_ID'] ) && '' !== $found_vuln['CVE_ID'] ) {
+                                // Show CVE link even if no other references
+                                $output .= '<h4>' . esc_html__( 'Read more:', 'security-ninja' ) . '</h4><ul>';
+                                $output .= '<li><a href="' . esc_url( 'https://nvd.nist.gov/vuln/detail/' . $found_vuln['CVE_ID'] ) . '" target="_blank" class="exlink" rel="noopener">' . esc_attr( $found_vuln['CVE_ID'] ) . '</a></li>';
+                                $output .= '</ul>';
+                            }
+                        }
+                        $output .= '</div></div></div>';
+                    }
+                    $output .= '</div>';
+                }
+            }
+            // Display theme vulnerabilities
+            if ( isset( $vulnerabilities['themes'] ) && !empty( $vulnerabilities['themes'] ) ) {
+                $output .= '<p>' . esc_html__( 'Warning - Vulnerable themes found! Note: comparison is made by folder name. Please verify the theme before deleting.', 'security-ninja' ) . '</p>';
+                foreach ( $vulnerabilities['themes'] as $key => $found_vuln ) {
+                    $output .= '<div class="sncard vulnplugin snerror">';
+                    $output .= '<h3><span class="dashicons dashicons-warning"></span>';
+                    $output .= sprintf( 
+                        /* translators: %1$s: Theme name, %2$s: Theme version */
+                        esc_html__( 'Theme: %1$s %2$s', 'security-ninja' ),
+                        '<span class="theme-name">' . esc_html( $found_vuln['name'] ) . '</span>',
+                        '<span class="ver">v. ' . esc_html( $found_vuln['installedVersion'] ) . '</span>'
+                     );
+                    $output .= '</h3>';
+                    if ( isset( $found_vuln['versionEndExcluding'] ) ) {
+                        $searchurl = admin_url( 'themes.php' );
+                        $output .= '<div class="vulnrecommendation"><p>';
+                        $output .= sprintf(
+                            // translators: %1$s: URL for the update, %2$s: Theme name, %3$s: Minimum version required
+                            __( 'Update %2$s to minimum version %3$s. You can do it %1$s.', 'security-ninja' ),
+                            '<a href="' . esc_url( $searchurl ) . '">' . esc_html__( 'here', 'security-ninja' ) . '</a>',
+                            esc_html( $found_vuln['name'] ),
+                            esc_html( $found_vuln['versionEndExcluding'] )
+                        );
+                        $output .= '</p></div>';
+                    }
+                    // Always show details section if we have any vulnerability information
+                    $has_details = false;
+                    if ( isset( $found_vuln['desc'] ) && '' !== $found_vuln['desc'] ) {
+                        $has_details = true;
+                    }
+                    if ( isset( $found_vuln['refs'] ) && '' !== $found_vuln['refs'] ) {
+                        $has_details = true;
+                    }
+                    if ( isset( $found_vuln['CVE_ID'] ) && '' !== $found_vuln['CVE_ID'] ) {
+                        $has_details = true;
+                    }
+                    if ( $has_details ) {
+                        $output .= '<div class="wrap-collabsible">';
+                        $output .= '<input id="collapsible-' . esc_attr( $key ) . '" class="toggle" type="checkbox">';
+                        $output .= '<label for="collapsible-' . esc_attr( $key ) . '" class="lbl-toggle">' . esc_html__( 'Details', 'security-ninja' ) . '</label>';
+                        $output .= '<div class="collapsible-content">';
+                        $output .= '<div class="content-inner">';
+                        if ( isset( $found_vuln['desc'] ) && '' !== $found_vuln['desc'] ) {
+                            $output .= '<p class="vulndesc">' . esc_html( $found_vuln['desc'] ) . '</p>';
+                        }
+                        if ( isset( $found_vuln['refs'] ) && '' !== $found_vuln['refs'] ) {
+                            $refs = json_decode( $found_vuln['refs'] );
+                            if ( is_array( $refs ) ) {
+                                $output .= '<h4>' . esc_html__( 'Read more:', 'security-ninja' ) . '</h4><ul>';
+                                if ( isset( $found_vuln['CVE_ID'] ) && '' !== $found_vuln['CVE_ID'] ) {
+                                    $output .= '<li><a href="' . esc_url( 'https://nvd.nist.gov/vuln/detail/' . $found_vuln['CVE_ID'] ) . '" target="_blank" class="exlink" rel="noopener">' . esc_attr( $found_vuln['CVE_ID'] ) . '</a></li>';
+                                }
+                                foreach ( $refs as $ref ) {
+                                    $output .= '<li><a href="' . esc_url( $ref->url ) . '" target="_blank" class="exlink" rel="noopener">' . esc_html( self::remove_http( $ref->name ) ) . '</a></li>';
+                                }
+                                $output .= '</ul>';
+                            }
+                        } else {
+                            if ( isset( $found_vuln['CVE_ID'] ) && '' !== $found_vuln['CVE_ID'] ) {
+                                // Show CVE link even if no other references
+                                $output .= '<h4>' . esc_html__( 'Read more:', 'security-ninja' ) . '</h4><ul>';
+                                $output .= '<li><a href="' . esc_url( 'https://nvd.nist.gov/vuln/detail/' . $found_vuln['CVE_ID'] ) . '" target="_blank" class="exlink" rel="noopener">' . esc_attr( $found_vuln['CVE_ID'] ) . '</a></li>';
+                                $output .= '</ul>';
+                            }
+                        }
+                        $output .= '</div></div></div>';
+                    }
+                    $output .= '</div>';
+                }
+            }
+        } else {
+            // No vulnerabilities found
+            $output .= '<div class="noerrorsfound">';
+            $output .= '<h3>' . esc_html__( 'Great news!', 'security-ninja' ) . '</h3>';
+            $output .= '<p>' . esc_html__( 'No vulnerabilities found.', 'security-ninja' ) . '</p>';
+            $output .= '</div>';
+            // Show scan summary if available
+            if ( $scan_summary ) {
+                $output .= '<p>' . sprintf(
+                    esc_html__( 'Scan completed: %1$s plugins, %2$s themes, WordPress %3$s checked against vulnerability database.', 'security-ninja' ),
+                    number_format_i18n( $scan_summary['plugins']['plugins_checked'] ?? 0 ),
+                    number_format_i18n( $scan_summary['themes']['themes_checked'] ?? 0 ),
+                    $scan_summary['wordpress']['current_version'] ?? 'unknown'
+                ) . '</p>';
+            }
+        }
+        return $output;
     }
 
 }

@@ -70,23 +70,35 @@ class WF_SN_Overview_Tab {
         }
         ?>
     </div>
-    <div id="snvulns">
+  <div id="snvulns">
     
     <?php 
         if ( wf_sn_vu::$options['enable_vulns'] ) {
-            // Get the list of vulnerabilities
-            $vuln_results = wf_sn_vu::return_vulnerabilities();
-            if ( isset( $vuln_results['wordpress'] ) || isset( $vuln_results['plugins'] ) || isset( $vuln_results['themes'] ) ) {
-                $checklist = ['plugins', 'themes'];
+            // Get scan summary using the new function
+            $scan_data = wf_sn_vu::get_scan_summary();
+            $vuln_results = $scan_data['vulnerabilities'];
+            $scan_summary = $scan_data['scan_summary'];
+            $has_vulnerabilities = $scan_data['has_vulnerabilities'];
+            if ( $has_vulnerabilities ) {
+                $checklist = ['plugins', 'themes', 'wordpress'];
                 $combined = [];
                 foreach ( $checklist as $vulntype ) {
                     if ( isset( $vuln_results[$vulntype] ) ) {
                         foreach ( $vuln_results[$vulntype] as $data ) {
-                            $combined[] = [
-                                'name' => $data['name'],
-                                'ver'  => $data['installedVersion'],
-                                'type' => $vulntype,
-                            ];
+                            if ( $vulntype === 'wordpress' ) {
+                                // WordPress vulnerabilities have different structure
+                                $combined[] = [
+                                    'name' => 'WordPress ' . ($data['CVE_ID'] ?? 'Vulnerability'),
+                                    'ver'  => $wp_version ?? 'unknown',
+                                    'type' => 'wordpress',
+                                ];
+                            } else {
+                                $combined[] = [
+                                    'name' => $data['name'],
+                                    'ver'  => $data['installedVersion'],
+                                    'type' => $vulntype,
+                                ];
+                            }
                         }
                     }
                 }
@@ -97,7 +109,7 @@ class WF_SN_Overview_Tab {
                     echo '<p>' . esc_html__( 'Here are the vulnerabilities found on your site:', 'security-ninja' ) . '</p>';
                     echo '<ul style="list-style-type: none; padding: 0; margin-bottom:0px;">';
                     foreach ( $combined as $vuln ) {
-                        $icon_class = ( $vuln['type'] === 'plugins' ? 'dashicons-admin-plugins' : (( $vuln['type'] === 'themes' ? 'dashicons-admin-appearance' : '' )) );
+                        $icon_class = ( $vuln['type'] === 'plugins' ? 'dashicons-admin-plugins' : (( $vuln['type'] === 'themes' ? 'dashicons-admin-appearance' : (( $vuln['type'] === 'wordpress' ? 'dashicons-wordpress' : '' )) )) );
                         echo '<li class="vuln-item"><span class="dashicons ' . esc_attr( $icon_class ) . '"></span><strong>' . esc_html( $vuln['name'] ) . '</strong>: ' . esc_html( $vuln['ver'] ) . '</li>';
                     }
                     echo '</ul>';
@@ -105,11 +117,19 @@ class WF_SN_Overview_Tab {
                     echo ' <a href="#sn_vuln">' . esc_html__( 'Details', 'security-ninja' ) . '</a>.';
                     echo '</div>';
                 }
-            }
-            if ( empty( $combined ) ) {
+            } else {
                 echo '<div class="sncard">';
                 echo '<h3><span class="dashicons dashicons-shield-alt"></span> ' . esc_html__( 'Vulnerability Scan Results', 'security-ninja' ) . '</h3>';
                 echo '<div class="noerrorsfound"><h3>' . esc_html__( 'Great news!', 'security-ninja' ) . '</h3><p>' . esc_html__( 'No vulnerabilities found.', 'security-ninja' ) . '</p></div>';
+                // Show scan summary if available
+                if ( $scan_summary ) {
+                    echo '<p>' . sprintf(
+                        esc_html__( 'Last scan: %1$s plugins, %2$s themes, WordPress %3$s checked.', 'security-ninja' ),
+                        number_format_i18n( $scan_summary['plugins']['plugins_checked'] ?? 0 ),
+                        number_format_i18n( $scan_summary['themes']['themes_checked'] ?? 0 ),
+                        $scan_summary['wordpress']['current_version'] ?? 'unknown'
+                    ) . '</p>';
+                }
                 echo '</div>';
             }
             ?>

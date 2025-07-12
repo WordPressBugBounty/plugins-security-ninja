@@ -4,45 +4,45 @@
 * Test functions
 */
 
+// phpcs:disable PHPCompatibility.PHP.DeprecatedIniDirectives -- This file intentionally checks deprecated INI settings for security testing
+
 namespace WPSecurityNinja\Plugin;
 
 // this is an include only WP file
-if (!defined('ABSPATH')) {
+if ( ! defined( 'ABSPATH' ) ) {
 	die;
 }
 
-class Wf_Sn_Tests extends WF_SN
-{
+class Wf_Sn_Tests extends WF_SN {
 
 	public static $security_tests;
 
-	public static function return_security_tests()
-	{
+	public static function return_security_tests() {
 		return array(
 			'ver_check'                 => array(
-				'title'   => __('Check if WordPress core is up to date.', 'security-ninja'),
+				'title'   => __( 'Check if WordPress core is up to date.', 'security-ninja' ),
 				'score'   => 5,
 			),
 
 			'core_updates_check'        => array(
-				'title'   => __('Check if automatic WordPress core updates are enabled.', 'security-ninja'),
+				'title'   => __( 'Check if automatic WordPress core updates are enabled.', 'security-ninja' ),
 				'score'   => 5,
 			),
 
 			// Plugins
 
 			'plugins_ver_check'         => array(
-				'title'   => __('Check if plugins are up to date.', 'security-ninja'),
+				'title'   => __( 'Check if plugins are up to date.', 'security-ninja' ),
 				'score'   => 5,
 			),
 
 			'deactivated_plugins'       => array(
-				'title'   => __('Check if there are deactivated plugins.', 'security-ninja'),
+				'title'   => __( 'Check if there are deactivated plugins.', 'security-ninja' ),
 				'score'   => 3,
 			),
 
 			'old_plugins'               => array(
-				'title'       => __('Check if active plugins have been updated in the last 12 months.', 'security-ninja'),
+				'title'       => __( 'Check if active plugins have been updated in the last 12 months.', 'security-ninja' ),
 				'score'       => 3,
 			),
 
@@ -755,7 +755,7 @@ class Wf_Sn_Tests extends WF_SN
 		$is_local = in_array($_SERVER['REMOTE_ADDR'], array('127.0.0.1', '::1'));
 
 		$response = wp_remote_get(
-				add_query_arg('secnin-test', rand(), get_home_url()),
+				add_query_arg('secnin-test', \rand(), get_home_url()),
 				array(
 						'timeout'     => 25,
 						'redirection' => 2,
@@ -818,7 +818,7 @@ class Wf_Sn_Tests extends WF_SN
 		$is_local = in_array($_SERVER['REMOTE_ADDR'], array('127.0.0.1', '::1'));
 
 		$request = wp_remote_get(
-			add_query_arg('secnin-test', rand(), get_home_url()),
+			add_query_arg( 'secnin-test', \rand(), get_home_url() ),
 			array(
 				'timeout'     => 25,
 				'redirection' => 2,
@@ -1033,15 +1033,17 @@ class Wf_Sn_Tests extends WF_SN
 		);
 
 		// Check if allow_url_include is enabled
-		if (ini_get('allow_url_include')) {
+		// phpcs:ignore PHPCompatibility.PHP.DeprecatedIniDirectives -- Intentionally checking deprecated setting for security testing
+		$allowUrlInclude = ini_get('allow_url_include');
+		if ($allowUrlInclude) {
 			$return['status'] = 0; // Not OK
 			$return['msg'] = __('Warning: allow_url_include is enabled. It is recommended to disable this setting for security reasons.', 'security-ninja');
 		} else {
 			$return['msg'] = __('allow_url_include is disabled - Recommended setting.', 'security-ninja');
 		}
-
 		return $return;
 	}
+
 	/**
 	 * check if safe mode is off
 	 *
@@ -1055,7 +1057,7 @@ class Wf_Sn_Tests extends WF_SN
 	public static function safe_mode_check()
 	{
 		$return = array();
-		$safeModeEnabled = ini_get('safe_mode');
+		$safeModeEnabled = ini_get('safe_mode'); // phpcs:ignore PHPCompatibility.PHP.DeprecatedIniDirectives -- Intentionally checking deprecated setting for security testing
 
 		if ($safeModeEnabled === false) {
 			$return['status'] = 10;
@@ -1815,7 +1817,7 @@ class Wf_Sn_Tests extends WF_SN
 
     // Make a remote request to the home URL with a random query parameter
     $response = wp_remote_get(
-			add_query_arg('secnin-test', rand(), get_home_url()),
+			add_query_arg('secnin-test', \rand(), get_home_url()),
         array(
             'timeout'     => 25,
             'redirection' => 2,
@@ -1946,7 +1948,7 @@ class Wf_Sn_Tests extends WF_SN
 		$is_local = in_array($_SERVER['REMOTE_ADDR'], array('127.0.0.1', '::1'));
 
 		$response = wp_remote_get(
-			add_query_arg('secnin-test', rand(), get_home_url()),
+			add_query_arg('secnin-test', \rand(), get_home_url()),
 			array(
 				'timeout'     => 25,
 				'redirection' => 2,
@@ -2009,7 +2011,7 @@ class Wf_Sn_Tests extends WF_SN
 		$is_local = in_array($_SERVER['REMOTE_ADDR'], array('127.0.0.1', '::1'));
 
 		$response = wp_remote_get(
-			add_query_arg('secnin-test', rand(), get_home_url()),
+			add_query_arg('secnin-test', \rand(), get_home_url()),
 			array(
 				'timeout'     => 25,
 				'redirection' => 2,
@@ -2085,7 +2087,7 @@ class Wf_Sn_Tests extends WF_SN
 		$is_local = in_array($_SERVER['REMOTE_ADDR'], array('127.0.0.1', '::1'));
 
 		$response = wp_remote_get(
-			add_query_arg('secnin-test', rand(), get_home_url()),
+			add_query_arg('secnin-test', \rand(), get_home_url()),
 			array(
 				'timeout'     => 25,
 				'redirection' => 2,
@@ -2153,7 +2155,7 @@ class Wf_Sn_Tests extends WF_SN
 		$is_local = in_array($_SERVER['REMOTE_ADDR'], array('127.0.0.1', '::1'));
 
 		$response = wp_remote_get(
-			add_query_arg('secnin-test', rand(), get_home_url()),
+			add_query_arg('secnin-test', \rand(), get_home_url()),
 			array(
 				'timeout'     => 25,
 				'redirection' => 2,
@@ -2299,7 +2301,7 @@ class Wf_Sn_Tests extends WF_SN
 		$is_local = in_array($_SERVER['REMOTE_ADDR'], array('127.0.0.1', '::1'));
 		
 		$response = wp_remote_get(
-				add_query_arg('secnin-test', rand(), get_home_url()),
+				add_query_arg('secnin-test', \rand(), get_home_url()),
 				array(
 						'timeout'     => 25,
 						'redirection' => 2,

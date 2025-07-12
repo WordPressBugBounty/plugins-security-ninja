@@ -501,7 +501,7 @@ class Wf_Sn_Cs {
                         false,
                         true
                     );
-                    $results['out'] .= ' <button href="#delete-all-dialog" class="sn-delete-all-files button button-secondary button-small alignright">' . __( 'Delete all', 'security-ninja' ) . '</button>';
+                    $results['out'] .= '<div class="deletealldialogtrigger"><button href="#delete-all-dialog" class="sn-delete-all-files alignright button button-secondary button-small alignright">' . __( 'Delete all', 'security-ninja' ) . '</button></div>';
                     $results['out'] .= '</div></div>';
                 }
                 if ( $results['changed_bad'] ) {
@@ -737,36 +737,13 @@ class Wf_Sn_Cs {
         ?>
             </div>
             <?php 
-        echo '<input type="button" value="' . esc_html__( 'Scan Core Files', 'security-ninja' ) . '" id="sn-run-core-scan" class="snbtn button-secondary button-small" />';
+        echo '<input type="button" value="' . esc_html__( 'Scan Core Files', 'security-ninja' ) . '" id="sn-run-core-scan" class="button snbtn button-secondary button-large" />';
         ?>
 
        
         </div>
 
 <?php 
-    }
-
-    /**
-     * Check if files can be restored
-     *
-     * @author  Lars Koudal
-     * @since   v0.0.1
-     * @version v1.0.0  Friday, December 18th, 2020.
-     * @access  public static
-     * @return  mixed
-     */
-    public static function check_file_write() {
-        $url = wp_nonce_url( 'options.php?page=wf-sn', 'wf-sn-cs' );
-        ob_start();
-        $creds = request_filesystem_credentials(
-            $url,
-            '',
-            false,
-            false,
-            null
-        );
-        ob_end_clean();
-        return (bool) $creds;
     }
 
     /**

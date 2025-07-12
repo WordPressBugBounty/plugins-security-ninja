@@ -10,13 +10,15 @@ class Utils {
     /**
      * Filters out any Freemius admin notices
      *
-     * @author  Lars Koudal
-     * @since   v0.0.1
-     * @version v1.0.0  Wednesday, January 13th, 2021.
-     * @access  public static
-     * @param   mixed $show
-     * @param   mixed $msg  {
-     * @return  mixed
+     * @author Lars Koudal
+     * @author Unknown
+     * @since v0.0.1
+     * @version v1.0.0 Wednesday, January 13th, 2021.	
+     * @version v1.0.1 Thursday, July 10th, 2025.
+     * @access public static
+     * @param mixed $show	
+     * @param mixed $msg
+     * @return mixed
      */
     public static function do_filter_show_admin_notice( $show, $msg ) {
         return $show;
@@ -52,8 +54,7 @@ class Utils {
                 echo esc_html( $wf_sn_vu_vulns_notice );
                 ?></p>
 				</div>
-				<?php 
-                // Once we've seen the message, no need to save it
+		<?php 
                 delete_option( 'wf_sn_vu_vulns_notice' );
             }
         }
@@ -101,7 +102,7 @@ class Utils {
         }
         $current_screen = get_current_screen();
         // Lets not show on the wizard page
-        if ( strpos( $current_screen->id, 'page_security-ninja-wizard' ) !== false ) {
+        if ( false !== strpos( $current_screen->id, 'page_security-ninja-wizard' ) ) {
             return;
         }
         ?>
@@ -146,7 +147,7 @@ class Utils {
         }
         $current_screen = get_current_screen();
         // Lets not show on the wizard page
-        if ( strpos( $current_screen->id, 'page_security-ninja-wizard' ) !== false ) {
+        if ( false !== strpos( $current_screen->id, 'page_security-ninja-wizard' ) ) {
             return;
         }
         // Check if been dismissed already
@@ -192,11 +193,11 @@ class Utils {
 
 
 				<p>You can unsubscribe anytime. For more details, review our <a href="<?php 
-            echo esc_url( \WPSecurityNinja\Plugin\Utils::generate_sn_web_link( 'newsletter_signup', '/privacy-policy/' ) );
+            echo esc_url( self::generate_sn_web_link( 'newsletter_signup', '/privacy-policy/' ) );
             ?>" target="_blank" rel="noopener">Privacy Policy</a>.</p>
 				<p><small>Signup form is shown every 30 days.</small> - <a href="javascript:;" class="dismiss-this">Click here to dismiss</a></p>
 			</div>
-			<?php 
+		<?php 
         }
     }
 
@@ -283,7 +284,6 @@ class Utils {
                 $license_key = trim( $file_contents[0] );
                 if ( empty( $license_key ) || strlen( $license_key ) !== 32 || strpos( $license_key, 'sk_' ) !== 0 ) {
                     $license_key = '';
-                    error_log( 'WP Security Ninja: Invalid license key format detected. Expected 32 characters starting with "sk_".' );
                 }
             }
         }
@@ -538,23 +538,23 @@ class Utils {
         ?>
 		<div class="submit-test-container">
 			<div class="fomcont">
-			<h3>Unlock Agency-Level Branding</h3>
+				<h3>Unlock Agency-Level Branding</h3>
 				<img src="<?php 
         echo esc_url( WF_SN_PLUGIN_URL . 'images/whitelabel.jpg' );
         ?>" alt="Whitelabel your security work." class="tabimage">
 
 
-  
-  <p>
-    White label is the ultimate branding tool for agencies and professionals. Present a fully customized security solution to your clients, boosting your brand recognition and client loyalty. Hide WP Security Ninja branding, customize the plugin name, add your company URL, and even use your own logo.
-  </p>
-  <ul>
-    <li><strong>Increase Brand Visibility:</strong> Showcase your brand with every security scan and notification.</li>
-    <li><strong>Enhanced Client Loyalty:</strong> Provide a seamless, branded experience that keeps clients coming back.</li>
-  </ul>
-  <p>
-    <em>This feature is available for Pro users with 25+ site licenses.</em>
-  </p>
+
+				<p>
+					White label is the ultimate branding tool for agencies and professionals. Present a fully customized security solution to your clients, boosting your brand recognition and client loyalty. Hide WP Security Ninja branding, customize the plugin name, add your company URL, and even use your own logo.
+				</p>
+				<ul>
+					<li><strong>Increase Brand Visibility:</strong> Showcase your brand with every security scan and notification.</li>
+					<li><strong>Enhanced Client Loyalty:</strong> Provide a seamless, branded experience that keeps clients coming back.</li>
+				</ul>
+				<p>
+					<em>This feature is available for Pro users with 25+ site licenses.</em>
+				</p>
 
 
 
@@ -568,7 +568,7 @@ class Utils {
 
 			</div>
 		</div>
-		<?php 
+<?php 
     }
 
 }

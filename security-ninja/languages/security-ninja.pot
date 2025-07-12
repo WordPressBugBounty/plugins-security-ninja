@@ -2441,9 +2441,15 @@ msgid "%s blocked due to multiple failed login attempts. %d in %d min."
 msgstr ""
 
 #. translators: 1: IP address, 2: Error message
-#: modules/cloud-firewall/cloud-firewall.php:2674
+#: modules/cloud-firewall/cloud-firewall.php:2799
 #, php-format
 msgid "%1$s login error. Message: %2$s."
+msgstr ""
+
+#. translators: 1: IP address, 2: Username/email
+#: modules/cloud-firewall/cloud-firewall.php:2130
+#, php-format
+msgid "%1$s lost password error. Username/email: %2$s."
 msgstr ""
 
 #: modules/cloud-firewall/cloud-firewall.php:2681
@@ -2782,13 +2788,21 @@ msgid "forever"
 msgstr ""
 
 #: modules/cloud-firewall/cloud-firewall.php:3807
-msgid "Auto-ban rules for failed login attempts"
+msgid "Auto-ban rules for failed login and lost password attempts"
 msgstr ""
 
 #: modules/cloud-firewall/cloud-firewall.php:3809
 msgid ""
-"Users who continuously make failed login attempts will get banned. Five "
+"Users who continuously make failed login or lost password attempts will get banned. Five "
 "failed attempts in five minutes is a good threshold."
+msgstr ""
+
+#: modules/cloud-firewall/cloud-firewall.php:3870
+msgid "Protect lost password form"
+msgstr ""
+
+#: modules/cloud-firewall/cloud-firewall.php:3871
+msgid "Protect the lost password form using the same auto-ban rules as login attempts."
 msgstr ""
 
 #: modules/cloud-firewall/cloud-firewall.php:3827
