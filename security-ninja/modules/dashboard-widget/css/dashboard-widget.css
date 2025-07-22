@@ -1,0 +1,246 @@
+/* Dashboard Widget Styles */
+.secnin-dashboard-widget {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen-Sans, Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
+}
+
+.secnin-widget-icon {
+    width: 40px;
+    float: right;
+    margin-bottom: 10px;
+}
+
+.secnin-status-card {
+    border-radius: 6px;
+    padding: 12px;
+    margin-bottom: 15px;
+    border: 1px solid;
+}
+
+.secnin-status-card--firewall {
+    background: #e8f5e9;
+    border-color: #c8e6c9;
+}
+
+.secnin-status-card--updates {
+    background: #d1f3f2;
+    border-color: #bee5eb;
+}
+
+.secnin-status-card--security {
+    background: #f8f9fa;
+    border-color: #dee2e6;
+}
+
+.secnin-status-card--warning {
+    background: #fff3cd;
+    border-color: #ffeaa7;
+}
+
+.secnin-status-card--vulnerabilities {
+    background: #fff3cd;
+    border-color: #ffeaa7;
+}
+
+.secnin-card-header {
+    margin: 0 0 8px 0;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.secnin-card-header--firewall {
+    color: #155724;
+}
+
+.secnin-card-header--updates {
+    color: #0c5460;
+}
+
+.secnin-card-header--security {
+    color: #6c757d;
+}
+
+.secnin-card-header--warning {
+    color: #856404;
+}
+
+.secnin-card-header--vulnerabilities {
+    color: #856404;
+}
+
+.secnin-card-content {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.secnin-card-stats {
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+}
+
+.secnin-card-stats--firewall {
+    color: #155724;
+}
+
+.secnin-card-stats--updates {
+    color: #0c5460;
+}
+
+.secnin-card-stats--security {
+    color: #6c757d;
+}
+
+.secnin-card-stats--warning {
+    color: #856404;
+}
+
+.secnin-card-stats--vulnerabilities {
+    color: #856404;
+}
+
+.secnin-card-link {
+    margin-top: 8px;
+    font-size: 11px;
+}
+
+.secnin-card-link--firewall {
+    color: #155724;
+}
+
+.secnin-card-link--updates {
+    color: #0c5460;
+}
+
+.secnin-card-link--security {
+    color: #6c757d;
+}
+
+.secnin-card-link--warning {
+    color: #856404;
+}
+
+.secnin-card-link--vulnerabilities {
+    color: #856404;
+}
+
+.secnin-card-link a {
+    text-decoration: underline;
+}
+
+.secnin-score-display {
+    text-align: right;
+}
+
+.secnin-score-value {
+    font-size: 14px;
+    font-weight: bold;
+    color: #007cba;
+}
+
+.secnin-score-breakdown {
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+    margin-top: 2px;
+    color: #6c757d;
+    gap: 10px;
+}
+
+.secnin-score-good {
+    color: #28a745;
+}
+
+.secnin-score-warning {
+    color: #ffc107;
+}
+
+.secnin-score-bad {
+    color: #dc3545;
+}
+
+.secnin-update-count {
+    font-size: 14px;
+    font-weight: bold;
+    color: #0c5460;
+}
+
+.secnin-vulnerability-count {
+    font-size: 12px;
+    color: #856404;
+}
+
+/* RSS Feed Styles */
+.secnin-rss-feed {
+    display: none;
+    margin-top: 15px;
+}
+
+.secnin-rss-feed--visible {
+    display: block;
+}
+
+
+
+.secnin-rss-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+/* .secnin-rss-item {
+    margin-bottom: 8px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid #e1e1e1;
+} */
+
+.secnin-rss-item:last-child {
+    border-bottom: none;
+    margin-bottom: 0;
+    padding-bottom: 0;
+}
+
+.secnin-rss-link {
+    color: #007cba;
+    text-decoration: none;
+    font-size: 13px;
+    line-height: 1.4;
+}
+
+.secnin-rss-item .secnin-rss-link:hover {
+    text-decoration: underline;
+}
+
+.secnin-blog-link {
+    display: inline-block;
+    margin-top: 10px;
+    color: #007cba;
+    text-decoration: none;
+    font-size: 12px;
+}
+
+.secnin-blog-link:hover {
+    text-decoration: underline;
+}
+
+/* Loading state */
+.secnin-loading {
+    text-align: center;
+    padding: 20px;
+    color: #666;
+    font-style: italic;
+}
+
+/* Error state */
+.secnin-error {
+    display: none;
+    padding: 10px;
+    background: #f8d7da;
+    border: 1px solid #f5c6cb;
+    border-radius: 4px;
+    color: #721c24;
+    font-size: 12px;
+    margin-top: 10px;
+} 

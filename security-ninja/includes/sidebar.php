@@ -158,7 +158,7 @@ if ( function_exists( 'secnin_fs' ) ) {
 					</div>
 				</div>
 			</div><!-- .snupgradebox -->
-			<?php 
+	<?php 
     }
 }
 ?>
@@ -175,16 +175,16 @@ echo esc_url( 'https://wordpress.org/support/plugin/security-ninja/' );
 ?>" target="_blank" rel="noopener"><?php 
 esc_html_e( 'Support Forum', 'security-ninja' );
 ?></a></li>
-<?php 
+			<?php 
 if ( secnin_fs()->is_not_paying() ) {
     ?>
-			<li><a href="<?php 
+				<li><a href="<?php 
     echo esc_url( secnin_fs()->connect_again() );
     ?>"><?php 
     esc_html_e( 'Activate License', 'security-ninja' );
     ?></a></li>
 
-<?php 
+			<?php 
 }
 ?>
 		</ul>
@@ -193,23 +193,23 @@ if ( secnin_fs()->is_not_paying() ) {
 $show_pro_ad = false;
 if ( secnin_fs()->is_not_paying() && $show_pro_ad ) {
     ?>
-<div class="sidebarsection feature upgradepro">
-	<h3>Effortless Security for Your Site!</h3>
-	<ul>
-    <li><strong>Easy Setup:</strong> Install in minutes, no technical skills required.</li>
-    <li><strong>Automatic Protection:</strong> Real-time firewall and automated scans.</li>
-    <li><strong>Spam &amp; Bot Blocking:</strong> Keeps your site clean and visitors safe.</li>
-    <li><strong>Secure Logins:</strong> Protect your login page from attacks.</li>
-  </ul>
-  <p>
-    <em>Upgrade to Pro and get effortless security today!</em>
-  </p>
+		<div class="sidebarsection feature upgradepro">
+			<h3>Effortless Security for Your Site!</h3>
+			<ul>
+				<li><strong>Easy Setup:</strong> Install in minutes, no technical skills required.</li>
+				<li><strong>Automatic Protection:</strong> Real-time firewall and automated scans.</li>
+				<li><strong>Spam &amp; Bot Blocking:</strong> Keeps your site clean and visitors safe.</li>
+				<li><strong>Secure Logins:</strong> Protect your login page from attacks.</li>
+			</ul>
+			<p>
+				<em>Upgrade to Pro and get effortless security today!</em>
+			</p>
 
-	<p style="margin-top: 10px;text-align: center;">
-      <a href="https://wpsecurityninja.com/pricing/?utm_source=overview-tab&amp;utm_medium=plugin&amp;utm_content=explore-pro&amp;utm_campaign=security_ninja_v5.235" class="" target="_blank">Get started now!</a><br><small>30-days money back guarantee</small></p>
-</div>
-<?php 
+			<p style="margin-top: 10px;text-align: center;">
+				<a href="https://wpsecurityninja.com/pricing/?utm_source=overview-tab&amp;utm_medium=plugin&amp;utm_content=explore-pro&amp;utm_campaign=security_ninja_v5.235" class="" target="_blank">Get started now!</a><br><small>30-days money back guarantee</small>
+			</p>
+		</div>
+	<?php 
 }
 ?>
-</div><!-- #sidebar-container -->
-<?php 
+</div><!-- #sidebar-container --><?php 

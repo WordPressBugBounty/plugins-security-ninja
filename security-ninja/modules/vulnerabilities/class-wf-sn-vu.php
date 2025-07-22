@@ -415,7 +415,6 @@ class Wf_Sn_Vu {
             }
             if ( 0 < $diff ) {
                 $message = '';
-                $update_emoji = '🛡️';
                 if ( $oldcount > 0 && $diff > 0 ) {
                     // Translators: How many new vulnerabilities were downloaded
                     $diff_text = sprintf( _n(
@@ -431,19 +430,17 @@ class Wf_Sn_Vu {
                 $message = esc_html( $diff_text );
                 if ( isset( $old_data->timestamp ) ) {
                     // Include the update with a focus on action if there's an increase
-                    $message .= ( $diff > 0 ? ' ' . sprintf(
+                    $message .= ( $diff > 0 ? ' ' . sprintf( 
                         // Translators: Explaining how many vulnerabilities are tracked by the plugin
-                        esc_html__( '%1$s Now tracking a total of %2$s known vulnerabilities. Last checked: %3$s. Update or replace vulnerable plugins promptly.', 'security-ninja' ),
-                        $update_emoji,
+                        esc_html__( 'Now tracking a total of %1$s known vulnerabilities. Last checked: %2$s. Update or replace vulnerable plugins promptly.', 'security-ninja' ),
                         esc_html( number_format_i18n( $newcount ) ),
                         esc_html( date_i18n( get_option( 'date_format' ) . ' ' . get_option( 'time_format' ), $old_data->timestamp ) )
-                    ) : '' );
+                     ) : '' );
                 } else {
                     // If no timestamp is available, keep it simple but informative
                     $message .= ' ' . sprintf( 
                         // Translators:
-                        esc_html__( '%1$s Now tracking a total of %2$s known vulnerabilities. Ensure your plugins are secure.', 'security-ninja' ),
-                        $update_emoji,
+                        esc_html__( 'Now tracking a total of %1$s known vulnerabilities. Ensure your plugins are secure.', 'security-ninja' ),
                         esc_html( number_format_i18n( $newcount ) )
                      );
                 }
@@ -657,10 +654,10 @@ class Wf_Sn_Vu {
                     $plugin_scan_result = self::check_plugin_vulnerabilities_memory_efficient( $installed_plugins );
                     if ( !empty( $plugin_scan_result['vulnerabilities'] ) ) {
                         $found_vulnerabilities['plugins'] = $plugin_scan_result['vulnerabilities'];
-                        $scan_summary['plugins'] = $plugin_scan_result['stats'];
-                        $scan_summary['total_vulnerabilities_found'] += $plugin_scan_result['stats']['vulnerabilities_found'];
+                        $scan_summary['plugins'] = $plugin_scan_result['stats'] ?? [];
+                        $scan_summary['total_vulnerabilities_found'] += $plugin_scan_result['stats']['vulnerabilities_found'] ?? 0;
                     } else {
-                        $scan_summary['plugins'] = $plugin_scan_result['stats'];
+                        $scan_summary['plugins'] = $plugin_scan_result['stats'] ?? [];
                     }
                 } catch ( \Exception $e ) {
                     // Use original method as fallback

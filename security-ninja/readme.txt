@@ -6,7 +6,7 @@ License: GPLv3
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 Requires at least: 4.7
 Tested up to: 6.8.2
-Stable tag: 5.241
+Stable tag: 5.242
 Requires PHP: 7.4
 
 Ultimate WordPress security plugin with malware scanning, firewall, and login protection. Keep your site safe from threats effortlessly.
@@ -329,6 +329,14 @@ While we strive for universal compatibility, if you face any issues, our support
 4. Core scanner
 
 == Changelog ==
+
+= 5.242 =
+* FIX: Enhanced REST API protection to prevent blocking legitimate API calls. Thank you Alex.
+* FIX: Firewall settings randomly deactivates in rare cases.
+* FIX: Change login URL feature did not properly save its state.
+* NEW: Added WooCommerce protection to the Wizard for new installations.
+* IMPROVED: Firewall settings module loads more efficiently, moved non-essential code to sub structure to improve load time in and out of admin.
+* IMPROVED: Dashboard Widget visually improved and contains more practical information.
 
 = 5.241 =
 * IMPROVED: Vulnerability Scanner - Fixed details display and theme update links

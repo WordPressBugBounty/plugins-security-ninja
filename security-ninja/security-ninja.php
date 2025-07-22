@@ -5,7 +5,7 @@ Plugin Name: Security Ninja (Premium)
 Plugin URI: https://wpsecurityninja.com/
 Description: Check your site for <strong>security vulnerabilities</strong> and get precise suggestions for corrective actions on passwords, user accounts, file permissions, database security, version hiding, plugins, themes, security headers and other security aspects.
 Author: WP Security Ninja
-Version: 5.241
+Version: 5.242
 Author URI: https://wpsecurityninja.com/
 License: GPLv3
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
@@ -106,6 +106,9 @@ if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
     define( 'WF_SN_PLUGIN_BASENAME', plugin_basename( __FILE__ ) );
     define( 'WF_SN_BASE_FILE', __FILE__ );
     include_once WF_SN_PLUGIN_DIR . 'modules/overview/class-wf-sn-overview-tab.php';
+    // Dashboard widget
+    include_once WF_SN_PLUGIN_DIR . 'modules/dashboard-widget/class-wf-sn-dashboard-widget.php';
+    \WPSecurityNinja\Plugin\Wf_Sn_Dashboard_Widget::init();
     // Vulnerabilities
     include_once WF_SN_PLUGIN_DIR . 'modules/vulnerabilities/class-wf-sn-vu.php';
     // Core Scanner
@@ -124,6 +127,8 @@ if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
          * @var integer
          */
         public static $version = null;
+
+        public static $test_scores = null;
 
         /**
          * Plugin name
@@ -192,8 +197,6 @@ if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
                     add_action( 'admin_init', array(__NAMESPACE__ . '\\Utils', 'secnin_fs_license_key_migration') );
                     secnin_fs()->add_filter( 'plugin_icon', array(__NAMESPACE__ . '\\Wf_Sn', 'secnin_fs_custom_icon') );
                 }
-                add_action( 'wp_ajax_wfsn_freemius_reset_activation', array(__NAMESPACE__ . '\\Wf_Sn', 'freemius_reset_activation') );
-                add_action( 'wp_dashboard_setup', array(__NAMESPACE__ . '\\Wf_Sn', 'add_dashboard_widgets') );
                 add_filter(
                     'sn_tabs',
                     array(__NAMESPACE__ . '\\Wf_Sn', 'return_tabs'),
@@ -425,147 +428,6 @@ if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
         }
 
         /**
-         * Add a widget to the dashboard.
-         *
-         * @author  Lars Koudal
-         * @since   v0.0.1
-         * @version v1.0.0  Wednesday, January 13th, 2021.
-         * @access  public static
-         * @return  void
-         */
-        public static function add_dashboard_widgets() {
-            wp_add_dashboard_widget( 
-                'wpsn_dashboard_widget',
-                'WP Security Ninja',
-                // Is not whitelabelled, so nevermind
-                array(__NAMESPACE__ . '\\wf_sn', 'wpsn_dashboard_widget_render')
-             );
-        }
-
-        /**
-         * Renders dashboard widget
-         *
-         * @author  Lars Koudal
-         * @since   v0.0.1
-         * @version v1.0.0  Wednesday, January 13th, 2021.
-         * @access  public static
-         * @return  void
-         */
-        public static function wpsn_dashboard_widget_render() {
-            if ( class_exists( __NAMESPACE__ . '\\Wf_Sn' ) ) {
-                $icon_url = self::get_icon_svg( true, '000000' );
-                echo '<img src="' . esc_url( $icon_url ) . '" style="width:40px;float:right;margin-bottom:10px;">';
-            }
-            $vulns = \WPSecurityNinja\Plugin\Wf_Sn_Vu::return_vulnerabilities();
-            if ( $vulns ) {
-                $total = \WPSecurityNinja\Plugin\Wf_Sn_Vu::return_vuln_count();
-                ?>
-				<h3><span class="dashicons dashicons-warning"></span> <strong>
-						<?php 
-                // translators: Shown when one or multiple vulnerabilities found
-                echo esc_html( sprintf( _n(
-                    'You have %s known vulnerability on your website!',
-                    'You have %s known vulnerabilities on your website!',
-                    $total,
-                    'security-ninja'
-                ), number_format_i18n( $total ) ) );
-                ?>
-					</strong></h3>
-				<p><a href="
-				<?php 
-                echo esc_url( admin_url( 'admin.php?page=wf-sn#sn_vuln' ) );
-                ?>
-										">
-						<?php 
-                esc_html_e( 'Details', 'security-ninja' );
-                ?>
-					</a></p>
-
-				<?php 
-            }
-            $test_scores = self::return_test_scores();
-            if ( isset( $test_scores['score'] ) && '0' !== $test_scores['score'] ) {
-                ?>
-				<div id="testscores">
-					<h3><span class="dashicons dashicons-warning"></span> <strong>
-							<?php 
-                esc_html_e( 'Security Tests', 'security-ninja' );
-                ?>
-						</strong></h3>
-					<strong>
-						<?php 
-                esc_html_e( 'Score', 'security-ninja' );
-                ?>
-					</strong> <span class="result">
-						<?php 
-                echo intval( $test_scores['score'] );
-                ?>
-						%</span>
-					<strong>
-						<?php 
-                esc_html_e( 'Passed', 'security-ninja' );
-                ?>
-					</strong> <span class="passed">
-						<?php 
-                echo intval( $test_scores['good'] );
-                ?>
-					</span>
-					<strong>
-						<?php 
-                esc_html_e( 'Warning', 'security-ninja' );
-                ?>
-					</strong> <span class="warning">
-						<?php 
-                echo intval( $test_scores['warning'] );
-                ?>
-					</span>
-					<strong>
-						<?php 
-                esc_html_e( 'Failed', 'security-ninja' );
-                ?>
-					</strong> <span class="bad">
-						<?php 
-                echo intval( $test_scores['bad'] );
-                ?>
-					</span>
-				</div><!-- .testresults -->
-
-				<p><a href="
-				<?php 
-                echo esc_url( admin_url( 'admin.php?page=wf-sn' ) );
-                ?>
-										">
-						<?php 
-                esc_html_e( 'Details', 'security-ninja' );
-                ?>
-					</a></p>
-				<?php 
-            } elseif ( '0' === $test_scores['score'] ) {
-                ?>
-				<h3><span class="dashicons dashicons-warning"></span> <strong>Test your website security - Run our tests</strong></h3>
-				<p><a href=" <?php 
-                echo esc_url( admin_url( 'admin.php?page=wf-sn' ) );
-                ?>" class="greenbtn snbutton button">
-						<?php 
-                esc_html_e( 'Run Security Tests', 'security-ninja' );
-                ?>
-					</a></p>
-				<?php 
-            } else {
-                ?>
-				<p>
-					<?php 
-                esc_html_e( 'Test your website security - Run our tests', 'security-ninja' );
-                ?>
-				</p>
-				<?php 
-            }
-            ?>
-			<div id="secnin-dashboard-feed"></div>
-			<?php 
-        }
-
-        /**
          * Update dismissed notice
          *
          * @author  Lars Koudal
@@ -627,33 +489,6 @@ if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
             $return = round( microtime( true ) - get_transient( 'security_ninja_' . esc_attr( $watchname ) ), $digits );
             delete_transient( 'security_ninja_' . esc_attr( $watchname ) );
             return $return;
-        }
-
-        /**
-         * Ajax callback to handle freemius opt in/out.
-         *
-         * @author  Lars Koudal
-         * @author  Unknown
-         * @since   v0.0.1
-         * @version v1.0.0  Tuesday, March 1st, 2022.
-         * @access  public static
-         * @return  void
-         */
-        public static function freemius_reset_activation() {
-            check_ajax_referer( 'wf_sn_reset_activation' );
-            if ( !current_user_can( 'manage_options' ) ) {
-                wp_send_json_error( array(
-                    'message' => 'Error resetting Freemius activation.',
-                ) );
-            }
-            // No further security checks needed in this case.
-            if ( !secnin_fs()->is_anonymous() ) {
-                return;
-            }
-            // Suggested by Leo to just delete the option
-            delete_option( 'secnin_fs_migrated2fs' );
-            secnin_fs()->connect_again();
-            wp_send_json_success();
         }
 
         /**
@@ -1077,24 +912,6 @@ if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
             if ( 'wp-admin/update.php' === $GLOBALS['pagenow'] ) {
                 return;
             }
-            if ( 'index.php' === $hook ) {
-                wp_enqueue_script(
-                    'security-ninja-dashboard',
-                    plugin_dir_url( __FILE__ ) . 'js/min/sn-wp_dashboard-min.js',
-                    array('jquery'),
-                    filemtime( plugin_dir_path( __FILE__ ) . 'js/min/sn-wp_dashboard-min.js' ),
-                    true
-                );
-                $utm_source = 'security_ninja_free';
-                wp_localize_script( 'security-ninja-dashboard', 'dashboardData', array(
-                    'headline'     => 'Latest from WPSecurityNinja.com',
-                    'blog_link'    => \WPSecurityNinja\Plugin\Utils::generate_sn_web_link( 'dashboard', '/blog/' ),
-                    'utm_source'   => esc_attr( $utm_source ),
-                    'utm_medium'   => 'plugin',
-                    'utm_content'  => 'dashboard_widget',
-                    'utm_campaign' => esc_attr( 'security_ninja_v' . self::get_plugin_version() ),
-                ) );
-            }
             wp_enqueue_script(
                 'sn-global',
                 WF_SN_PLUGIN_URL . 'js/min/sn-global-min.js',
@@ -1197,7 +1014,7 @@ if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
             $menu_title = 'Security Ninja';
             $capability = 'manage_options';
             $menu_slug = 'wf-sn';
-            $icon_url = self::get_icon_svg( true );
+            $icon_url = \WPSecurityNinja\Plugin\Utils::get_icon_svg( true );
             // Add notification count if needed
             $notification_count = false;
             if ( class_exists( __NAMESPACE__ . '\\Wf_Sn_Vu' ) ) {
@@ -1341,31 +1158,6 @@ if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
         }
 
         /**
-         * Returns icon in SVG format
-         * Thanks Yoast for code.
-         *
-         * @author  Lars Koudal
-         * @since   v0.0.1
-         * @version v1.0.0  Thursday, January 14th, 2021.
-         * @access  public static
-         * @param   boolean $base64 Return SVG in base64 or not
-         * @param   string  $color  Default: '82878c'
-         * @return  mixed
-         */
-        public static function get_icon_svg( $base64 = true, $color = '82878c' ) {
-            $svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500">
-																													<g fill="#' . $color . '">
-																													<path d="M171.117 262.277c14.583-.142 25.832 20.664 25.921 35.25.094 15.265-11.418 37.682-26.678 37.227-14.687-.438-23.797-22.605-23.494-37.296.295-14.24 10.095-35.044 24.25-35.181zM322.387 263.03c14.584-.142 25.832 20.664 25.922 35.25.093 15.265-11.419 37.681-26.679 37.227-14.686-.438-23.797-22.606-23.493-37.296.294-14.24 10.094-35.044 24.25-35.182z"/>
-																													<path d="M331.348 26.203c0-.107 98.038-7.914 98.038-7.914s-9.219 91.716-10.104 96.592c1.277-3.3 22.717-46.002 22.818-46.002.105 0 53.047 69.799 53.047 69.799l-46.63 42.993c26.6 30.762 41.632 67.951 41.724 107.653.239 103.748-110.253 191.827-245.68 191.091-130.352-.706-239.977-86.977-240.475-188.91-.5-102.38 105.089-191.741 239.663-192.095 38.677-.1 74.34 6.068 105.82 17.154-3.241-16.067-18.22-90.265-18.22-90.36zm-85.421 157.959c-74.098-1.337-161.3 41.627-161.054 105.87.247 63.88 87.825 103.981 160.683 104.125 78.85.154 164.156-41.58 163.722-106.614-.428-64.436-86.566-101.996-163.351-103.381z"/>
-																													</g>
-																													</svg>';
-            if ( $base64 ) {
-                return 'data:image/svg+xml;base64,' . base64_encode( $svg );
-            }
-            return $svg;
-        }
-
-        /**
          * Sanitize settings on save
          *
          * @author  Lars Koudal
@@ -1376,7 +1168,12 @@ if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
          * @return  void
          */
         public static function sanitize_settings( $new_values ) {
-            $old_options = self::get_options();
+            // Get the raw options from database without merging with defaults
+            $old_options = get_option( 'wf_sn_options', array() );
+            // Only merge with defaults if the options are actually empty or corrupted
+            if ( empty( $old_options ) || !is_array( $old_options ) ) {
+                $old_options = self::default_options();
+            }
             $old_options['remove_settings_deactivate'] = 0;
             if ( !is_array( $new_values ) ) {
                 $arr = array();
@@ -1522,6 +1319,9 @@ if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
          * @return  mixed
          */
         public static function return_test_scores() {
+            if ( !is_null( self::$test_scores ) ) {
+                return self::$test_scores;
+            }
             global $wpdb;
             $testsresults = $wpdb->get_results( "SELECT * FROM {$wpdb->prefix}wf_sn_tests LIMIT 100;", ARRAY_A );
             $bad = 0;
@@ -1561,6 +1361,7 @@ if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
             $output .= '<span class="edge score"><span class="val">' . $score . '%</span><i>' . __( 'Score', 'security-ninja' ) . '</i></span>';
             $output .= '</div>';
             $response['output'] = $output;
+            self::$test_scores = $response;
             return $response;
         }
 

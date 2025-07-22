@@ -155,18 +155,19 @@ class FileViewer {
 	 */
 	public static function view_file_page() {
 		if ( ! current_user_can( 'manage_options' ) ) {
-			wp_die( esc_html__( 'You do not have sufficient permissions to access this page.', 'security-ninja' ) );
+			wp_die( 'You do not have sufficient permissions to access this page.' );
 		}
 
 		if ( ! isset( $_GET['file'], $_GET['_wpnonce'] ) || ! wp_verify_nonce( sanitize_key( $_GET['_wpnonce'] ), 'view_file_' . wp_unslash( $_GET['file'] ) ) ) {
-			wp_die( esc_html__( 'Invalid nonce verification or missing file parameter.', 'security-ninja' ) );
+			wp_die(  'Invalid nonce verification or missing file parameter.' );
 		}
 
-		$file_path      = isset( $_GET['file'] ) ? sanitize_text_field( wp_unslash( $_GET['file'] ) ) : '';
+		$file_path = isset( $_GET['file'] ) ? sanitize_text_field( wp_unslash( $_GET['file'] ) ) : '';
 		$highlight_line = isset( $_GET['line'] ) ? intval( $_GET['line'] ) : null;
 
 		if ( ! self::is_allowed_file( $file_path ) ) {
-			wp_die( esc_html__( 'Access to this file is restricted or the file does not exist.', 'security-ninja' ) . ' ' . esc_html( $file_path ) );
+			wp_die( 'Access to this file is restricted or the file does not exist.' . ' ' . esc_html( $file_path ) );
+			exit();
 		}
 
 		$file_meta = self::get_file_meta( $file_path );
