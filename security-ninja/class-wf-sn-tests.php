@@ -363,10 +363,7 @@ class Wf_Sn_Tests extends WF_SN {
 	 * @access  public static
 	 * @return  mixed
 	 */
-	public static function dangerous_files()
-	{
-		// @todo - fix case Insensitive files - glob no fun
-		// @todo - maybe run in subfolders also? worth it?
+	public static function dangerous_files() {
 
 		$return = array();
 

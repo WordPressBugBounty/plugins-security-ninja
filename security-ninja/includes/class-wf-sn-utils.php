@@ -514,7 +514,7 @@ class Utils {
             echo '</div>';
             // do_action( 'sn_overlay_content' ); // @todo - remove this
             echo '<p><a id="abort-scan" href="#" class="button button-secondary">Cancel</a></p>';
-            do_action( 'sn_overlay_content_after' );
+            // do_action('sn_overlay_content_after'); @todo - remove this.
             echo '</div>';
             // wf-sn-overlay-content
             echo '</div></div></div></div>';

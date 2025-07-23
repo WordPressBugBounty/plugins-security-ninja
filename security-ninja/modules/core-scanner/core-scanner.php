@@ -26,11 +26,31 @@ class Wf_Sn_Cs {
     public static $hash_storage = 'https://api.wordpress.org/core/checksums/1.0/';
 
     /**
-     * Salt used for hashing purposes.
+     * Check if a file path is within WordPress core directories
      *
-     * @var string
+     * @param string $filepath The file path to check
+     * @return bool Whether the file is within core directories
      */
-    private static $salt = 'wf_sn_cs_salt';
+    public static function is_core_file( $filepath ) {
+        // Prevent directory traversal attacks
+        if ( strpos( $filepath, '..' ) !== false ) {
+            return false;
+        }
+        // Normalize the file path
+        $filepath = realpath( $filepath );
+        if ( false === $filepath ) {
+            return false;
+        }
+        // Define core WordPress directories
+        $core_dirs = array(realpath( ABSPATH . 'wp-admin' ), realpath( ABSPATH . WPINC ), realpath( ABSPATH ));
+        // Check if the file is within any core directory
+        foreach ( $core_dirs as $core_dir ) {
+            if ( false !== $core_dir && strpos( $filepath, $core_dir ) === 0 ) {
+                return true;
+            }
+        }
+        return false;
+    }
 
     /**
      * Initialize the Core Scanner module
@@ -195,15 +215,26 @@ class Wf_Sn_Cs {
             $error = new \WP_Error('001', __( 'Filename not set', 'security-ninja' ));
             wp_send_json_error( $error );
         }
-        // check the checksum
-        if ( md5( self::$salt . stripslashes( $_POST['filename'] ) ) !== $_POST['hash'] ) {
-            $error = new \WP_Error('002', __( 'Cheating, eh?', 'security-ninja' ));
+        $filename = sanitize_text_field( wp_unslash( $_POST['filename'] ) );
+        // Validate that the file is within WordPress core directories
+        if ( !self::is_core_file( $filename ) ) {
+            $error = new \WP_Error('003', __( 'Access denied: File is not within WordPress core directories.', 'security-ninja' ));
             wp_send_json_error( $error );
         }
-        $out['ext'] = pathinfo( $_POST['filename'], PATHINFO_EXTENSION );
+        // Validate the secure token
+        if ( !isset( $_POST['hash'] ) || !isset( $_POST['nonce'] ) || !\WPSecurityNinja\Plugin\Wf_Sn_Crypto::validate_secure_file_token(
+            $filename,
+            $_POST['hash'],
+            $_POST['nonce'],
+            'view_file'
+        ) ) {
+            $error = new \WP_Error('002', __( 'Invalid file access token.', 'security-ninja' ));
+            wp_send_json_error( $error );
+        }
+        $out['ext'] = pathinfo( $filename, PATHINFO_EXTENSION );
         $out['source'] = '';
-        if ( is_readable( $_POST['filename'] ) ) {
-            $content = file_get_contents( $_POST['filename'] );
+        if ( is_readable( $filename ) ) {
+            $content = file_get_contents( $filename );
             if ( false !== $content ) {
                 $out['err'] = 0;
                 $out['source'] = wp_kses_post( $content );
@@ -410,17 +441,16 @@ class Wf_Sn_Cs {
         $start_time = microtime( true );
         $results = get_option( 'wf_sn_cs_results', array() );
         $doupdate = $internal || isset( $_POST['doupdate'] ) && $_POST['doupdate'];
-        if ( !$doupdate && !empty( $results ) ) {
-            $results['run_time'] = number_format( microtime( true ) - $start_time, 2 );
-            wp_send_json_success( $results );
-        }
+        // Always generate fresh output instead of using cached results
+        // This ensures tokens are always current
+        $doupdate = true;
         $results['missing_ok'] = array();
         $results['changed_ok'] = array();
         $results['missing_bad'] = array();
         $results['changed_bad'] = array();
         $results['unknown_bad'] = array();
         $results['ok'] = array();
-        $results['last_run'] = current_time( 'timestamp' );
+        $results['last_run'] = time();
         $results['total'] = 0;
         $results['run_time'] = 0;
         $i = 0;
@@ -571,7 +601,7 @@ class Wf_Sn_Cs {
         } else {
             $ver = get_bloginfo( 'version' );
             $locale = get_locale();
-            $error_message = sprintf( __( 'Error - hashes not found. Version: %s, Locale: %s', 'security-ninja' ), esc_html( $ver ), esc_html( $locale ) );
+            $error_message = sprintf( __( 'Error - hashes not found. Version: %1$s, Locale: %2$s', 'security-ninja' ), esc_html( $ver ), esc_html( $locale ) );
             // Send detailed error response
             wp_send_json_error( array(
                 'message' => $error_message,
@@ -586,13 +616,16 @@ class Wf_Sn_Cs {
 
     /**
      * Perform the actual scanning of core files
-     *
      * This method checks for modified, missing, and unknown files in the WordPress core.
      *
-     * @param  bool $return Whether to return the results or update the option.
-     * @return array|null Array of scan results or null if no file definitions for this WP version.
+     * @author  Lars Koudal
+     * @since   v0.0.1
+     * @version v1.0.0  Wednesday, July 23rd, 2025.
+     * @access  public static
+     * @param   boolean $returnresults  Whether to return the results or update the option.
+     * @return  void
      */
-    public static function scan_files( $return = false ) {
+    public static function scan_files( $returnresults = false ) {
         $local_time = current_datetime();
         $current_time = $local_time->getTimestamp() + $local_time->getOffset();
         // No nonce check, can be run via scheduled scanner also
@@ -657,7 +690,7 @@ class Wf_Sn_Cs {
             foreach ( $filehashes as $file => $hash ) {
                 clearstatcache();
                 if ( file_exists( ABSPATH . $file ) ) {
-                    if ( $hash === md5_file( ABSPATH . $file ) ) {
+                    if ( md5_file( ABSPATH . $file ) === $hash ) {
                     } elseif ( in_array( $file, $changed_ok, true ) ) {
                         $results['changed_ok'][] = $file;
                     } else {
@@ -671,7 +704,7 @@ class Wf_Sn_Cs {
             }
             do_action( 'security_ninja_core_scanner_done_scanning', $results, microtime( true ) - $start_time );
             $results['run_time'] = microtime( true ) - $start_time;
-            if ( $return ) {
+            if ( $returnresults ) {
                 return $results;
             } else {
                 update_option( 'wf_sn_cs_results', $results, false );
@@ -679,7 +712,7 @@ class Wf_Sn_Cs {
             }
         } else {
             // no file definitions for this version of WP
-            if ( $return ) {
+            if ( $returnresults ) {
                 return null;
             } else {
                 update_option( 'wf_sn_cs_results', null, false );
@@ -695,36 +728,36 @@ class Wf_Sn_Cs {
      */
     public static function core_page() {
         ?>
-        <div class="submit-test-container sncard settings-card">
-            <h2><span class="dashicons dashicons-text"></span> <?php 
+		<div class="submit-test-container sncard settings-card">
+			<h2><span class="dashicons dashicons-text"></span> <?php 
         echo esc_html__( 'Scan Core WordPress Files', 'security-ninja' );
         ?></h2>
 
-            <p><?php 
+			<p><?php 
         esc_html_e( 'Check for modified files in WordPress itself and detect extra files that should not be there.', 'security-ninja' );
         ?></p>
 
-            <div id="wf-sn-core-scanner-response">
-                <!-- <p class="spinner"></p> -->
+			<div id="wf-sn-core-scanner-response">
+				<!-- <p class="spinner"></p> -->
 
-            </div>
+			</div>
 
 
-            <div id="wf-sn-core-scan-details">
-                <p><?php 
+			<div id="wf-sn-core-scan-details">
+				<p><?php 
         esc_html_e( 'Last Scan', 'security-ninja' );
         ?>: <span id="last_scan"></span></p>
-                <p><?php 
+				<p><?php 
         esc_html_e( 'Files Checked', 'security-ninja' );
         ?>: <span id="files_checked"></span></p>
-                <p><?php 
+				<p><?php 
         esc_html_e( 'WordPress Version', 'security-ninja' );
         ?>: <span id="wp_version"></span></p>
 
-<?php 
+		<?php 
         $next_scan = wp_next_scheduled( 'secnin_run_core_scanner' );
         if ( $next_scan ) {
-            $time_until_next_scan = human_time_diff( current_time( 'timestamp' ), $next_scan );
+            $time_until_next_scan = human_time_diff( time(), $next_scan );
             echo '<p>' . esc_html__( 'Next Scheduled Scan', 'security-ninja' ) . ': <span id="next_scan">' . sprintf( 
                 /* translators: %1$s is the date/time of next scan, %2$s is the time until next scan */
                 esc_html__( '%1$s (%2$s from now)', 'security-ninja' ),
@@ -735,15 +768,15 @@ class Wf_Sn_Cs {
             echo '<p id="next_scan">' . esc_html__( 'No core scan currently scheduled.', 'security-ninja' ) . '</p>';
         }
         ?>
-            </div>
-            <?php 
+			</div>
+			<?php 
         echo '<input type="button" value="' . esc_html__( 'Scan Core Files', 'security-ninja' ) . '" id="sn-run-core-scan" class="button snbtn button-secondary button-large" />';
         ?>
 
-       
-        </div>
+	   
+		</div>
 
-<?php 
+		<?php 
     }
 
     /**
@@ -766,7 +799,25 @@ class Wf_Sn_Cs {
                 'message' => __( 'No filename provided.', 'security-ninja' ),
             ) );
         }
-        $file = str_replace( ABSPATH, '', sanitize_text_field( wp_unslash( $_POST['filename'] ) ) );
+        $file = sanitize_text_field( wp_unslash( $_POST['filename'] ) );
+        // Validate that the file is within WordPress core directories
+        if ( !self::is_core_file( $file ) ) {
+            wp_send_json_error( array(
+                'message' => __( 'Access denied: File is not within WordPress core directories.', 'security-ninja' ),
+            ) );
+        }
+        // Validate the secure token if provided
+        if ( isset( $_POST['hash'] ) && isset( $_POST['nonce'] ) && !\WPSecurityNinja\Plugin\Wf_Sn_Crypto::validate_secure_file_token(
+            $file,
+            $_POST['hash'],
+            $_POST['nonce'],
+            'restore_file'
+        ) ) {
+            wp_send_json_error( array(
+                'message' => __( 'Invalid file access token.', 'security-ninja' ),
+            ) );
+        }
+        $file = str_replace( ABSPATH, '', $file );
         $url = wp_nonce_url( 'options.php?page=wf-sn', 'wf-sn-cs' );
         $creds = request_filesystem_credentials(
             $url,
@@ -831,6 +882,23 @@ class Wf_Sn_Cs {
                 'message' => __( 'Invalid filename.', 'security-ninja' ),
             ) );
         }
+        // Validate that the file is within WordPress core directories
+        if ( !self::is_core_file( $file ) ) {
+            wp_send_json_error( array(
+                'message' => __( 'Access denied: File is not within WordPress core directories.', 'security-ninja' ),
+            ) );
+        }
+        // Validate the secure token if provided
+        if ( isset( $_POST['hash'] ) && isset( $_POST['nonce'] ) && !\WPSecurityNinja\Plugin\Wf_Sn_Crypto::validate_secure_file_token(
+            $file,
+            $_POST['hash'],
+            $_POST['nonce'],
+            'delete_file'
+        ) ) {
+            wp_send_json_error( array(
+                'message' => __( 'Invalid file access token.', 'security-ninja' ),
+            ) );
+        }
         $file = str_replace( ABSPATH, '', $file );
         $url = wp_nonce_url( 'options.php?page=wf-sn', 'wf-sn-cs' );
         $creds = request_filesystem_credentials(
@@ -882,14 +950,19 @@ class Wf_Sn_Cs {
             $out .= '<span class="sn-file">' . esc_html( $file ) . '</span>';
             $out .= '<span class="sn-action-buttons">';
             if ( $view ) {
-                $file_view_url = \WPSecurityNinja\Plugin\FileViewer::generate_file_view_url( ABSPATH . $file );
+                $file_path = ABSPATH . $file;
+                $file_view_url = \WPSecurityNinja\Plugin\FileViewer::generate_file_view_url( $file_path );
                 $out .= ' <a href="' . esc_url( $file_view_url ) . '" class="button button-small" target="_blank">' . esc_html__( 'View File', 'security-ninja' ) . '</a>';
             }
             if ( $restore ) {
-                $out .= ' <a data-hash="' . esc_attr( wp_hash( ABSPATH . $file ) ) . '" data-file-short="' . esc_attr( $file ) . '" data-file="' . esc_attr( ABSPATH . $file ) . '" href="#restore-dialog" class="sn-restore-source button button-small">' . esc_html__( 'Restore', 'security-ninja' ) . '</a>';
+                $file_path = ABSPATH . $file;
+                $token = \WPSecurityNinja\Plugin\Wf_Sn_Crypto::generate_secure_file_token( $file_path, 'restore_file' );
+                $out .= ' <a data-hash="' . esc_attr( $token['hash'] ) . '" data-nonce="' . esc_attr( $token['nonce'] ) . '" data-file-short="' . esc_attr( $file ) . '" data-file="' . esc_attr( $file_path ) . '" href="#restore-dialog" class="sn-restore-source button button-small">' . esc_html__( 'Restore', 'security-ninja' ) . '</a>';
             }
             if ( $delete ) {
-                $out .= ' <a data-hash="' . esc_attr( wp_hash( ABSPATH . $file ) ) . '" data-file-short="' . esc_attr( $file ) . '" data-file="' . esc_attr( ABSPATH . $file ) . '" href="#delete-dialog" class="sn-delete-source button button-small">' . esc_html__( 'Delete', 'security-ninja' ) . '</a>';
+                $file_path = ABSPATH . $file;
+                $token = \WPSecurityNinja\Plugin\Wf_Sn_Crypto::generate_secure_file_token( $file_path, 'delete_file' );
+                $out .= ' <a data-hash="' . esc_attr( $token['hash'] ) . '" data-nonce="' . esc_attr( $token['nonce'] ) . '" data-file-short="' . esc_attr( $file ) . '" data-file="' . esc_attr( $file_path ) . '" href="#delete-dialog" class="sn-delete-source button button-small">' . esc_html__( 'Delete', 'security-ninja' ) . '</a>';
             }
             $out .= '</span>';
             $out .= '</li>';

@@ -55,9 +55,20 @@ class FileViewer {
 	 * @return void
 	 */
 	public static function remove_admin_bar() {
-		if ( is_admin() && isset( $_GET['page'], $_GET['_wpnonce'], $_GET['file'] ) &&
+		// Verify nonce before accessing $_GET
+		if ( ! isset( $_GET['_wpnonce'] ) || ! wp_verify_nonce( sanitize_key( $_GET['_wpnonce'] ), 'sn_view_file' ) ) {
+			return;
+		}
+
+		if ( is_admin() && isset( $_GET['page'], $_GET['file'], $_GET['hash'], $_GET['nonce'], $_GET['action'] ) &&
 			'sn-view-file' === $_GET['page'] &&
-			wp_verify_nonce( sanitize_key( $_GET['_wpnonce'] ), 'view_file_' . wp_unslash( $_GET['file'] ) ) ) {
+			'view_file' === $_GET['action'] &&
+			\WPSecurityNinja\Plugin\Wf_Sn_Crypto::validate_secure_file_token(
+				sanitize_text_field( wp_unslash( $_GET['file'] ) ),
+				sanitize_text_field( wp_unslash( $_GET['hash'] ) ),
+				sanitize_text_field( wp_unslash( $_GET['nonce'] ) ),
+				'view_file'
+			) ) {
 			add_filter( 'show_admin_bar', '__return_false' );
 			remove_all_actions( 'admin_notices' ); // Remove all admin notices.
 		}
@@ -69,9 +80,20 @@ class FileViewer {
 	 * @return void
 	 */
 	public static function hide_admin_interface() {
-		if ( is_admin() && isset( $_GET['page'], $_GET['_wpnonce'], $_GET['file'] ) &&
+		// Verify nonce before accessing $_GET
+		if ( ! isset( $_GET['_wpnonce'] ) || ! wp_verify_nonce( sanitize_key( $_GET['_wpnonce'] ), 'sn_view_file' ) ) {
+			return;
+		}
+
+		if ( is_admin() && isset( $_GET['page'], $_GET['file'], $_GET['hash'], $_GET['nonce'], $_GET['action'] ) &&
 			'sn-view-file' === $_GET['page'] &&
-			wp_verify_nonce( sanitize_key( $_GET['_wpnonce'] ), 'view_file_' . wp_unslash( $_GET['file'] ) ) ) {
+			'view_file' === $_GET['action'] &&
+			\WPSecurityNinja\Plugin\Wf_Sn_Crypto::validate_secure_file_token(
+				sanitize_text_field( wp_unslash( $_GET['file'] ) ),
+				sanitize_text_field( wp_unslash( $_GET['hash'] ) ),
+				sanitize_text_field( wp_unslash( $_GET['nonce'] ) ),
+				'view_file'
+			) ) {
 			?>
 			<style>
 				#adminmenumain, #wpfooter, #screen-meta, #screen-meta-links, #wp-admin-bar-wp-logo {
@@ -158,15 +180,21 @@ class FileViewer {
 			wp_die( 'You do not have sufficient permissions to access this page.' );
 		}
 
-		if ( ! isset( $_GET['file'], $_GET['_wpnonce'] ) || ! wp_verify_nonce( sanitize_key( $_GET['_wpnonce'] ), 'view_file_' . wp_unslash( $_GET['file'] ) ) ) {
-			wp_die(  'Invalid nonce verification or missing file parameter.' );
+		// Verify nonce before accessing $_GET variables
+		if ( ! isset( $_GET['_wpnonce'] ) || ! wp_verify_nonce( sanitize_key( $_GET['_wpnonce'] ), 'sn_view_file' ) ) {
+			wp_die( 'Security check failed: Invalid nonce.' );
 		}
 
-		$file_path = isset( $_GET['file'] ) ? sanitize_text_field( wp_unslash( $_GET['file'] ) ) : '';
+		$file_path      = isset( $_GET['file'] ) ? sanitize_text_field( wp_unslash( $_GET['file'] ) ) : '';
 		$highlight_line = isset( $_GET['line'] ) ? intval( $_GET['line'] ) : null;
 
+		// Always use centralized security validation
+		if ( ! \WPSecurityNinja\Plugin\Wf_Sn_Crypto::validate_file_access_request( 'view_file' ) ) {
+			wp_die( 'Access denied: Invalid or expired file access token.' );
+		}
+
 		if ( ! self::is_allowed_file( $file_path ) ) {
-			wp_die( 'Access to this file is restricted or the file does not exist.' . ' ' . esc_html( $file_path ) );
+			wp_die( 'Access to this file is restricted or the file does not exist. ' . esc_html( $file_path ) );
 			exit();
 		}
 
@@ -198,12 +226,6 @@ class FileViewer {
 	 * @return bool Whether the file is allowed to be viewed.
 	 */
 	private static function is_allowed_file( $file_path ) {
-		$allowed_dirs    = array(
-			ABSPATH . 'wp-content/',
-			ABSPATH . 'wp-admin/',
-			ABSPATH . 'wp-includes/',
-			ABSPATH,
-		);
 		$normalized_path = wp_normalize_path( $file_path );
 
 		// Prevent directory traversal
@@ -222,23 +244,91 @@ class FileViewer {
 			return false;
 		}
 
-		foreach ( $allowed_dirs as $dir ) {
-			$normalized_dir = wp_normalize_path( $dir );
-			if ( strpos( $normalized_path, $normalized_dir ) === 0 ) {
-				if ( ! is_readable( $file_path ) ) {
-					\WPSecurityNinja\Plugin\wf_sn_el_modules::log_event( 'File Viewer', 'Attempt to view unreadable file: ' . $normalized_path );
-					return false;
-				}
-				if ( filesize( $file_path ) > self::MAX_FILE_SIZE ) {
-					\WPSecurityNinja\Plugin\wf_sn_el_modules::log_event( 'File Viewer', 'Attempt to view file exceeding size limit: ' . self::MAX_FILE_SIZE );
-					return false;
-				}
-				return true;
-			}
+		// Check if file is within WordPress installation directory (more restrictive for security)
+		if ( ! self::is_within_wordpress_installation( $file_path ) ) {
+			\WPSecurityNinja\Plugin\wf_sn_el_modules::log_event( 'File Viewer', 'Attempt to view file outside WordPress installation: ' . $normalized_path );
+			return false;
 		}
-		/* translators: %s: Normalized file path */
-		\WPSecurityNinja\Plugin\wf_sn_el_modules::log_event( 'File Viewer', sprintf( esc_html__( 'Attempt to view file outside allowed directories: %s', 'security-ninja' ), $normalized_path ) );
-		return false;
+
+		// Check if file is readable and within size limits
+		if ( ! is_readable( $file_path ) ) {
+			\WPSecurityNinja\Plugin\wf_sn_el_modules::log_event( 'File Viewer', 'Attempt to view unreadable file: ' . $normalized_path );
+			return false;
+		}
+		if ( filesize( $file_path ) > self::MAX_FILE_SIZE ) {
+			\WPSecurityNinja\Plugin\wf_sn_el_modules::log_event( 'File Viewer', 'Attempt to view file exceeding size limit: ' . self::MAX_FILE_SIZE );
+			return false;
+		}
+
+		return true;
+	}
+
+	/**
+	 * Check if a file can be viewed (has allowed extension and meets requirements)
+	 *
+	 * @param string $file_path The file path to check
+	 * @return bool Whether the file can be viewed
+	 */
+	public static function can_view_file( $file_path ) {
+		// Use the same logic as is_allowed_file but without logging
+		$normalized_path = wp_normalize_path( $file_path );
+
+		// Prevent directory traversal
+		if ( strpos( $normalized_path, '..' ) !== false ) {
+			return false;
+		}
+
+		// Check file extension
+		$allowed_extensions = array( 'php', 'js', 'css', 'txt', 'html', 'htm', 'log', 'inc', 'xml', 'json', 'md', 'yml', 'yaml', 'ini', 'sql' );
+		$file_extension     = strtolower( pathinfo( $normalized_path, PATHINFO_EXTENSION ) );
+		$allowed_files      = array( 'debug.log', 'error_log' );
+
+		if ( ! in_array( $file_extension, $allowed_extensions, true ) && ! in_array( basename( $normalized_path ), $allowed_files, true ) ) {
+			return false;
+		}
+
+		// Check if file is within WordPress installation directory
+		if ( ! self::is_within_wordpress_installation( $file_path ) ) {
+			return false;
+		}
+
+		// Check if file is readable and within size limits
+		if ( ! is_readable( $file_path ) ) {
+			return false;
+		}
+		if ( filesize( $file_path ) > self::MAX_FILE_SIZE ) {
+			return false;
+		}
+
+		return true;
+	}
+
+	/**
+	 * Check if a file path is within WordPress installation directory
+	 *
+	 * @param string $file_path The file path to check
+	 * @return bool Whether the file is within WordPress installation
+	 */
+	public static function is_within_wordpress_installation( $file_path ) {
+		// Prevent directory traversal attacks
+		if ( strpos( $file_path, '..' ) !== false ) {
+			return false;
+		}
+
+		// Normalize the file path
+		$file_path = realpath( $file_path );
+		if ( false === $file_path ) {
+			return false;
+		}
+
+		// Get WordPress root directory
+		$wp_root = realpath( ABSPATH );
+		if ( false === $wp_root ) {
+			return false;
+		}
+
+		// Check if the file is within WordPress installation
+		return strpos( $file_path, $wp_root ) === 0;
 	}
 
 	/**
@@ -299,14 +389,15 @@ class FileViewer {
 	 * @return string The URL for viewing the file.
 	 */
 	public static function generate_file_view_url( $file_path, $highlight_line = null ) {
-		$url = admin_url( 'admin.php?page=sn-view-file' );
-		$url = add_query_arg( 'file', rawurlencode( $file_path ), $url );
+		$additional_params = array();
 		if ( $highlight_line ) {
-			$url = add_query_arg( 'line', intval( $highlight_line ), $url );
+			$additional_params['line'] = $highlight_line;
 		}
-		$url = add_query_arg( '_wpnonce', wp_create_nonce( 'view_file_' . $file_path ), $url );
 
-		return esc_url( $url );
+		// Add WordPress nonce for PHPCS compliance
+		$additional_params['_wpnonce'] = wp_create_nonce( 'sn_view_file' );
+
+		return \WPSecurityNinja\Plugin\Wf_Sn_Crypto::generate_secure_file_url( $file_path, 'view_file', $additional_params );
 	}
 }
 

@@ -6,7 +6,7 @@ License: GPLv3
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 Requires at least: 4.7
 Tested up to: 6.8.2
-Stable tag: 5.242
+Stable tag: 5.243
 Requires PHP: 7.4
 
 Ultimate WordPress security plugin with malware scanning, firewall, and login protection. Keep your site safe from threats effortlessly.
@@ -329,6 +329,19 @@ While we strive for universal compatibility, if you face any issues, our support
 4. Core scanner
 
 == Changelog ==
+
+= 5.243 =
+* Fix: Problem with 404 Guard not displaying statistics properly in admin page.
+* Fix: Corrected an issue where the firewall would block frontend access for banned IPs even when the setting to only block login pages was enabled.
+* Fix: Removed posibility for administrators to view any file on server by generating hash manually. Limited core scanner to only view files in core WordPress folders.
+* IMPROVED: Implemented centralized security system with dual validation (hash + nonce) for all file access
+* IMPROVED: Added time-limited file access tokens
+* IMPROVED: Enhanced file path validation to prevent directory traversal attacks
+* FIX: "View File" buttons no longer appear for non-viewable file types, preventing user confusion
+* FIX: WPVivid Backup Pro - No more false positives in malware scanner.
+* IMPROVED: Malware Scanner improved to be faster and use more detailed whitelisting system.
+* FIX: Malware scanner improved results with more detailed whitelisting.
+
 
 = 5.242 =
 * FIX: Enhanced REST API protection to prevent blocking legitimate API calls. Thank you Alex.

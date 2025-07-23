@@ -3,7 +3,7 @@
         'name' => 'secninja/security-ninja-premium',
         'pretty_version' => 'dev-develop',
         'version' => 'dev-develop',
-        'reference' => '21d8991e4a0c3bbf37b587cdd24208e6a01ada21',
+        'reference' => 'bd979ddb7e29306758fcc8f1252fc8a7af59ab2d',
         'type' => 'library',
         'install_path' => __DIR__ . '/../../',
         'aliases' => array(),
@@ -148,7 +148,7 @@
         'secninja/security-ninja-premium' => array(
             'pretty_version' => 'dev-develop',
             'version' => 'dev-develop',
-            'reference' => '21d8991e4a0c3bbf37b587cdd24208e6a01ada21',
+            'reference' => 'bd979ddb7e29306758fcc8f1252fc8a7af59ab2d',
             'type' => 'library',
             'install_path' => __DIR__ . '/../../',
             'aliases' => array(),
