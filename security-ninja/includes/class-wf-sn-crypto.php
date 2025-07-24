@@ -132,4 +132,286 @@ class Wf_Sn_Crypto {
 		// Validate the token
 		return self::validate_secure_file_token($filepath, $hash, $nonce, $action);
 	}
+
+	/**
+	 * Generate a secure key
+	 *
+	 * @param int $length Key length
+	 * @return string Hex-encoded key
+	 */
+	public static function generate_key($length = 32)
+	{
+		if (function_exists('random_bytes')) {
+			try {
+				return bin2hex(random_bytes($length));
+			} catch (\Exception $e) {
+				// Fallback
+			}
+		}
+		
+		if (function_exists('openssl_random_pseudo_bytes')) {
+			$key = openssl_random_pseudo_bytes($length, $strong);
+			if ($strong) {
+				return bin2hex($key);
+			}
+		}
+		
+		// Final fallback using WordPress functions
+		$key = '';
+		for ($i = 0; $i < $length; $i++) {
+			$key .= chr(wp_rand(0, 255));
+		}
+		return bin2hex($key);
+	}
+
+	/**
+	 * Encrypt data
+	 *
+	 * @param string $data Data to encrypt
+	 * @param string|null $key Encryption key
+	 * @return string Encrypted data
+	 */
+	public static function encrypt($data, $key = null)
+	{
+		if ($key === null) {
+			$key = self::get_encryption_key();
+		}
+		
+		$iv = self::generate_iv();
+		$encrypted = openssl_encrypt($data, 'AES-256-CBC', hex2bin($key), 0, $iv);
+		
+		if ($encrypted === false) {
+			return false;
+		}
+		
+		return base64_encode($iv . $encrypted);
+	}
+
+	/**
+	 * Decrypt data
+	 *
+	 * @param string $encrypted_data Encrypted data
+	 * @param string|null $key Encryption key
+	 * @return string|false Decrypted data or false on failure
+	 */
+	public static function decrypt($encrypted_data, $key = null)
+	{
+		if ($key === null) {
+			$key = self::get_encryption_key();
+		}
+		
+		$data = base64_decode($encrypted_data);
+		$iv = substr($data, 0, 16);
+		$encrypted = substr($data, 16);
+		
+		return openssl_decrypt($encrypted, 'AES-256-CBC', hex2bin($key), 0, $iv);
+	}
+
+	/**
+	 * Generate a JWT token
+	 *
+	 * @param array $payload Token payload
+	 * @param int $expiry Expiry time in seconds from now
+	 * @return string JWT token
+	 */
+	public static function generate_jwt($payload, $expiry = 2592000) // 30 days default
+	{
+		$header = array(
+			'alg' => 'HS256',
+			'typ' => 'JWT'
+		);
+
+		$payload['iat'] = time();
+		$payload['exp'] = time() + $expiry;
+		$payload['iss'] = get_site_url();
+
+		$header_encoded = self::base64url_encode(json_encode($header));
+		$payload_encoded = self::base64url_encode(json_encode($payload));
+		
+		$signature = hash_hmac('sha256', $header_encoded . '.' . $payload_encoded, self::get_encryption_key(), true);
+		$signature_encoded = self::base64url_encode($signature);
+
+		return $header_encoded . '.' . $payload_encoded . '.' . $signature_encoded;
+	}
+
+	/**
+	 * Verify and decode a JWT token
+	 *
+	 * @param string $token JWT token
+	 * @return array|false Decoded payload or false if invalid
+	 */
+	public static function verify_jwt($token)
+	{
+		$parts = explode('.', $token);
+		if (count($parts) !== 3) {
+			return false;
+		}
+
+		list($header_encoded, $payload_encoded, $signature_encoded) = $parts;
+
+		// Verify signature
+		$expected_signature = hash_hmac('sha256', $header_encoded . '.' . $payload_encoded, self::get_encryption_key(), true);
+		$signature = self::base64url_decode($signature_encoded);
+
+		if (!hash_equals($expected_signature, $signature)) {
+			return false;
+		}
+
+		// Decode payload
+		$payload = json_decode(self::base64url_decode($payload_encoded), true);
+		if (!$payload) {
+			return false;
+		}
+
+		// Check expiration
+		if (isset($payload['exp']) && $payload['exp'] < time()) {
+			return false;
+		}
+
+		// Check issuer
+		if (isset($payload['iss']) && $payload['iss'] !== get_site_url()) {
+			return false;
+		}
+
+		return $payload;
+	}
+
+	/**
+	 * Get or generate the encryption key
+	 *
+	 * @return string Hex-encoded encryption key
+	 */
+	public static function get_encryption_key()
+	{
+		$key = get_option('wf_sn_encryption_key', '');
+		
+		if (empty($key)) {
+			$key = self::generate_key(32);
+			update_option('wf_sn_encryption_key', $key, false);
+		}
+
+		return $key;
+	}
+
+	/**
+	 * Get a unique site identifier
+	 *
+	 * @return string Site identifier
+	 */
+	public static function get_site_id()
+	{
+		$site_id = get_option('wf_sn_site_id', '');
+		
+		if (empty($site_id)) {
+			$site_url = get_site_url();
+			$salt = defined('AUTH_KEY') ? AUTH_KEY : 'default_salt';
+			$site_id = hash('sha256', $site_url . $salt);
+			update_option('wf_sn_site_id', $site_id, false);
+		}
+
+		return $site_id;
+	}
+
+	/**
+	 * Generate a secure initialization vector
+	 *
+	 * @return string 16-byte IV
+	 */
+	private static function generate_iv()
+	{
+		if (function_exists('random_bytes')) {
+			try {
+				return random_bytes(16);
+			} catch (\Exception $e) {
+				// Fallback
+			}
+		}
+		
+		if (function_exists('openssl_random_pseudo_bytes')) {
+			$iv = openssl_random_pseudo_bytes(16, $strong);
+			if ($strong) {
+				return $iv;
+			}
+		}
+		
+		// Final fallback using WordPress functions
+		$iv = '';
+		for ($i = 0; $i < 16; $i++) {
+			$iv .= chr(wp_rand(0, 255));
+		}
+		return $iv;
+	}
+
+	/**
+	 * Base64 URL encode
+	 *
+	 * @param string $data
+	 * @return string
+	 */
+	public static function base64url_encode($data)
+	{
+		return rtrim(strtr(base64_encode($data), '+/', '-_'), '=');
+	}
+
+	/**
+	 * Base64 URL decode
+	 *
+	 * @param string $data
+	 * @return string
+	 */
+	public static function base64url_decode($data)
+	{
+		return base64_decode(strtr($data, '-_', '+/') . str_repeat('=', 3 - (3 + strlen($data)) % 4));
+	}
+
+	/**
+	 * Generate a secure hash for sensitive data
+	 *
+	 * @param string $data Data to hash
+	 * @param string $salt Optional salt
+	 * @return string Hash
+	 */
+	public static function hash($data, $salt = null)
+	{
+		if ($salt === null) {
+			$salt = self::get_encryption_key();
+		}
+		
+		return hash_hmac('sha256', $data, $salt);
+	}
+
+	/**
+	 * Verify a hash
+	 *
+	 * @param string $data Original data
+	 * @param string $hash Hash to verify
+	 * @param string $salt Salt used for hashing
+	 * @return bool True if hash matches
+	 */
+	public static function verify_hash($data, $hash, $salt = null)
+	{
+		if ($salt === null) {
+			$salt = self::get_encryption_key();
+		}
+		
+		return hash_equals(self::hash($data, $salt), $hash);
+	}
+
+	/**
+	 * Rotate encryption keys
+	 *
+	 * @return bool Success status
+	 */
+	public static function rotate_keys()
+	{
+		$new_key = self::generate_key(32);
+		$old_key = get_option('wf_sn_encryption_key', '');
+		
+		if (!empty($old_key)) {
+			// Store old key for decryption of existing data
+			update_option('wf_sn_encryption_key_old', $old_key, false);
+		}
+		
+		return update_option('wf_sn_encryption_key', $new_key, false);
+	}
 } 

@@ -244,11 +244,13 @@ class FileViewer {
 			return false;
 		}
 
-		// Check if file is within WordPress installation directory (more restrictive for security)
+		// Check if file is within WordPress installation directory
 		if ( ! self::is_within_wordpress_installation( $file_path ) ) {
 			\WPSecurityNinja\Plugin\wf_sn_el_modules::log_event( 'File Viewer', 'Attempt to view file outside WordPress installation: ' . $normalized_path );
 			return false;
 		}
+
+
 
 		// Check if file is readable and within size limits
 		if ( ! is_readable( $file_path ) ) {

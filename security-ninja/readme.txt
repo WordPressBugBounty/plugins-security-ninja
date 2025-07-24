@@ -6,7 +6,7 @@ License: GPLv3
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 Requires at least: 4.7
 Tested up to: 6.8.2
-Stable tag: 5.243
+Stable tag: 5.244
 Requires PHP: 7.4
 
 Ultimate WordPress security plugin with malware scanning, firewall, and login protection. Keep your site safe from threats effortlessly.
@@ -329,6 +329,9 @@ While we strive for universal compatibility, if you face any issues, our support
 4. Core scanner
 
 == Changelog ==
+
+= 5.244 =
+* Fix: Minor adjustment to file-viewer class, function to check where file is located.
 
 = 5.243 =
 * Fix: Problem with 404 Guard not displaying statistics properly in admin page.
