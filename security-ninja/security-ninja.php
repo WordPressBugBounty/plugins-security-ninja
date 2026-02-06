@@ -1,11 +1,11 @@
 <?php
 
 /*
-Plugin Name: Security Ninja (Premium)
+Plugin Name: Security Ninja
 Plugin URI: https://wpsecurityninja.com/
-Description: Check your site for <strong>security vulnerabilities</strong> and get precise suggestions for corrective actions on passwords, user accounts, file permissions, database security, version hiding, plugins, themes, security headers and other security aspects.
+Description: Check your site for security vulnerabilities and get precise suggestions for corrective actions on passwords, user accounts, file permissions, database security, version hiding, plugins, themes, security headers and other security aspects.
 Author: WP Security Ninja
-Version: 5.244
+Version: 5.264
 Author URI: https://wpsecurityninja.com/
 License: GPLv3
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
@@ -56,43 +56,41 @@ if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
     // Create a helper function for easy SDK access.
     function secnin_fs() {
         global $secnin_fs;
-        require_once __DIR__ . '/vendor/autoload.php';
+        include_once __DIR__ . '/vendor/autoload.php';
         if ( !isset( $secnin_fs ) ) {
             // Activate multisite network integration.
             if ( !defined( 'WP_FS__PRODUCT_3690_MULTISITE' ) ) {
                 define( 'WP_FS__PRODUCT_3690_MULTISITE', true );
             }
-            $secnin_fs_settings = array(
+            $secnin_fs = fs_dynamic_init( array(
                 'id'                  => '3690',
                 'slug'                => 'security-ninja',
+                'enable_anonymous'    => true,
                 'type'                => 'plugin',
                 'public_key'          => 'pk_f990ec18700a90c02db544f1aa986',
-                'is_premium'          => true,
-                'has_premium_version' => true,
+                'is_premium'          => false,
                 'has_addons'          => true,
                 'has_paid_plans'      => true,
                 'trial'               => array(
-                    'days'               => 30,
-                    'is_require_payment' => true,
+                    'days'               => 14,
+                    'is_require_payment' => false,
                 ),
                 'has_affiliation'     => false,
-                'menu'                => array(
+                'menu'                => ( is_multisite() ? array(
+                    'support' => false,
+                    'network' => false,
+                ) : array(
                     'slug'       => 'wf-sn',
                     'first-path' => 'admin.php?page=wf-sn&welcome=1',
                     'support'    => false,
                     'network'    => false,
-                ),
+                ) ),
                 'parallel_activation' => array(
                     'enabled'                  => true,
                     'premium_version_basename' => 'security-ninja-premium/security-ninja.php',
                 ),
-            );
-            // Remove first-path menu entry if multisite
-            if ( is_multisite() ) {
-                unset($secnin_fs_settings['menu']['first-path']);
-                unset($secnin_fs_settings['menu']['slug']);
-            }
-            $secnin_fs = fs_dynamic_init( $secnin_fs_settings );
+                'is_live'             => true,
+            ) );
         }
         return $secnin_fs;
     }
@@ -115,11 +113,11 @@ if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
     include_once WF_SN_PLUGIN_DIR . 'modules/core-scanner/core-scanner.php';
     // File viewer
     include_once WF_SN_PLUGIN_DIR . 'modules/file-viewer/class-secnin-file-viewer.php';
-    // REST API
-    include_once WF_SN_PLUGIN_DIR . 'modules/rest-api/class-wf-sn-rest-api.php';
-    include_once WF_SN_PLUGIN_DIR . 'modules/rest-api/class-wf-sn-rest-api-admin.php';
+    include_once WF_SN_PLUGIN_DIR . 'modules/cloud-firewall/cloud-firewall.php';
     include_once WF_SN_PLUGIN_DIR . 'includes/class-wf-sn-utils.php';
+    include_once WF_SN_PLUGIN_DIR . 'includes/class-wf-sn-free-render.php';
     include_once WF_SN_PLUGIN_DIR . 'includes/class-wf-sn-crypto.php';
+    include_once WF_SN_PLUGIN_DIR . 'modules/events-logger/events-logger.php';
     class Wf_Sn {
         /**
          * Plugin version
@@ -147,6 +145,19 @@ if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
         public static $options;
 
         /**
+         * Load plugin text domain for translations
+         *
+         * @author  Lars Koudal
+         * @since   v1.0.1
+         * @version v1.0.0  Tuesday, November 11th, 2025.
+         * @access  public static
+         * @return  void
+         */
+        public static function load_textdomain() {
+            load_plugin_textdomain( 'security-ninja', false, dirname( plugin_basename( __FILE__ ) ) . '/languages' );
+        }
+
+        /**
          * Init the plugin
          *
          * @author  Lars Koudal
@@ -156,19 +167,13 @@ if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
          * @return  void
          */
         public static function init() {
-            // Load translations early in init
-            load_plugin_textdomain( 'security-ninja', false, dirname( plugin_basename( __FILE__ ) ) . '/languages' );
-            // SN requires WP v4.7
-            if ( !version_compare( get_bloginfo( 'version' ), '4.7', '>=' ) ) {
-                add_action( 'admin_notices', array(__NAMESPACE__ . '\\wf_sn_af', 'min_version_error') );
-                return;
-            }
             self::$options = self::get_options();
             // loads persistent admin notices
             add_action( 'admin_init', array('PAnD', 'init') );
             // Load security tests
             include_once WF_SN_PLUGIN_DIR . 'class-wf-sn-tests.php';
             include_once WF_SN_PLUGIN_DIR . 'includes/class-wf-sn-utils.php';
+            include_once WF_SN_PLUGIN_DIR . 'modules/cloud-firewall/class-wf-sn-security-utils.php';
             // MainWP integration - run here to make sure it's loaded
             add_filter(
                 'mainwp_child_extra_execution',
@@ -194,6 +199,7 @@ if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
                         10,
                         2
                     );
+                    secnin_fs()->add_filter( 'checkout/parameters', array(__NAMESPACE__ . '\\Utils', 'extra_modern_checkout_parameters') );
                     add_action( 'admin_init', array(__NAMESPACE__ . '\\Utils', 'secnin_fs_license_key_migration') );
                     secnin_fs()->add_filter( 'plugin_icon', array(__NAMESPACE__ . '\\Wf_Sn', 'secnin_fs_custom_icon') );
                 }
@@ -216,6 +222,7 @@ if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
                 add_action( 'wp_ajax_sn_run_single_test', array(__NAMESPACE__ . '\\Wf_Sn', 'run_single_test') );
                 add_action( 'wp_ajax_sn_get_single_test_details', array(__NAMESPACE__ . '\\Wf_Sn', 'get_single_test_details') );
                 add_action( 'wp_ajax_sn_run_tests', array(__NAMESPACE__ . '\\Wf_Sn', 'run_tests') );
+                add_action( 'wp_ajax_sn_reset_secret_url', array(__NAMESPACE__ . '\\Wf_Sn', 'reset_secret_url') );
                 add_action( 'admin_notices', array(__NAMESPACE__ . '\\Utils', 'do_admin_notices') );
                 add_action( 'wp_ajax_wf_sn_dismiss_review', array(__NAMESPACE__ . '\\Wf_Sn', 'wf_sn_dismiss_review') );
                 add_action( 'admin_footer', array(__NAMESPACE__ . '\\Utils', 'admin_footer') );
@@ -228,34 +235,6 @@ if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
                     3
                 );
             }
-        }
-
-        /**
-         * Shows the topbar, logo and version
-         *
-         * @author  Unknown
-         * @since   v0.0.1
-         * @version v1.0.0    Monday, March 11th, 2024.
-         * @access  public static
-         * @global
-         * @return  void
-         */
-        public static function show_topbar() {
-            $icon_url = WF_SN_PLUGIN_URL . 'images/sn-logo.svg';
-            $menu_title = 'Security Ninja';
-            $topbar = '<div id="sntopbar">';
-            $topbar .= '<div class="plugname">';
-            if ( !empty( $icon_url ) ) {
-                $topbar .= '<img src="' . $icon_url . '" height="28" alt="' . esc_attr( $menu_title ) . '" class="logoleft">';
-            }
-            $topbar .= '<div class="name">' . esc_html( $menu_title ) . ' <span>v.' . esc_html( wf_sn::get_plugin_version() ) . '</span></div></div>';
-            $menu_links = '<a href="https://wordpress.org/support/plugin/security-ninja/" target="_blank" rel="noopener noreferrer" class="extlink">Support Forum</a>';
-            if ( secnin_fs()->is_registered() && secnin_fs()->is_tracking_allowed() ) {
-                $menu_links .= '<a href="#" class="productlift-sidebar=caa739c4-554e-4526-9720-a600a6702a8e whatsnew">Updates 🚀</a>';
-            }
-            $topbar .= '<div class="links">' . $menu_links . '</div>';
-            $topbar .= '</div>';
-            echo wp_kses_post( $topbar );
         }
 
         /**
@@ -299,7 +278,7 @@ if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
                     'score'  => $test['score'],
                     'msg'    => $return_message,
                 );
-                $end_time = self::timerstart( 'run_test_' . esc_attr( $test_name ) );
+                $end_time = \WPSecurityNinja\Plugin\Utils::timerstart( 'run_test_' . esc_attr( $test_name ) );
                 $testresult = array(
                     'testid'    => $test_name,
                     'timestamp' => current_time( 'mysql' ),
@@ -330,6 +309,14 @@ if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
          * @return  void
          */
         public static function do_action_admin_init() {
+            // Check for secret URL reset success notice
+            $reset_success_url = get_transient( 'sn_secret_url_reset_success' );
+            if ( $reset_success_url ) {
+                delete_transient( 'sn_secret_url_reset_success' );
+                add_action( 'admin_notices', function () use($reset_success_url) {
+                    echo '<div class="notice notice-success secnin-notice"><p>' . esc_html__( 'Secret access URL has been reset successfully.', 'security-ninja' ) . ' <strong>' . esc_html__( 'New URL:', 'security-ninja' ) . '</strong> <code>' . esc_url( $reset_success_url ) . '</code></p></div>';
+                } );
+            }
             $target_admin_url = 'admin.php?page=wf-sn';
             // Make sure it's the correct user
             if ( !wp_doing_ajax() && intval( get_option( 'secnin_activation_redirect', false ) ) === wp_get_current_user()->ID ) {
@@ -359,59 +346,25 @@ if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
         }
 
         /**
-         * Creates a toggle switch for admin page
+         * Handle new site creation in multisite.
          *
          * @author  Lars Koudal
          * @since   v0.0.1
-         * @version v1.0.0  Saturday, March 6th, 2021.
-         * @version v1.0.1  Saturday, April 27th, 2024.
+         * @version v1.0.0  Tuesday, December 7th, 2021.
          * @access  public static
-         * @param   mixed   $name
-         * @param   mixed   $options    [description]
-         * @param   boolean $output     HTML output containing the checkbox
+         * @param   int $site_id The site ID.
          * @return  void
          */
-        public static function create_toggle_switch( $name, $options = array(), $output = true ) {
-            $default_options = array(
-                'value'       => 1,
-                'saved_value' => 0,
-                'option_key'  => '',
-            );
-            $options = wp_parse_args( $options, $default_options );
-            $value = (int) $options['value'];
-            $saved_value = ( isset( $options['saved_value'] ) ? (int) $options['saved_value'] : 0 );
-            $checked = ( $value === $saved_value ? ' checked' : '' );
-            $html = sprintf(
-                '<input type="checkbox" id="%1$s" value="%2$s" class="switch" name="%3$s"%4$s>',
-                esc_attr( $name ),
-                esc_attr( $options['value'] ),
-                esc_attr( $options['option_key'] ),
-                $checked
-            );
-            if ( $output ) {
-                echo wp_kses( $html, array(
-                    'div'   => array(
-                        'class' => array(),
-                    ),
-                    'input' => array(
-                        'type'    => array(),
-                        'id'      => array(),
-                        'value'   => array(),
-                        'name'    => array(),
-                        'class'   => array(),
-                        'checked' => array(),
-                    ),
-                    'label' => array(
-                        'for'   => array(),
-                        'class' => array(),
-                    ),
-                    'span'  => array(
-                        'class' => array(),
-                    ),
-                ) );
-            } else {
-                return $html;
+        public static function handle_new_site( $site_id ) {
+            if ( !is_multisite() ) {
+                return;
             }
+            switch_to_blog( $site_id );
+            global $wpdb;
+            include_once ABSPATH . 'wp-admin/includes/upgrade.php';
+            $charset = $wpdb->get_charset_collate();
+            \WPSecurityNinja\Plugin\Utils::create_tables_for_site( $charset );
+            restore_current_blog();
         }
 
         /**
@@ -451,283 +404,13 @@ if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
             if ( !$review ) {
                 $review = array();
             }
-            $review['time'] = current_time( 'timestamp' ) + WEEK_IN_SECONDS * 4;
+            $review['time'] = time() + WEEK_IN_SECONDS * 4;
             $review['dismissed'] = true;
             if ( isset( $_POST['user_data'] ) ) {
                 $review['signed_up'] = true;
             }
             update_option( 'wf_sn_review_notice', $review, false );
             die;
-        }
-
-        /**
-         * Start timer for internal time measurements - saved in transient 1 hour.
-         *
-         * @author  Lars Koudal
-         * @since   v0.0.1
-         * @version v1.0.0  Tuesday, January 12th, 2021.
-         * @access  public static
-         * @param   mixed $watchname
-         * @return  void
-         */
-        public static function timerstart( $watchname ) {
-            set_transient( 'security_ninja_' . esc_attr( $watchname ), microtime( true ), 60 * 60 * 1 );
-        }
-
-        /**
-         * End timer
-         *
-         * @author  Lars Koudal
-         * @since   v0.0.1
-         * @version v1.0.0  Tuesday, January 12th, 2021.
-         * @access  public static
-         * @param   mixed   $watchname
-         * @param   integer $digits    Default: 5
-         * @return  mixed
-         */
-        public static function timerstop( $watchname, $digits = 5 ) {
-            $return = round( microtime( true ) - get_transient( 'security_ninja_' . esc_attr( $watchname ) ), $digits );
-            delete_transient( 'security_ninja_' . esc_attr( $watchname ) );
-            return $return;
-        }
-
-        /**
-         * Fetch plugin version from plugin PHP header
-         *
-         * @author  Lars Koudal
-         * @since   v0.0.1
-         * @version v1.0.0  Wednesday, January 13th, 2021.
-         * @access  public static
-         * @return  mixed
-         */
-        public static function get_plugin_version() {
-            if ( !is_null( self::$version ) ) {
-                return self::$version;
-            }
-            $plugin_data = get_file_data( __FILE__, array(
-                'version' => 'Version',
-            ), 'plugin' );
-            self::$version = $plugin_data['version'];
-            return self::$version;
-        }
-
-        /**
-         * Fetch plugin version from plugin PHP header - Free / Pro
-         *
-         * @author  Lars Koudal
-         * @since   v0.0.1
-         * @version v1.0.0  Wednesday, January 13th, 2021.
-         * @access  public static
-         * @return  mixed
-         */
-        public static function get_plugin_name() {
-            $plugin_data = get_file_data( __FILE__, array(
-                'name' => 'Plugin Name',
-            ), 'plugin' );
-            self::$name = $plugin_data['name'];
-            return $plugin_data['name'];
-        }
-
-        /**
-         * render_events_logger_page.
-         *
-         * @author  Lars Koudal
-         * @since   v0.0.1
-         * @version v1.0.0  Saturday, March 5th, 2022.
-         * @access  public static
-         * @return  void
-         */
-        public static function render_events_logger_page() {
-            echo '<div class="submit-test-container">';
-            ?>
-			<div class="fomcont">
-				<h3>Events logger: Track every change, secure your site</h3>
-
-				<img src="
-				<?php 
-            echo esc_url( WF_SN_PLUGIN_URL . 'images/event-log.jpg' );
-            ?>
-									" alt="The event logger monitors changes to your website." class="tabimage">
-				<p>
-					Stay informed and in control of your WordPress site with the Events Logger. Know exactly what's happening behind the scenes, from admin changes to front-end activity.
-				</p>
-				<p>
-					Troubleshoot issues faster, identify suspicious behavior, and maintain a secure, stable website. With Events Logger, you'll have the insights you need to protect your investment and keep your site running smoothly.
-				</p>
-				<ul>
-					<li><strong>Simple Audit Logging:</strong> Keep a detailed activity log of everything that happens on your website, making it easy to troubleshoot bugs and track changes.</li>
-					<li><strong>Comprehensive Event Tracking:</strong> Monitor over 50 different events, both in the admin area and on the front-end, with all the details you need.</li>
-					<li><strong>Easy Filtering:</strong> Quickly find the events you're looking for with powerful filtering options.</li>
-					<li><strong>Detailed Event Information:</strong> Know exactly when an action happened, how it happened, and who performed it.</li>
-					<li><strong>Email Alerts:</strong> Receive instant email notifications for selected groups of events, so you can stay on top of critical changes.</li>
-				</ul>
-				<p>
-					<em>Take control of your site's security and stability—activate Events Logger and start tracking every change today.</em>
-				</p>
-
-				<p class="fomlink"><a target="_blank" href=" <?php 
-            echo esc_url( \WPSecurityNinja\Plugin\Utils::generate_sn_web_link( 'tab_events_logger', '/events-logger/' ) );
-            ?>" class="button button-primary" rel="noopener">
-						<?php 
-            esc_html_e( 'Learn more', 'security-ninja' );
-            ?>
-					</a></p>
-
-			</div>
-
-			</div>
-			<?php 
-        }
-
-        /**
-         * Renders the output for the cloud firewall module
-         *
-         * @author  Lars Koudal
-         * @since   v0.0.1
-         * @version v1.0.0  Saturday, March 5th, 2022.
-         * @access  public static
-         * @return  void
-         */
-        public static function render_cloudfw_page() {
-            echo '<div class="submit-test-container">';
-            ?>
-			<div class="fomcont">
-				<h3>Advanced Firewall: Proactive Security for Your Site</h3>
-
-				<img src="
-				<?php 
-            echo esc_url( WF_SN_PLUGIN_URL . 'images/firewall.jpg' );
-            ?>
-									" alt="
-									<?php 
-            esc_html_e( 'Scan Core files of WordPress', 'security-ninja' );
-            ?>
-									" class="tabimage">
-
-
-
-
-				<p>
-					Protect your website and your reputation with Firewall, your always-on security partner. Instantly block hackers, malware, and suspicious activity before they can do any harm. With Firewall, you get peace of mind knowing your site is shielded by both powerful local protection and a constantly evolving global threat database. Enjoy more control, fewer worries, and a safer experience for you and your visitors.
-				</p>
-				<ul>
-					<li><strong>Local Firewall Protection:</strong> Stop threats at the door with real-time monitoring and blocking of suspicious requests, right on your site.</li>
-					<li><strong>Global Threat Intelligence:</strong> Benefit from a dynamic database of over 600 million known malicious IP addresses, updated every six hours using data from millions of sites worldwide.</li>
-					<li><strong>Login Protection:</strong> Defend your login page with repeated failed login blocking, brute force prevention, and built-in two-factor authentication (2FA) for extra security.</li>
-					<li><strong>Country Blocking:</strong> Instantly restrict access from any country to keep your site safe from targeted regions.</li>
-					<li><strong>Manual Whitelisting &amp; Blacklisting:</strong> Take full control by manually allowing or blocking specific IP addresses as needed.</li>
-					<li><strong>Custom Block Responses:</strong> Show a personalized message to blocked visitors or redirect them to any URL you choose.</li>
-				</ul>
-				<p>
-					<em>Give your site the proactive protection it deserves—activate Firewall and stay one step ahead of online threats.</em>
-				</p>
-
-
-
-				<p class="fomlink"><a target="_blank" href="
-				<?php 
-            echo esc_url( \WPSecurityNinja\Plugin\Utils::generate_sn_web_link( 'tab_firewall', '/cloud-firewall/' ) );
-            ?>
-																										" class="button button-primary" rel="noopener">
-						<?php 
-            esc_html_e( 'Learn more', 'security-ninja' );
-            ?>
-					</a></p>
-
-			</div>
-			<?php 
-            echo '</div>';
-        }
-
-        /**
-         * render_malware_page.
-         *
-         * @author  Lars Koudal
-         * @since   v0.0.1
-         * @version v1.0.0  Saturday, March 5th, 2022.
-         * @access  public static
-         * @return  void
-         */
-        public static function render_malware_page() {
-            echo '<div class="submit-test-container">';
-            ?>
-			<div class="fomcont">
-				<h3>Malware scanner: Detect and eliminate hidden threats</h3>
-
-				<img src="
-				<?php 
-            echo esc_url( WF_SN_PLUGIN_URL . 'images/malware-scanner.jpg' );
-            ?>
-									" alt="Find malicious files in your WordPress site" class="tabimage">
-
-				<p>
-					Even the most secure websites can fall victim to malware. With Firewall and strong passwords, you're already a step ahead—but hidden threats can still slip through.
-				</p>
-				<p>
-					That's where the Malware Scanner comes in. Enjoy peace of mind knowing your site is regularly checked for malicious code, suspicious changes, and known attack patterns. Protect your reputation, your visitors, and your business with fast, thorough scans and clear results.
-				</p>
-				<ul>
-					<li><strong>Comprehensive Site Scanning:</strong> Quickly scan your entire website for code commonly found in malicious scripts and known attack signatures.</li>
-					<li><strong>Plugin Integrity Checks:</strong> Every public plugin from WordPress.org is verified against a master checklist to detect unauthorized file changes or tampering.</li>
-					<li><strong>Real-Time Alerts:</strong> Get instant notifications if suspicious code or modifications are found, so you can act before any damage is done.</li>
-					<li><strong>Easy-to-Understand Reports:</strong> See exactly what was scanned, what was found, and what steps to take next—no technical jargon required.</li>
-					<li><strong>Continuous Protection:</strong> Schedule regular scans to keep your site safe around the clock.</li>
-				</ul>
-				<p>
-					<em>Don't let hidden threats compromise your hard work—activate Malware Scanner and keep your site clean, safe, and secure.</em>
-				</p>
-				<p class="fomlink"><a target="_blank" href="
-				<?php 
-            echo esc_url( \WPSecurityNinja\Plugin\Utils::generate_sn_web_link( 'tab_malware', '/malware-scanner/' ) );
-            ?>
-																										" class="button button-primary" rel="noopener">
-						<?php 
-            esc_html_e( 'Learn more', 'security-ninja' );
-            ?>
-					</a></p>
-			</div>
-			</div>
-			<?php 
-        }
-
-        /**
-         * render_scheduled_scanner_page.
-         *
-         * @author  Lars Koudal
-         * @since   v0.0.1
-         * @version v1.0.0  Saturday, March 5th, 2022.
-         * @access  public static
-         * @return  void
-         */
-        public static function render_scheduled_scanner_page() {
-            echo '<div class="submit-test-container">';
-            ?>
-			<div class="fomcont">
-				<h3>Scheduled Scanner</h3>
-
-				<img src="
-				<?php 
-            echo esc_url( WF_SN_PLUGIN_URL . 'images/scheduler.jpg' );
-            ?>
-									" alt="Scan the thousands of files that runs WordPress" class="tabimage">
-
-				<p>The Scheduled Scanner gives you an additional peace of mind by automatically running Security Ninja and Core
-					Scanner tests every day.</p>
-
-				<p>If any changes occur or your site gets hacked you will immediately get notified via email.</p>
-
-				<p class="fomlink"><a target="_blank" href="
-				<?php 
-            echo esc_url( \WPSecurityNinja\Plugin\Utils::generate_sn_web_link( 'tab_scheduled_scanner', '/scheduled-scanner/' ) );
-            ?>
-																										" class="button button-primary" rel="noopener">
-						<?php 
-            esc_html_e( 'Learn more', 'security-ninja' );
-            ?>
-					</a></p>
-			</div>
-			</div>
-			<?php 
         }
 
         /**
@@ -747,25 +430,13 @@ if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
                 'id'       => 'sn_malware',
                 'class'    => 'profeature',
                 'label'    => esc_html__( 'Malware', 'security-ninja' ),
-                'callback' => array(__NAMESPACE__ . '\\wf_sn', 'render_malware_page'),
-            );
-            $cloudfw_tab = array(
-                'id'       => 'sn_cf',
-                'class'    => 'profeature',
-                'label'    => esc_html__( 'Firewall', 'security-ninja' ),
-                'callback' => array(__NAMESPACE__ . '\\wf_sn', 'render_cloudfw_page'),
+                'callback' => array(__NAMESPACE__ . '\\Free_Render', 'render_malware_page'),
             );
             $schedule_tab = array(
                 'id'       => 'sn_schedule',
                 'class'    => 'profeature',
                 'label'    => esc_html__( 'Scheduler', 'security-ninja' ),
-                'callback' => array(__NAMESPACE__ . '\\wf_sn', 'render_scheduled_scanner_page'),
-            );
-            $logger_tab = array(
-                'id'       => 'sn_logger',
-                'class'    => 'profeature',
-                'label'    => __( 'Event Log', 'security-ninja' ),
-                'callback' => array(__NAMESPACE__ . '\\wf_sn', 'render_events_logger_page'),
+                'callback' => array(__NAMESPACE__ . '\\Free_Render', 'render_scheduled_scanner_page'),
             );
             $whitelabel_tab = array(
                 'id'       => 'sn_whitelabel',
@@ -774,10 +445,8 @@ if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
                 'callback' => array(__NAMESPACE__ . '\\Utils', 'render_whitelabel_page'),
             );
             $outtabs = $intabs;
-            $outtabs[] = $cloudfw_tab;
             $outtabs[] = $schedule_tab;
             $outtabs[] = $malware_tab;
-            $outtabs[] = $logger_tab;
             $outtabs[] = $whitelabel_tab;
             return $outtabs;
         }
@@ -801,31 +470,18 @@ if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
             // Extract the page part after the last underscore
             $page_part = substr( $current_id, strrpos( $current_id, '_' ) + 1 );
             // Define our plugin pages using just the page part
-            $plugin_pages = array(
-                'wf-sn',
-                // Main plugin page
-                'wf-sn-visitor-log',
-                // Visitor log
-                'wf-sn-tools',
-                // Tools page
-                'wf-sn-rest-api',
-                // REST API page
-                'wf-sn-fixes',
-                // Fixes page
-                'security-ninja-welcome',
-                // Welcome page
-                'security-ninja-wizard',
-                // Wizard page
-                'wf-sn-overview',
-                // Overview tab
-                'wf-sn-firewall',
-                // Firewall tab
-                'wf-sn-scanner',
-                // Scanner tab
-                'wf-sn-events',
-                // Events tab
-                'wf-sn-settings',
-            );
+            $plugin_pages = [];
+            $plugin_pages[] = 'wf-sn';
+            $plugin_pages[] = 'wf-sn-visitor-log';
+            $plugin_pages[] = 'wf-sn-tools';
+            $plugin_pages[] = 'wf-sn-fixes';
+            $plugin_pages[] = 'security-ninja-welcome';
+            $plugin_pages[] = 'security-ninja-wizard';
+            $plugin_pages[] = 'wf-sn-overview';
+            $plugin_pages[] = 'wf-sn-firewall';
+            $plugin_pages[] = 'wf-sn-scanner';
+            $plugin_pages[] = 'wf-sn-events';
+            $plugin_pages[] = 'wf-sn-settings';
             // Check if the page part matches any of our plugin pages
             return in_array( $page_part, $plugin_pages, true );
         }
@@ -841,7 +497,7 @@ if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
          */
         public static function admin_print_footer_scripts() {
             $show_pointer = true;
-            $pointer_content = '<h3>Security Ninja v.' . wf_sn::get_plugin_version() . '</h3>';
+            $pointer_content = '<h3>Security Ninja v.' . \WPSecurityNinja\Plugin\Utils::get_plugin_version() . '</h3>';
             $pointer_content .= '<p>' . __( 'Thank you for installing Security Ninja &hearts;', 'security-ninja' ) . '</p>';
             $link_to_url = admin_url( 'admin.php?page=wf-sn' );
             $pointer_content .= '<p><a href="' . esc_url( $link_to_url ) . '" class="startsecnin alignright button button-primary">' . esc_html__( 'Get started', 'security-ninja' ) . '</a></p>';
@@ -892,7 +548,7 @@ if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
 
 					});
 				</script>
-				<?php 
+			<?php 
             }
         }
 
@@ -905,7 +561,7 @@ if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
          * @version v1.0.0  Wednesday, January 13th, 2021.
          * @version v1.0.1  Sunday, May 11th, 2025.
          * @access  public static
-         * @param   mixed   $hook
+         * @param   mixed $hook
          * @return  void
          */
         public static function enqueue_scripts( $hook ) {
@@ -942,12 +598,21 @@ if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
                 );
                 wp_enqueue_style( 'wp-jquery-ui-dialog' );
                 wp_enqueue_script( 'jquery-ui-dialog' );
-                if ( secnin_fs()->is_registered() && secnin_fs()->is_tracking_allowed() ) {
+                $is_registered = false;
+                if ( secnin_fs()->is_registered() ) {
+                    $is_registered = true;
+                }
+                $is_tracking_allowed = false;
+                if ( secnin_fs()->is_tracking_allowed() ) {
+                    $is_tracking_allowed = true;
+                }
+                if ( $is_registered && $is_tracking_allowed ) {
+                    // Checks if user opted-in (or activated a license) and didn't opt out from tracking.
                     wp_enqueue_script(
                         'security-ninja-widget-sdk',
                         'https://securityninja.productlift.dev/widgets_sdk',
                         array(),
-                        self::get_plugin_version(),
+                        \WPSecurityNinja\Plugin\Utils::get_plugin_version(),
                         // Add version to prevent caching issues
                         true
                     );
@@ -968,9 +633,18 @@ if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
                     'nonce_dismiss_pointer'  => wp_create_nonce( 'wf_sn_dismiss_pointer' ),
                     'nonce_reset_activation' => wp_create_nonce( 'wf_sn_reset_activation' ),
                     'nonce_latest_events'    => wp_create_nonce( 'wf_sn_latest_events' ),
-                    'lc_version'             => self::get_plugin_version(),
+                    'nonce_install_routines' => wp_create_nonce( 'wf-sn-install-routines' ),
+                    'lc_version'             => \WPSecurityNinja\Plugin\Utils::get_plugin_version(),
                     'lc_site'                => get_home_url(),
                     'lc_ip'                  => $_SERVER['REMOTE_ADDR'],
+                    'strings'                => array(
+                        'reset_secret_url_confirm' => esc_html__( 'Are you sure you want to reset the secret access URL? The old link will no longer function.', 'security-ninja' ),
+                        'resetting'                => esc_html__( 'Resetting...', 'security-ninja' ),
+                        'resetting_message'        => esc_html__( 'Resetting secret access URL...', 'security-ninja' ),
+                        'reset_button_text'        => esc_html__( 'Reset Secret Access URL', 'security-ninja' ),
+                        'error_unknown'            => esc_html__( 'Unknown error occurred', 'security-ninja' ),
+                        'error_failed'             => esc_html__( 'Failed to reset secret access URL. Please try again.', 'security-ninja' ),
+                    ),
                 );
                 wp_localize_script( 'sn-js', 'wf_sn', $js_vars );
                 wp_enqueue_style(
@@ -1020,7 +694,11 @@ if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
             if ( class_exists( __NAMESPACE__ . '\\Wf_Sn_Vu' ) ) {
                 $vu_options = wf_sn_vu::get_options();
                 if ( $vu_options['enable_admin_notification'] ) {
-                    $notification_count = Wf_Sn_Vu::return_vuln_count();
+                    try {
+                        $notification_count = Wf_Sn_Vu::return_vuln_count();
+                    } catch ( \Exception $e ) {
+                        $notification_count = false;
+                    }
                 }
             }
             // Register main menu only if it doesn't exist
@@ -1062,20 +740,6 @@ if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
         }
 
         /**
-         * Display warning if running in an too old WordPress version
-         *
-         * @author  Lars Koudal
-         * @since   v0.0.1
-         * @version v1.0.0  Thursday, January 14th, 2021.
-         * @access  public static
-         * @return  void
-         */
-        public static function min_version_error() {
-            echo '<div class="notice notice-error"><p>This plugin requires WordPress version 4.4 or higher to function properly. You\'re using WordPress version ' . esc_attr( get_bloginfo( 'version' ) ) . '. Please <a href="' . esc_url( admin_url( 'update-core.php' ) ) . '" title="Update WP core">update</a>.</p></div>';
-            // i8n
-        }
-
-        /**
          * return default options
          *
          * @author  Lars Koudal
@@ -1093,7 +757,7 @@ if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
                 'license_hide'               => false,
                 'first_version'              => '',
                 'first_install'              => '',
-                'remove_settings_deactivate' => false,
+                'remove_settings_deactivate' => 0,
             );
             return $defaults;
         }
@@ -1216,13 +880,16 @@ if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
             ?>
 			<div class="wrap">
 				<?php 
-            wf_sn::show_topbar();
+            \WPSecurityNinja\Plugin\Utils::show_topbar();
             ?>
 				<div class="secnin_content_wrapper">
 					<div class="secnin_content_cell" id="secnin_content_top">
 
 						<?php 
             $show_welcome = isset( $_GET['welcome'] ) && '1' === sanitize_text_field( $_GET['welcome'] );
+            if ( class_exists( 'WPSecurityNinja\\Plugin\\Wf_Sn_Wl' ) && \WPSecurityNinja\Plugin\Wf_Sn_Wl::is_active() ) {
+                $show_welcome = false;
+            }
             if ( $show_welcome ) {
                 $docs_url = \WPSecurityNinja\Plugin\Utils::generate_sn_web_link( 'welcome_notice', '/docs/' );
                 $help_url = \WPSecurityNinja\Plugin\Utils::generate_sn_web_link( 'welcome_notice', '/help/' );
@@ -1230,12 +897,8 @@ if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
                 ?>
 							<div class="secnin-welcome-notice sncard">
 								<h2>👋 <?php 
-                esc_html_e( 'Welcome to Security Ninja!', 'security-ninja' );
-                ?></h2>
-								<h3><?php 
                 esc_html_e( 'Awesome move! You have just added a powerful layer of protection to your WordPress site.', 'security-ninja' );
-                ?></h3>
-
+                ?></h2>
 								<?php 
                 $letsstart = true;
                 if ( $letsstart ) {
@@ -1248,7 +911,7 @@ if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
 									</div>
 
 
-									<?php 
+								<?php 
                 }
                 ?>
 
@@ -1258,7 +921,7 @@ if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
 								<p>You're just a few clicks away from a safer, smarter website. Let's go!</p>
 								<div class="closeme">X</div>
 							</div>
-							<?php 
+						<?php 
             }
             do_action( 'secnin_signup_to_newsletter' );
             ?>
@@ -1306,7 +969,7 @@ if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
 				</div>
 			</div>
 
-			<?php 
+		<?php 
         }
 
         /**
@@ -1445,7 +1108,6 @@ if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
             $out .= '<th>' . __( 'Status', 'security-ninja' ) . '</th>';
             $out .= '<th class="column-primary">' . __( 'Security Test', 'security-ninja' ) . '</th>';
             $out .= '<th>' . __( 'Actions', 'security-ninja' );
-            // $out .= '<br><small><span class="secnin_expand_all_details">' . __('Expand all', 'security-ninja') . '</span></small>';
             $out .= '</th>';
             $out .= '</tr></thead>';
             $out .= '<tbody>';
@@ -1463,7 +1125,7 @@ if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
                         if ( 0 === intval( $testsresults['test'][$test_name]['status'] ) ) {
                             $outlabel = '<span class="teststatus fail">' . __( '✗', 'security-ninja' ) . '</span>';
                         } elseif ( 5 === intval( $testsresults['test'][$test_name]['status'] ) ) {
-                            $outlabel = '<span class="teststatus warning">' . __( '&#9888;', 'security-ninja' ) . '</span>';
+                            $outlabel = '<span class="teststatus warning">' . __( '-;', 'security-ninja' ) . '</span>';
                         } elseif ( 10 === intval( $testsresults['test'][$test_name]['status'] ) ) {
                             $outlabel = '<span class="teststatus pass">' . __( '✓', 'security-ninja' ) . '</span>';
                         }
@@ -1548,7 +1210,7 @@ if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
             ?>
 				</p>
 			</div>
-			<?php 
+<?php 
         }
 
         /**
@@ -1622,7 +1284,7 @@ if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
                 $response = false;
                 $testid = sanitize_key( $testarr[$stepid] );
                 if ( $testid ) {
-                    self::timerstart( $testid );
+                    \WPSecurityNinja\Plugin\Utils::timerstart( $testid );
                     $response = wf_sn_tests::$testid();
                 }
                 if ( $response ) {
@@ -1665,7 +1327,7 @@ if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
                         if ( $new_status_int === 10 && $previous_status_int < 10 ) {
                             $change_direction = 'improved';
                             // Went from fail/warning to pass
-                        } elseif ( $new_status_int < 10 && $previous_status_int === 10 ) {
+                        } elseif ( 10 === $previous_status_int && $new_status_int < 10 ) {
                             $change_direction = 'declined';
                             // Went from pass to fail/warning
                         } else {
@@ -1707,7 +1369,7 @@ if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
                         $testscorearr['details'] = $response['details'];
                         $json_response['details'] = $response['details'];
                     }
-                    $endtime = self::timerstop( $testid );
+                    $endtime = \WPSecurityNinja\Plugin\Utils::timerstop( $testid );
                     if ( $endtime ) {
                         $testscorearr['runtime'] = $endtime;
                     }
@@ -1726,32 +1388,43 @@ if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
         }
 
         /**
-         * saved test result
+         * Reset Secret Access URL via AJAX
          *
          * @author  Lars Koudal
          * @since   v0.0.1
-         * @version v1.0.0  Thursday, January 14th, 2021.
+         * @version v1.0.0  Monday, January 13th, 2025.
          * @access  public static
-         * @param   mixed $testresult
          * @return  void
          */
-        public static function update_test_score( $testresult ) {
-            if ( !$testresult ) {
-                return false;
+        public static function reset_secret_url() {
+            check_ajax_referer( 'wf-sn-install-routines' );
+            if ( !current_user_can( 'manage_options' ) ) {
+                wp_send_json_error( array(
+                    'message' => esc_html__( 'You do not have sufficient permissions to perform this action.', 'security-ninja' ),
+                ) );
             }
-            global $wpdb;
-            $table_name = $wpdb->prefix . 'wf_sn_tests';
-            if ( !isset( $testresult['details'] ) ) {
-                $testresult['details'] = '';
+            // Check if firewall module is available
+            if ( !class_exists( __NAMESPACE__ . '\\Wf_sn_cf' ) ) {
+                wp_send_json_error( array(
+                    'message' => esc_html__( 'Firewall module not available.', 'security-ninja' ),
+                ) );
             }
-            $wpdb->replace( $table_name, $testresult, array(
-                '%s',
-                '%s',
-                '%s',
-                '%d',
-                '%d',
-                '%s',
-                '%s'
+            // Get firewall options
+            $firewall_options = \WPSecurityNinja\Plugin\Wf_sn_cf::get_options();
+            // Generate new secret access URL
+            $firewall_options['unblock_url'] = md5( time() . wp_rand() );
+            // Update the options
+            update_option( 'wf_sn_cf', $firewall_options, false );
+            // Log the event
+            if ( class_exists( '\\WPSecurityNinja\\Plugin\\Wf_Sn_El_Modules' ) ) {
+                \WPSecurityNinja\Plugin\Wf_Sn_El_Modules::log_event( 'security_ninja', 'secret_access_url_reset', 'Secret access URL was reset by user ID: ' . get_current_user_id() );
+            }
+            // Get the new URL for response
+            $new_url = \WPSecurityNinja\Plugin\Wf_sn_cf::get_unblock_url();
+            // Set a transient to show notice on page reload
+            set_transient( 'sn_secret_url_reset_success', $new_url, 60 );
+            wp_send_json_success( array(
+                'message' => esc_html__( 'Secret access URL has been reset successfully.', 'security-ninja' ),
             ) );
         }
 
@@ -1788,7 +1461,7 @@ if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
             }
             $step = ( isset( $_POST['step'] ) ? absint( $_POST['step'] ) : 1 );
             if ( 1 === $step ) {
-                self::timerstart( 'wf_sn_run_tests' );
+                \WPSecurityNinja\Plugin\Utils::timerstart( 'wf_sn_run_tests' );
             }
             if ( !$step ) {
                 $step = 0;
@@ -1798,7 +1471,7 @@ if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
             if ( $step ) {
                 $json_response['step'] = $step;
             }
-            $security_tests = wf_sn_tests::return_security_tests();
+            $security_tests = \WPSecurityNinja\Plugin\Wf_Sn_Tests::return_security_tests();
             if ( $security_tests ) {
                 $totaltests = count( $security_tests );
                 $json_response['totaltests'] = $totaltests;
@@ -1855,7 +1528,7 @@ if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
                         if ( $step >= $totaltests ) {
                             $json_response['step'] = 'done';
                             $resultssofar['last_run'] = time();
-                            $stoptime = self::timerstop( 'wf_sn_run_tests' );
+                            $stoptime = \WPSecurityNinja\Plugin\Utils::timerstop( 'wf_sn_run_tests' );
                             if ( $stoptime ) {
                                 $resultssofar['run_time'] = $stoptime;
                             }
@@ -1876,15 +1549,14 @@ if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
         }
 
         /**
-         * RUNS ALL TESTS, not just one
-         * LARS - SKAL GEMMES INDTIL VIDERE - Bruges af scheduled scanner
-         * Bruges kun af cron job, behøver ikke validere bruger rettigheder
+         * Runs all tests with multisite compatibility
          *
          * @author  Lars Koudal
          * @since   v0.0.1
-         * @version v1.0.0  Saturday, March 5th, 2022.
+         * @version v1.0.0  Thursday, January 14th, 2021.
+         * @version v1.0.1  Tuesday, June 11th, 2024.
          * @access  public static
-         * @param   boolean $return Default: false
+         * @param   boolean $return_data Default: false
          * @return  void
          */
         public static function run_all_tests( $return_data = false ) {
@@ -1904,15 +1576,39 @@ if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
                     ) );
                 }
             }
-            self::timerstart( 'wf_sn_run_all_tests' );
+            \WPSecurityNinja\Plugin\Utils::timerstart( 'wf_sn_run_all_tests' );
             $security_tests = wf_sn_tests::return_security_tests();
             $resultssofar = array();
             $set_time_limit = set_time_limit( 200 );
             $loop_count = 1;
             $resultssofar['last_run'] = time();
+            // Add multisite context information
+            if ( is_multisite() ) {
+                $resultssofar['multisite'] = array(
+                    'is_multisite'    => true,
+                    'current_site_id' => get_current_blog_id(),
+                    'is_main_site'    => is_main_site(),
+                    'network_id'      => get_current_network_id(),
+                );
+            } else {
+                $resultssofar['multisite'] = array(
+                    'is_multisite' => false,
+                );
+            }
             if ( is_array( $security_tests ) ) {
                 foreach ( $security_tests as $test_name => $test ) {
                     if ( '_' === $test_name[0] || in_array( $test_name, self::$skip_tests, true ) || 'ad_' === substr( $test_name, 0, 3 ) ) {
+                        continue;
+                    }
+                    // Skip certain tests in multisite subsites if they're network-level concerns
+                    if ( is_multisite() && !is_main_site() && self::should_skip_test_in_subsite( $test_name ) ) {
+                        $resultssofar['test'][$test_name] = array(
+                            'title'  => $test['title'],
+                            'status' => 5,
+                            'score'  => $test['score'],
+                            'msg'    => __( 'This test is typically handled at the network level in multisite installations.', 'security-ninja' ),
+                        );
+                        ++$loop_count;
                         continue;
                     }
                     $response = wf_sn_tests::$test_name();
@@ -1943,7 +1639,7 @@ if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
                 // No more tests - let us stop
                 $json_response['step'] = 'done';
                 $resultssofar['last_run'] = time();
-                $stoptime = self::timerstop( 'wf_sn_run_all_tests' );
+                $stoptime = \WPSecurityNinja\Plugin\Utils::timerstop( 'wf_sn_run_all_tests' );
                 if ( $stoptime ) {
                     $resultssofar['run_time'] = $stoptime;
                 }
@@ -1960,34 +1656,38 @@ if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
         }
 
         /**
-         * Converts a status integer to a button.
-         *
-         * This method takes a status code as an integer and returns a string representing a button with a class indicating the status.
-         * The status codes are mapped to the following buttons:
-         * - 0: Fail (class "sn-error")
-         * - 10: OK (class "sn-success")
-         * - Any other value: Warning (class "sn-warning")
+         * Determines if a test should be skipped in multisite subsites
          *
          * @author  Lars Koudal
-         * @since   v0.0.1
-         * @version v1.0.0  Tuesday, December 7th, 2021.
-         * @access  public static
-         * @param   int $statuscode The status code to convert.
-         * @return  string The HTML string representing the button.
+         * @since   v1.0.1
+         * @version v1.0.0  Tuesday, June 11th, 2024.
+         * @access  private static
+         * @param   string $test_name The name of the test
+         * @return  boolean True if the test should be skipped
          */
-        public static function status( $statuscode ) {
-            switch ( $statuscode ) {
-                case 0:
-                    $string = '<span class="sn-error">' . __( 'Fail', 'security-ninja' ) . '</span>';
-                    break;
-                case 10:
-                    $string = '<span class="sn-success">' . __( 'OK', 'security-ninja' ) . '</span>';
-                    break;
-                default:
-                    $string = '<span class="sn-warning">' . __( 'Warning', 'security-ninja' ) . '</span>';
-                    break;
-            }
-            return $string;
+        private static function should_skip_test_in_subsite( $test_name ) {
+            // Tests that are typically network-level concerns in multisite
+            $network_level_tests = array(
+                'core_updates_check',
+                'config_chmod',
+                'config_location',
+                'db_password_check',
+                'salt_keys_check',
+                'salt_keys_age_check',
+                'register_globals_check',
+                'safe_mode_check',
+                'allow_url_include_check',
+                'expose_php_check',
+                'display_errors_check',
+                'php_headers',
+                'strict_transport_security',
+                'referrer_policy',
+                'feature_policy',
+                'content_security_policy',
+                'x_frame_options',
+                'x_content_type_options'
+            );
+            return in_array( $test_name, $network_level_tests, true );
         }
 
         /**
@@ -2001,32 +1701,37 @@ if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
          * @since   v0.0.1
          * @version v1.0.0  Tuesday, December 7th, 2021.
          * @access  public static
+         * @param   bool $network_wide Whether the plugin is being activated network-wide.
          * @return  void
          */
-        public static function activate() {
+        public static function activate( $network_wide = false ) {
             $options = self::get_options();
             // Runs on first activation.
-            if ( empty( $options['first_version'] ) || empty( $options['first_install'] ) ) {
-                // Set first install and initial version installed.
-                $options['first_version'] = self::get_plugin_version();
-                $options['first_install'] = time();
-                update_option( 'wf_sn_options', $options, false );
-                // First activation - set value to redirect later.
-                // Don't do redirects when multiple plugins are bulk activated.
-                if ( !(isset( $_REQUEST['action'] ) && 'activate-selected' === $_REQUEST['action']) && !(isset( $_POST['checked'] ) && is_array( $_POST['checked'] ) && count( $_POST['checked'] ) > 1) ) {
-                    $user_id = get_current_user_id();
-                    if ( $user_id ) {
-                        add_option( 'secnin_activation_redirect', $user_id );
-                    }
-                }
-            }
             global $wpdb;
-            // Maybe create table
-            $table_name = $wpdb->prefix . 'wf_sn_tests';
             include_once ABSPATH . 'wp-admin/includes/upgrade.php';
             $charset = $wpdb->get_charset_collate();
-            $sql = "CREATE TABLE {$table_name} ( id bigint(20) unsigned NOT NULL AUTO_INCREMENT, testid varchar(30) NOT NULL, timestamp datetime NOT NULL, title text, status tinyint(4) NOT NULL, score tinyint(4) NOT NULL, runtime float DEFAULT NULL, msg text, details text, PRIMARY KEY  (testid), KEY id (id)) {$charset};";
-            dbDelta( $sql );
+            if ( $network_wide && is_multisite() ) {
+                // Network activation - create tables for all sites
+                $sites = get_sites( array(
+                    'fields' => 'ids',
+                ) );
+                foreach ( $sites as $site_id ) {
+                    switch_to_blog( $site_id );
+                    \WPSecurityNinja\Plugin\Utils::create_tables_for_site( $charset );
+                    // Ensure Events Logger is enabled by default on first activation
+                    if ( class_exists( __NAMESPACE__ . '\\Wf_Sn_El' ) ) {
+                        \WPSecurityNinja\Plugin\Wf_Sn_El::default_settings( false );
+                    }
+                    restore_current_blog();
+                }
+            } elseif ( !$network_wide ) {
+                // Single site activation (only when not network-wide)
+                \WPSecurityNinja\Plugin\Utils::create_tables_for_site( $charset );
+                // Ensure Events Logger is enabled by default on first activation
+                if ( class_exists( __NAMESPACE__ . '\\Wf_Sn_El' ) ) {
+                    \WPSecurityNinja\Plugin\Wf_Sn_El::default_settings( false );
+                }
+            }
         }
 
         /**
@@ -2063,7 +1768,9 @@ if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
         public static function uninstall() {
             global $wpdb;
             // Drop security tests table
-            $wpdb->query( $wpdb->prepare( 'DROP TABLE IF EXISTS %s', $wpdb->prefix . 'wf_sn_tests' ) );
+            if ( self::table_exists( $wpdb->prefix . 'wf_sn_tests' ) ) {
+                $wpdb->query( 'DROP TABLE IF EXISTS ' . $wpdb->prefix . 'wf_sn_tests' );
+            }
             // Delete options
             delete_option( 'wf_sn_results' );
             delete_option( 'wf_sn_options' );
@@ -2075,10 +1782,74 @@ if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
             $wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->usermeta} WHERE meta_key = %s", 'sn_last_login' ) );
         }
 
+        /**
+         * Updates test score in database - multisite compatible
+         *
+         * @author  Lars Koudal
+         * @since   v0.0.1
+         * @version v1.0.0  Thursday, January 14th, 2021.
+         * @version v1.0.1  Tuesday, June 11th, 2024.
+         * @access  public static
+         * @param   array $testresult Test result data
+         * @return  boolean Success status
+         */
+        public static function update_test_score( $testresult ) {
+            if ( !$testresult ) {
+                return false;
+            }
+            global $wpdb;
+            // Ensure we're using the correct database prefix for the current site
+            $table_name = $wpdb->prefix . 'wf_sn_tests';
+            if ( !isset( $testresult['details'] ) ) {
+                $testresult['details'] = '';
+            }
+            // Ensure the table exists before attempting to insert/update
+            if ( !self::table_exists( $table_name ) ) {
+                // Create the table if it doesn't exist
+                include_once ABSPATH . 'wp-admin/includes/upgrade.php';
+                $charset = $wpdb->get_charset_collate();
+                \WPSecurityNinja\Plugin\Utils::create_tables_for_site( $charset );
+            }
+            $result = $wpdb->replace( $table_name, $testresult, array(
+                '%s',
+                '%s',
+                '%s',
+                '%d',
+                '%d',
+                '%s',
+                '%s'
+            ) );
+            return false !== $result;
+        }
+
+        /**
+         * Checks if a database table exists
+         *
+         * @author  Lars Koudal
+         * @since   v1.0.1
+         * @version v1.0.0  Tuesday, June 11th, 2024.
+         * @access  private static
+         * @param   string $table_name The table name to check
+         * @return  boolean True if the table exists
+         */
+        private static function table_exists( $table_name ) {
+            global $wpdb;
+            $result = $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $table_name ) );
+            return $result === $table_name;
+        }
+
     }
 
 }
 register_activation_hook( __FILE__, array(__NAMESPACE__ . '\\WF_SN', 'activate') );
 register_deactivation_hook( __FILE__, array(__NAMESPACE__ . '\\WF_SN', 'deactivate') );
 register_uninstall_hook( __FILE__, array(__NAMESPACE__ . '\\WF_SN', 'uninstall') );
+// Load translations on init hook with priority 1 (WordPress 6.7+ requirement)
+// This ensures translations are loaded early in the init cycle, before any code uses them
+add_action( 'init', array(__NAMESPACE__ . '\\WF_SN', 'load_textdomain'), 1 );
 add_action( 'init', array(__NAMESPACE__ . '\\WF_SN', 'init') );
+// Multisite hooks
+if ( is_multisite() ) {
+    add_action( 'wpmu_new_blog', array(__NAMESPACE__ . '\\WF_SN', 'handle_new_site') );
+    add_action( 'wp_insert_site', array(__NAMESPACE__ . '\\WF_SN', 'handle_new_site') );
+}

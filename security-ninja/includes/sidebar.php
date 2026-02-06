@@ -10,6 +10,45 @@ global $secnin_fs;
 ?>
 <div class="secnin_content_cell" id="sidebar-container">
 
+	<?php 
+// Firewall quick numbers - simple, informative and fast.
+if ( !class_exists( __NAMESPACE__ . '\\Wf_sn_cf' ) ) {
+    require_once WF_SN_PLUGIN_DIR . 'modules/cloud-firewall/cloud-firewall.php';
+}
+$firewall_is_active = 0;
+$blocked_today = 0;
+if ( class_exists( __NAMESPACE__ . '\\Wf_sn_cf' ) ) {
+    $firewall_is_active = (int) \WPSecurityNinja\Plugin\Wf_sn_cf::is_active();
+    if ( method_exists( __NAMESPACE__ . '\\Wf_sn_cf', 'get_blocked_today_count' ) ) {
+        $blocked_today = (int) \WPSecurityNinja\Plugin\Wf_sn_cf::get_blocked_today_count();
+    }
+}
+$total_blocked = (int) get_option( 'wf_sn_cf_blocked_count', 0 );
+?>
+
+	<div class="sidebarsection feature">
+		<h3><span class="dashicons dashicons-shield-alt"></span> <?php 
+esc_html_e( 'Firewall activity', 'security-ninja' );
+?></h3>
+		<ul class="linklist">
+			<li><strong><?php 
+esc_html_e( 'Status', 'security-ninja' );
+?>:</strong> <?php 
+echo ( $firewall_is_active ? esc_html__( 'Enabled', 'security-ninja' ) : esc_html__( 'Disabled', 'security-ninja' ) );
+?></li>
+			<li><strong><?php 
+esc_html_e( 'Blocked today', 'security-ninja' );
+?>:</strong> <?php 
+echo esc_html( number_format_i18n( $blocked_today ) );
+?></li>
+			<li><strong><?php 
+esc_html_e( 'Total blocked', 'security-ninja' );
+?>:</strong> <?php 
+echo esc_html( number_format_i18n( $total_blocked ) );
+?></li>
+		</ul>
+	</div><!-- .sidebarsection -->
+
 	<div class="sidebarsection feature">
 		<h3><span class="dashicons dashicons-info-outline"></span> <?php 
 esc_html_e( 'Learn more', 'security-ninja' );
@@ -115,10 +154,10 @@ if ( function_exists( 'secnin_fs' ) ) {
         ?></li>
 				</ul>
 				<p><strong><?php 
-        esc_html_e( 'Try the Pro version free for 30 days!', 'security-ninja' );
+        esc_html_e( 'Try the Pro version free for 14 days!', 'security-ninja' );
         ?></strong></p>
 				<a href="<?php 
-        echo esc_url( Utils::generate_sn_web_link( 'sidebar_link', '/pricing/' ) );
+        echo esc_url( Utils::generate_sn_web_link( 'sidebar_link', '/pricing/?trial=free' ) );
         ?>" class="button button-primary trial-button" target="_blank" rel="noopener"><?php 
         echo 'Get started';
         ?></a>
@@ -175,23 +214,32 @@ echo esc_url( 'https://wordpress.org/support/plugin/security-ninja/' );
 ?>" target="_blank" rel="noopener"><?php 
 esc_html_e( 'Support Forum', 'security-ninja' );
 ?></a></li>
-			<?php 
-if ( secnin_fs()->is_not_paying() ) {
-    ?>
-				<li><a href="<?php 
-    echo esc_url( secnin_fs()->connect_again() );
-    ?>"><?php 
-    esc_html_e( 'Activate License', 'security-ninja' );
-    ?></a></li>
+			<li><a href="<?php 
+echo esc_url( 'https://wpsecurityninja.com/docs/' );
+?>" target="_blank" rel="noopener"><?php 
+esc_html_e( 'Knowledge Base', 'security-ninja' );
+?></a></li>
+
 
 			<?php 
+if ( secnin_fs()->is_not_paying() ) {
+    $connect_url = secnin_fs()->connect_again();
+    if ( !empty( $connect_url ) ) {
+        ?>
+				<li><a href="<?php 
+        echo esc_url( $connect_url );
+        ?>"><?php 
+        esc_html_e( 'Activate License', 'security-ninja' );
+        ?></a></li>
+			<?php 
+    }
 }
 ?>
 		</ul>
 	</div><!-- .sidebarsection -->
 	<?php 
-$show_pro_ad = false;
-if ( secnin_fs()->is_not_paying() && $show_pro_ad ) {
+$show_pro_ad = true;
+if ( $show_pro_ad ) {
     ?>
 		<div class="sidebarsection feature upgradepro">
 			<h3>Effortless Security for Your Site!</h3>

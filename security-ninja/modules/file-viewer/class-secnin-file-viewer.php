@@ -237,7 +237,7 @@ class FileViewer {
 		// Check file extension
 		$allowed_extensions = array( 'php', 'js', 'css', 'txt', 'html', 'htm', 'log', 'inc', 'xml', 'json', 'md', 'yml', 'yaml', 'ini', 'sql' );
 		$file_extension     = strtolower( pathinfo( $normalized_path, PATHINFO_EXTENSION ) );
-		$allowed_files      = array( 'debug.log', 'error_log' );
+		$allowed_files      = array( 'debug.log', 'error_log', 'php_errorlog' );
 
 		if ( ! in_array( $file_extension, $allowed_extensions, true ) && ! in_array( basename( $normalized_path ), $allowed_files, true ) ) {
 			wf_sn_el_modules::log_event( 'File Viewer', 'Attempt to view disallowed file type: ' . $file_extension );
@@ -249,8 +249,6 @@ class FileViewer {
 			\WPSecurityNinja\Plugin\wf_sn_el_modules::log_event( 'File Viewer', 'Attempt to view file outside WordPress installation: ' . $normalized_path );
 			return false;
 		}
-
-
 
 		// Check if file is readable and within size limits
 		if ( ! is_readable( $file_path ) ) {
@@ -283,7 +281,7 @@ class FileViewer {
 		// Check file extension
 		$allowed_extensions = array( 'php', 'js', 'css', 'txt', 'html', 'htm', 'log', 'inc', 'xml', 'json', 'md', 'yml', 'yaml', 'ini', 'sql' );
 		$file_extension     = strtolower( pathinfo( $normalized_path, PATHINFO_EXTENSION ) );
-		$allowed_files      = array( 'debug.log', 'error_log' );
+		$allowed_files      = array( 'debug.log', 'error_log', 'php_errorlog' );
 
 		if ( ! in_array( $file_extension, $allowed_extensions, true ) && ! in_array( basename( $normalized_path ), $allowed_files, true ) ) {
 			return false;

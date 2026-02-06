@@ -4,7 +4,7 @@
 
 namespace Composer\Autoload;
 
-class ComposerStaticInitebf079dc30b9382a96e06ea259be1eda
+class ComposerStaticInit1bd3e2d5caa967a36d5c0b367a030264
 {
     public static $files = array (
         'a9ed0d27b5a698798a89181429f162c5' => __DIR__ . '/..' . '/khanamiryan/qrcode-detector-decoder/lib/Common/customFunctions.php',
@@ -15,114 +15,114 @@ class ComposerStaticInitebf079dc30b9382a96e06ea259be1eda
     );
 
     public static $prefixLengthsPsr4 = array (
-        'p' => 
+        'p' =>
         array (
             'phpseclib\\' => 10,
         ),
-        'c' => 
+        'c' =>
         array (
             'chillerlan\\Settings\\' => 20,
             'chillerlan\\QRCode\\' => 18,
         ),
-        'b' => 
+        'b' =>
         array (
             'bcmath_compat\\' => 14,
         ),
-        'Z' => 
+        'Z' =>
         array (
             'Zxing\\' => 6,
         ),
-        'W' => 
+        'W' =>
         array (
             'WPSecurityNinja\\Plugin\\' => 23,
         ),
-        'T' => 
+        'T' =>
         array (
             'TypistTech\\Imposter\\Plugin\\' => 27,
             'TypistTech\\Imposter\\' => 20,
         ),
-        'P' => 
+        'P' =>
         array (
             'ParagonIE\\ConstantTime\\' => 23,
         ),
-        'M' => 
+        'M' =>
         array (
             'MabeEnum\\' => 9,
         ),
-        'I' => 
+        'I' =>
         array (
             'IP2Location\\' => 12,
         ),
-        'D' => 
+        'D' =>
         array (
             'Da\\TwoFA\\' => 9,
             'Da\\QrCode\\' => 10,
             'DASPRiD\\Enum\\' => 13,
         ),
-        'B' => 
+        'B' =>
         array (
             'BaconQrCode\\' => 12,
         ),
     );
 
     public static $prefixDirsPsr4 = array (
-        'phpseclib\\' => 
+        'phpseclib\\' =>
         array (
             0 => __DIR__ . '/..' . '/phpseclib/phpseclib/phpseclib',
         ),
-        'chillerlan\\Settings\\' => 
+        'chillerlan\\Settings\\' =>
         array (
             0 => __DIR__ . '/..' . '/chillerlan/php-settings-container/src',
         ),
-        'chillerlan\\QRCode\\' => 
+        'chillerlan\\QRCode\\' =>
         array (
             0 => __DIR__ . '/..' . '/chillerlan/php-qrcode/src',
         ),
-        'bcmath_compat\\' => 
+        'bcmath_compat\\' =>
         array (
             0 => __DIR__ . '/..' . '/phpseclib/bcmath_compat/src',
         ),
-        'Zxing\\' => 
+        'Zxing\\' =>
         array (
             0 => __DIR__ . '/..' . '/khanamiryan/qrcode-detector-decoder/lib',
         ),
-        'WPSecurityNinja\\Plugin\\' => 
+        'WPSecurityNinja\\Plugin\\' =>
         array (
             0 => __DIR__ . '/../..' . '/src',
         ),
-        'TypistTech\\Imposter\\Plugin\\' => 
+        'TypistTech\\Imposter\\Plugin\\' =>
         array (
             0 => __DIR__ . '/..' . '/typisttech/imposter-plugin/src',
         ),
-        'TypistTech\\Imposter\\' => 
+        'TypistTech\\Imposter\\' =>
         array (
             0 => __DIR__ . '/..' . '/typisttech/imposter/src',
         ),
-        'ParagonIE\\ConstantTime\\' => 
+        'ParagonIE\\ConstantTime\\' =>
         array (
             0 => __DIR__ . '/..' . '/paragonie/constant_time_encoding/src',
         ),
-        'MabeEnum\\' => 
+        'MabeEnum\\' =>
         array (
             0 => __DIR__ . '/..' . '/marc-mabe/php-enum/src',
         ),
-        'IP2Location\\' => 
+        'IP2Location\\' =>
         array (
             0 => __DIR__ . '/..' . '/ip2location/ip2location-php/src',
         ),
-        'Da\\TwoFA\\' => 
+        'Da\\TwoFA\\' =>
         array (
             0 => __DIR__ . '/..' . '/2amigos/2fa-library/src',
         ),
-        'Da\\QrCode\\' => 
+        'Da\\QrCode\\' =>
         array (
             0 => __DIR__ . '/..' . '/2amigos/qrcode-library/src',
         ),
-        'DASPRiD\\Enum\\' => 
+        'DASPRiD\\Enum\\' =>
         array (
             0 => __DIR__ . '/..' . '/dasprid/enum/src',
         ),
-        'BaconQrCode\\' => 
+        'BaconQrCode\\' =>
         array (
             0 => __DIR__ . '/..' . '/bacon/bacon-qr-code/src',
         ),
@@ -464,9 +464,9 @@ class ComposerStaticInitebf079dc30b9382a96e06ea259be1eda
     public static function getInitializer(ClassLoader $loader)
     {
         return \Closure::bind(function () use ($loader) {
-            $loader->prefixLengthsPsr4 = ComposerStaticInitebf079dc30b9382a96e06ea259be1eda::$prefixLengthsPsr4;
-            $loader->prefixDirsPsr4 = ComposerStaticInitebf079dc30b9382a96e06ea259be1eda::$prefixDirsPsr4;
-            $loader->classMap = ComposerStaticInitebf079dc30b9382a96e06ea259be1eda::$classMap;
+            $loader->prefixLengthsPsr4 = ComposerStaticInit1bd3e2d5caa967a36d5c0b367a030264::$prefixLengthsPsr4;
+            $loader->prefixDirsPsr4 = ComposerStaticInit1bd3e2d5caa967a36d5c0b367a030264::$prefixDirsPsr4;
+            $loader->classMap = ComposerStaticInit1bd3e2d5caa967a36d5c0b367a030264::$classMap;
 
         }, null, ClassLoader::class);
     }

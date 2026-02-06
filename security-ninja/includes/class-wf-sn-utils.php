@@ -185,7 +185,7 @@ class Utils {
 							</tr>
 					</table>
 					<input type="hidden" name="fields[signupsource]" value="Security Ninja Plugin <?php 
-            echo esc_attr( \WPSecurityNinja\Plugin\Wf_Sn::get_plugin_version() );
+            echo esc_attr( self::get_plugin_version() );
             ?>">
 					<input type="hidden" name="ml-submit" value="1">
 					<input type="hidden" name="anticsrf" value="true">
@@ -232,14 +232,12 @@ class Utils {
         if ( 'secnin_last_login' !== $column_id ) {
             return $output;
         }
-        $current_time = time();
-        $gmt_offset_seconds = get_option( 'gmt_offset' ) * HOUR_IN_SECONDS;
-        $current_time_with_offset = $current_time + $gmt_offset_seconds;
+        $current_time = current_time( 'timestamp' );
         $last_login = get_user_meta( $user_id, 'sn_last_login', true );
         if ( $last_login ) {
             $last_login_timestamp = strtotime( $last_login );
             if ( $last_login_timestamp <= $current_time ) {
-                $human_time = human_time_diff( $last_login_timestamp, $current_time_with_offset ) . ' ago';
+                $human_time = human_time_diff( $last_login_timestamp, $current_time ) . ' ago';
                 $friendly_date = date_i18n( get_option( 'date_format' ) . ' - ' . get_option( 'time_format' ), $last_login_timestamp );
                 return $human_time . '<br><small>' . $friendly_date . '</small>';
             }
@@ -248,7 +246,7 @@ class Utils {
             if ( $session_tokens && is_array( $session_tokens ) ) {
                 foreach ( $session_tokens as $stok ) {
                     if ( isset( $stok['login'] ) && is_numeric( $stok['login'] ) && $stok['login'] <= $current_time ) {
-                        $human_time = human_time_diff( $stok['login'], $current_time_with_offset ) . ' ago';
+                        $human_time = human_time_diff( $stok['login'], $current_time ) . ' ago';
                         $friendly_date = date_i18n( get_option( 'date_format' ) . ' - ' . get_option( 'time_format' ), $stok['login'] );
                         return $human_time . '<br><small>' . $friendly_date . '</small>';
                     }
@@ -268,7 +266,15 @@ class Utils {
      * @return  void
      */
     public static function secnin_fs_license_key_migration() {
-        if ( false === secnin_fs()->has_api_connectivity() || secnin_fs()->is_registered() ) {
+        $has_api_connectivity = false;
+        if ( secnin_fs()->has_api_connectivity() ) {
+            $has_api_connectivity = true;
+        }
+        $is_registered = false;
+        if ( secnin_fs()->is_registered() ) {
+            $is_registered = true;
+        }
+        if ( false === $has_api_connectivity || $is_registered ) {
             // No connectivity OR the user already opted-in to Freemius.
             return;
         }
@@ -330,12 +336,17 @@ class Utils {
                 global $wpdb;
                 $information['SecNin_get_details'] = array(
                     'plan' => 'Free',
-                    'ver'  => \WPSecurityNinja\Plugin\wf_sn::get_plugin_version(),
+                    'ver'  => self::get_plugin_version(),
                 );
                 // Check vulnerabilities
                 if ( class_exists( __NAMESPACE__ . '\\wf_sn_vu' ) ) {
-                    $vulns = \WPSecurityNinja\Plugin\Wf_Sn_Vu::return_vuln_count();
-                    $vulndetails = \WPSecurityNinja\Plugin\Wf_Sn_Vu::return_vulnerabilities();
+                    try {
+                        $vulns = \WPSecurityNinja\Plugin\Wf_Sn_Vu::return_vuln_count();
+                        $vulndetails = \WPSecurityNinja\Plugin\Wf_Sn_Vu::return_vulnerabilities();
+                    } catch ( \Exception $e ) {
+                        $vulns = 0;
+                        $vulndetails = array();
+                    }
                     $information['SecNin_get_details']['vulns'] = $vulns;
                     $information['SecNin_get_details']['vulndetails'] = $vulndetails;
                 }
@@ -460,7 +471,7 @@ class Utils {
             'utm_source'   => esc_attr( $utm_source ),
             'utm_medium'   => 'plugin',
             'utm_content'  => esc_attr( $placement ),
-            'utm_campaign' => esc_attr( 'security_ninja_v' . \WPSecurityNinja\Plugin\Wf_Sn::get_plugin_version() ),
+            'utm_campaign' => esc_attr( 'security_ninja_v' . self::get_plugin_version() ),
         ), $params );
         $out = $base_url . $page . '?' . http_build_query( $parts, '', '&amp;' );
         return $out;
@@ -512,9 +523,7 @@ class Utils {
             echo '<div class="wf-sn-overlay-content">';
             echo '<div id="sn-site-scan" style="display: none;">';
             echo '</div>';
-            // do_action( 'sn_overlay_content' ); // @todo - remove this
             echo '<p><a id="abort-scan" href="#" class="button button-secondary">Cancel</a></p>';
-            // do_action('sn_overlay_content_after'); @todo - remove this.
             echo '</div>';
             // wf-sn-overlay-content
             echo '</div></div></div></div>';
@@ -593,7 +602,329 @@ class Utils {
 
 			</div>
 		</div>
-<?php 
+		<?php 
+    }
+
+    /**
+     * Safely strips HTML and PHP tags from a string, handling null values.
+     *
+     * @author  Lars Koudal
+     * @since   v0.0.1
+     * @version v1.0.0  Tuesday, December 7th, 2021.
+     * @access  public static
+     * @param   string|null $str The string to strip tags from.
+     * @param   string|null $allowable_tags Optional. Tags to allow.
+     * @return  string The string with tags stripped.
+     */
+    public static function safe_strip_tags( $str, $allowable_tags = null ) {
+        if ( null === $str ) {
+            return '';
+        }
+        return strip_tags( $str, $allowable_tags );
+    }
+
+    public static function extra_modern_checkout_parameters( $parameters ) {
+        // You can modify existing parameters in the $parameters array or add new ones.
+        $parameters['show_refund_badge'] = true;
+        $parameters['show_reviews'] = true;
+        $parameters['billing_cycle_selector'] = 'dropdown';
+        return $parameters;
+    }
+
+    /**
+     * Creates database tables for a specific site.
+     *
+     * @author  Lars Koudal
+     * @since   v0.0.1
+     * @version v1.0.0  Tuesday, December 7th, 2021.
+     * @access  private static
+     * @param   string $charset Database charset.
+     * @return  bool Always returns true to indicate completion.
+     */
+    public static function create_tables_for_site( $charset ) {
+        global $wpdb;
+        // Create main tests table
+        $table_name = $wpdb->prefix . 'wf_sn_tests';
+        $sql = "CREATE TABLE {$table_name} ( id bigint(20) unsigned NOT NULL AUTO_INCREMENT, testid varchar(30) NOT NULL, timestamp datetime NOT NULL, title text, status tinyint(4) NOT NULL, score tinyint(4) NOT NULL, runtime float DEFAULT NULL, msg text, details text, PRIMARY KEY  (testid), KEY id (id)) {$charset};";
+        dbDelta( $sql );
+        // EVENT LOGS
+        $table_name = $wpdb->prefix . 'wf_sn_el';
+        $sql = "CREATE TABLE {$table_name} (id bigint(20) unsigned NOT NULL AUTO_INCREMENT,timestamp datetime NOT NULL,ip varchar(39) NOT NULL,user_agent varchar(255) NOT NULL,user_id int(10) unsigned NOT NULL,module varchar(32) NOT NULL,action varchar(64) NOT NULL,description text NOT NULL,raw_data blob NOT NULL,PRIMARY KEY  (id)) {$charset};";
+        dbDelta( $sql );
+        // Firewall - local list of blocked IPs (free feature)
+        $table_name = $wpdb->prefix . 'wf_sn_cf_bl_ips';
+        $sql = "CREATE TABLE {$table_name} (tid datetime NOT NULL DEFAULT NOW(),ip varchar(46) NOT NULL, reason varchar(255) NOT NULL, PRIMARY KEY  (ip),KEY tid (tid)) {$charset}";
+        dbDelta( $sql );
+        // Set up default settings for Event logger (free feature)
+        if ( class_exists( '\\WPSecurityNinja\\Plugin\\Wf_Sn_El' ) ) {
+            include_once WF_SN_PLUGIN_DIR . 'modules/cloud-firewall/class-sn-geolocation.php';
+            Wf_Sn_El::default_settings( false );
+        }
+        return true;
+    }
+
+    /**
+     * Safely trims whitespace from the beginning of a string, handling null values.
+     *
+     * @author  Lars Koudal
+     * @since   v0.0.1
+     * @version v1.0.0  Tuesday, December 7th, 2021.
+     * @access  public static
+     * @param   string|null $str The string to trim.
+     * @param   string $character_mask Optional. Characters to trim.
+     * @return  string The trimmed string.
+     */
+    public static function safe_ltrim( $str, $character_mask = " \t\n\r\x00\v" ) {
+        if ( null === $str ) {
+            return '';
+        }
+        return ltrim( $str, $character_mask );
+    }
+
+    /**
+     * Safely trims whitespace from both ends of a string, handling null values.
+     *
+     * @author  Lars Koudal
+     * @since   v0.0.1
+     * @version v1.0.0  Tuesday, December 7th, 2021.
+     * @access  public static
+     * @param   string|null $str The string to trim.
+     * @param   string $character_mask Optional. Characters to trim.
+     * @return  string The trimmed string.
+     */
+    public static function safe_trim( $str, $character_mask = " \t\n\r\x00\v" ) {
+        if ( null === $str ) {
+            return '';
+        }
+        return trim( $str, $character_mask );
+    }
+
+    /**
+     * Start timer for performance measurement
+     *
+     * @author  Lars Koudal
+     * @since   v0.0.1
+     * @version v1.0.0  Tuesday, January 12th, 2021.
+     * @access  public static
+     * @param   string $watchname Timer identifier
+     * @return  void
+     */
+    public static function timerstart( $watchname ) {
+        set_transient( 'security_ninja_' . esc_attr( $watchname ), microtime( true ), 60 * 60 * 1 );
+    }
+
+    /**
+     * End timer and return elapsed time
+     *
+     * @author  Lars Koudal
+     * @since   v0.0.1
+     * @version v1.0.0  Tuesday, January 12th, 2021.
+     * @access  public static
+     * @param   string   $watchname Timer identifier
+     * @param   integer  $digits    Number of decimal places (default: 5)
+     * @return  float    Elapsed time in seconds
+     */
+    public static function timerstop( $watchname, $digits = 5 ) {
+        $return = round( microtime( true ) - get_transient( 'security_ninja_' . esc_attr( $watchname ) ), $digits );
+        delete_transient( 'security_ninja_' . esc_attr( $watchname ) );
+        return $return;
+    }
+
+    /**
+     * Shows the topbar, logo and version
+     *
+     * @author  Unknown
+     * @since   v0.0.1
+     * @version v1.0.0    Monday, March 11th, 2024.
+     * @access  public static
+     * @global
+     * @return  void
+     */
+    public static function show_topbar() {
+        $icon_url = WF_SN_PLUGIN_URL . 'images/sn-logo.svg';
+        $menu_title = 'Security Ninja';
+        $topbar = '<div id="sntopbar">';
+        $topbar .= '<div class="plugname">';
+        if ( !empty( $icon_url ) ) {
+            $topbar .= '<img src="' . $icon_url . '" height="28" alt="' . esc_attr( $menu_title ) . '" class="logoleft">';
+        }
+        $topbar .= '<div class="name">' . esc_html( $menu_title ) . ' <span>v.' . esc_html( self::get_plugin_version() ) . '</span></div></div>';
+        $menu_links = '<a href="https://wordpress.org/support/plugin/security-ninja/" target="_blank" rel="noopener noreferrer" class="extlink">Support Forum</a>';
+        $is_registered = false;
+        if ( secnin_fs()->is_registered() ) {
+            $is_registered = true;
+        }
+        $is_tracking_allowed = false;
+        if ( secnin_fs()->is_tracking_allowed() ) {
+            $is_tracking_allowed = true;
+        }
+        if ( $is_registered && $is_tracking_allowed ) {
+            $menu_links .= '<a href="#" class="productlift-sidebar=caa739c4-554e-4526-9720-a600a6702a8e whatsnew">Updates 🚀</a>';
+        }
+        $topbar .= '<div class="links">' . $menu_links . '</div>';
+        $topbar .= '</div>';
+        echo wp_kses_post( $topbar );
+    }
+
+    /**
+     * Creates a toggle switch HTML element
+     *
+     * @author  Lars Koudal
+     * @since   v0.0.1
+     * @version v1.0.0  Tuesday, January 12th, 2021.
+     * @access  public static
+     * @param   string $name    The name/id of the toggle switch
+     * @param   array  $options Options for the toggle switch
+     * @param   bool   $output  Whether to output or return the HTML
+     * @return  string|void     HTML string if $output is false, void otherwise
+     */
+    public static function create_toggle_switch( $name, $options = array(), $output = true ) {
+        $default_options = array(
+            'value'       => 1,
+            'saved_value' => 0,
+            'option_key'  => '',
+        );
+        $options = wp_parse_args( $options, $default_options );
+        $value = (int) $options['value'];
+        $saved_value = ( isset( $options['saved_value'] ) ? (int) $options['saved_value'] : 0 );
+        $checked = ( $value === $saved_value ? ' checked' : '' );
+        // When unchecked, checkboxes are omitted from POST. A hidden input with value 0
+        // ensures the field is always submitted so "off" persists (e.g. 2FA disable).
+        $html = '';
+        if ( '' !== (string) $options['option_key'] ) {
+            $html .= sprintf( '<input type="hidden" name="%1$s" value="0">', esc_attr( $options['option_key'] ) );
+        }
+        $html .= sprintf(
+            '<input type="checkbox" id="%1$s" value="%2$s" class="switch" name="%3$s"%4$s>',
+            esc_attr( $name ),
+            esc_attr( $options['value'] ),
+            esc_attr( $options['option_key'] ),
+            $checked
+        );
+        if ( $output ) {
+            echo wp_kses( $html, array(
+                'div'   => array(
+                    'class' => array(),
+                ),
+                'input' => array(
+                    'type'    => array(),
+                    'id'      => array(),
+                    'value'   => array(),
+                    'name'    => array(),
+                    'class'   => array(),
+                    'checked' => array(),
+                ),
+                'label' => array(
+                    'for'   => array(),
+                    'class' => array(),
+                ),
+                'span'  => array(
+                    'class' => array(),
+                ),
+            ) );
+        } else {
+            return $html;
+        }
+    }
+
+    /**
+     * Fetch plugin version from plugin PHP header
+     *
+     * @author  Lars Koudal
+     * @since   v0.0.1
+     * @version v1.0.0  Wednesday, January 13th, 2021.
+     * @access  public static
+     * @return  string Plugin version
+     */
+    public static function get_plugin_version() {
+        $plugin_data = get_file_data( WF_SN_BASE_FILE, array(
+            'version' => 'Version',
+        ), 'plugin' );
+        return $plugin_data['version'];
+    }
+
+    /**
+     * Fetch plugin name from plugin PHP header
+     *
+     * @author  Lars Koudal
+     * @since   v0.0.1
+     * @version v1.0.0  Wednesday, January 13th, 2021.
+     * @access  public static
+     * @return  string Plugin name
+     */
+    public static function get_plugin_name() {
+        $plugin_data = get_file_data( WF_SN_BASE_FILE, array(
+            'name' => 'Plugin Name',
+        ), 'plugin' );
+        return $plugin_data['name'];
+    }
+
+    /**
+     * Converts a status integer to a button.
+     *
+     * This method takes a status code as an integer and returns a string representing a button with a class indicating the status.
+     * The status codes are mapped to the following buttons:
+     * - 0: Fail (class "sn-error")
+     * - 10: OK (class "sn-success")
+     * - Any other value: Warning (class "sn-warning")
+     *
+     * @author  Lars Koudal
+     * @since   v0.0.1
+     * @version v1.0.0  Tuesday, December 7th, 2021.
+     * @access  public static
+     * @param   int $statuscode The status code to convert.
+     * @return  string The HTML string representing the button.
+     */
+    public static function status( $statuscode ) {
+        switch ( $statuscode ) {
+            case 0:
+                $string = '<span class="sn-error">' . __( 'Fail', 'security-ninja' ) . '</span>';
+                break;
+            case 10:
+                $string = '<span class="sn-success">' . __( 'OK', 'security-ninja' ) . '</span>';
+                break;
+            default:
+                $string = '<span class="sn-warning">' . __( 'Warning', 'security-ninja' ) . '</span>';
+                break;
+        }
+        return $string;
+    }
+
+    /**
+     * Normalize a boolean-like value to integer 0 or 1
+     * 
+     * Converts various boolean representations (true, false, 'true', '1', 1, 0, etc.)
+     * to a consistent integer format (0 or 1) for storage and comparison.
+     * 
+     * @author  Lars Koudal
+     * @since   v1.0.0
+     * @version v1.0.0  Monday, January 20th, 2025.
+     * @access  public static
+     * @param   mixed   $value  The value to normalize (can be boolean, string, integer, etc.)
+     * @return  int     Returns 1 if value is truthy, 0 otherwise
+     */
+    public static function normalize_flag( $value ) {
+        // Handle explicit true/false
+        if ( $value === true ) {
+            return 1;
+        }
+        if ( $value === false ) {
+            return 0;
+        }
+        // Handle string representations
+        if ( is_string( $value ) ) {
+            $value = strtolower( trim( $value ) );
+            if ( $value === 'true' || $value === '1' || $value === 'yes' || $value === 'on' ) {
+                return 1;
+            }
+            return 0;
+        }
+        // Handle numeric values
+        if ( is_numeric( $value ) ) {
+            return ( (int) $value ? 1 : 0 );
+        }
+        // For any other type, use truthiness check
+        return ( $value ? 1 : 0 );
     }
 
 }

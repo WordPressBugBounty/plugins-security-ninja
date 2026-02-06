@@ -1,0 +1,110 @@
+/*
+ * Security Ninja - Events Logger add-on
+ * (c) Web factory Ltd, 2014
+ */
+
+/* Tab Styles */
+
+/*
+.wf-sn-el-subtab {
+    display: none;
+}
+    */
+
+.wf-sn-el-subtab:first-child {
+    display: block;
+}
+
+#wf-sn-el-subtabs {
+    margin-bottom: 20px;
+}
+
+#wf-sn-el-subtabs .nav-tab {
+    cursor: pointer;
+}
+
+/* Form Styles */
+.wf-el-tab-content form {
+    margin-top: 20px;
+}
+
+
+.toplevel_page_wf-sn #sn_tabscont #sn-el-datatable {
+    width: 100% !important;
+}
+
+.toplevel_page_wf-sn #sn_tabscont #sn-el-datatable .avatar {
+    float: left;
+    margin-right: 10px;
+    margin-top: 1px;
+    width: 20px;
+    height: 20px;
+}
+
+.toplevel_page_wf-sn #sn_tabscont #sn-el-datatable_wrapper .dashicons.dashicons-info {
+    color:#499ed7;
+}
+
+.toplevel_page_wf-sn #sn_tabscont #sn-el-datatable .dashicons {
+    text-decoration: none;
+    margin-left: 10px;
+}
+
+.toplevel_page_wf-sn #sn_tabscont #sn-el-datatable td {
+    vertical-align: top;
+}
+
+.toplevel_page_wf-sn #sn_tabscont #sn-el-datatable tr th {
+    text-align: left;
+}
+
+.toplevel_page_wf-sn #sn_tabscont .wf-sn-el-toggle-options .dashicons{
+    text-decoration: none;
+    padding-right: 5px;
+}
+
+.toplevel_page_wf-sn #sn_tabscont #email_modules {
+    width: 100%;
+}
+
+/*** Added ***/
+.toplevel_page_wf-sn #sn_tabscont #sn_logger {
+    width: 100%;
+}
+
+.toplevel_page_wf-sn #sn_tabscont .wf-sn-el-options,
+.toplevel_page_wf-sn #sn_tabscont .sn-el-datatable_filter {
+    display: inline-block;
+    width: 40%;
+}
+
+#sn-el-datatable_length select {
+    width: 60px;
+}
+
+#sn-el-datatable_wrapper {
+    background: #ffffff;
+    margin-top: 20px;
+}
+
+#sn-el-datatable_info,
+#sn-el-datatable_filter,
+#sn-el-datatable_length {
+    padding: 5px;
+}
+
+/* Action Filter Styles */
+.sn-el-filter-container {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 15px;
+}
+
+#sn-el-action-filter {
+    min-width: 200px;
+    padding: 5px;
+    border: 1px solid #ddd;
+    border-radius: 3px;
+}
+

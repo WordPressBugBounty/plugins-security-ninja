@@ -1,0 +1,155 @@
+/*
+* Security Ninja - Firewall settings CSS
+*/
+.sn-modal {
+  display: none;
+  position: fixed;
+  z-index: 1000;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  overflow: auto;
+  background-color: rgba(0, 0, 0, 0.5);
+}
+
+
+
+
+.disabled-link {
+  pointer-events: none; /* Prevents clicking */
+  color: gray; /* Change color to indicate it's disabled */
+  text-decoration: none; /* Remove underline */
+  cursor: default; /* Change cursor to default */
+}
+
+#sn-firewall-status {
+  margin: 10px 0;
+  font-size: 14px;
+  font-weight: bold;
+}
+
+.sn-modal-content {
+  background-color: #fff;
+  margin: 15% auto;
+  padding: 20px;
+  border: 1px solid #888;
+  width: 80%;
+  max-width: 500px;
+  text-align: center;
+}
+
+.sn-modal-close {
+  color: #aaa;
+  float: right;
+  font-size: 28px;
+  font-weight: bold;
+}
+
+.sn-modal-close:hover,
+.sn-modal-close:focus {
+  color: black;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+
+
+
+
+
+
+
+
+
+.sn-cf-options .select2-selection {
+  box-shadow: 0 0 0 transparent;
+  border-radius: 4px;
+  border: 1px solid #7e8993;
+  background-color: #fff;
+  color: #32373c;
+}
+
+#sn-cf-options tr th label span {
+  background: #ccc;
+  margin-left: 10px;
+  font-size: .8em;
+  padding: 3px 5px 3px 5px;
+  font-weight: normal;
+  color: #282828;
+}
+
+
+
+
+
+.wp-list-table tr.visit {
+  
+  color:red;
+}
+
+.wp-list-table tr.visit.banned {
+  background: repeating-linear-gradient(-55deg, #e5e5e5, #e5e5e5 10px, #dadada 10px, #dadada 20px);
+}
+
+.counters span {
+  display: inline-block;
+  margin: 15px 0 10px 0px;
+  padding: 0px;
+  font-size: 40px;
+  line-height: 20px;
+  font-weight: bold;
+  text-align: center;
+}
+
+#select_no_countries {
+  margin-right: 10px;
+}
+
+.counters span i {
+  display: inline-block;
+  margin: 0 0 0 5px;
+  padding: 0;
+  font-size: 14px;
+  line-height: 13px;
+  font-weight: normal;
+  color: #444;
+}
+
+.select2-container .selection .select2-selection {
+  border-radius: 0px;
+  margin-bottom: 10px;
+}
+
+#sn-cf-options span.description {
+  display: block;
+  margin: 5px 0 0 0;
+}
+
+
+.sn-disabled{
+  position: relative;
+}
+.sn-disabled::before{
+  content: '';
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: #ffffffb3;
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 10;
+}
+
+.sn-unblock-message-good{
+  background:#86c95d;
+  color:#ffffff;
+  padding:10px 0;
+}
+
+.sn-unblock-message-bad{
+  background:#eb1e22;
+  color:#ffffff;
+  padding:10px 0;
+}

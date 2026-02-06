@@ -80,9 +80,12 @@
 #END - Only allow browsers to load .js files from this website</pre>
 
 			<p><?php esc_html_e( 'For Nginx add this to the nginx.conf under server block', 'security-ninja' ); ?></p>
-			<pre>add_header X-Frame-Options SAMEORIGIN;</pre>
-
-			<p>Scott Helme is a security researcher and has written a really indepth walkthrough of Content Security Policy.<a href="https://scotthelme.co.uk/content-security-policy-an-introduction/" target="_blank" rel="noopener">Content Security Policy - An Introduction</a>.</p>
+			<pre>add_header Content-Security-Policy "default-src 'self'";</pre>
+			<p>
+				<a href="<?php echo esc_url( \WPSecurityNinja\Plugin\Utils::generate_sn_web_link( 'docs', 'docs/security-fixes/content-security-policy/' ) ); ?>" target="_blank" rel="noopener">
+					<?php esc_html_e( 'Read our guide to configuring Content Security Policy', 'security-ninja' ); ?>
+				</a>
+			</p>
 		</div>
 	</div>
 
@@ -114,13 +117,15 @@
 				<p><?php esc_html_e( 'For Nginx add this to the nginx.conf under server block', 'security-ninja' ); ?></p>
 				<pre>add_header X-Frame-Options "SAMEORIGIN";</pre>
 
-				<p><?php
+				<p>
+				<?php
 				// translators: %s is a link to GeekFlare article about X-Frame-Options
 				printf(
 					esc_html__( 'Read more about %s.', 'security-ninja' ),
 					'<a href="https://geekflare.com/http-header-implementation/#X-Frame-Options" target="_blank" rel="noopener">' . esc_html__( 'the different options on GeekFlare', 'security-ninja' ) . '</a>'
 				);
-				?></p>
+				?>
+				</p>
 			</div>
 		</div>
 
@@ -149,7 +154,7 @@
 			<div class="test_description">
 				<p><?php esc_html_e( 'This is a way to instruct a browser which features it can use on a website.', 'security-ninja' ); ?></p>
 
-				<p><?php esc_html_e( 'With this you can explitly prevent access to the camera, microphone, geolocation and many other features.', 'security-ninja' ); ?></p>
+				<p><?php esc_html_e( 'With this you can explicitly prevent access to the camera, microphone, geolocation and many other features.', 'security-ninja' ); ?></p>
 
 				<p><?php esc_html_e( 'For a full and updated list check out the link.', 'security-ninja' ); ?> <a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Permissions-Policy" target="_blank" rel="noopener">Mozilla.org - Permissions Policy</a></p>
 

@@ -27,7 +27,7 @@ class WF_SN_Overview_Tab {
         }
         if ( $scores['good'] > 0 || $scores['bad'] > 0 || $scores['warning'] > 0 || $scores['score'] > 0 ) {
             echo '<div class="sncard">';
-            echo '<h3><span class="dashicons dashicons-saved"></span> ' . esc_html__( 'Your Security Test Results', 'security-ninja' ) . '</h3>';
+            echo '<h2><span class="dashicons dashicons-saved"></span> ' . esc_html__( 'Your Security Test Results', 'security-ninja' ) . '</h2>';
             echo '<p>' . esc_html__( 'Here is a quick overview of how your site is doing:', 'security-ninja' ) . '</p>';
             ?>
       <div id="secscore">
@@ -73,7 +73,7 @@ class WF_SN_Overview_Tab {
   <div id="snvulns">
     
     <?php 
-        if ( wf_sn_vu::$options['enable_vulns'] ) {
+        if ( class_exists( 'WPSecurityNinja\\Plugin\\Wf_Sn_Vu' ) && wf_sn_vu::$options['enable_vulns'] ) {
             // Get scan summary using the new function
             $scan_data = wf_sn_vu::get_scan_summary();
             $vuln_results = $scan_data['vulnerabilities'];
@@ -199,7 +199,95 @@ class WF_SN_Overview_Tab {
         ?>
       
       <?php 
+        // Define free user actions (available to all users)
+        $free_actions_to_track = array(
+            'wp_login'        => __( 'Successful login', 'security-ninja' ),
+            'wp_login_failed' => __( 'Failed login attempt', 'security-ninja' ),
+            'do_init_action'  => __( 'Blocked by firewall', 'security-ninja' ),
+        );
+        $actions_to_track = $free_actions_to_track;
         $show_pro_ad = true;
+        // Show firewall summary for all users (free and premium)
+        ?>
+        <div class="sncard firewall-summary">
+        <h3><span class="dashicons dashicons-warning"></span> <?php 
+        echo esc_html__( 'Firewall Summary', 'security-ninja' );
+        ?></h3>
+        <?php 
+        global $wpdb;
+        // Prepare the table name
+        $table_name = $wpdb->prefix . 'wf_sn_el';
+        // Prepare placeholders for the query
+        $placeholders = implode( ',', array_fill( 0, count( $actions_to_track ), '%s' ) );
+        $action_counts = array_fill_keys( array_keys( $actions_to_track ), 0 );
+        // Query to get the count of each action type
+        $count_query = $wpdb->prepare( "SELECT action, COUNT(*) as count \n            FROM {$table_name} \n            WHERE action IN ({$placeholders}) \n            GROUP BY action", array_keys( $actions_to_track ) );
+        $action_results = $wpdb->get_results( $count_query, ARRAY_A );
+        // Populate the action_counts array with the results
+        foreach ( $action_results as $action_result ) {
+            $action_counts[$action_result['action']] = intval( $action_result['count'] );
+        }
+        // Fetch the last 10 events
+        $query = $wpdb->prepare( "SELECT id, timestamp, ip, action, raw_data \n            FROM {$table_name} \n            WHERE action IN ({$placeholders}) AND raw_data != 'N;'\n            ORDER BY timestamp DESC \n            LIMIT 10", array_keys( $actions_to_track ) );
+        $results = $wpdb->get_results( $query, ARRAY_A );
+        if ( !empty( $results ) ) {
+            // If we have results, don't show the upgrade ad
+            $show_pro_ad = false;
+            echo '<div class="action-counts">';
+            echo '<h4>' . esc_html__( 'Action Counts', 'security-ninja' ) . '</h4>';
+            echo '<div class="action-counts-list">';
+            $output = array();
+            foreach ( $action_counts as $action => $count ) {
+                if ( $count > 0 ) {
+                    $output[] = '<span class="actiontype">' . esc_html( $actions_to_track[$action] ) . '  <strong>' . esc_html( number_format_i18n( $count ) ) . '</strong></span> ';
+                }
+            }
+            echo implode( ' ', $output );
+            echo '</div>';
+            echo '</div>';
+            echo '<div class="recentandbtn"><div><h3>' . esc_html__( 'Recent Events', 'security-ninja' ) . '</h3></div><div><a href="#sn_logger" class="button snbtn alignright">' . esc_html__( 'View all events', 'security-ninja' ) . ' &rarr; </a></div></div>';
+            $time_format = get_option( 'time_format' );
+            echo '<div class="sn-events-list">';
+            foreach ( $results as $row ) {
+                $raw_data = maybe_unserialize( $row['raw_data'] );
+                $event_id = 'sn-event-' . esc_attr( $row['id'] );
+                $date = esc_html( date_i18n( get_option( 'date_format' ) . ' ' . $time_format, strtotime( $row['timestamp'] ) ) );
+                // Safely get action label, fallback to action name if not found
+                $action = ( isset( $actions_to_track[$row['action']] ) ? esc_html( $actions_to_track[$row['action']] ) : esc_html( $row['action'] ) );
+                $ip = esc_html( $row['ip'] );
+                // Prepare details
+                $details = [];
+                if ( is_array( $raw_data ) && !is_null( $raw_data ) ) {
+                    foreach ( $raw_data as $key => $value ) {
+                        $details[] = '<div><strong>' . esc_html( ucwords( str_replace( '_', ' ', $key ) ) ) . ':</strong> ' . esc_html( $value ) . '</div>';
+                    }
+                } else {
+                    $details[] = '<div>' . esc_html( $row['raw_data'] ) . '</div>';
+                }
+                $countryimg = '';
+                echo '<div class="sn-event-row" id="' . $event_id . '">';
+                // Summary
+                echo '<div class="sn-event-summary" onclick="this.parentElement.classList.toggle(\'expanded\')">';
+                echo '<div class="sn-event-date">' . $date;
+                echo '<div class="ipcountry">IP: ' . $ip . wp_kses_post( $countryimg ) . '</div>';
+                echo '</div>';
+                echo '<div class="sn-event-action">' . $action . '</div>';
+                echo '<div class="sn-event-toggle"><span class="dashicons dashicons-arrow-down-alt2"></span></div>';
+                echo '</div>';
+                // Details (hidden by default)
+                echo '<div class="sn-event-details">';
+                echo implode( '', $details );
+                echo '</div>';
+                echo '</div>';
+            }
+            echo '</div>';
+        } else {
+            echo '<p>' . __( 'Great, no firewall events found.', 'security-ninja' ) . '</p>';
+        }
+        ?>
+        </div>
+        </div>
+        <?php 
         if ( $show_pro_ad ) {
             ?>
         <div class="sncard upgradepro">
@@ -273,7 +361,7 @@ class WF_SN_Overview_Tab {
             $trial_url = add_query_arg( array(
                 'user_firstname' => $user_firstname,
                 'user_lastname'  => $user_lastname,
-                'trial'          => 'paid',
+                'trial'          => 'free',
                 'utm_source'     => 'overview-tab',
             ), $url );
             ?>
@@ -284,7 +372,7 @@ class WF_SN_Overview_Tab {
             echo esc_html__( 'Explore WP Security Ninja Pro now!', 'security-ninja' );
             ?></a><br><small>or try our <a href="<?php 
             echo esc_url( $trial_url );
-            ?>" class="" target="_blank">30 days FREE trial &raquo;</a></small>
+            ?>" class="" target="_blank">14 days FREE trial &raquo;</a></small>
         </p>
         
         </div>

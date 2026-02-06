@@ -7,16 +7,16 @@ if ( !function_exists( 'add_action' ) ) {
     die( 'Please don\'t open this file directly!' );
 }
 /**
- * Core Scanner Module
- *
- * This module provides functionality to scan WordPress core files for modifications,
- * missing files, and unknown files that shouldn't be present in core directories.
- *
- * @package WPSecurityNinja\Plugin
- */
+* Core Scanner Module
+*
+* This module provides functionality to scan WordPress core files for modifications,
+* missing files, and unknown files that shouldn't be present in core directories.
+*
+* @package WPSecurityNinja\Plugin
+*/
 /**
- * Core Scanner Class
- */
+* Core Scanner Class
+*/
 class Wf_Sn_Cs {
     /**
      * API endpoint for core checksums
@@ -133,7 +133,7 @@ class Wf_Sn_Cs {
             }
             if ( $deleted_files > 0 ) {
                 // translators: %d: Number of deleted files.
-                $message = '<p>' . sprintf( esc_html__( 'Deleted %d unknown files in Core WordPress folders', 'security-ninja' ), $deleted_files ) . '</p>';
+                $message = sprintf( esc_html__( 'Deleted %d unknown files in Core WordPress folders', 'security-ninja' ), $deleted_files );
                 $newresults = self::scan_files( true );
                 if ( $newresults ) {
                     update_option( 'wf_sn_cs_results', $newresults, false );
@@ -169,7 +169,7 @@ class Wf_Sn_Cs {
                 'sn-core-js',
                 $plugin_url . 'js/wf-sn-core-min.js',
                 array('jquery'),
-                wf_sn::get_plugin_version(),
+                \WPSecurityNinja\Plugin\Utils::get_plugin_version(),
                 true
             );
             $js_vars = array(
@@ -249,20 +249,39 @@ class Wf_Sn_Cs {
 
     /**
      * Returns the number of problems with files currently detected
+     * Excludes ignored files from the count
      *
      * @return int|false Number of problems or false if no problems
      */
     private static function return_problem_count() {
         $results = get_option( 'wf_sn_cs_results' );
+        if ( !$results || !is_array( $results ) ) {
+            return false;
+        }
         $total = 0;
-        if ( isset( $results['missing_bad'] ) ) {
-            $total = $total + count( $results['missing_bad'] );
+        // Count missing_bad files (excluding ignored ones)
+        if ( isset( $results['missing_bad'] ) && is_array( $results['missing_bad'] ) ) {
+            foreach ( $results['missing_bad'] as $file ) {
+                if ( !self::is_file_ignored( $file ) ) {
+                    $total++;
+                }
+            }
         }
-        if ( isset( $results['changed_bad'] ) ) {
-            $total = $total + count( $results['changed_bad'] );
+        // Count changed_bad files (excluding ignored ones)
+        if ( isset( $results['changed_bad'] ) && is_array( $results['changed_bad'] ) ) {
+            foreach ( $results['changed_bad'] as $file ) {
+                if ( !self::is_file_ignored( $file ) ) {
+                    $total++;
+                }
+            }
         }
-        if ( isset( $results['unknown_bad'] ) ) {
-            $total = $total + count( $results['unknown_bad'] );
+        // Count unknown_bad files (excluding ignored ones)
+        if ( isset( $results['unknown_bad'] ) && is_array( $results['unknown_bad'] ) ) {
+            foreach ( $results['unknown_bad'] as $file ) {
+                if ( !self::is_file_ignored( $file ) ) {
+                    $total++;
+                }
+            }
         }
         if ( $total > 0 ) {
             return $total;
@@ -378,18 +397,9 @@ class Wf_Sn_Cs {
         }
         if ( $cs ) {
             $cleaned = array();
-            $themes_url = trailingslashit( content_url( 'themes' ) );
-            $plugins_url = trailingslashit( content_url( 'plugins' ) );
-            $themes_path = str_replace( site_url(), '', $themes_url );
-            $plugins_path = str_replace( site_url(), '', $plugins_url );
-            // Remove left trailing slash
-            $themes_path = ltrim( $themes_path, '/' );
-            $plugins_path = ltrim( $plugins_path, '/' );
             foreach ( $cs as $path => $hash ) {
-                if ( strpos( $path, $themes_path ) !== false || strpos( $path, $plugins_path ) !== false || strpos( $path, '/plugins/akismet/' ) !== false || strpos( $path, '/languages/themes/' ) !== false ) {
-                } else {
-                    $cleaned[$path] = $hash;
-                }
+                // Include all files in checksums for modification detection
+                $cleaned[$path] = $hash;
             }
             $tmp = array(
                 'version'   => $ver,
@@ -416,6 +426,59 @@ class Wf_Sn_Cs {
             $res = stripos( $haystack, $needle );
             if ( false !== $res ) {
                 return $res;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Get list of files/folders to ignore in Core Scanner
+     *
+     * Allows users to filter files via: add_filter('securityninja_core_scanner_ignore_files', ...)
+     *
+     * @return array Array of file patterns to ignore
+     */
+    public static function get_ignored_files() {
+        $default_ignored = array();
+        // Apply filter - users can add their own files in functions.php
+        $ignored = apply_filters( 'securityninja_core_scanner_ignore_files', $default_ignored );
+        // Ensure it's an array
+        if ( !is_array( $ignored ) ) {
+            $ignored = array();
+        }
+        return $ignored;
+    }
+
+    /**
+     * Check if a file should be ignored based on filter rules
+     *
+     * @param string $file_path Relative file path (e.g., 'wp-includes/SimplePie/src/Core.php').
+     * @return bool True if file should be ignored
+     */
+    public static function is_file_ignored( $file_path ) {
+        $ignored_patterns = self::get_ignored_files();
+        if ( empty( $ignored_patterns ) ) {
+            return false;
+        }
+        // Normalize path for comparison
+        $file_path = str_replace( '\\', '/', $file_path );
+        $file_path_lower = strtolower( $file_path );
+        foreach ( $ignored_patterns as $pattern ) {
+            // Support exact matches
+            if ( $file_path === $pattern || $file_path_lower === strtolower( $pattern ) ) {
+                return true;
+            }
+            // Support wildcard patterns using fnmatch
+            if ( fnmatch( $pattern, $file_path ) || fnmatch( $pattern, $file_path_lower ) ) {
+                return true;
+            }
+            // Support basename matching (for error_log files)
+            if ( basename( $file_path ) === $pattern || basename( $file_path_lower ) === strtolower( $pattern ) ) {
+                return true;
+            }
+            // Support directory prefix matching (e.g., 'wp-includes/SimplePie/*')
+            if ( strpos( $file_path, $pattern ) === 0 || strpos( $file_path_lower, strtolower( $pattern ) ) === 0 ) {
+                return true;
             }
         }
         return false;
@@ -450,6 +513,7 @@ class Wf_Sn_Cs {
         $results['changed_bad'] = array();
         $results['unknown_bad'] = array();
         $results['ok'] = array();
+        $results['ignored_files'] = array();
         $results['last_run'] = time();
         $results['total'] = 0;
         $results['run_time'] = 0;
@@ -494,7 +558,15 @@ class Wf_Sn_Cs {
             $all_files = array_merge( $all_files, $files );
             foreach ( $all_files as $key => $af ) {
                 if ( !isset( $filehashes[$key] ) ) {
-                    $results['unknown_bad'][] = $key;
+                    // Check if file should be ignored
+                    if ( self::is_file_ignored( $key ) ) {
+                        $results['ignored_files'][] = array(
+                            'file'   => $key,
+                            'reason' => 'unknown',
+                        );
+                    } else {
+                        $results['unknown_bad'][] = $key;
+                    }
                 }
             }
             // Checking if core has been modified
@@ -505,13 +577,32 @@ class Wf_Sn_Cs {
                     if ( md5_file( ABSPATH . $file ) === $hash ) {
                     } elseif ( in_array( $file, $changed_ok, true ) ) {
                         $results['changed_ok'][] = $file;
+                    } elseif ( strpos( $file, 'wp-content/' ) === 0 || strpos( $file, '/languages/themes/' ) !== false ) {
+                        // Treat as non-critical for the core scan
+                        $results['ok'][] = $file;
                     } else {
-                        $results['changed_bad'][] = $file;
+                        // Check if file should be ignored before adding to changed_bad
+                        if ( self::is_file_ignored( $file ) ) {
+                            $results['ignored_files'][] = array(
+                                'file'   => $file,
+                                'reason' => 'changed',
+                            );
+                        } else {
+                            $results['changed_bad'][] = $file;
+                        }
                     }
-                } elseif ( in_array( $file, $missing_ok, true ) ) {
+                } elseif ( in_array( $file, $missing_ok, true ) || strpos( $file, 'wp-content/themes/' ) === 0 || strpos( $file, 'wp-content/plugins/' ) === 0 || strpos( $file, '/languages/themes/' ) !== false ) {
                     $results['missing_ok'][] = $file;
                 } else {
-                    $results['missing_bad'][] = $file;
+                    // Check if file should be ignored before adding to missing_bad
+                    if ( self::is_file_ignored( $file ) ) {
+                        $results['ignored_files'][] = array(
+                            'file'   => $file,
+                            'reason' => 'missing',
+                        );
+                    } else {
+                        $results['missing_bad'][] = $file;
+                    }
                 }
             }
             // foreach file
@@ -562,6 +653,59 @@ class Wf_Sn_Cs {
                     $results['out'] = $newout;
                 }
                 $results['out'] .= '</div><!-- #sn-cs-results -->';
+                // Display ignored files section
+                if ( isset( $results['ignored_files'] ) && !empty( $results['ignored_files'] ) ) {
+                    $results['out'] .= '<div class="sn-cs-ignored-files sncard">';
+                    $results['out'] .= '<div class="core-title">';
+                    $results['out'] .= '<h4>' . esc_html__( 'Ignored Files', 'security-ninja' ) . '</h4>';
+                    $results['out'] .= '</div>';
+                    $results['out'] .= '<div class="changedcont">';
+                    $results['out'] .= '<p class="description">' . esc_html__( 'The following files are being ignored based on your filter settings. Add filters in your theme\'s functions.php file using the securityninja_core_scanner_ignore_files filter.', 'security-ninja' ) . '</p>';
+                    // Group by reason
+                    $grouped = array();
+                    foreach ( $results['ignored_files'] as $ignored ) {
+                        $reason = ( isset( $ignored['reason'] ) ? $ignored['reason'] : 'unknown' );
+                        if ( !isset( $grouped[$reason] ) ) {
+                            $grouped[$reason] = array();
+                        }
+                        $grouped[$reason][] = $ignored['file'];
+                    }
+                    foreach ( $grouped as $reason => $files ) {
+                        $reason_label = '';
+                        switch ( $reason ) {
+                            case 'unknown':
+                                $reason_label = __( 'Unknown files', 'security-ninja' );
+                                break;
+                            case 'changed':
+                                $reason_label = __( 'Modified files', 'security-ninja' );
+                                break;
+                            case 'missing':
+                                $reason_label = __( 'Missing files', 'security-ninja' );
+                                break;
+                        }
+                        if ( $reason_label ) {
+                            $results['out'] .= '<h5>' . esc_html( $reason_label ) . '</h5>';
+                            $results['out'] .= self::list_files(
+                                $files,
+                                false,
+                                false,
+                                false
+                            );
+                        }
+                    }
+                    // Show code example
+                    $results['out'] .= '<p>' . esc_html__( 'How to add ignore filters:', 'security-ninja' ) . '</p>';
+                    $results['out'] .= '<div class="sn-cs-filter-example" style="margin-top: 20px; padding: 15px; background: #f5f5f5; border-left: 4px solid #2271b1;">';
+                    $results['out'] .= '<pre>// Add to your theme\'s functions.php file:
+add_filter(\'securityninja_core_scanner_ignore_files\', function($ignored) {
+    $ignored[] = \'wp-includes/SimplePie/src/Core.php\';
+    $ignored[] = \'*/error_log\'; // Ignore all error_log files
+    $ignored[] = \'wp-includes/SimplePie/*\'; // Ignore entire directory
+    return $ignored;
+});</pre>';
+                    $results['out'] .= '</div>';
+                    $results['out'] .= '</div></div>';
+                }
             }
             if ( isset( $results['missing_ok'] ) ) {
                 unset($results['missing_ok']);
@@ -582,7 +726,7 @@ class Wf_Sn_Cs {
             $results['last_scan'] = sprintf( 
                 // translators: %1$s: Date and time of the last scan
                 esc_html__( 'Last scan at %1$s', 'security-ninja' ),
-                gmdate( get_option( 'date_format' ) . ' ' . get_option( 'time_format' ), $results['last_run'] )
+                date_i18n( get_option( 'date_format' ) . ' ' . get_option( 'time_format' ), $results['last_run'] )
              );
             $results['files_checked'] = sprintf( 
                 // translators: %1$s: Number of files checked, %2$s: Time taken for the scan in seconds
@@ -635,6 +779,7 @@ class Wf_Sn_Cs {
         $results['changed_bad'] = array();
         $results['unknown_bad'] = array();
         $results['ok'] = array();
+        $results['ignored_files'] = array();
         $results['last_run'] = $current_time;
         $results['total'] = 0;
         $results['run_time'] = 0;
@@ -643,7 +788,6 @@ class Wf_Sn_Cs {
         $ver = get_bloginfo( 'version' );
         // Files ok to be missing
         $missing_ok = array(
-            'index.php',
             'readme.html',
             'license.txt',
             'wp-config-sample.php',
@@ -682,7 +826,15 @@ class Wf_Sn_Cs {
             $all_files = array_merge( $all_files, $files );
             foreach ( $all_files as $key => $af ) {
                 if ( !isset( $filehashes[$key] ) ) {
-                    $results['unknown_bad'][] = $key;
+                    // Check if file should be ignored
+                    if ( self::is_file_ignored( $key ) ) {
+                        $results['ignored_files'][] = array(
+                            'file'   => $key,
+                            'reason' => 'unknown',
+                        );
+                    } else {
+                        $results['unknown_bad'][] = $key;
+                    }
                 }
             }
             // Checking if core has been modified
@@ -693,13 +845,32 @@ class Wf_Sn_Cs {
                     if ( md5_file( ABSPATH . $file ) === $hash ) {
                     } elseif ( in_array( $file, $changed_ok, true ) ) {
                         $results['changed_ok'][] = $file;
+                    } elseif ( strpos( $file, 'wp-content/' ) === 0 || strpos( $file, '/languages/themes/' ) !== false ) {
+                        // Treat as non-critical for the core scan
+                        $results['ok'][] = $file;
                     } else {
-                        $results['changed_bad'][] = $file;
+                        // Check if file should be ignored before adding to changed_bad
+                        if ( self::is_file_ignored( $file ) ) {
+                            $results['ignored_files'][] = array(
+                                'file'   => $file,
+                                'reason' => 'changed',
+                            );
+                        } else {
+                            $results['changed_bad'][] = $file;
+                        }
                     }
-                } elseif ( in_array( $file, $missing_ok, true ) ) {
+                } elseif ( in_array( $file, $missing_ok, true ) || strpos( $file, 'wp-content/themes/' ) === 0 || strpos( $file, 'wp-content/plugins/' ) === 0 || strpos( $file, '/languages/themes/' ) !== false ) {
                     $results['missing_ok'][] = $file;
                 } else {
-                    $results['missing_bad'][] = $file;
+                    // Check if file should be ignored before adding to missing_bad
+                    if ( self::is_file_ignored( $file ) ) {
+                        $results['ignored_files'][] = array(
+                            'file'   => $file,
+                            'reason' => 'missing',
+                        );
+                    } else {
+                        $results['missing_bad'][] = $file;
+                    }
                 }
             }
             do_action( 'security_ninja_core_scanner_done_scanning', $results, microtime( true ) - $start_time );
@@ -728,33 +899,40 @@ class Wf_Sn_Cs {
      */
     public static function core_page() {
         ?>
-		<div class="submit-test-container sncard settings-card">
-			<h2><span class="dashicons dashicons-text"></span> <?php 
+															<div class="submit-test-container sncard settings-card">
+															<h2><span class="dashicons dashicons-text"></span> <?php 
         echo esc_html__( 'Scan Core WordPress Files', 'security-ninja' );
         ?></h2>
-
-			<p><?php 
+															
+															<p><?php 
         esc_html_e( 'Check for modified files in WordPress itself and detect extra files that should not be there.', 'security-ninja' );
         ?></p>
-
-			<div id="wf-sn-core-scanner-response">
-				<!-- <p class="spinner"></p> -->
-
-			</div>
-
-
-			<div id="wf-sn-core-scan-details">
-				<p><?php 
+															
+															<?php 
+        // Show notice about ignoring files (only if whitelabel is not active)
+        $is_whitelabel_active = false;
+        if ( class_exists( 'WPSecurityNinja\\Plugin\\Wf_Sn_Wl' ) ) {
+            $is_whitelabel_active = \WPSecurityNinja\Plugin\Wf_Sn_Wl::is_active();
+        }
+        ?>
+															<div id="wf-sn-core-scanner-response">
+															<!-- <p class="spinner"></p> -->
+															
+															</div>
+															
+															
+															<div id="wf-sn-core-scan-details">
+															<p><?php 
         esc_html_e( 'Last Scan', 'security-ninja' );
         ?>: <span id="last_scan"></span></p>
-				<p><?php 
+															<p><?php 
         esc_html_e( 'Files Checked', 'security-ninja' );
         ?>: <span id="files_checked"></span></p>
-				<p><?php 
+															<p><?php 
         esc_html_e( 'WordPress Version', 'security-ninja' );
         ?>: <span id="wp_version"></span></p>
-
-		<?php 
+															
+															<?php 
         $next_scan = wp_next_scheduled( 'secnin_run_core_scanner' );
         if ( $next_scan ) {
             $time_until_next_scan = human_time_diff( time(), $next_scan );
@@ -767,16 +945,29 @@ class Wf_Sn_Cs {
         } else {
             echo '<p id="next_scan">' . esc_html__( 'No core scan currently scheduled.', 'security-ninja' ) . '</p>';
         }
+        if ( !$is_whitelabel_active ) {
+            $doc_link = \WPSecurityNinja\Plugin\Utils::generate_sn_web_link( 'core_scanner_ignore_notice', '/docs/core-scanner/how-to-ignore-files/' );
+            ?>
+																	<p>
+																	<?php 
+            // translators: %s is the documentation link
+            echo sprintf( esc_html__( 'You can ignore specific files from Core Scanner results. %s', 'security-ninja' ), '<a href="' . esc_url( $doc_link ) . '" target="_blank" rel="noopener noreferrer">' . esc_html__( 'Learn how', 'security-ninja' ) . '</a>' );
+            ?>
+																	</p>
+																	<?php 
+        }
         ?>
-			</div>
-			<?php 
+																</div>
+																<?php 
         echo '<input type="button" value="' . esc_html__( 'Scan Core Files', 'security-ninja' ) . '" id="sn-run-core-scan" class="button snbtn button-secondary button-large" />';
         ?>
-
-	   
-		</div>
-
-		<?php 
+																<?php 
+        ?>
+																
+																
+																</div>
+																
+																<?php 
     }
 
     /**

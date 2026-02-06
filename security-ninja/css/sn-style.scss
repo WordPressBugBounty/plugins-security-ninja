@@ -246,7 +246,7 @@ table#sn-el-datatable {
 		padding: 4px 12px;
 
 	}
-	
+	.sncard.infobox a.button,
 	.sncard.settings-card a.button,
 	.sncard.settings-card button {
 		float: left;
@@ -643,7 +643,7 @@ a.extlink::after {
 .sncard.settings-card h4,
 .sncard.settings-card h5 {
 	color: #000000;
-	margin-bottom: 0px;
+
 }
 
 .sncard {
@@ -656,7 +656,7 @@ a.extlink::after {
 	margin-bottom: 30px;
 }
 
-.sncard h3 {
+.sncard.infobox h3 {
 	color: #117857;
 }
 
@@ -1109,6 +1109,10 @@ margin-top: 0px;
 		background-color: #f8d7da;
 		transform: scale(1);
 	}
+}
+
+#security-ninja tr.test.status-changed.wf-sn-test-row-status-10 {
+	background: #d4edda !important;
 }
 
 // Other status changes - Yellow highlight (fallback)
@@ -1748,11 +1752,22 @@ border-top-left-radius: 10px;
 	box-shadow: unset;
 }
 
-
-
 .secnin_content_wrapper .nav-tab.profeature {
-	opacity: 0.3;
+	position: relative;
 }
+
+.secnin_content_wrapper .nav-tab.profeature:after {
+	content: "Pro";
+	position: absolute;
+	top: -19px;
+	right: 0px;
+	font-size: .8em;
+	background: #edfef7;
+	padding: 2px 5px;
+	z-index: 10;
+}
+
+
 
 .secnin_content_wrapper .nav-tab.hide {
 	display: none;
@@ -1760,6 +1775,21 @@ border-top-left-radius: 10px;
 
 .secnin_content_wrapper .nav-tab.profeature:hover {
 	opacity: 0.8;
+}
+
+.sn-pro-badge {
+	display: inline-block;
+	background: #2271b1;
+	color: #fff;
+	font-size: 10px;
+	font-weight: 600;
+	padding: 2px 6px;
+	border-radius: 3px;
+	margin-left: 6px;
+	text-transform: uppercase;
+	letter-spacing: 0.5px;
+	vertical-align: middle;
+	line-height: 1.4;
 }
 
 .snfw-blocked-count {
@@ -2828,11 +2858,13 @@ max-width: 170px;
 .sncard.infobox {
 	border: 1px solid #e3e8f1;
 	background-color: #f8fafc;
+	display: inline-block;
 }
 
 .sncard.infobox .inner {
 	padding-left: 30px;
 	position: relative;
+	display: inline-block;
 }
 
 .sncard.infobox .inner p:last-of-type {
@@ -2926,7 +2958,7 @@ max-width: 170px;
 	padding: 30px;
 	box-shadow: 0 1px 9px 3px #00000012;
 	border-bottom: 1px solid #ddd;
-	margin-bottom: 20px;
+	margin-bottom: 40px;
 	/*
 	background-color: #ffffff;
 */
@@ -3005,4 +3037,206 @@ max-width: 170px;
 
 .benefit-columns {
 	padding: 10px;
+}
+
+// Enhanced test running animation with spinner
+#security-ninja tr.test.testing {
+	background-color: #f8f9fa !important;
+	border-left: 4px solid #3163ec;
+	transition: all 0.3s ease-in-out;
+	animation: testRunning 0.5s ease-in-out;
+}
+
+@keyframes testRunning {
+	0% {
+		background-color: #f8f9fa;
+		transform: scale(1);
+	}
+	50% {
+		background-color: #e3f2fd;
+		transform: scale(1.005);
+	}
+	100% {
+		background-color: #f8f9fa;
+		transform: scale(1);
+	}
+}
+
+// Test title spinner for running tests
+#security-ninja tr.test.testing .wf-sn-test-title {
+	position: relative;
+	padding-right: 30px;
+}
+
+#security-ninja tr.test.testing .wf-sn-test-title::after {
+	content: '';
+	position: absolute;
+	right: 0;
+	top: 50%;
+	transform: translateY(-50%);
+	width: 18px;
+	height: 18px;
+	border: 2px solid #3163ec;
+	border-top: 2px solid transparent;
+	border-radius: 50%;
+	animation: spin 1s linear infinite;
+	z-index: 1;
+}
+
+@keyframes spin {
+	0% { transform: translateY(-50%) rotate(0deg); }
+	100% { transform: translateY(-50%) rotate(360deg); }
+}
+
+// Enhanced completion animation for ALL completed tests (not just untested ones)
+#security-ninja tr.test.test-completed {
+	background-color: #f8f9fa !important;
+	border-left: 4px solid #6c757d;
+	transition: background-color 0.3s ease-in-out, border-left-color 0.3s ease-in-out;
+	animation: testCompleted 0.6s ease-in-out;
+}
+
+@keyframes testCompleted {
+	0% {
+		background-color: #f8f9fa;
+		transform: scale(1);
+	}
+	25% {
+		background-color: #e9ecef;
+		transform: scale(1.01);
+	}
+	50% {
+		background-color: #d1ecf1;
+		transform: scale(1.015);
+	}
+	75% {
+		background-color: #e9ecef;
+		transform: scale(1.01);
+	}
+	100% {
+		background-color: #f8f9fa;
+		transform: scale(1);
+	}
+}
+
+// Enhanced status change animations
+#security-ninja tr.test.status-improved {
+	background-color: #d4edda !important;
+	border-left: 4px solid #28a745;
+	transition: background-color 0.3s ease-in-out, border-left-color 0.3s ease-in-out;
+	animation: statusImproved 0.6s ease-in-out;
+}
+
+@keyframes statusImproved {
+	0% {
+		background-color: #d4edda;
+		transform: scale(1);
+	}
+	25% {
+		background-color: #c3e6cb;
+		transform: scale(1.01);
+	}
+	50% {
+		background-color: #b8dacc;
+		transform: scale(1.02);
+	}
+	75% {
+		background-color: #c3e6cb;
+		transform: scale(1.01);
+	}
+	100% {
+		background-color: #d4edda;
+		transform: scale(1);
+	}
+}
+
+#security-ninja tr.test.status-declined {
+	background-color: #f8d7da !important;
+	border-left: 4px solid #dc3545;
+	transition: background-color 0.3s ease-in-out, border-left-color 0.3s ease-in-out;
+	animation: statusDeclined 0.6s ease-in-out;
+}
+
+@keyframes statusDeclined {
+	0% {
+		background-color: #f8d7da;
+		transform: scale(1);
+	}
+	25% {
+		background-color: #f5c6cb;
+		transform: scale(1.01);
+	}
+	50% {
+		background-color: #f1b0b7;
+		transform: scale(1.02);
+	}
+	75% {
+		background-color: #f5c6cb;
+		transform: scale(1.01);
+	}
+	100% {
+		background-color: #f8d7da;
+		transform: scale(1);
+	}
+}
+
+#security-ninja tr.test.status-changed {
+	background-color: #fff3cd !important;
+	border-left: 4px solid #ffc107;
+	transition: background-color 0.3s ease-in-out, border-left-color 0.3s ease-in-out;
+	animation: statusChanged 0.6s ease-in-out;
+}
+
+@keyframes statusChanged {
+	0% {
+		background-color: #fff3cd;
+		transform: scale(1);
+	}
+	25% {
+		background-color: #ffeaa7;
+		transform: scale(1.01);
+	}
+	50% {
+		background-color: #ffeaa7;
+		transform: scale(1.02);
+	}
+	75% {
+		background-color: #ffeaa7;
+		transform: scale(1.01);
+	}
+	100% {
+		background-color: #fff3cd;
+		transform: scale(1);
+	}
+}
+
+// Statistics counter animations
+#counters span.edge {
+	transition: all 0.3s ease-in-out;
+}
+
+#counters span.edge.updating {
+	transform: scale(1.05);
+	box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+#counters .val {
+	transition: all 0.3s ease-in-out;
+}
+
+#counters .val.updating {
+	animation: counterUpdate 0.5s ease-in-out;
+}
+
+@keyframes counterUpdate {
+	0% {
+		transform: scale(1);
+	}
+	50% {
+		transform: scale(1.1);
+		color: #3163ec;
+	}
+	100% {
+		transform: scale(1);
+	}
 }
