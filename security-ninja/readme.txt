@@ -5,11 +5,11 @@ Tags: security, firewall, waf, vulnerability, malware
 License: GPLv3
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 Requires at least: 4.7
-Tested up to: 6.9
-Stable tag: 5.264
+Tested up to: 6.9.1
+Stable tag: 5.265
 Requires PHP: 7.4
 
-WordPress security plugin with a **basic firewall/WAF (free)**, vulnerability scanning, and core integrity checks — with optional Pro malware scanning and advanced WAF controls.
+WordPress security plugin with free basic firewall/WAF, vulnerability scanning, and 50+ core integrity checks.
 
 == Description ==
 
@@ -331,6 +331,12 @@ While we strive for universal compatibility, if you face any issues, our support
 5. Core Scanner (detect modified/unknown core files).
 
 == Changelog ==
+
+= 5.265 =
+* 2026-02-09
+* Tested up to WP 6.9.1
+* FIX: Issues with 2FA for some user.
+* IMPROVED: Vulnerability list updating faster and consume less memory.
 
 = 5.264 =
 * 2026-01-31

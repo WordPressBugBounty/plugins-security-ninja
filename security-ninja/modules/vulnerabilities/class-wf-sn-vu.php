@@ -5,9 +5,6 @@ namespace WPSecurityNinja\Plugin;
 if ( !function_exists( 'add_action' ) ) {
     die( 'Please don\'t open this file directly!' );
 }
-define( 'WF_SN_VU_OPTIONS_NAME', 'wf_sn_vu_settings_group' );
-define( 'WF_SN_VU_OPTIONS_KEY', 'wf_sn_vu_settings' );
-define( 'WF_SN_VU_OUTDATED', 'wf_sn_vu_outdated' );
 class Wf_Sn_Vu {
     public static $options = null;
 
@@ -455,7 +452,7 @@ class Wf_Sn_Vu {
         $result_info['status_code'] = $response_code;
         // Handle 304 Not Modified.
         if ( 304 === $response_code ) {
-            // No body processing needed, don't touch file, don't update validators.
+            // No body processing needed, don't update file content; update validators and touch file so "Last Updated" UI reflects check time.
             if ( $validators ) {
                 self::save_file_validators(
                     $type,
@@ -474,6 +471,16 @@ class Wf_Sn_Vu {
                     0,
                     ''
                 );
+            }
+            // Touch local JSONL file so get_vulnerabilities_last_modified() shows a recent "Last Updated".
+            require_once ABSPATH . 'wp-admin/includes/file.php';
+            global $wp_filesystem;
+            if ( !empty( $wp_filesystem ) || WP_Filesystem() ) {
+                $upload_dir = wp_upload_dir();
+                $file_path = $upload_dir['basedir'] . "/security-ninja/vulns/{$type}_vulns.jsonl";
+                if ( $wp_filesystem->exists( $file_path ) ) {
+                    $wp_filesystem->touch( $file_path );
+                }
             }
             $result_info['success'] = true;
             return $result_info;
@@ -688,9 +695,14 @@ class Wf_Sn_Vu {
      * @since   v5.160
      * @version v1.0.0  Tuesday, July 25th, 2023.
      * @version v1.0.1  Monday, April 1st, 2024.
-     * @return  mixed
+     * @param   bool $bypass_cache If true, read from disk and refresh the per-request cache (e.g. after updating files).
+     * @return  mixed Object with plugins, themes, wordpress arrays, or false on failure.
      */
-    public static function load_vulnerabilities() {
+    public static function load_vulnerabilities( $bypass_cache = false ) {
+        static $cached = null;
+        if ( !$bypass_cache && null !== $cached ) {
+            return $cached;
+        }
         require_once ABSPATH . 'wp-admin/includes/file.php';
         // More efficient to require_once at the top if not already included elsewhere
         global $wp_filesystem;
@@ -719,8 +731,8 @@ class Wf_Sn_Vu {
                 }
             }
         }
-        return (object) $data;
-        // Convert back to object if needed for compatibility
+        $cached = (object) $data;
+        return $cached;
     }
 
     /**
@@ -768,64 +780,6 @@ class Wf_Sn_Vu {
             return false;
         }
         return trailingslashit( $upload_dir['basedir'] ) . 'security-ninja/vulns/' . $filenames[$type];
-    }
-
-    /**
-     * Stream vulnerability JSONL records line-by-line.
-     *
-     * This avoids loading large files into memory. Intended for local files in the uploads directory.
-     * Yields nothing if the file path is invalid, the file is missing, or the file is not readable.
-     *
-     * @since   v5.263
-     * @param   string $file_path Absolute local file path.
-     * @return  \Generator Yields each decoded JSON object as an array.
-     */
-    private static function stream_jsonl_records( $file_path ) {
-        if ( empty( $file_path ) || !is_string( $file_path ) ) {
-            return;
-        }
-        if ( !is_file( $file_path ) || !is_readable( $file_path ) ) {
-            return;
-        }
-        $handle = fopen( $file_path, 'rb' );
-        if ( false === $handle ) {
-            return;
-        }
-        try {
-            while ( ($line = fgets( $handle )) !== false ) {
-                $line = trim( $line );
-                if ( '' === $line ) {
-                    continue;
-                }
-                $decoded = json_decode( $line, true );
-                if ( is_array( $decoded ) ) {
-                    (yield $decoded);
-                }
-            }
-        } finally {
-            if ( is_resource( $handle ) ) {
-                fclose( $handle );
-            }
-        }
-    }
-
-    /**
-     * Count valid JSONL records in a file without loading it into memory.
-     *
-     * @since   v5.263
-     * @param   string $file_path Absolute local file path.
-     * @return  int Count of valid JSONL records.
-     */
-    private static function count_jsonl_records( $file_path ) {
-        $count = 0;
-        try {
-            foreach ( self::stream_jsonl_records( $file_path ) as $record ) {
-                ++$count;
-            }
-        } catch ( \Throwable $e ) {
-            return 0;
-        }
-        return $count;
     }
 
     /**
@@ -888,20 +842,40 @@ class Wf_Sn_Vu {
             return false;
         }
         self::ensure_vulns_directory();
-        $oldcount = false;
-        $newcount = false;
         $old_data = self::load_vulnerabilities();
-        $oldcount = 0;
-        if ( $old_data ) {
-            $oldcount = self::return_known_vuln_count();
-        }
+        $oldcount = ( $old_data ? count( $old_data->plugins ) + count( $old_data->themes ) + count( $old_data->wordpress ) : 0 );
+        $download_results = array();
         foreach ( self::$api_urls as $type => $url ) {
             // Use conditional GET to download file.
             $result = self::download_vuln_file_with_conditional_get( $type, $url );
-            // Result is handled within download_vuln_file_with_conditional_get().
-            // Continue to next file regardless of result.
+            $download_results[$type] = $result;
         }
-        $newcount = self::return_known_vuln_count();
+        // Log summary when all three types returned 304 (no updates needed).
+        $all_304 = count( $download_results ) === 3;
+        foreach ( $download_results as $result ) {
+            if ( !is_array( $result ) || empty( $result['status_code'] ) || 304 !== (int) $result['status_code'] ) {
+                $all_304 = false;
+                break;
+            }
+        }
+        if ( $all_304 && secnin_fs()->can_use_premium_code__premium_only() ) {
+            wf_sn_el_modules::log_event(
+                'security_ninja',
+                'vulnerabilities_update',
+                __( 'Checked for updates to the vulnerability list; no updates needed.', 'security-ninja' ),
+                ''
+            );
+        }
+        $new_data = self::load_vulnerabilities( true );
+        // Bypass cache so we see the newly downloaded files.
+        $newcount = ( $new_data ? count( $new_data->plugins ) + count( $new_data->themes ) + count( $new_data->wordpress ) : 0 );
+        if ( $new_data ) {
+            update_option( 'wf_sn_known_vuln_db_counts', array(
+                'plugins'   => count( $new_data->plugins ),
+                'themes'    => count( $new_data->themes ),
+                'wordpress' => count( $new_data->wordpress ),
+            ), false );
+        }
         if ( $oldcount && $newcount ) {
             $diff = $newcount - $oldcount;
             if ( 0 === $oldcount ) {
@@ -1031,63 +1005,6 @@ class Wf_Sn_Vu {
     public static function is_multi_array( $x ) {
         if ( count( array_filter( $x, 'is_array' ) ) > 0 ) {
             return true;
-        }
-        return false;
-    }
-
-    /**
-     * Convert an object to an array.
-     *
-     * @author  Lars Koudal
-     * @since   v0.0.1
-     * @version v1.0.0  Friday, January 1st, 2021.
-     * @param   mixed   $object The object to convert
-     * @return  mixed
-     */
-    public static function object_to_array_map( $object_var ) {
-        if ( !is_object( $object_var ) && !is_array( $object_var ) ) {
-            return $object_var;
-        }
-        return array_map( array(__NAMESPACE__ . '\\wf_sn_vu', 'object_to_array'), (array) $object_var );
-    }
-
-    /**
-     * Check if a value exists in the array/object.
-     *
-     * @author  Lars Koudal
-     * @since   v0.0.1
-     * @version v1.0.0  Friday, January 1st, 2021.
-     * @param   mixed   $needle     The value that you are searching for
-     * @param   mixed   $haystack   The array/object to search
-     * @param   boolean $strict     Whether to use strict search or not
-     * @return  boolean
-     */
-    public static function search_for_value( $needle, $haystack, $strict = true ) {
-        $haystack = self::object_to_array( $haystack );
-        if ( is_array( $haystack ) ) {
-            if ( self::is_multi_array( $haystack ) ) {
-                // Multidimensional array
-                foreach ( $haystack as $subhaystack ) {
-                    if ( self::search_for_value( $needle, $subhaystack, $strict ) ) {
-                        return true;
-                    }
-                }
-            } elseif ( array_keys( $haystack ) !== range( 0, count( $haystack ) - 1 ) ) {
-                // Associative array
-                foreach ( $haystack as $key => $val ) {
-                    if ( $needle === $val && !$strict ) {
-                        return true;
-                    } elseif ( $needle === $val && $strict ) {
-                        return true;
-                    }
-                }
-                return false;
-            } elseif ( $needle === $haystack && !$strict ) {
-                // Normal array
-                return true;
-            } elseif ( $needle === $haystack && $strict ) {
-                return true;
-            }
         }
         return false;
     }
@@ -1277,12 +1194,12 @@ class Wf_Sn_Vu {
         $wp_vulnerabilities_found = 0;
         $lookup_id = 0;
         try {
-            $wp_file_path = self::get_vuln_jsonl_file_path( 'wordpress' );
-            if ( empty( $wp_file_path ) || !is_file( $wp_file_path ) || !is_readable( $wp_file_path ) ) {
+            $data = self::load_vulnerabilities();
+            if ( !$data || !isset( $data->wordpress ) ) {
                 self::ensure_vulns_directory();
                 wp_schedule_single_event( time(), 'secnin_update_vuln_list' );
             } else {
-                foreach ( self::stream_jsonl_records( $wp_file_path ) as $wpvuln ) {
+                foreach ( $data->wordpress as $wpvuln ) {
                     if ( empty( $wpvuln['versionEndExcluding'] ) || empty( $wpvuln['CVE_ID'] ) ) {
                         continue;
                     }
@@ -1387,62 +1304,21 @@ class Wf_Sn_Vu {
         return $wp_vers_status;
     }
 
-    /**
-     * Returns the number of known vulnerabilities
-     *
-     * @author  Lars Koudal
-     * @author  Unknown
-     * @since   v0.0.1
-     * @version v1.0.0  Tuesday, July 6th, 2021.
-     * @version v1.0.1  Monday, April 1st, 2024.
-     * @return  mixed
-     */
-    public static function return_known_vuln_count() {
-        $plugin_file = self::get_vuln_jsonl_file_path( 'plugins' );
-        $themes_file = self::get_vuln_jsonl_file_path( 'themes' );
-        $wordpress_file = self::get_vuln_jsonl_file_path( 'wordpress' );
-        $plugin_vulns_count = ( $plugin_file ? self::count_jsonl_records( $plugin_file ) : 0 );
-        $theme_vulns_count = ( $themes_file ? self::count_jsonl_records( $themes_file ) : 0 );
-        $wp_vulns_count = ( $wordpress_file ? self::count_jsonl_records( $wordpress_file ) : 0 );
-        $total = $plugin_vulns_count + $theme_vulns_count + $wp_vulns_count;
-        if ( 0 === $total ) {
-            $any_missing = false;
-            foreach ( array($plugin_file, $themes_file, $wordpress_file) as $path ) {
-                if ( !empty( $path ) && (!is_file( $path ) || !is_readable( $path )) ) {
-                    $any_missing = true;
-                    break;
-                }
-            }
-            if ( $any_missing ) {
-                self::ensure_vulns_directory();
-                wp_schedule_single_event( time(), 'secnin_update_vuln_list' );
-            }
-        }
-        return $total;
-    }
-
     public static function get_vuln_details() {
-        $plugin_file = self::get_vuln_jsonl_file_path( 'plugins' );
-        $themes_file = self::get_vuln_jsonl_file_path( 'themes' );
-        $wordpress_file = self::get_vuln_jsonl_file_path( 'wordpress' );
+        $counts = get_option( 'wf_sn_known_vuln_db_counts', false );
+        if ( is_array( $counts ) && isset( $counts['plugins'], $counts['themes'], $counts['wordpress'] ) ) {
+            return array(
+                'plugins'   => (int) $counts['plugins'],
+                'themes'    => (int) $counts['themes'],
+                'wordpress' => (int) $counts['wordpress'],
+            );
+        }
+        // Option not set yet. Do not load files; wait for update_vuln_list() to populate.
         return array(
-            'plugins'   => ( $plugin_file ? self::count_jsonl_records( $plugin_file ) : 0 ),
-            'themes'    => ( $themes_file ? self::count_jsonl_records( $themes_file ) : 0 ),
-            'wordpress' => ( $wordpress_file ? self::count_jsonl_records( $wordpress_file ) : 0 ),
+            'plugins'   => 0,
+            'themes'    => 0,
+            'wordpress' => 0,
         );
-    }
-
-    /**
-     * Helper method to count vulnerabilities in a more abstract way
-     *
-     * @author  Unknown
-     * @since   v0.0.1
-     * @version v1.0.0  Monday, April 1st, 2024.
-     * @param   mixed   $vuln_type
-     * @return  mixed
-     */
-    private static function count_vulns( $vuln_type ) {
-        return ( isset( $vuln_type ) ? count( $vuln_type ) : 0 );
     }
 
     /**
@@ -1496,12 +1372,10 @@ class Wf_Sn_Vu {
             if ( $needs_update ) {
                 self::update_vuln_list();
             }
-            $plugin_file = self::get_vuln_jsonl_file_path( 'plugins' );
-            $themes_file = self::get_vuln_jsonl_file_path( 'themes' );
-            $wordpress_file = self::get_vuln_jsonl_file_path( 'wordpress' );
-            $plugin_vulns_count = ( $plugin_file ? self::count_jsonl_records( $plugin_file ) : 0 );
-            $theme_vulns_count = ( $themes_file ? self::count_jsonl_records( $themes_file ) : 0 );
-            $wp_vulns_count = ( $wordpress_file ? self::count_jsonl_records( $wordpress_file ) : 0 );
+            $vuln_details = self::get_vuln_details();
+            $plugin_vulns_count = $vuln_details['plugins'];
+            $theme_vulns_count = $vuln_details['themes'];
+            $wp_vulns_count = $vuln_details['wordpress'];
             $total_vulnerabilities = $plugin_vulns_count + $wp_vulns_count + $theme_vulns_count;
         }
         // Get scan summary for better display
@@ -1705,9 +1579,9 @@ class Wf_Sn_Vu {
                     if ( $timestamp && is_numeric( $timestamp ) ) {
                         $current_time = time();
                         $time_diff = human_time_diff( $timestamp, $current_time );
-                        // Check if file is outdated (older than 2 days)
-                        $two_days_ago = $current_time - 2 * 24 * 60 * 60;
-                        $is_outdated = $timestamp < $two_days_ago;
+                        // Check if file is outdated (older than 1 day)
+                        $one_day_ago = $current_time - 1 * 24 * 60 * 60;
+                        $is_outdated = $timestamp < $one_day_ago;
                         // If the timestamp is in the future or very recent, show appropriate message
                         if ( $timestamp > $current_time ) {
                             $time_diff = __( 'just now', 'security-ninja' );
@@ -1975,7 +1849,9 @@ class Wf_Sn_Vu {
         if ( !empty( $plugin_slug_map ) ) {
             $installed_set = array_fill_keys( array_keys( $plugin_slug_map ), true );
         }
-        foreach ( self::stream_jsonl_records( $file_path ) as $decoded_line ) {
+        $data = self::load_vulnerabilities();
+        $plugin_records = ( $data && isset( $data->plugins ) ? $data->plugins : array() );
+        foreach ( $plugin_records as $decoded_line ) {
             ++$scan_stats['lines_processed'];
             if ( !isset( $decoded_line['slug'] ) ) {
                 continue;
@@ -2038,27 +1914,6 @@ class Wf_Sn_Vu {
             'vulnerabilities' => $found_vulnerabilities,
             'stats'           => $scan_stats,
         );
-    }
-
-    /**
-     * Convert memory limit string to bytes
-     *
-     * @param   string  $val Memory limit string (e.g., '256M', '1G')
-     * @return  int     Memory limit in bytes
-     */
-    private static function return_bytes( $val ) {
-        $val = trim( $val );
-        $last = strtolower( $val[strlen( $val ) - 1] );
-        $val = (int) $val;
-        switch ( $last ) {
-            case 'g':
-                $val *= 1024;
-            case 'm':
-                $val *= 1024;
-            case 'k':
-                $val *= 1024;
-        }
-        return $val;
     }
 
     /**
@@ -2376,7 +2231,9 @@ class Wf_Sn_Vu {
         if ( !empty( $ignored_slugs ) ) {
             $ignored_set = array_fill_keys( $ignored_slugs, true );
         }
-        foreach ( self::stream_jsonl_records( $file_path ) as $decoded_line ) {
+        $data = self::load_vulnerabilities();
+        $theme_records = ( $data && isset( $data->themes ) ? $data->themes : array() );
+        foreach ( $theme_records as $decoded_line ) {
             ++$scan_stats['lines_processed'];
             if ( !isset( $decoded_line['slug'] ) ) {
                 continue;
@@ -2705,9 +2562,11 @@ class Wf_Sn_Vu {
         $success_count = 0;
         $error_count = 0;
         $errors = array();
+        $results = array();
         // Download all vulnerability files using conditional GET.
         foreach ( self::$api_urls as $file_type => $api_url ) {
             $result = self::download_vuln_file_with_conditional_get( $file_type, $api_url );
+            $results[$file_type] = $result;
             if ( $result && isset( $result['success'] ) && $result['success'] ) {
                 ++$success_count;
             } else {
