@@ -46,6 +46,8 @@ class Wf_sn_cf {
             // Register AJAX actions
             add_action( 'wp_ajax_sn_enable_firewall', array(__NAMESPACE__ . '\\wf_sn_cf', 'ajax_enable_firewall') );
             add_action( 'wp_ajax_sn_disable_firewall', array(__NAMESPACE__ . '\\wf_sn_cf', 'ajax_disable_firewall') );
+            add_action( 'wp_ajax_sn_test_ip', array(__NAMESPACE__ . '\\wf_sn_cf', 'ajax_test_ip') );
+            add_action( 'wp_ajax_sn_clear_blacklist', array(__NAMESPACE__ . '\\wf_sn_cf', 'ajax_clear_blacklist') );
             // Enqueue scripts and styles
             add_action( 'admin_enqueue_scripts', array(__NAMESPACE__ . '\\wf_sn_cf', 'enqueue_scripts') );
         }
@@ -1301,10 +1303,12 @@ class Wf_sn_cf {
         if ( !wp_next_scheduled( 'secnin_update_cloud_firewall' ) ) {
             wp_schedule_event( time() + 15, 'twicedaily', 'secnin_update_cloud_firewall' );
         }
-        // Prune local banned IPs
-        if ( !wp_next_scheduled( 'secnin_prune_banned' ) ) {
-            wp_schedule_event( time() + 3600, 'twicedaily', 'secnin_prune_banned' );
+        // Prune local banned IPs (hourly; migrate existing twicedaily to hourly)
+        $next_prune = wp_next_scheduled( 'secnin_prune_banned' );
+        if ( $next_prune ) {
+            wp_unschedule_event( $next_prune, 'secnin_prune_banned' );
         }
+        wp_schedule_event( time() + 3600, 'hourly', 'secnin_prune_banned' );
         // Prune visitor log
         if ( !wp_next_scheduled( 'secnin_prune_visitor_log' ) ) {
             wp_schedule_event( time() + 3600, 'twicedaily', 'secnin_prune_visitor_log' );
@@ -2025,6 +2029,7 @@ class Wf_sn_cf {
             return false;
         }
         update_option( 'wf_sn_banned_ips', $new_list, false );
+        self::$banned_ips = $new_list;
     }
 
     /**
@@ -2487,7 +2492,16 @@ class Wf_sn_cf {
         if ( is_array( self::$options['whitelist'] ) && self::is_whitelisted( $current_user_ip, self::$options['whitelist'] ) ) {
             return false;
         } elseif ( array_key_exists( $current_user_ip, $banned_ips ) ) {
-            return 'Local blacklist.';
+            $expiry = $banned_ips[$current_user_ip];
+            if ( $expiry > current_time( 'timestamp' ) ) {
+                return 'Local blacklist.';
+            }
+            // Expired: remove from list and treat as not banned.
+            $updated = $banned_ips;
+            unset($updated[$current_user_ip]);
+            self::update_banned_ips( $updated );
+            self::$banned_ips = $updated;
+            return false;
         } elseif ( '1' === self::$options['usecloud'] && self::IP_in_array( $current_user_ip, $ips['ips'] ) ) {
             return 'IP in cloud blacklist.';
         } else {

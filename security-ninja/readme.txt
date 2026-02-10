@@ -6,7 +6,7 @@ License: GPLv3
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 Requires at least: 4.7
 Tested up to: 6.9.1
-Stable tag: 5.265
+Stable tag: 5.266
 Requires PHP: 7.4
 
 WordPress security plugin with free basic firewall/WAF, vulnerability scanning, and 50+ core integrity checks.
@@ -331,6 +331,15 @@ While we strive for universal compatibility, if you face any issues, our support
 5. Core Scanner (detect modified/unknown core files).
 
 == Changelog ==
+
+= 5.266 =
+* 2026-02-10
+* Improvement: Logging details for 404 Guard.
+* FIX: Login Protection – Banned IPs expired entries are removed immediately instead of waiting for the prune job.
+* IMPROVED: Login Protection – Prune job for banned IPs now runs hourly.
+* FIX: Cloud Firewall IP Management – "Locally Banned IPs" list now shows only currently banned IPs (expired bans are excluded).
+* FIX: Cloud Firewall – Test IP and "Clear list of banned IPs" functionality fixed.
+* Updated language file for translations.
 
 = 5.265 =
 * 2026-02-09

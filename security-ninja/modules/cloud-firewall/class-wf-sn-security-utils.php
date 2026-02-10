@@ -78,17 +78,17 @@ class Wf_Sn_Security_Utils {
         
         // Check if file exists and is readable
         if ($options['check_readable'] && (!is_file($file_path) || !is_readable($file_path))) {
-            $errors[] = 'File does not exist or is not readable';
+            $errors[] = __( 'File does not exist or is not readable', 'security-ninja' );
         }
         
         // Check file size
         if ($options['check_size'] && !self::validate_file_size($file_path, $options['max_size'])) {
-            $errors[] = 'File size exceeds limit';
+            $errors[] = __( 'File size exceeds limit', 'security-ninja' );
         }
         
         // Check file type
         if ($options['check_type'] && !self::validate_file_type($file_path, $options['allowed_extensions'])) {
-            $errors[] = 'File type not allowed';
+            $errors[] = __( 'File type not allowed', 'security-ninja' );
         }
         
         // Check MIME type (optional)
@@ -99,13 +99,13 @@ class Wf_Sn_Security_Utils {
             
             $allowed_mimes = array('text/plain', 'text/html', 'text/css', 'application/javascript', 'application/x-httpd-php');
             if (!in_array($mime_type, $allowed_mimes)) {
-                $errors[] = 'MIME type not allowed';
+                $errors[] = __( 'MIME type not allowed', 'security-ninja' );
             }
         }
         
         // Check file path
         if ($options['check_path'] && !self::validate_file_path($file_path, $options['allowed_dirs'])) {
-            $errors[] = 'File path not allowed';
+            $errors[] = __( 'File path not allowed', 'security-ninja' );
         }
         
         return array(
