@@ -490,11 +490,8 @@ class Wf_Sn_Vu {
             $body = wp_remote_retrieve_body( $response );
             $content_length = ( isset( $headers['content-length'] ) ? (int) $headers['content-length'] : strlen( $body ) );
             $result_info['bytes_downloaded'] = $content_length;
-            // Extract ETag and Last-Modified from response headers.
-            // Sanitize header values before storing.
             $received_etag = ( isset( $headers['etag'] ) ? sanitize_text_field( $headers['etag'] ) : '' );
             $received_last_modified = ( isset( $headers['last-modified'] ) ? sanitize_text_field( $headers['last-modified'] ) : '' );
-            // Robust gzip detection: check Content-Encoding header and magic bytes.
             $content_encoding = ( isset( $headers['content-encoding'] ) ? strtolower( $headers['content-encoding'] ) : '' );
             $is_gzipped = false;
             if ( 'gzip' === $content_encoding ) {

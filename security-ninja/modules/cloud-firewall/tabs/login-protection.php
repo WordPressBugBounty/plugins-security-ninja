@@ -255,7 +255,7 @@ function wf_sn_cf_render_login_protection_content($options) {
 									$default_login_placeholder = \WPSecurityNinja\Plugin\SecNin_Rename_WP_Login::$default_login_url;
 								}
 								?>
-								<input type="text" id="<?php echo esc_attr(WF_SN_CF_OPTIONS_KEY) . '_new_login_url'; ?>" name="<?php echo esc_attr(WF_SN_CF_OPTIONS_KEY) . '[new_login_url]'; ?>" value="<?php echo $options['new_login_url']; ?>" placeholder="<?php echo esc_attr($default_login_placeholder); ?>" class="regular-text">
+								<input type="text" id="<?php echo esc_attr(WF_SN_CF_OPTIONS_KEY) . '_new_login_url'; ?>" name="<?php echo esc_attr(WF_SN_CF_OPTIONS_KEY) . '[new_login_url]'; ?>" value="<?php echo esc_attr( $options['new_login_url'] ); ?>" placeholder="<?php echo esc_attr($default_login_placeholder); ?>" class="regular-text">
 								<p><?php esc_html_e('Preview', 'security-ninja'); ?>: <code><?php echo esc_url(trailingslashit(site_url($options['new_login_url']))); ?></code></p>
 							</td>
 						</tr>
@@ -296,7 +296,7 @@ function wf_sn_cf_render_login_protection_content($options) {
 						</tr>
 						<tr>
 							<td colspan="2" class="fullwidth">
-								<input type="number" id="<?php echo esc_attr(WF_SN_CF_OPTIONS_KEY) . '_2fa_grace_period'; ?>" name="<?php echo esc_attr(WF_SN_CF_OPTIONS_KEY) . '[2fa_grace_period]'; ?>" value="<?php echo $options['2fa_grace_period']; ?>" class="regular-text" data-1p-ignore>
+								<input type="number" id="<?php echo esc_attr(WF_SN_CF_OPTIONS_KEY) . '_2fa_grace_period'; ?>" name="<?php echo esc_attr(WF_SN_CF_OPTIONS_KEY) . '[2fa_grace_period]'; ?>" value="<?php echo esc_attr( $options['2fa_grace_period'] ); ?>" class="regular-text" data-1p-ignore>
 
 								<input type="hidden" id="<?php echo esc_attr(WF_SN_CF_OPTIONS_KEY) . '_2fa_enabled_timestamp'; ?>" name="<?php echo esc_attr(WF_SN_CF_OPTIONS_KEY) . '[2fa_enabled_timestamp]'; ?>">
 								<?php
@@ -345,7 +345,7 @@ function wf_sn_cf_render_login_protection_content($options) {
 									?>
 										<li>
 											<label>
-												<input type="checkbox" id="<?php echo esc_attr(WF_SN_CF_OPTIONS_KEY) . '_2fa_required_roles'; ?>" name="<?php echo esc_attr(WF_SN_CF_OPTIONS_KEY) . '[2fa_required_roles][]'; ?>" value="<?php echo esc_attr($role); ?>" <?php echo $checked; ?>>
+												<input type="checkbox" id="<?php echo esc_attr(WF_SN_CF_OPTIONS_KEY) . '_2fa_required_roles'; ?>" name="<?php echo esc_attr(WF_SN_CF_OPTIONS_KEY) . '[2fa_required_roles][]'; ?>" value="<?php echo esc_attr($role); ?>" <?php echo esc_attr( $checked ); ?>>
 												<?php echo esc_html($name); ?>
 											</label>
 										</li>
@@ -398,7 +398,7 @@ function wf_sn_cf_render_login_protection_content($options) {
 						<tr>
 							<td colspan="2" class="fullwidth">
 
-								<textarea id="<?php echo esc_attr(WF_SN_CF_OPTIONS_KEY) . '_2fa_intro'; ?>" name="<?php echo esc_attr(WF_SN_CF_OPTIONS_KEY) . '[2fa_intro]'; ?>" rows="3"><?php echo $options['2fa_intro']; ?></textarea>
+								<textarea id="<?php echo esc_attr(WF_SN_CF_OPTIONS_KEY) . '_2fa_intro'; ?>" name="<?php echo esc_attr(WF_SN_CF_OPTIONS_KEY) . '[2fa_intro]'; ?>" rows="3"><?php echo esc_textarea( $options['2fa_intro'] ); ?></textarea>
 							</td>
 						</tr>
 
@@ -412,7 +412,7 @@ function wf_sn_cf_render_login_protection_content($options) {
 						</tr>
 						<tr>
 							<td colspan="2" class="fullwidth">
-								<textarea id="<?php echo esc_attr(WF_SN_CF_OPTIONS_KEY) . '_2fa_enter_code'; ?>" name="<?php echo esc_attr(WF_SN_CF_OPTIONS_KEY) . '[2fa_enter_code]'; ?>" rows="3"><?php echo $options['2fa_enter_code']; ?></textarea>
+								<textarea id="<?php echo esc_attr(WF_SN_CF_OPTIONS_KEY) . '_2fa_enter_code'; ?>" name="<?php echo esc_attr(WF_SN_CF_OPTIONS_KEY) . '[2fa_enter_code]'; ?>" rows="3"><?php echo esc_textarea( $options['2fa_enter_code'] ); ?></textarea>
 							</td>
 						</tr>
 

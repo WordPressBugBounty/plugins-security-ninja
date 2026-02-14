@@ -5,7 +5,7 @@ Plugin Name: Security Ninja
 Plugin URI: https://wpsecurityninja.com/
 Description: Check your site for security vulnerabilities and get precise suggestions for corrective actions on passwords, user accounts, file permissions, database security, version hiding, plugins, themes, security headers and other security aspects.
 Author: WP Security Ninja
-Version: 5.266
+Version: 5.267
 Author URI: https://wpsecurityninja.com/
 License: GPLv3
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
@@ -113,6 +113,7 @@ if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
     include_once WF_SN_PLUGIN_DIR . 'modules/core-scanner/core-scanner.php';
     // File viewer
     include_once WF_SN_PLUGIN_DIR . 'modules/file-viewer/class-secnin-file-viewer.php';
+    include_once WF_SN_PLUGIN_DIR . 'modules/cloud-firewall/class-wf-sn-cf-utils.php';
     include_once WF_SN_PLUGIN_DIR . 'modules/cloud-firewall/cloud-firewall.php';
     include_once WF_SN_PLUGIN_DIR . 'includes/class-wf-sn-utils.php';
     include_once WF_SN_PLUGIN_DIR . 'includes/class-wf-sn-free-render.php';
@@ -251,7 +252,6 @@ if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
             $security_tests = wf_sn_tests::return_security_tests();
             $resultssofar = get_option( 'security_tests_results', array() );
             $set_time_limit = set_time_limit( 200 );
-            $last_test_run = ( isset( $resultssofar['last_test_run'] ) ? $resultssofar['last_test_run'] : '' );
             $resultssofar['last_run'] = time();
             foreach ( $security_tests as $test_name => $test ) {
                 $class_with_namespace = __NAMESPACE__ . '\\Wf_Sn_Tests';
@@ -712,7 +712,6 @@ if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
                     $icon_url
                 );
             }
-            // REST API submenu is handled by Wf_Sn_Rest_Api_Admin class
         }
 
         /**

@@ -70,6 +70,7 @@ class Wf_Sn_Cs {
             add_action( 'wp_ajax_sn_core_delete_file_do', array(__NAMESPACE__ . '\\Wf_Sn_Cs', 'delete_file') );
             add_action( 'wp_ajax_sn_core_restore_file_do', array(__NAMESPACE__ . '\\Wf_Sn_Cs', 'restore_file') );
             add_action( 'wp_ajax_sn_core_run_scan', array(__NAMESPACE__ . '\\Wf_Sn_Cs', 'do_action_core_run_scan') );
+            add_action( 'wp_ajax_sn_core_get_cached_results', array(__NAMESPACE__ . '\\Wf_Sn_Cs', 'get_cached_results') );
             add_action( 'wp_ajax_sn_core_delete_all_unknowns', array(__NAMESPACE__ . '\\Wf_Sn_Cs', 'do_action_delete_all_unknowns') );
         }
     }
@@ -167,7 +168,7 @@ class Wf_Sn_Cs {
             wp_enqueue_script( 'jquery-ui-dialog' );
             wp_register_script(
                 'sn-core-js',
-                $plugin_url . 'js/wf-sn-core-min.js',
+                $plugin_url . 'js/wf-sn-core.js',
                 array('jquery'),
                 \WPSecurityNinja\Plugin\Utils::get_plugin_version(),
                 true
@@ -185,13 +186,15 @@ class Wf_Sn_Cs {
                     'confirm_delete_all' => __( 'Are you sure you want to delete all unknown files?', 'security-ninja' ),
                     'ajax_error'         => __( 'An error occurred during the AJAX request.', 'security-ninja' ),
                     'please_wait'        => __( 'Please wait.', 'security-ninja' ),
+                    'no_scan_yet'        => __( 'No scan made yet. Click "Scan Core Files" to run a scan.', 'security-ninja' ),
+                    'loading'            => __( 'Loading...', 'security-ninja' ),
                 ),
             );
             wp_localize_script( 'sn-core-js', 'wf_sn_cs', $js_vars );
             wp_enqueue_script( 'sn-core-js' );
             wp_enqueue_style(
                 'sn-core-css',
-                $plugin_url . 'css/wf-sn-core-min.css',
+                $plugin_url . 'css/wf-sn-core.css',
                 array(),
                 wf_sn::$version
             );
@@ -245,6 +248,47 @@ class Wf_Sn_Cs {
             $out['err'] = __( 'File does not exist or is not readable.', 'security-ninja' );
         }
         die( wp_json_encode( $out ) );
+    }
+
+    /**
+     * AJAX: Return cached Core Scanner results only (no scan).
+     * Used when the Core Scanner tab is focused to lazy-load last results.
+     *
+     * @return void
+     */
+    public static function get_cached_results() {
+        check_ajax_referer( 'wf_sn_cs' );
+        if ( !current_user_can( 'manage_options' ) ) {
+            wp_send_json_error( array(
+                'message' => __( 'You do not have sufficient permissions.', 'security-ninja' ),
+            ) );
+        }
+        $results = get_option( 'wf_sn_cs_results', array() );
+        if ( !is_array( $results ) || empty( $results['last_run'] ) || empty( $results['out'] ) ) {
+            wp_send_json_success( array(
+                'no_results' => true,
+                'message'    => __( 'No scan made yet. Click "Scan Core Files" to run a scan.', 'security-ninja' ),
+            ) );
+        }
+        $next_scan_ts = wp_next_scheduled( 'secnin_run_core_scanner' );
+        if ( $next_scan_ts ) {
+            $time_until = human_time_diff( time(), $next_scan_ts );
+            $next_scan = sprintf( 
+                /* translators: %1$s is the date/time of next scan, %2$s is the time until next scan */
+                esc_html__( '%1$s (%2$s from now)', 'security-ninja' ),
+                date_i18n( get_option( 'date_format' ) . ' ' . get_option( 'time_format' ), $next_scan_ts ),
+                $time_until
+             );
+        } else {
+            $next_scan = __( 'No core scan currently scheduled.', 'security-ninja' );
+        }
+        wp_send_json_success( array(
+            'out'           => $results['out'],
+            'last_scan'     => ( isset( $results['last_scan'] ) ? $results['last_scan'] : '' ),
+            'files_checked' => ( isset( $results['files_checked'] ) ? $results['files_checked'] : '' ),
+            'wp_version'    => ( isset( $results['wp_version'] ) ? $results['wp_version'] : '' ),
+            'next_scan'     => $next_scan,
+        ) );
     }
 
     /**

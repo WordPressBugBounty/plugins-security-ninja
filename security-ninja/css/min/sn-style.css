@@ -32,6 +32,7 @@
 #snfwtop .col.left .button {
   background-color: #047857;
   color: #ffffff;
+  margin-right: 10px;
   border: 1px solid #047857;
 }
 
@@ -1385,7 +1386,6 @@ background: #f5f5f5;
   width: 100%;
   table-layout: fixed;
   max-width: 1370px;
-  margin: 0 auto;
 }
 
 .secnin_content_wrapper .button-hero {

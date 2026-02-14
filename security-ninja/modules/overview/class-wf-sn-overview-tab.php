@@ -35,27 +35,27 @@ class WF_SN_Overview_Tab {
             echo esc_html__( 'Security Score', 'security-ninja' );
             ?></div>
       <div class="secscore-value"><?php 
-            echo $scores['score'];
+            echo absint( $scores['score'] );
             ?>%</div>
       </div>
       <div id="secscorerowrow">
       <div class="inner" style="width:<?php 
-            echo $scores['score'];
+            echo esc_attr( (string) absint( $scores['score'] ) );
             ?>%;"></div>
       </div>
       <div id="secscore-details">
       <div class="secscore-passed"><span class="det-count"><?php 
-            echo $scores['good'];
+            echo absint( $scores['good'] );
             ?></span><span class="det"><?php 
             echo esc_html__( 'Tests passed', 'security-ninja' );
             ?></span></div>
       <div class="secscore-warning"><span class="det-count"><?php 
-            echo $scores['warning'];
+            echo absint( $scores['warning'] );
             ?></span><span class="det"><?php 
             echo esc_html__( 'Warnings', 'security-ninja' );
             ?></span></div>
       <div class="secscore-failed"><span class="det-count"><?php 
-            echo $scores['bad'];
+            echo absint( $scores['bad'] );
             ?></span><span class="det"><?php 
             echo esc_html__( 'Tests failed', 'security-ninja' );
             ?></span></div>
@@ -206,7 +206,6 @@ class WF_SN_Overview_Tab {
             'do_init_action'  => __( 'Blocked by firewall', 'security-ninja' ),
         );
         $actions_to_track = $free_actions_to_track;
-        $show_pro_ad = true;
         // Show firewall summary for all users (free and premium)
         ?>
         <div class="sncard firewall-summary">
@@ -231,8 +230,6 @@ class WF_SN_Overview_Tab {
         $query = $wpdb->prepare( "SELECT id, timestamp, ip, action, raw_data \n            FROM {$table_name} \n            WHERE action IN ({$placeholders}) AND raw_data != 'N;'\n            ORDER BY timestamp DESC \n            LIMIT 10", array_keys( $actions_to_track ) );
         $results = $wpdb->get_results( $query, ARRAY_A );
         if ( !empty( $results ) ) {
-            // If we have results, don't show the upgrade ad
-            $show_pro_ad = false;
             echo '<div class="action-counts">';
             echo '<h4>' . esc_html__( 'Action Counts', 'security-ninja' ) . '</h4>';
             echo '<div class="action-counts-list">';
@@ -288,6 +285,7 @@ class WF_SN_Overview_Tab {
         </div>
         </div>
         <?php 
+        $show_pro_ad = true;
         if ( $show_pro_ad ) {
             ?>
         <div class="sncard upgradepro">
@@ -343,7 +341,7 @@ class WF_SN_Overview_Tab {
             ?></strong> - <?php 
             echo esc_html__( 'Put your own agency branding on the plugin.', 'security-ninja' );
             ?></div>
-        </div>
+    
         <?php 
             $url = 'https://wpsecurityninja.com/pricing/';
             $pricing_url = Utils::generate_sn_web_link( 'explore-pro', '/pricing/', array(
@@ -365,16 +363,19 @@ class WF_SN_Overview_Tab {
                 'utm_source'     => 'overview-tab',
             ), $url );
             ?>
+
+        
+        </div>
+        <div>
         <p style="margin-top: 10px;text-align: center;">
         <a href="<?php 
             echo esc_url( $pricing_url );
-            ?>" class="wf-sn-button button button-secondary" target="_blank"><?php 
+            ?>" class="wf-sn-button button" target="_blank"><?php 
             echo esc_html__( 'Explore WP Security Ninja Pro now!', 'security-ninja' );
             ?></a><br><small>or try our <a href="<?php 
             echo esc_url( $trial_url );
             ?>" class="" target="_blank">14 days FREE trial &raquo;</a></small>
         </p>
-        
         </div>
         </div>
         <?php 

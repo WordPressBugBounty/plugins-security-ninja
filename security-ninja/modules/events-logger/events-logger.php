@@ -672,7 +672,7 @@ class Wf_Sn_El {
         );
         wp_register_script(
             'sn-el',
-            $plugin_url . 'js/wf-sn-el-min.js',
+            $plugin_url . 'js/wf-sn-el.js',
             array('jquery', 'sn-el-datatables'),
             wf_sn::$version,
             true

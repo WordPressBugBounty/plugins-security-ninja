@@ -242,19 +242,55 @@ $show_pro_ad = true;
 if ( $show_pro_ad ) {
     ?>
 		<div class="sidebarsection feature upgradepro">
-			<h3>Effortless Security for Your Site!</h3>
+			<h3><?php 
+    esc_html_e( 'Effortless Security for Your Site!', 'security-ninja' );
+    ?></h3>
 			<ul>
-				<li><strong>Easy Setup:</strong> Install in minutes, no technical skills required.</li>
-				<li><strong>Automatic Protection:</strong> Real-time firewall and automated scans.</li>
-				<li><strong>Spam &amp; Bot Blocking:</strong> Keeps your site clean and visitors safe.</li>
-				<li><strong>Secure Logins:</strong> Protect your login page from attacks.</li>
+				<li><strong><?php 
+    esc_html_e( 'Get set up in minutes', 'security-ninja' );
+    ?></strong> &mdash; <?php 
+    esc_html_e( 'Guided wizard, no technical skills needed.', 'security-ninja' );
+    ?></li>
+				<li><strong><?php 
+    esc_html_e( 'Stay protected 24/7', 'security-ninja' );
+    ?></strong> &mdash; <?php 
+    esc_html_e( 'Real-time firewall and automatic scans.', 'security-ninja' );
+    ?></li>
+				<li><strong><?php 
+    esc_html_e( 'Keep spam and bots out', 'security-ninja' );
+    ?></strong> &mdash; <?php 
+    esc_html_e( 'Cleaner site, safer visitors.', 'security-ninja' );
+    ?></li>
+				<li><strong><?php 
+    esc_html_e( 'Lock down logins', 'security-ninja' );
+    ?></strong> &mdash; <?php 
+    esc_html_e( 'Block brute force; add 2FA and hidden login URL.', 'security-ninja' );
+    ?></li>
+				<li><strong><?php 
+    esc_html_e( 'Find and fix issues fast', 'security-ninja' );
+    ?></strong> &mdash; <?php 
+    esc_html_e( 'Malware &amp; core scans, one-click fixes.', 'security-ninja' );
+    ?></li>
+				<li><strong><?php 
+    esc_html_e( 'See who did what', 'security-ninja' );
+    ?></strong> &mdash; <?php 
+    esc_html_e( 'Simple audit log of changes.', 'security-ninja' );
+    ?></li>
+				<li><strong><?php 
+    esc_html_e( 'Run scans on your schedule', 'security-ninja' );
+    ?></strong> &mdash; <?php 
+    esc_html_e( 'Set it and forget it.', 'security-ninja' );
+    ?></li>
+				<li><strong><?php 
+    esc_html_e( 'Try risk-free', 'security-ninja' );
+    ?></strong> &mdash; <?php 
+    esc_html_e( '30-day money-back guarantee.', 'security-ninja' );
+    ?></li>
 			</ul>
-			<p>
-				<em>Upgrade to Pro and get effortless security today!</em>
-			</p>
-
 			<p style="margin-top: 10px;text-align: center;">
-				<a href="https://wpsecurityninja.com/pricing/?utm_source=overview-tab&amp;utm_medium=plugin&amp;utm_content=explore-pro&amp;utm_campaign=security_ninja_v5.235" class="" target="_blank">Get started now!</a><br><small>30-days money back guarantee</small>
+				<a href="https://wpsecurityninja.com/pricing/?utm_source=overview-tab&amp;utm_medium=plugin&amp;utm_content=explore-pro&amp;utm_campaign=security_ninja_v5.235" class="" target="_blank" rel="noopener"><?php 
+    esc_html_e( 'Read more', 'security-ninja' );
+    ?></a>
 			</p>
 		</div>
 	<?php 

@@ -157,23 +157,28 @@ class SN_Geolocation {
      * @return array
      */
     public static function geolocate_ip( $ip_address = '', $fallback = false, $api_fallback = true ) {
-        // If GEOIP is enabled in CloudFlare, we can use that (Settings -> CloudFlare Settings -> Settings Overview).
-        if ( !empty( $_SERVER['HTTP_CF_IPCOUNTRY'] ) ) {
-            // WPCS: input var ok, CSRF ok.
-            $country_code = strtoupper( sanitize_text_field( wp_unslash( $_SERVER['HTTP_CF_IPCOUNTRY'] ) ) );
-            // WPCS: input var ok, CSRF ok.
-        } elseif ( !empty( $_SERVER['GEOIP_COUNTRY_CODE'] ) ) {
-            // WPCS: input var ok, CSRF ok.
-            // WP.com VIP has a variable available.
-            $country_code = strtoupper( sanitize_text_field( wp_unslash( $_SERVER['GEOIP_COUNTRY_CODE'] ) ) );
-            // WPCS: input var ok, CSRF ok.
-        } elseif ( !empty( $_SERVER['HTTP_X_COUNTRY_CODE'] ) ) {
-            // WPCS: input var ok, CSRF ok.
-            // VIP Go has a variable available also.
-            $country_code = strtoupper( sanitize_text_field( wp_unslash( $_SERVER['HTTP_X_COUNTRY_CODE'] ) ) );
-            // WPCS: input var ok, CSRF ok.
+        $country_code = '';
+        // Only use request headers when geolocating the current request's IP (no explicit IP passed).
+        if ( empty( $ip_address ) ) {
+            // If GEOIP is enabled in CloudFlare, we can use that (Settings -> CloudFlare Settings -> Settings Overview).
+            if ( !empty( $_SERVER['HTTP_CF_IPCOUNTRY'] ) ) {
+                // WPCS: input var ok, CSRF ok.
+                $country_code = strtoupper( sanitize_text_field( wp_unslash( $_SERVER['HTTP_CF_IPCOUNTRY'] ) ) );
+                // WPCS: input var ok, CSRF ok.
+            } elseif ( !empty( $_SERVER['GEOIP_COUNTRY_CODE'] ) ) {
+                // WPCS: input var ok, CSRF ok.
+                // WP.com VIP has a variable available.
+                $country_code = strtoupper( sanitize_text_field( wp_unslash( $_SERVER['GEOIP_COUNTRY_CODE'] ) ) );
+                // WPCS: input var ok, CSRF ok.
+            } elseif ( !empty( $_SERVER['HTTP_X_COUNTRY_CODE'] ) ) {
+                // WPCS: input var ok, CSRF ok.
+                // VIP Go has a variable available also.
+                $country_code = strtoupper( sanitize_text_field( wp_unslash( $_SERVER['HTTP_X_COUNTRY_CODE'] ) ) );
+                // WPCS: input var ok, CSRF ok.
+            }
         }
-        if ( isset( $_SERVER["HTTP_CF_CONNECTING_IP"] ) ) {
+        // Only use current request's IP from Cloudflare when we weren't given a specific IP to look up.
+        if ( empty( $ip_address ) && isset( $_SERVER['HTTP_CF_CONNECTING_IP'] ) ) {
             $ip_address = sanitize_text_field( wp_unslash( $_SERVER['HTTP_CF_CONNECTING_IP'] ) );
         }
         if ( !$ip_address ) {

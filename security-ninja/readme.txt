@@ -6,7 +6,7 @@ License: GPLv3
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 Requires at least: 4.7
 Tested up to: 6.9.1
-Stable tag: 5.266
+Stable tag: 5.267
 Requires PHP: 7.4
 
 WordPress security plugin with free basic firewall/WAF, vulnerability scanning, and 50+ core integrity checks.
@@ -332,6 +332,13 @@ While we strive for universal compatibility, if you face any issues, our support
 
 == Changelog ==
 
+= 5.267 =
+* 2026-02-13
+* IMPROVED: Litespeed servers - Added documentation and in-app notices for all security headers (CSP, X-Frame-Options, X-Content-Type-Options, Strict-Transport-Security, Referrer-Policy, Permissions-Policy). LiteSpeed users can add headers directly to .htaccess using the examples in each test description. Thank you Tom for the feedback.
+* FIX: Events Logger, Overview, and Visitor Log – Country flags now correctly show the event/visitor IP's country instead of the logged-in admin's IP when the site is behind Cloudflare or similar proxies.
+* Improved: Core Scanner - Interface loads faster with tabs lazy-loading content in different tabs.
+* IMPROVED: Firewall – When "Block IP Network" is enabled, known social and link-preview crawlers (e.g. Facebook, LinkedIn, Twitter) are no longer blocked by default. Link previews when you share your site on social networks now work without having to whitelist IPs.
+
 = 5.266 =
 * 2026-02-10
 * Improvement: Logging details for 404 Guard.
@@ -460,5 +467,5 @@ While we strive for universal compatibility, if you face any issues, our support
 Entire changelog can be seen here: <a href="https://wpsecurityninja.com/changelog/" target="_blank">changelog</a>
 
 == Upgrade Notice ==
-5.258
+5.267
 Recommended update.

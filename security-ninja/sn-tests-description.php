@@ -45,6 +45,7 @@
 		<pre>header('Strict-Transport-Security: max-age=31536000;');</pre>
 
 		<p><?php esc_html_e( 'You can also add this to your .htaccess file', 'security-ninja' ); ?></p>
+		<p><strong><?php esc_html_e( 'LiteSpeed servers:', 'security-ninja' ); ?></strong> <?php esc_html_e( 'The PHP header interface may not work correctly on LiteSpeed. If this header is not appearing in your response, add it directly to your .htaccess file using the example below.', 'security-ninja' ); ?></p>
 <pre>#BEGIN - Forces only HTTPS
 	&lt;IfModule mod_headers.c&gt;
 	Header set Strict-Transport-Security "max-age=31536000;"
@@ -69,6 +70,7 @@
 		<p><?php esc_html_e( 'Since each website is different, we can only give a general suggestion and strongly advise to remove the fix again if something on your website stops working.', 'security-ninja' ); ?></p>
 
 		<p><?php esc_html_e( 'This example forces a browser to only load JavaScript .js files from your own website. Warning: Inline code will stop working. Add this to your .htaccess file', 'security-ninja' ); ?></p>
+		<p><strong><?php esc_html_e( 'LiteSpeed servers:', 'security-ninja' ); ?></strong> <?php esc_html_e( 'The PHP header interface may not work correctly on LiteSpeed. If CSP headers are not appearing in your response, add the policy directly to your .htaccess file using the example below.', 'security-ninja' ); ?></p>
 <pre>#BEGIN - Only allow browsers to load .js files from this website
 	# Use Content-Security-Policy-Report-Only to test settings before using Content-Security-Policy.
 	# Once you have fixed any problems, you can change to
@@ -104,6 +106,7 @@
 			<pre>header('X-Frame-Options: SAMEORIGIN');</pre>
 
 			<p><?php esc_html_e( 'You can also add this to your .htaccess file', 'security-ninja' ); ?></p>
+			<p><strong><?php esc_html_e( 'LiteSpeed servers:', 'security-ninja' ); ?></strong> <?php esc_html_e( 'The PHP header interface may not work correctly on LiteSpeed. If this header is not appearing in your response, add it directly to your .htaccess file using the example below.', 'security-ninja' ); ?></p>
 <pre>#BEGIN - Prevent page-framing and click-jacking
 	&lt;IfModule mod_headers.c&gt;
 	Header always append X-Frame-Options SAMEORIGIN
@@ -138,6 +141,7 @@
 				<p><?php esc_html_e( "Fixing is very easy. Open your theme's functions.php file and add the following:", 'security-ninja' ); ?></p>
 				<pre>header('X-Content-Type-Options: nosniff');</pre>
 				<p><?php esc_html_e( 'You can also add this to your .htaccess file', 'security-ninja' ); ?></p>
+				<p><strong><?php esc_html_e( 'LiteSpeed servers:', 'security-ninja' ); ?></strong> <?php esc_html_e( 'The PHP header interface may not work correctly on LiteSpeed. If this header is not appearing in your response, add it directly to your .htaccess file using the example below.', 'security-ninja' ); ?></p>
 <pre>#BEGIN - Prevent code in unexpected files
 	&lt;IfModule mod_headers.c&gt;
 	Header set X-Content-Type-Options nosniff
@@ -163,6 +167,7 @@
 
 				<p><?php esc_html_e( 'NOTE: This example disables everything, so if you have website that uses some of the features please check the link to Mozilla on more details on how to finetune.', 'security-ninja' ); ?></p>
 				<p><?php esc_html_e( 'You can also add this to your .htaccess file', 'security-ninja' ); ?></p>
+				<p><strong><?php esc_html_e( 'LiteSpeed servers:', 'security-ninja' ); ?></strong> <?php esc_html_e( 'The PHP header interface may not work correctly on LiteSpeed. If this header is not appearing in your response, add it directly to your .htaccess file using the example below.', 'security-ninja' ); ?></p>
 
 <pre>
 	#BEGIN - Set Permissions-Policy
@@ -194,6 +199,7 @@
 
 				<pre>header('Referrer-Policy: same-origin');</pre>
 				<p><?php esc_html_e( 'You can also add this to your .htaccess file', 'security-ninja' ); ?></p>
+				<p><strong><?php esc_html_e( 'LiteSpeed servers:', 'security-ninja' ); ?></strong> <?php esc_html_e( 'The PHP header interface may not work correctly on LiteSpeed. If this header is not appearing in your response, add it directly to your .htaccess file using the example below.', 'security-ninja' ); ?></p>
 
 <pre>
 	#BEGIN - Set Referrer-Policy

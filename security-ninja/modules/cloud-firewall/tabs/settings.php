@@ -200,7 +200,7 @@ function wf_sn_cf_render_settings_content($options, $ips = array()) {
 								foreach ($geoip_countrylist as $key => $gc) {
 									$selected = in_array($key, $blocked_countries, true) ? ' selected="selected" ' : '';
 							?>
-									<option value="<?php echo $key; ?>" <?php echo $selected; ?>><?php echo $gc . ' (' . $key . ')'; ?></option>
+									<option value="<?php echo esc_attr( $key ); ?>" <?php echo esc_attr( $selected ); ?>><?php echo esc_html( $gc . ' (' . $key . ')' ); ?></option>
 							<?php
 								}
 							}

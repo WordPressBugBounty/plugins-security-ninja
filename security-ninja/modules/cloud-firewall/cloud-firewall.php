@@ -287,21 +287,6 @@ class Wf_sn_cf {
     }
 
     /**
-     * endsWith. - ref https://www.php.net/manual/en/function.str-ends-with.php
-     *
-     * @author  javalc6 at gmail dot com
-     * @since   v0.0.1
-     * @version v1.0.0  Monday, August 30th, 2021.
-     * @param   mixed   $haystack
-     * @param   mixed   $needle
-     * @return  mixed
-     */
-    private static function string_ends_with( $haystack, $needle ) {
-        $length = strlen( $needle );
-        return ( $length > 0 ? substr( $haystack, -$length ) === $needle : true );
-    }
-
-    /**
      * Validate a crawlers IP against the hostname
      *
      * @author	Lars Koudal
@@ -351,7 +336,7 @@ class Wf_sn_cf {
             '.bing.com',
         );
         foreach ( $valid_host_names as $valid_host ) {
-            if ( self::string_ends_with( $hostname, $valid_host ) ) {
+            if ( Wf_sn_cf_Utils::string_ends_with( $hostname, $valid_host ) ) {
                 $returned_ip = gethostbyname( $hostname );
                 if ( $returned_ip === $testip ) {
                     $validated_crawlers[] = $testip;
@@ -507,7 +492,7 @@ class Wf_sn_cf {
             // Check if the current whitelist item is an IP range (CIDR)
             if ( strpos( $whitelist_item, '/' ) !== false ) {
                 // Use the proper CIDR matching function
-                if ( self::ipCIDRMatch( $current_user_ip, $whitelist_item ) ) {
+                if ( Wf_sn_cf_Utils::ipCIDRMatch( $current_user_ip, $whitelist_item ) ) {
                     return true;
                     // IP is whitelisted
                 }
@@ -1124,77 +1109,6 @@ class Wf_sn_cf {
     }
 
     /**
-     * Update local list of blocked IPs.
-     * First delete expired > 24 hours.
-     * Then download and bulk add entries
-     *
-     * @author  Lars Koudal
-     * @since   v0.0.1
-     * @version v1.0.0  Sunday, May 30th, 2021.
-     * @version v1.0.1  Wednesday, June 9th, 2021.
-     * @access  public static
-     * @global
-     * @param   boolean $force  Default: false
-     * @return  void
-     */
-    public static function action_update_blocked_ips( $force = false ) {
-        $listips = self::get_network_listips();
-        // @todo - right place for it?
-        if ( !$listips ) {
-            wf_sn_el_modules::log_event( 'security_ninja', 'update_blocked_ips', 'Error getting blocked IPs from server' );
-            return false;
-        }
-        global $wpdb;
-        // Cleaning up
-        $table_name = $wpdb->prefix . 'wf_sn_cf_bl_ips';
-        $delquery = "DELETE FROM `{$table_name}` WHERE HOUR(TIMEDIFF(NOW(), tid))>24;";
-        $delres = $wpdb->query( $delquery );
-        if ( $delres ) {
-            wf_sn_el_modules::log_event(
-                'security_ninja',
-                'update_blocked_ips',
-                sprintf( esc_html__( 'Removed %1$s IPs from the Blocklist - older than 24 hours.', 'security-ninja' ), intval( $delres ) ),
-                ''
-            );
-        } else {
-            wf_sn_el_modules::log_event( 'security_ninja', 'update_blocked_ips', 'No old IPs needs to be removed.' );
-        }
-        $blockedips = json_decode( $listips, true );
-        if ( $blockedips && is_array( $blockedips ) && isset( $blockedips['ips'] ) && is_array( $blockedips['ips'] ) ) {
-            global $wpdb;
-            $current_count = 0;
-            $limit = 15;
-            $longquery = '';
-            $totalcount = 0;
-            $timenow = current_time( 'mysql' );
-            foreach ( $blockedips['ips'] as $ip ) {
-                if ( 0 === $current_count ) {
-                    $longquery .= ' INSERT IGNORE INTO `' . $table_name . "` (`ip`) VALUES ('" . esc_sql( $ip ) . "')";
-                } else {
-                    $longquery .= ",('" . esc_sql( $ip ) . "')";
-                }
-                $current_count++;
-                if ( $current_count > $limit ) {
-                    $longquery .= ';';
-                    // add ending semicolon before executing
-                    $wpdb->query( $longquery );
-                    $longquery = '';
-                    $current_count = 0;
-                }
-                $totalcount++;
-            }
-            // Leftovers?
-            if ( $current_count > 0 ) {
-                $longquery .= ';';
-                // add ending semicolon before executing
-                $wpdb->query( $longquery );
-                $longquery = '';
-                $current_count = 0;
-            }
-        }
-    }
-
-    /**
      * Prune events log table
      *
      * @author  Lars Koudal
@@ -1206,14 +1120,14 @@ class Wf_sn_cf {
      */
     public static function prune_visitor_log( $force = false ) {
         global $wpdb;
-        $trackvisits_howlong = intval( self::$options['trackvisits_howlong'] );
+        $trackvisits_howlong = absint( self::$options['trackvisits_howlong'] );
         if ( !$trackvisits_howlong ) {
             $trackvisits_howlong = 2;
             // in days
         }
         $table_name = $wpdb->prefix . 'wf_sn_cf_vl';
-        if ( $wpdb->get_var( $wpdb->prepare( "SHOW TABLES LIKE %s", $table_name ) ) === $table_name ) {
-            $wpdb->query( 'DELETE FROM ' . $wpdb->prefix . 'wf_sn_cf_vl' . " WHERE timestamp < DATE_SUB(NOW(), INTERVAL {$trackvisits_howlong} DAY);" );
+        if ( $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $table_name ) ) === $table_name ) {
+            $wpdb->query( $wpdb->prepare( 'DELETE FROM ' . $wpdb->prefix . 'wf_sn_cf_vl WHERE timestamp < DATE_SUB(NOW(), INTERVAL %d DAY)', $trackvisits_howlong ) );
             $max_records = 5000;
             // Sane limit for visitor log entries
             $remaining_count = $wpdb->get_var( "SELECT COUNT(*) FROM {$table_name}" );
@@ -1295,28 +1209,6 @@ class Wf_sn_cf {
      * @return  void
      */
     public static function schedule_cron_jobs() {
-        // Update GEOIP database - once a month
-        if ( !wp_next_scheduled( 'secnin_update_geoip' ) ) {
-            wp_schedule_event( time() + 30, 'weekly', 'secnin_update_geoip' );
-        }
-        // Update cloud IPs
-        if ( !wp_next_scheduled( 'secnin_update_cloud_firewall' ) ) {
-            wp_schedule_event( time() + 15, 'twicedaily', 'secnin_update_cloud_firewall' );
-        }
-        // Prune local banned IPs (hourly; migrate existing twicedaily to hourly)
-        $next_prune = wp_next_scheduled( 'secnin_prune_banned' );
-        if ( $next_prune ) {
-            wp_unschedule_event( $next_prune, 'secnin_prune_banned' );
-        }
-        wp_schedule_event( time() + 3600, 'hourly', 'secnin_prune_banned' );
-        // Prune visitor log
-        if ( !wp_next_scheduled( 'secnin_prune_visitor_log' ) ) {
-            wp_schedule_event( time() + 3600, 'twicedaily', 'secnin_prune_visitor_log' );
-        }
-        // Update blocked IPs from central server
-        if ( !wp_next_scheduled( 'secnin_update_blocked_ips' ) ) {
-            wp_schedule_event( time() + 45, 'twicedaily', 'secnin_update_blocked_ips' );
-        }
     }
 
     /**
@@ -2272,132 +2164,6 @@ class Wf_sn_cf {
     }
 
     /**
-     * ipCIDRMatch.
-     *
-     * @author  Unknown
-     * @author  Lars Koudal
-     * @since   v0.0.1
-     * @version v1.0.0   Saturday, August 20th, 2022.    
-     * @version v1.0.1   Tuesday, August 27th, 2024.
-     * @access  public static
-     * @param   string $ip   The IP address to check.
-     * @param   string $cidr The CIDR range to check against.
-     * @return  bool         True if the IP matches the CIDR range, false otherwise.
-     */
-    public static function ipCIDRMatch( $ip, $cidr ) {
-        $c = explode( '/', $cidr );
-        $subnet = ( isset( $c[0] ) ? $c[0] : NULL );
-        $mask = ( isset( $c[1] ) ? (int) $c[1] : NULL );
-        if ( filter_var( $subnet, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4 ) ) {
-            $ipVersion = 'v4';
-        } elseif ( filter_var( $subnet, FILTER_VALIDATE_IP, FILTER_FLAG_IPV6 ) ) {
-            $ipVersion = 'v6';
-        } else {
-            return false;
-        }
-        switch ( $ipVersion ) {
-            case 'v4':
-                if ( $mask === NULL || $mask < 0 || $mask > 32 ) {
-                    return false;
-                }
-                return self::IPv4Match( $ip, $subnet, $mask );
-            case 'v6':
-                if ( $mask === NULL || $mask < 0 || $mask > 128 ) {
-                    return false;
-                }
-                return self::IPv6Match( $ip, $subnet, $mask );
-            default:
-                return false;
-        }
-    }
-
-    /**
-     * inspired by: http://stackoverflow.com/questions/7951061/matching-ipv6-address-to-a-cidr-subnet
-     *
-     * @author	Unknown
-     * @since	v0.0.1
-     * @version	v1.0.0	Tuesday, May 14th, 2024.
-     * @access	private static
-     * @param	mixed	$subnetMask	
-     * @return	mixed
-     */
-    private static function IPv6MaskToByteArray( $subnetMask ) {
-        $addr = str_repeat( "f", $subnetMask / 4 );
-        switch ( $subnetMask % 4 ) {
-            case 0:
-                break;
-            case 1:
-                $addr .= "8";
-                break;
-            case 2:
-                $addr .= "c";
-                break;
-            case 3:
-                $addr .= "e";
-                break;
-        }
-        $addr = str_pad( $addr, 32, '0' );
-        $addr = pack( "H*", $addr );
-        return $addr;
-    }
-
-    /**
-     * inspired by: http://stackoverflow.com/questions/7951061/matching-ipv6-address-to-a-cidr-subnet
-     *
-     * @author	Unknown
-     * @author	Lars Koudal
-     * @since	v0.0.1
-     * @version	v1.0.0	Tuesday, May 14th, 2024.	
-     * @version	v1.0.1	Tuesday, August 27th, 2024.
-     * @access	private static
-     * @param	mixed	$address      	
-     * @param	mixed	$subnetAddress	
-     * @param	mixed	$subnetMask   	
-     * @return	mixed
-     */
-    private static function IPv6Match( $address, $subnetAddress, $subnetMask ) {
-        // Validate the subnet address
-        if ( !filter_var( $subnetAddress, FILTER_VALIDATE_IP, FILTER_FLAG_IPV6 ) || $subnetMask === NULL || $subnetMask === "" || $subnetMask < 0 || $subnetMask > 128 ) {
-            return false;
-        }
-        // Convert addresses to binary form
-        $subnet = inet_pton( $subnetAddress );
-        $addr = inet_pton( $address );
-        // Ensure that both addresses were converted correctly
-        if ( $subnet === false || $addr === false ) {
-            return false;
-        }
-        // Convert the subnet mask to a binary string
-        $binMask = self::IPv6MaskToByteArray( $subnetMask );
-        // Perform the bitwise AND operation and compare
-        return ($addr & $binMask) === $subnet;
-    }
-
-    /**
-     * inspired by: http://stackoverflow.com/questions/594112/matching-an-ip-to-a-cidr-mask-in-php5
-     *
-     * @author	Unknown
-     * @since	v0.0.1
-     * @version	v1.0.0	Tuesday, May 14th, 2024.
-     * @access	private static
-     * @param	mixed	$address      	
-     * @param	mixed	$subnetAddress	
-     * @param	mixed	$subnetMask   	
-     * @return	mixed
-     */
-    private static function IPv4Match( $address, $subnetAddress, $subnetMask ) {
-        if ( !filter_var( $subnetAddress, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4 ) || $subnetMask === NULL || $subnetMask === "" || $subnetMask < 0 || $subnetMask > 32 ) {
-            return false;
-        }
-        $address = ip2long( $address );
-        $subnetAddress = ip2long( $subnetAddress );
-        $mask = -1 << 32 - $subnetMask;
-        $subnetAddress &= $mask;
-        # nb: in case the supplied subnet wasn't correctly aligned
-        return ($address & $mask) == $subnetAddress;
-    }
-
-    /**
      * Checks if an IP is in array
      *
      * @author  Lars Koudal
@@ -2464,7 +2230,7 @@ class Wf_sn_cf {
             $local_whitelist = array();
         }
         // Use proper CIDR-aware whitelist checking
-        if ( self::is_whitelisted( $current_user_ip, $local_whitelist ) ) {
+        if ( Wf_sn_cf_Utils::is_whitelisted( $current_user_ip, $local_whitelist ) ) {
             return false;
         }
         // Check if IP is in blacklist. P.s. could use in_array() but had trouble with spaces ... perhaps trim first.. hmm...
@@ -2474,7 +2240,7 @@ class Wf_sn_cf {
                 if ( trim( $bl ) === $ip ) {
                     return 'IP is in local blacklist.';
                 }
-                if ( self::ipCIDRMatch( $ip, $bl ) ) {
+                if ( Wf_sn_cf_Utils::ipCIDRMatch( $ip, $bl ) ) {
                     return 'IP is in local blacklist mask - ' . $bl;
                 }
             }
@@ -2489,7 +2255,7 @@ class Wf_sn_cf {
             );
         }
         $banned_ips = self::get_banned_ips();
-        if ( is_array( self::$options['whitelist'] ) && self::is_whitelisted( $current_user_ip, self::$options['whitelist'] ) ) {
+        if ( is_array( self::$options['whitelist'] ) && Wf_sn_cf_Utils::is_whitelisted( $current_user_ip, self::$options['whitelist'] ) ) {
             return false;
         } elseif ( array_key_exists( $current_user_ip, $banned_ips ) ) {
             $expiry = $banned_ips[$current_user_ip];
@@ -2512,12 +2278,16 @@ class Wf_sn_cf {
                     foreach ( $ips['subnets'][$nework_array[0]] as $subnet ) {
                         // trim apostrophes
                         $subnet = trim( $subnet, "'" );
-                        if ( self::ipCIDRMatch( $current_user_ip, $subnet ) ) {
+                        if ( Wf_sn_cf_Utils::ipCIDRMatch( $current_user_ip, $subnet ) ) {
                             return 'IP in cloud blacklist range.';
                         }
                     }
                 }
             }
+        }
+        // Allow known social/link-preview crawlers through Block IP Network (e.g. Facebook, LinkedIn).
+        if ( Wf_sn_cf_Utils::is_social_crawler_ua() ) {
+            return false;
         }
         // Checks if included in SecNin Global Block network
         global $wpdb;
@@ -2527,44 +2297,6 @@ class Wf_sn_cf {
             return 'SecNin Global Block network.';
         }
         return false;
-    }
-
-    /**
-     * Checks if an IP is whitelisted
-     *
-     * @author  Lars Koudal
-     * @since   v0.0.1
-     * @version v1.0.0  Monday, December 21st, 2020.
-     * @access  public static
-     * @param   mixed   $ip
-     * @param   mixed   $whitelist
-     * @return  boolean
-     */
-    public static function is_whitelisted( $ip, $whitelist ) {
-        foreach ( $whitelist as $key => $wip ) {
-            if ( strpos( $wip, '/' ) !== false ) {
-                if ( self::ipCIDRMatch( $ip, $wip ) ) {
-                    return true;
-                }
-            } else {
-                if ( $ip === $wip ) {
-                    return true;
-                }
-            }
-        }
-        return false;
-    }
-
-    /**
-     * Update cloud firewall blocked IPs and update server IP to whitelist
-     *
-     * @author  Lars Koudal
-     * @since   v0.0.1
-     * @version v1.0.0  Monday, December 21st, 2020.
-     * @access  public static
-     * @return  void
-     */
-    public static function update_cloud_ips() {
     }
 
     /**
@@ -2650,8 +2382,7 @@ class Wf_sn_cf {
         if ( !$show_message ) {
             return;
         }
-        $msg = '<p class="message">' . self::$options['login_msg'] . '</p>';
-        echo $msg;
+        echo '<p class="message">' . esc_html( self::$options['login_msg'] ) . '</p>';
     }
 
     /**
@@ -3331,66 +3062,6 @@ class Wf_sn_cf {
             'snf' => $my_options['unblock_url'],
         ), get_site_url() );
         return $outurl;
-    }
-
-    /**
-     * Return bad IPs from the central API
-     *
-     * @author  Lars Koudal
-     * @since   v0.0.1
-     * @version v1.0.0  Thursday, February 11th, 2021.
-     * @access  private static
-     * @return  boolean
-     */
-    private static function get_network_listips() {
-        // Check if the feature is enabled
-        if ( !self::$options['globalbannetwork'] ) {
-            wf_sn_el_modules::log_event( 'security_ninja', 'get_network_listips', 'Global network feature is disabled' );
-            return false;
-        }
-        $license_id = secnin_fs()->_get_license()->id;
-        $install_id = secnin_fs()->get_site()->id;
-        $site_private_key = secnin_fs()->get_site()->secret_key;
-        $nonce = date( 'Y-m-d' );
-        $pk_hash = hash( 'sha512', $site_private_key . '|' . $nonce );
-        $authentication_string = base64_encode( $pk_hash . '|' . $nonce );
-        $url = self::$central_api_url . 'listips/';
-        $response = wp_remote_get( 
-            // Cannot use wp_safe_remote_get because we need to set the header
-            $url,
-            array(
-                'headers'   => array(
-                    'Authorization' => $authentication_string,
-                ),
-                'body'      => array(
-                    'install_id' => $install_id,
-                    'license_id' => $license_id,
-                ),
-                'blocking'  => true,
-                'timeout'   => 15,
-                'sslverify' => false,
-            )
-         );
-        if ( is_wp_error( $response ) ) {
-            $error_message = $response->get_error_message();
-            wf_sn_el_modules::log_event( 'security_ninja', 'update_blocked_ips', 'Error getting IPs from network: "' . esc_html( $error_message ) . '"' );
-            return false;
-        } else {
-            $body = wp_remote_retrieve_body( $response );
-            $decoded = json_decode( $body );
-            $newips = 0;
-            if ( is_object( $decoded ) && isset( $decoded->ips ) ) {
-                $newips = count( $decoded->ips );
-                wf_sn_el_modules::log_event(
-                    'security_ninja',
-                    'update_blocked_ips',
-                    sprintf( esc_html__( 'Added/updated %1$s IPs from the blocklist.', 'security-ninja' ), $newips ),
-                    ''
-                );
-            }
-            return $body;
-        }
-        return false;
     }
 
     /**

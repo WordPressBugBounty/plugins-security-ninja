@@ -2005,6 +2005,14 @@ msgstr ""
 msgid "Content-Security-Policy"
 msgstr ""
 
+#: modules/auto-fixer/class-wf-sn-fixes.php:873
+msgid "LiteSpeed detected:"
+msgstr ""
+
+#: modules/auto-fixer/class-wf-sn-fixes.php:873
+msgid "The PHP header interface may not work on LiteSpeed servers. If security headers do not appear in your response, add them directly to your .htaccess file (see the test descriptions for each header for examples)."
+msgstr ""
+
 #: modules/auto-fixer/class-wf-sn-fixes.php:1040
 msgid ""
 "Warning: If you embed scripts from external websites, Google Analytics or other sources this could break your website "
@@ -7755,6 +7763,20 @@ msgstr ""
 msgid ""
 "This example forces a browser to only load JavaScript .js files from your own website. Warning: Inline code will stop "
 "working. Add this to your .htaccess file"
+msgstr ""
+
+#: sn-tests-description.php:48 sn-tests-description.php:73 sn-tests-description.php:109 sn-tests-description.php:144
+#: sn-tests-description.php:170 sn-tests-description.php:202
+msgid "LiteSpeed servers:"
+msgstr ""
+
+#: sn-tests-description.php:73
+msgid "The PHP header interface may not work correctly on LiteSpeed. If CSP headers are not appearing in your response, add the policy directly to your .htaccess file using the example below."
+msgstr ""
+
+#: sn-tests-description.php:48 sn-tests-description.php:109 sn-tests-description.php:144 sn-tests-description.php:170
+#: sn-tests-description.php:202
+msgid "The PHP header interface may not work correctly on LiteSpeed. If this header is not appearing in your response, add it directly to your .htaccess file using the example below."
 msgstr ""
 
 #: sn-tests-description.php:86
