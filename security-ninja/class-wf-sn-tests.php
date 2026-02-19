@@ -354,6 +354,7 @@ class Wf_Sn_Tests extends WF_SN {
 		} else {
 			return array(
 				'status' => 10,
+				// translators: Showing the HTTP status code
 				'msg'    => sprintf( __( 'REST API is not accessible. Response Code: %s', 'security-ninja' ), esc_html( $response_code ) ),
 			);
 		}
@@ -643,9 +644,9 @@ class Wf_Sn_Tests extends WF_SN {
 		$return = array();
 
 		// Check one level up (recommended security practice)
-		$parent_dir   = dirname( ABSPATH );
-		$parent_file  = $parent_dir . '/wp-config.php';
-		
+		$parent_dir  = dirname( ABSPATH );
+		$parent_file = $parent_dir . '/wp-config.php';
+
 		// Check if the path is within open_basedir restrictions before checking file_exists
 		$parent_check = false;
 		if ( function_exists( 'ini_get' ) ) {
@@ -655,8 +656,8 @@ class Wf_Sn_Tests extends WF_SN {
 				$parent_check = file_exists( $parent_file );
 			} else {
 				// Check if the path is within allowed directories
-				$allowed_paths = explode( PATH_SEPARATOR, $open_basedir );
-				$is_allowed = false;
+				$allowed_paths          = explode( PATH_SEPARATOR, $open_basedir );
+				$is_allowed             = false;
 				$parent_file_normalized = wp_normalize_path( $parent_file );
 				foreach ( $allowed_paths as $allowed_path ) {
 					$allowed_path_normalized = wp_normalize_path( rtrim( $allowed_path, DIRECTORY_SEPARATOR ) );
@@ -780,7 +781,7 @@ class Wf_Sn_Tests extends WF_SN {
 	 * @return  mixed
 	 */
 	public static function wlw_meta() {
-		$return = array();
+		$return   = array();
 		$is_local = self::is_local_request();
 
 		$response = wp_remote_get(
@@ -1223,8 +1224,8 @@ class Wf_Sn_Tests extends WF_SN {
 	 * @return  mixed
 	 */
 	public static function debug_log_file_check() {
-		$return = array();
-		$url = trailingslashit( content_url() ) . 'debug.log';
+		$return   = array();
+		$url      = trailingslashit( content_url() ) . 'debug.log';
 		$is_local = self::is_local_request();
 
 		$response = wp_remote_get(
@@ -2103,7 +2104,7 @@ class Wf_Sn_Tests extends WF_SN {
 	 */
 	public static function x_frame_options() {
 		$return_array = array();
-		$is_local = self::is_local_request();
+		$is_local     = self::is_local_request();
 
 		$response = wp_remote_get(
 			add_query_arg( 'secnin-test', wp_rand(), get_home_url() ),
@@ -2590,7 +2591,7 @@ class Wf_Sn_Tests extends WF_SN {
 	public static function uploads_browsable() {
 		$return     = array();
 		$upload_dir = wp_upload_dir();
-		$is_local = self::is_local_request();
+		$is_local   = self::is_local_request();
 
 		$args = array(
 			'method'      => 'GET',

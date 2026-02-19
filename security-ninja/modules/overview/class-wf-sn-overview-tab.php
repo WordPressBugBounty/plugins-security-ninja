@@ -256,10 +256,28 @@ class WF_SN_Overview_Tab {
                 $details = [];
                 if ( is_array( $raw_data ) && !is_null( $raw_data ) ) {
                     foreach ( $raw_data as $key => $value ) {
-                        $details[] = '<div><strong>' . esc_html( ucwords( str_replace( '_', ' ', $key ) ) ) . ':</strong> ' . esc_html( $value ) . '</div>';
+                        // Check if value is a WP_Error object before passing to esc_html()
+                        if ( is_wp_error( $value ) ) {
+                            $display_value = $value->get_error_message();
+                        } elseif ( is_object( $value ) ) {
+                            // Handle other object types gracefully
+                            $display_value = get_class( $value );
+                        } else {
+                            $display_value = $value;
+                        }
+                        $details[] = '<div><strong>' . esc_html( ucwords( str_replace( '_', ' ', $key ) ) ) . ':</strong> ' . esc_html( $display_value ) . '</div>';
                     }
                 } else {
-                    $details[] = '<div>' . esc_html( $row['raw_data'] ) . '</div>';
+                    // Check if raw_data is a WP_Error object before passing to esc_html()
+                    if ( is_wp_error( $row['raw_data'] ) ) {
+                        $display_raw_data = $row['raw_data']->get_error_message();
+                    } elseif ( is_object( $row['raw_data'] ) ) {
+                        // Handle other object types gracefully
+                        $display_raw_data = get_class( $row['raw_data'] );
+                    } else {
+                        $display_raw_data = $row['raw_data'];
+                    }
+                    $details[] = '<div>' . esc_html( $display_raw_data ) . '</div>';
                 }
                 $countryimg = '';
                 echo '<div class="sn-event-row" id="' . $event_id . '">';

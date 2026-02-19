@@ -37,7 +37,7 @@ function wf_sn_cf_render_settings_content($options, $ips = array()) {
 						<?php
 
 						// Free feature: 8G Firewall Rules
-						echo '<tr valign="top"><th scope="row"><label for="wf_sn_cf_filterqueries"><h3>' . esc_html__('Block Suspicious Page Requests', 'security-ninja') . '</h3>';
+						echo '<tr valign="top"><th scope="row"><label for="wf_sn_cf_filterqueries"><h3>' . esc_html__('Filter Suspicious Queries', 'security-ninja') . '</h3>';
 						echo '<p class="description">' . __('Block suspicious page requests and malicious query strings using the proven 8G Firewall rules.', 'security-ninja') . '</p>';
 						echo '<p class="description">' . __('Based on the excellent 8G Firewall by Jeff Starr from Perishable Press. This protection filters out dangerous requests including SQL injections, XSS attacks, and other malicious patterns.', 'security-ninja') . '</p></label></th>';
 						echo '</th><td class="sn-cf-options">';

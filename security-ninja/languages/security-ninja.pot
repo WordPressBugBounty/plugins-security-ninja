@@ -3567,7 +3567,7 @@ msgid "Firewall Settings"
 msgstr ""
 
 #: modules/cloud-firewall/tabs/settings.php:40
-msgid "Block Suspicious Page Requests"
+msgid "Filter Suspicious Queries"
 msgstr ""
 
 #: modules/cloud-firewall/tabs/settings.php:41

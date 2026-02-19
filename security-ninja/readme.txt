@@ -6,7 +6,7 @@ License: GPLv3
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 Requires at least: 4.7
 Tested up to: 6.9.1
-Stable tag: 5.267
+Stable tag: 5.269
 Requires PHP: 7.4
 
 WordPress security plugin with free basic firewall/WAF, vulnerability scanning, and 50+ core integrity checks.
@@ -176,7 +176,7 @@ https://wordpress.org/plugins/security-ninja-for-mainwp/
 Enhance your website's security, performance, and user experience with Security Ninja - your trusted partner in WordPress protection.
 
 
-> **Security Ninja Pro** has extra features: Firewall, Block Suspicious Page Requests, Country Blocking, Core Scanner, Malware Scanner, Auto Fixer for some of the tests, Events Logger & Scheduled Scans.
+> **Security Ninja Pro** has extra features: Firewall, Filter Suspicious Queries, Country Blocking, Core Scanner, Malware Scanner, Auto Fixer for some of the tests, Events Logger & Scheduled Scans.
 
 An all-in-one security solution for any site. With premium support and continuous updates Security Ninja **Pro** is a perfect tool to keep your site safe. <a href="https://wpsecurityninja.com/?utm_source=wordpressorg&utm_medium=content&utm_campaign=readme&utm_content=see-what-pro-offers">See what the PRO version offers</a>
 
@@ -331,6 +331,17 @@ While we strive for universal compatibility, if you face any issues, our support
 5. Core Scanner (detect modified/unknown core files).
 
 == Changelog ==
+
+= 5.269 =
+* 2026-02-19
+* FIX: Fixed fatal error "Object of class WP_Error could not be converted to string" in Overview tab when displaying event details containing WP_Error objects. The code now properly checks for WP_Error objects before passing them to esc_html() and displays the error message instead.
+* NEW: Added compatibility with temporary login plugins ("Temporary Login Without Password", "One Time Login", "Magic Login", "Login Links"). Temporary login links are now automatically whitelisted from suspicious query detection when the corresponding plugin is active. Detection is logged for audit purposes. Other plugins can extend this compatibility using the `securityninja_temporary_login_params` and `securityninja_is_temporary_login_link` filters - more info on website.
+
+= 5.268 =
+* 2026-02-18
+* FIX: Firewall now allows logged-in administrators to access WordPress backend (wp-admin, admin-ajax.php) even when their IP address is banned. This prevents administrators from being locked out when their IP was banned by a false positive from the suspicious query filter, 404 Guard, brute-force protection, or other firewall features. This fixes the "Updating failed. The response is not a valid JSON response" error when saving pages in the block editor (Gutenberg) when the admin's IP was previously banned.
+* IMPROVED: UI label for suspicious query filtering has been updated from "Block Suspicious Page Requests" to "Filter Suspicious Queries" to match support documentation and make it easier for users to find the setting when following support instructions.
+* FIX: 2FA login redirects now work correctly for users logging in via public forms (such as Paid Member Subscriptions, WooCommerce, and other third-party login forms). 
 
 = 5.267 =
 * 2026-02-13

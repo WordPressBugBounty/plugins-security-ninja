@@ -5,7 +5,7 @@ Plugin Name: Security Ninja
 Plugin URI: https://wpsecurityninja.com/
 Description: Check your site for security vulnerabilities and get precise suggestions for corrective actions on passwords, user accounts, file permissions, database security, version hiding, plugins, themes, security headers and other security aspects.
 Author: WP Security Ninja
-Version: 5.267
+Version: 5.269
 Author URI: https://wpsecurityninja.com/
 License: GPLv3
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
@@ -470,7 +470,7 @@ if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
             // Extract the page part after the last underscore
             $page_part = substr( $current_id, strrpos( $current_id, '_' ) + 1 );
             // Define our plugin pages using just the page part
-            $plugin_pages = [];
+            $plugin_pages = array();
             $plugin_pages[] = 'wf-sn';
             $plugin_pages[] = 'wf-sn-visitor-log';
             $plugin_pages[] = 'wf-sn-tools';
@@ -548,7 +548,7 @@ if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
 
 					});
 				</script>
-			<?php 
+				<?php 
             }
         }
 
@@ -910,7 +910,7 @@ if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
 									</div>
 
 
-								<?php 
+									<?php 
                 }
                 ?>
 
@@ -920,7 +920,7 @@ if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
 								<p>You're just a few clicks away from a safer, smarter website. Let's go!</p>
 								<div class="closeme">X</div>
 							</div>
-						<?php 
+							<?php 
             }
             do_action( 'secnin_signup_to_newsletter' );
             ?>
@@ -968,7 +968,7 @@ if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
 				</div>
 			</div>
 
-		<?php 
+			<?php 
         }
 
         /**
@@ -1209,7 +1209,7 @@ if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
             ?>
 				</p>
 			</div>
-<?php 
+			<?php 
         }
 
         /**
