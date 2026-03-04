@@ -36,6 +36,8 @@ jQuery( document ).ready( function( $ ) {
 					if ( response.success && response.data ) {
 						if ( response.data.no_results ) {
 							$container.html( '<p class="description">' + ( response.data.message || wf_sn_cs.strings.no_scan_yet ) + '</p>' );
+							$( '#sn-cs-report-link' ).attr( 'href', '#' ).attr( 'disabled', 'disabled' ).attr( 'aria-disabled', 'true' );
+							$( '#sn-cs-report-notice' ).show();
 							return;
 						}
 						if ( response.data.out ) {
@@ -53,8 +55,17 @@ jQuery( document ).ready( function( $ ) {
 						if ( response.data.next_scan ) {
 							$( '#wf-sn-core-scan-details #next_scan' ).html( response.data.next_scan ).slideDown();
 						}
+						if ( response.data.report_url ) {
+							$( '#sn-cs-report-link' ).attr( 'href', response.data.report_url ).removeAttr( 'disabled' ).attr( 'aria-disabled', 'false' );
+							$( '#sn-cs-report-notice' ).hide();
+						} else {
+							$( '#sn-cs-report-link' ).attr( 'href', '#' ).attr( 'disabled', 'disabled' ).attr( 'aria-disabled', 'true' );
+							$( '#sn-cs-report-notice' ).show();
+						}
 					} else {
 						$container.html( '<p class="description">' + ( wf_sn_cs.strings.ajax_error || 'An error occurred.' ) + '</p>' );
+						$( '#sn-cs-report-link' ).attr( 'href', '#' ).attr( 'disabled', 'disabled' ).attr( 'aria-disabled', 'true' );
+						$( '#sn-cs-report-notice' ).show();
 					}
 				},
 				'json'
@@ -73,6 +84,12 @@ jQuery( document ).ready( function( $ ) {
 		$( window ).on( 'hashchange', maybeLoadCoreScannerResults );
 		$( document ).on( 'click', '#wf-sn-tabs a[href="#sn_core"]', maybeLoadCoreScannerResults );
 		maybeLoadCoreScannerResults();
+
+		$( document ).on( 'click', '#sn-cs-report-link', function( e ) {
+			if ( $( this ).attr( 'aria-disabled' ) === 'true' ) {
+				e.preventDefault();
+			}
+		} );
 
 		$( 'button.sn-show-source' ).on(
 			"click",

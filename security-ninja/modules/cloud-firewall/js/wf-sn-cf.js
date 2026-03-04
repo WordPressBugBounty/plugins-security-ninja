@@ -167,17 +167,24 @@ jQuery(document).ready(function ($) {
     $('#sn-unblock-message').removeClass('sn-unblock-message-bad');
     $('#sn-unblock-message').removeClass('sn-unblock-message-good');
 
-    $.get(ajaxurl, data, function (response) {
-      if (response !== '1') {
-        $('#sn-unblock-message').html('An error occurred and the message could not be sent.');
+    $.ajax({
+      type: 'POST',
+      url: ajaxurl,
+      data: data,
+      dataType: 'json',
+      success: function (response) {
+        if (response && response.success) {
+          $('#sn-unblock-message').html('Email sent successfully.');
+          $('#sn-unblock-message').addClass('sn-unblock-message-good');
+        } else {
+          $('#sn-unblock-message').html('An error occurred and the message could not be sent.');
+          $('#sn-unblock-message').addClass('sn-unblock-message-bad');
+        }
+      },
+      error: function () {
+        $('#sn-unblock-message').html('An error occurred. The email could not be sent.');
         $('#sn-unblock-message').addClass('sn-unblock-message-bad');
-      } else {
-        $('#sn-unblock-message').html('Email sent successfully.');
-        $('#sn-unblock-message').addClass('sn-unblock-message-good');
       }
-    }, 'html').fail(function () {
-      $('#sn-unblock-message').html('An error occurred. The email could not be sent.');
-      $('#sn-unblock-message').addClass('sn-unblock-message-bad');
     });
   });
 

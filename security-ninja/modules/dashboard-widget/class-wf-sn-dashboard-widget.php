@@ -70,9 +70,9 @@ class Wf_Sn_Dashboard_Widget {
             // Enqueue CSS
             wp_enqueue_style(
                 'security-ninja-dashboard-css',
-                WF_SN_PLUGIN_URL . 'modules/dashboard-widget/css/min/dashboard-widget-min.css',
+                WF_SN_PLUGIN_URL . 'modules/dashboard-widget/css/dashboard-widget.css',
                 array(),
-                filemtime( WF_SN_PLUGIN_DIR . 'modules/dashboard-widget/css/min/dashboard-widget-min.css' )
+                filemtime( WF_SN_PLUGIN_DIR . 'modules/dashboard-widget/css/dashboard-widget.css' )
             );
         }
     }

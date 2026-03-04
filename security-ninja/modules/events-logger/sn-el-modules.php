@@ -912,6 +912,18 @@ class wf_sn_el_modules extends wf_sn_el {
     public static function parse_action_security_ninja( $action_name, $params ) {
         $desc = '';
         $raw_data = null;
+        // Gather raw data if available in $params
+        // Expecting $params['files_scanned'] and $params['dirs_scanned'] where possible (fallback to known indexes)
+        if ( is_array( $params ) ) {
+            $files_scanned = $params['files_scanned'] ?? (( isset( $params[3] ) ? $params[3] : null ));
+            $dirs_scanned = $params['dirs_scanned'] ?? (( isset( $params[4] ) ? $params[4] : null ));
+            if ( $files_scanned !== null || $dirs_scanned !== null ) {
+                $raw_data = array(
+                    'files_scanned' => ( $files_scanned !== null ? intval( $files_scanned ) : 0 ),
+                    'dirs_scanned'  => ( $dirs_scanned !== null ? intval( $dirs_scanned ) : 0 ),
+                );
+            }
+        }
         switch ( $action_name ) {
             case 'security_ninja_done_testing':
                 $desc = sprintf( esc_html__( 'Finished analyzing the site in %s seconds.', 'security-ninja' ), esc_html( round( $params[2], 1 ) ) );

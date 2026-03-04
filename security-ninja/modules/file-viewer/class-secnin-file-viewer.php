@@ -22,6 +22,23 @@ class FileViewer {
 	const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 
 	/**
+	 * Whitelist of valid action values accepted by this viewer.
+	 *
+	 * @var array
+	 */
+	private static $allowed_actions = array( 'view_file', 'view_diff' );
+
+	/**
+	 * Maps action values to their handler methods.
+	 *
+	 * @var array
+	 */
+	private static $action_handlers = array(
+		'view_file' => 'handle_view_file_action',
+		'view_diff' => 'handle_view_diff_action',
+	);
+
+	/**
 	 * Initialize the FileViewer class.
 	 *
 	 * @return void
@@ -55,23 +72,16 @@ class FileViewer {
 	 * @return void
 	 */
 	public static function remove_admin_bar() {
-		// Verify nonce before accessing $_GET
 		if ( ! isset( $_GET['_wpnonce'] ) || ! wp_verify_nonce( sanitize_key( $_GET['_wpnonce'] ), 'sn_view_file' ) ) {
 			return;
 		}
 
-		if ( is_admin() && isset( $_GET['page'], $_GET['file'], $_GET['hash'], $_GET['nonce'], $_GET['action'] ) &&
-			'sn-view-file' === $_GET['page'] &&
-			'view_file' === $_GET['action'] &&
-			\WPSecurityNinja\Plugin\Wf_Sn_Crypto::validate_secure_file_token(
-				sanitize_text_field( wp_unslash( $_GET['file'] ) ),
-				sanitize_text_field( wp_unslash( $_GET['hash'] ) ),
-				sanitize_text_field( wp_unslash( $_GET['nonce'] ) ),
-				'view_file'
-			) ) {
-			add_filter( 'show_admin_bar', '__return_false' );
-			remove_all_actions( 'admin_notices' ); // Remove all admin notices.
+		if ( ! self::is_viewer_request() ) {
+			return;
 		}
+
+		add_filter( 'show_admin_bar', '__return_false' );
+		remove_all_actions( 'admin_notices' );
 	}
 
 	/**
@@ -80,98 +90,134 @@ class FileViewer {
 	 * @return void
 	 */
 	public static function hide_admin_interface() {
-		// Verify nonce before accessing $_GET
 		if ( ! isset( $_GET['_wpnonce'] ) || ! wp_verify_nonce( sanitize_key( $_GET['_wpnonce'] ), 'sn_view_file' ) ) {
 			return;
 		}
 
-		if ( is_admin() && isset( $_GET['page'], $_GET['file'], $_GET['hash'], $_GET['nonce'], $_GET['action'] ) &&
-			'sn-view-file' === $_GET['page'] &&
-			'view_file' === $_GET['action'] &&
-			\WPSecurityNinja\Plugin\Wf_Sn_Crypto::validate_secure_file_token(
-				sanitize_text_field( wp_unslash( $_GET['file'] ) ),
-				sanitize_text_field( wp_unslash( $_GET['hash'] ) ),
-				sanitize_text_field( wp_unslash( $_GET['nonce'] ) ),
-				'view_file'
-			) ) {
-			?>
-			<style>
-				#adminmenumain, #wpfooter, #screen-meta, #screen-meta-links, #wp-admin-bar-wp-logo {
-					display: none;
-				}
-				#wpcontent, #wpbody {
-					margin-left: 0;
-					padding-left: 0;
-				}
-				.wrap {
-					max-width: 90%;
-					margin: 0 auto;
-					font-family: monospace;
-				}
-				pre {
-					background-color: #f5f5f5;
-					border: 1px solid #ccc;
-					padding: 20px;
-					white-space: pre-wrap;
-					word-wrap: break-word;
-					overflow-x: auto;
-					line-height: 1.4em;
-					display: table;
-					width: 100%;
-					table-layout: fixed;
-				}
-				pre span.line {
-					display: table-row;
-				}
-				pre span.line-number {
-					display: table-cell;
-					width: 50px;
-					text-align: right;
-					padding-right: 10px;
-					color: #888;
-					vertical-align: top;
-					white-space: nowrap;
-				}
-				pre span.line-content {
-					display: table-cell;
-					white-space: pre-wrap;
-					word-wrap: break-word;
-					word-break: break-all;
-					overflow-wrap: break-word;
-					max-width: 0;
-				}
-				#file-info {
-					display: flex;
-					justify-content: space-between;
-					align-items: center;
-					margin-bottom: 20px;
-				}
-				#file-info h1 {
-					margin: 0;
-				}
-				#file-info .file-meta {
-					font-size: 14px;
-					color: #666;
-				}
-
-				.highlighted-line {
-					background-color: #ff0;
-				}
-			</style>
-			<script>
-				document.addEventListener("DOMContentLoaded", function() {
-					const highlightedLine = document.querySelector(".highlighted-line");
-					if (highlightedLine) {
-						highlightedLine.scrollIntoView({ behavior: 'smooth', block: 'center' });
-					}
-				});
-			</script>
-			<?php
+		if ( ! self::is_viewer_request() ) {
+			return;
 		}
+		?>
+		<style>
+			/* Shared layout */
+			#adminmenumain, #wpfooter, #screen-meta, #screen-meta-links, #wp-admin-bar-wp-logo {
+				display: none;
+			}
+			#wpcontent, #wpbody {
+				margin-left: 0;
+				padding-left: 0;
+			}
+			.wrap {
+				max-width: 90%;
+				margin: 0 auto;
+				font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+				color: #1d2327;
+			}
+			#file-info {
+				display: flex;
+				justify-content: space-between;
+				align-items: center;
+				margin-bottom: 20px;
+			}
+			#file-info h1 {
+				margin: 0;
+			}
+			#file-info .file-meta {
+				font-size: 14px;
+				color: #666;
+			}
+
+			/* File view styles */
+			pre {
+				background-color: #f5f5f5;
+				border: 1px solid #ccc;
+				padding: 20px;
+				white-space: pre-wrap;
+				word-wrap: break-word;
+				overflow-x: auto;
+				line-height: 1.4em;
+				display: table;
+				width: 100%;
+				table-layout: fixed;
+				font-family: monospace;
+			}
+			pre span.line {
+				display: table-row;
+			}
+			pre span.line-number {
+				display: table-cell;
+				width: 50px;
+				text-align: right;
+				padding-right: 10px;
+				color: #888;
+				vertical-align: top;
+				white-space: nowrap;
+			}
+			pre span.line-content {
+				display: table-cell;
+				white-space: pre-wrap;
+				word-wrap: break-word;
+				word-break: break-all;
+				overflow-wrap: break-word;
+				max-width: 0;
+			}
+			.highlighted-line {
+				background-color: #ff0;
+			}
+
+			/* Diff view styles */
+			.diff { overflow-x: auto; }
+			.diff table { border-collapse: collapse; width: 100%; font-size: 12px; line-height: 1.25; }
+			.diff td, .diff th { border: 1px solid #c3c4c7; padding: 0 6px; vertical-align: top; text-align: left; line-height: 1.25; }
+			.diff tr { line-height: 1.25; }
+			.diff .diff-deletedline { background: #f8d7da; }
+			.diff .diff-addedline { background: #d4edda; }
+
+			@media print { .wrap { max-width: 100%; margin: 0; } }
+		</style>
+		<script>
+			document.addEventListener("DOMContentLoaded", function() {
+				var highlightedLine = document.querySelector(".highlighted-line");
+				if (highlightedLine) {
+					highlightedLine.scrollIntoView({ behavior: 'smooth', block: 'center' });
+				}
+			});
+		</script>
+		<?php
 	}
 
 	/**
-	 * Display the file viewing page.
+	 * Check whether the current request is a valid viewer page request.
+	 * Used by remove_admin_bar() and hide_admin_interface() for early
+	 * checks before the main page callback runs.
+	 *
+	 * @return bool
+	 */
+	private static function is_viewer_request() {
+		if ( ! is_admin() ) {
+			return false;
+		}
+		if ( ! isset( $_GET['page'], $_GET['file'], $_GET['hash'], $_GET['nonce'], $_GET['action'] ) ) {
+			return false;
+		}
+		if ( 'sn-view-file' !== $_GET['page'] ) {
+			return false;
+		}
+		$action = sanitize_text_field( wp_unslash( $_GET['action'] ) );
+		if ( ! in_array( $action, self::$allowed_actions, true ) ) {
+			return false;
+		}
+		return Wf_Sn_Crypto::validate_secure_file_token(
+			sanitize_text_field( wp_unslash( $_GET['file'] ) ),
+			sanitize_text_field( wp_unslash( $_GET['hash'] ) ),
+			sanitize_text_field( wp_unslash( $_GET['nonce'] ) ),
+			$action
+		);
+	}
+
+	/**
+	 * Main page callback -- validates the request then dispatches
+	 * to the appropriate action handler.
 	 *
 	 * @return void
 	 */
@@ -185,22 +231,40 @@ class FileViewer {
 			wp_die( 'Security check failed: Invalid nonce.' );
 		}
 
-		$file_path      = isset( $_GET['file'] ) ? sanitize_text_field( wp_unslash( $_GET['file'] ) ) : '';
-		$highlight_line = isset( $_GET['line'] ) ? intval( $_GET['line'] ) : null;
+		$action = isset( $_GET['action'] ) ? sanitize_text_field( wp_unslash( $_GET['action'] ) ) : '';
 
-		// Always use centralized security validation
-		if ( ! \WPSecurityNinja\Plugin\Wf_Sn_Crypto::validate_file_access_request( 'view_file' ) ) {
+		if ( ! in_array( $action, self::$allowed_actions, true ) ) {
+			wp_die( 'Invalid action.' );
+		}
+
+		if ( ! Wf_Sn_Crypto::validate_file_access_request( $action ) ) {
 			wp_die( 'Access denied: Invalid or expired file access token.' );
 		}
 
-		if ( ! self::is_allowed_file( $file_path ) ) {
-			wp_die( 'Access to this file is restricted or the file does not exist. ' . esc_html( $file_path ) );
-			exit();
+		$handler = isset( self::$action_handlers[ $action ] ) ? self::$action_handlers[ $action ] : null;
+		if ( ! $handler || ! is_callable( array( self::class, $handler ) ) ) {
+			wp_die( 'Invalid action.' );
 		}
 
-		$file_meta = self::get_file_meta( $file_path );
+		$file_path = isset( $_GET['file'] ) ? sanitize_text_field( wp_unslash( $_GET['file'] ) ) : '';
 
-		// Set the page title based on the file being viewed.
+		call_user_func( array( self::class, $handler ), $file_path );
+	}
+
+	/**
+	 * Handler for the view_file action.
+	 *
+	 * @param string $file_path Absolute path to the file.
+	 * @return void
+	 */
+	private static function handle_view_file_action( $file_path ) {
+		if ( ! self::is_allowed_file( $file_path ) ) {
+			wp_die( 'Access to this file is restricted or the file does not exist.' );
+		}
+
+		$highlight_line = isset( $_GET['line'] ) ? intval( $_GET['line'] ) : null;
+		$file_meta      = self::get_file_meta( $file_path );
+
 		echo '<title>' . esc_html( basename( $file_path ) ) . ' - ' . esc_html__( 'Security Ninja File Viewer', 'security-ninja' ) . '</title>';
 
 		echo '<div class="wrap">';
@@ -216,6 +280,70 @@ class FileViewer {
 		echo '</div>';
 		echo '</div>';
 		echo wp_kses_post( self::render_file( $file_path, $highlight_line ) );
+		echo '</div>';
+	}
+
+	/**
+	 * Handler for the view_diff action.
+	 * Compares the current WordPress core file against the original from WP Trac.
+	 *
+	 * @param string $file_path Absolute path to the current core file.
+	 * @return void
+	 */
+	private static function handle_view_diff_action( $file_path ) {
+		if ( ! is_string( $file_path ) || '' === $file_path ) {
+			wp_die( 'Invalid file.' );
+		}
+		if ( ! Wf_Sn_Cs::is_core_file( $file_path ) ) {
+			wp_die( 'Access denied: file is not a WordPress core file.' );
+		}
+		if ( ! file_exists( $file_path ) || ! is_readable( $file_path ) ) {
+			wp_die( 'File not found or not readable.' );
+		}
+		if ( filesize( $file_path ) > self::MAX_FILE_SIZE ) {
+			wp_die( 'File is too large to compare.' );
+		}
+
+		$relative_path = str_replace( array( ABSPATH, '\\' ), array( '', '/' ), $file_path );
+		$relative_path = ltrim( $relative_path, '/' );
+
+		Wf_Sn_Cs::load_utils();
+		$original = Wf_Sn_Cs_Utils::get_original_core_file_content( $relative_path );
+		if ( is_wp_error( $original ) ) {
+			wp_die( 'Original file not available for comparison.' );
+		}
+
+		$current = file_get_contents( $file_path ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents -- reading local validated file
+		if ( false === $current ) {
+			wp_die( 'Could not read current file.' );
+		}
+
+		$diff = wp_text_diff( $original, $current, array(
+			'show_split_view' => true,
+			'title_left'      => __( 'Original (WordPress)', 'security-ninja' ),
+			'title_right'     => __( 'Current', 'security-ninja' ),
+		) );
+		if ( '' === $diff ) {
+			$diff = '<p>' . esc_html__( 'No differences found.', 'security-ninja' ) . '</p>';
+		}
+
+		$file_meta = self::get_file_meta( $file_path );
+
+		echo '<title>' . esc_html__( 'Compare file', 'security-ninja' ) . ' - ' . esc_html( $relative_path ) . '</title>';
+
+		echo '<div class="wrap">';
+		echo '<h1>' . esc_html__( 'Compare file', 'security-ninja' ) . ': ' . esc_html( $relative_path ) . '</h1>';
+		echo '<div id="file-info">';
+		echo '<div class="file-meta">';
+		if ( $file_meta ) {
+			echo esc_html__( 'File:', 'security-ninja' ) . ' ' . esc_html( $file_meta['path'] ) . ' | ';
+			echo esc_html__( 'Size:', 'security-ninja' ) . ' ' . esc_html( $file_meta['size'] ) . ' | ';
+			echo esc_html__( 'Last Modified:', 'security-ninja' ) . ' ' . esc_html( $file_meta['last_modified'] ) . ' | ';
+			echo esc_html__( 'Permissions:', 'security-ninja' ) . ' ' . esc_html( $file_meta['permissions'] );
+		}
+		echo '</div>';
+		echo '</div>';
+		echo '<div class="diff">' . wp_kses_post( $diff ) . '</div>';
 		echo '</div>';
 	}
 
@@ -394,10 +522,23 @@ class FileViewer {
 			$additional_params['line'] = $highlight_line;
 		}
 
-		// Add WordPress nonce for PHPCS compliance
 		$additional_params['_wpnonce'] = wp_create_nonce( 'sn_view_file' );
 
-		return \WPSecurityNinja\Plugin\Wf_Sn_Crypto::generate_secure_file_url( $file_path, 'view_file', $additional_params );
+		return Wf_Sn_Crypto::generate_secure_file_url( $file_path, 'view_file', $additional_params );
+	}
+
+	/**
+	 * Generate a URL for viewing a file diff (core file vs. original).
+	 *
+	 * @param string $file_path The absolute path to the core file.
+	 * @return string The URL for viewing the diff.
+	 */
+	public static function generate_diff_view_url( $file_path ) {
+		$additional_params = array(
+			'_wpnonce' => wp_create_nonce( 'sn_view_file' ),
+		);
+
+		return Wf_Sn_Crypto::generate_secure_file_url( $file_path, 'view_diff', $additional_params );
 	}
 }
 

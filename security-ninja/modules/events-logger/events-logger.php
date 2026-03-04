@@ -383,7 +383,7 @@ class Wf_Sn_El {
         }
         if ( !current_user_can( 'manage_options' ) ) {
             wp_send_json_error( array(
-                'message' => __( 'Error saving dismiss pointer.', 'security-ninja' ),
+                'message' => 'Error saving dismiss pointer.',
             ) );
         }
         // Get DataTables parameters

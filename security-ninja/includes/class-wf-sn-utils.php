@@ -353,6 +353,12 @@ class Utils {
                 // Get test scores
                 $information['SecNin_get_details']['tests'] = \WPSecurityNinja\Plugin\Wf_Sn::return_test_scores();
                 $information['SecNin_get_details']['test_results'] = \WPSecurityNinja\Plugin\Wf_Sn::get_test_results();
+                // Core Scanner (free) – sync results for all sites.
+                $wf_sn_cs_results = get_option( 'wf_sn_cs_results' );
+                $information['SecNin_get_details']['cs_results'] = $wf_sn_cs_results;
+                if ( is_array( $wf_sn_cs_results ) && !empty( $wf_sn_cs_results['last_run'] ) && class_exists( '\\WPSecurityNinja\\Plugin\\Wf_Sn_Cs' ) ) {
+                    $information['SecNin_get_details']['cs_meta'] = \WPSecurityNinja\Plugin\Wf_Sn_Cs::build_meta_strings( $wf_sn_cs_results );
+                }
             } catch ( \Exception $e ) {
                 $information['SecNin_get_details'] = array(
                     'error' => $e->getMessage(),
@@ -381,7 +387,11 @@ class Utils {
             switch ( $post_data['action'] ) {
                 // *** Run all tests
                 case 'run_all_tests':
-                    wp_schedule_single_event( time(), 'secnin_run_tests_event' );
+                    do_action( 'secnin_run_tests_event' );
+                    $info['secnin_run_all_tests'] = array(
+                        'ran'     => true,
+                        'modules' => array('tests', 'core'),
+                    );
                     break;
                 // *** Start malware scan
                 case 'run_malware_scan':
@@ -396,6 +406,9 @@ class Utils {
                     break;
                 // ***  Update white label settings
                 case 'update_white_label':
+                    break;
+                // *** Force create database tables (for incomplete installations)
+                case 'force_create_tables':
                     break;
                 default:
                     break;
@@ -645,15 +658,15 @@ class Utils {
         global $wpdb;
         // Create main tests table
         $table_name = $wpdb->prefix . 'wf_sn_tests';
-        $sql = "CREATE TABLE {$table_name} ( id bigint(20) unsigned NOT NULL AUTO_INCREMENT, testid varchar(30) NOT NULL, timestamp datetime NOT NULL, title text, status tinyint(4) NOT NULL, score tinyint(4) NOT NULL, runtime float DEFAULT NULL, msg text, details text, PRIMARY KEY  (testid), KEY id (id)) {$charset};";
+        $sql = "CREATE TABLE {$table_name} (\n\t\t\t\tid bigint(20) unsigned NOT NULL AUTO_INCREMENT,\n\t\t\t\ttestid varchar(30) NOT NULL,\n\t\t\t\ttimestamp datetime NOT NULL,\n\t\t\t\ttitle text,\n\t\t\t\tstatus tinyint(4) NOT NULL,\n\t\t\t\tscore tinyint(4) NOT NULL,\n\t\t\t\truntime float DEFAULT NULL,\n\t\t\t\tmsg text,\n\t\t\t\tdetails text,\n\t\t\t\tPRIMARY KEY  (testid),\n\t\t\t\tKEY id (id)\n\t\t\t) {$charset};";
         dbDelta( $sql );
         // EVENT LOGS
         $table_name = $wpdb->prefix . 'wf_sn_el';
-        $sql = "CREATE TABLE {$table_name} (id bigint(20) unsigned NOT NULL AUTO_INCREMENT,timestamp datetime NOT NULL,ip varchar(39) NOT NULL,user_agent varchar(255) NOT NULL,user_id int(10) unsigned NOT NULL,module varchar(32) NOT NULL,action varchar(64) NOT NULL,description text NOT NULL,raw_data blob NOT NULL,PRIMARY KEY  (id)) {$charset};";
+        $sql = "CREATE TABLE {$table_name} (\n\t\t\t\tid bigint(20) unsigned NOT NULL AUTO_INCREMENT,\n\t\t\t\ttimestamp datetime NOT NULL,\n\t\t\t\tip varchar(39) NOT NULL,\n\t\t\t\tuser_agent varchar(255) NOT NULL,\n\t\t\t\tuser_id int(10) unsigned NOT NULL,\n\t\t\t\tmodule varchar(32) NOT NULL,\n\t\t\t\taction varchar(64) NOT NULL,\n\t\t\t\tdescription text NOT NULL,\n\t\t\t\traw_data blob NOT NULL,\n\t\t\t\tPRIMARY KEY  (id)\n\t\t\t) {$charset};";
         dbDelta( $sql );
         // Firewall - local list of blocked IPs (free feature)
         $table_name = $wpdb->prefix . 'wf_sn_cf_bl_ips';
-        $sql = "CREATE TABLE {$table_name} (tid datetime NOT NULL DEFAULT NOW(),ip varchar(46) NOT NULL, reason varchar(255) NOT NULL, PRIMARY KEY  (ip),KEY tid (tid)) {$charset}";
+        $sql = "CREATE TABLE {$table_name} (\n\t\t\t\ttid datetime NOT NULL DEFAULT NOW(),\n\t\t\t\tip varchar(46) NOT NULL,\n\t\t\t\treason varchar(255) NOT NULL,\n\t\t\t\tPRIMARY KEY  (ip),\n\t\t\t\tKEY tid (tid)\n\t\t\t) {$charset};";
         dbDelta( $sql );
         // Set up default settings for Event logger (free feature)
         if ( class_exists( '\\WPSecurityNinja\\Plugin\\Wf_Sn_El' ) ) {

@@ -181,6 +181,11 @@ table#sn-el-datatable {
   line-height: 1.6em;
 }
 
+#sn_ms_run_scan:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
 #sn_cf_404guard input[type=number] {
   width: 80px;
 }
@@ -1398,7 +1403,8 @@ Hide "see details" from tables in responsive mode
 */
 @media screen and (max-width: 782px) {
   .ss-details-sn,
-  .ss-details-cs {
+  .ss-details-cs,
+  .ss-details-ms {
     display: none;
   }
 }

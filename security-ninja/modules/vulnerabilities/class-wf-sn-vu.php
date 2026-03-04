@@ -1991,11 +1991,11 @@ class Wf_Sn_Vu {
     public static function handle_manual_vuln_scan() {
         // Security checks
         if ( !current_user_can( 'manage_options' ) ) {
-            wp_die( __( 'You do not have sufficient permissions to access this page.', 'security-ninja' ) );
+            wp_die( 'You do not have sufficient permissions to access this page.' );
         }
         // Verify nonce
         if ( !isset( $_POST['nonce'] ) || !wp_verify_nonce( $_POST['nonce'], 'secnin_manual_vuln_scan' ) ) {
-            wp_die( __( 'Security check failed.', 'security-ninja' ) );
+            wp_die( 'Security check failed.' );
         }
         // Check if vulnerability scanning is enabled
         if ( !self::$options['enable_vulns'] ) {
@@ -2111,7 +2111,7 @@ class Wf_Sn_Vu {
      * @return  void
      */
     public static function handle_manual_vuln_scan_denied() {
-        wp_die( esc_html__( 'You do not have permission to perform this action.', 'security-ninja' ) );
+        wp_die( 'You do not have permission to perform this action.' );
     }
 
     /**
@@ -2130,7 +2130,7 @@ class Wf_Sn_Vu {
         // Enqueue the manual scan JavaScript file
         wp_enqueue_script(
             'secnin-manual-vuln-scan',
-            plugins_url( 'modules/vulnerabilities/js/min/manual-vuln-scan-min.js', WF_SN_BASE_FILE ),
+            plugins_url( 'modules/vulnerabilities/js/manual-vuln-scan.js', WF_SN_BASE_FILE ),
             array('jquery'),
             wf_sn::$version,
             true

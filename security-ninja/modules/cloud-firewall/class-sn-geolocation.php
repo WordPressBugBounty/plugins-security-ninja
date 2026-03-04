@@ -194,10 +194,7 @@ class SN_Geolocation {
         } else {
             $country_code = '';
         }
-        if ( !$country_code && $fallback ) {
-            // May be a local environment - find external IP.
-            return self::geolocate_ip( self::get_external_ip_address(), false, $api_fallback );
-        }
+        // When country cannot be determined, return empty; do not substitute server's external IP.
         return array(
             'ip'      => $ip_address,
             'country' => $country_code,
@@ -222,25 +219,31 @@ class SN_Geolocation {
      * @return string
      */
     private static function geolocate_via_db( $ip_address, $database ) {
+        // Ensure the IP2Location library is available (pro builds only).
+        if ( !class_exists( '\\WPSecurityNinja\\Plugin\\IP2Location\\Database' ) ) {
+            return '';
+        }
         $upload_dir = wp_upload_dir();
         $filepath = trailingslashit( $upload_dir['basedir'] ) . 'security-ninja/ip2location/IP2LOCATION.DAT';
-        // Check if file exists and is readable
+        // Check if file exists and is readable.
         if ( !file_exists( $filepath ) || !is_readable( $filepath ) ) {
             return '';
         }
-        // Check file size - if it's too small, it's likely corrupted
+        // Check file size - if it's too small, it's likely corrupted.
         if ( filesize( $filepath ) < 1024 ) {
             return '';
         }
         try {
-            $db = new IP2Location\Database($filepath, 100001);
+            $db = new \WPSecurityNinja\Plugin\IP2Location\Database($filepath, 100001);
             $records = $db->lookup( $ip_address, 1001 );
             if ( isset( $records['countryCode'] ) ) {
                 return $records['countryCode'];
             }
-        } catch ( Exception $e ) {
-            // Log the error and return empty string
-            error_log( 'Security Ninja IP2Location error: ' . $e->getMessage() );
+        } catch ( \Exception $e ) {
+            // Log the error and return empty string.
+            if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
+                error_log( 'Security Ninja IP2Location error: ' . $e->getMessage() );
+            }
             return '';
         }
         return '';

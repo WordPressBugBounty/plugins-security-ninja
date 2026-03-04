@@ -3,6 +3,11 @@
 * (c) 2013. Web factory Ltd
 */
 
+#sn-cs-report-link-wrap {
+	display: inline-block;
+}
+
+
 .toplevel_page_wf-sn .sn-file-list {
 	list-style-type: circle;
 	list-style-position: inside;

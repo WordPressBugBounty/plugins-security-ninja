@@ -140,7 +140,7 @@ class Wf_sn_cf_Utils {
 	 * @return  string
 	 */
 	private static function IPv6MaskToByteArray( $subnet_mask ) {
-		$addr = str_repeat( 'f', $subnet_mask / 4 );
+		$addr = str_repeat( 'f', intdiv( $subnet_mask, 4 ) );
 		switch ( $subnet_mask % 4 ) {
 			case 0:
 				break;

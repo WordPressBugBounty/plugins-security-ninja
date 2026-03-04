@@ -6,7 +6,7 @@ License: GPLv3
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 Requires at least: 4.7
 Tested up to: 6.9.1
-Stable tag: 5.269
+Stable tag: 5.272
 Requires PHP: 7.4
 
 WordPress security plugin with free basic firewall/WAF, vulnerability scanning, and 50+ core integrity checks.
@@ -332,10 +332,50 @@ While we strive for universal compatibility, if you face any issues, our support
 
 == Changelog ==
 
+= 5.272 =
+* 2026-03-04
+* FIX: Security tests – Prevent "Undefined array key" and "sprintf(): Passing null to parameter #1" PHP warnings/deprecations when building test result messages. Tests that do not define msg_ok, msg_bad, or msg_warning now use a safe default format string so scheduled runs and step-by-step runs no longer log errors (fixes issues in both free and premium when test definitions omit these keys).
+* IMPROVED: Malware Scanner – The "Scan your website" button is now disabled while a scan is running, so you can't accidentally start a second scan. It becomes clickable again as soon as the scan finishes or if something goes wrong.
+* IMPROVED: Malware Scanner – Scan progress and results now appear directly under the scan button instead of further down the page, so you can follow what's happening without scrolling.
+* FIX: Scheduler – Malware Scanner now runs correctly when you have "Enable scheduled scans for all" selected. If your scan log was created before Malware support was added, the plugin will update it automatically the next time a scheduled scan runs, so the Malware column in the scan log will show results instead of "Not run".
+* IMPROVED: Scheduler – Added a short reminder that Malware Scanner is included only when you choose "Enable scheduled scans for all", so it's clear how to get Malware in your scheduled runs.
+* IMPROVED: Scheduler – Scheduled scans (Security Tests, Core Scanner, Malware Scanner) now use the bundled Action Scheduler (Pro). "Run now" queues the scan in the background so it no longer times out on slow or remote requests; recurring scans run via Action Scheduler for reliable unattended execution. The Pro plugin bundles Action Scheduler; no separate install required. The library is included only in the premium build (free version does not load or reference it).
+* IMPROVED: Malware Scanner is now faster and more reliable; scans use less memory and you get clearer progress feedback. You can also include the Malware Scanner in the Scheduler (Security Ninja → Scheduler): choose "Enable scheduled scans for all" to run security tests, Core Scanner, and Malware Scanner on a schedule and get a single email report so you stay alerted to changes or suspicious files.
+* NEW: Malware Scanner – "Reset results" link under the scan button lets you clear previous scan results when a scan has been run before and you want to refresh.
+* NEW: Malware Scanner – You can now exclude specific paths or folders from malware scans. Use "Exclude paths from scan" on the Malware Scanner tab: enter one path pattern per line (e.g. */plugins/plugin-name/*). Paths listed there are skipped by the scanner and never reported as malware. Ideal for excluding trusted plugins (e.g. Leadpages, AccessAlly, UpdraftPlus) that trigger false positives.
+* NEW: Malware Scanner – Path patterns are stored in the same whitelist as per-file whitelisted items; both are included in Import/Export (Tools page) under malware scanner settings.
+* NEW: Malware Scanner – Developers can add or modify excluded paths in code using the `securityninja_malware_exclude_paths` filter. Documentation: https://wpsecurityninja.com/docs/malware-scanner/how-to-exclude-paths/
+* FIX: Country blocking – Visitors whose country cannot be determined (e.g. some IPv6 addresses) are no longer blocked, this could happen on some servers.
+
+
+= 5.271 =
+* 2026-02-25
+* FIX: 2FA login redirect – After completing 2FA, users (including admins) are now redirected to the dashboard or requested URL instead of the front page. Redirect logic now matches WordPress core: uses wp_validate_redirect() and the login_redirect filter.
+* FIX: 404 Guard – IPs whose monitoring window has expired are no longer shown in "Being Monitored". Expired count transients are excluded from the list and deleted to avoid DB bloat, so stale entries no longer appear.
+* IMPROVED: 404 Guard – First 404 from an IP is no longer logged; logging starts from the 2nd 404 onward to reduce log noise. Approaching-threshold, final-warning, and block events are unchanged.
+* IMPROVED: Visitor Log – Country flag is now shown next to the IP when country is known, matching Event Log behavior. A geolocation fallback is used for older entries where country was not stored.
+* FIX: Visitor Log – Fixed undefined variable ($allowed_html) when formatting log row details (wp_kses).
+* NEW: MainWP – Remote "force create database tables" action for incomplete installations.
+* FIX: Resolved fatal error when Security Ninja and AR for WooCommerce (or other plugins using chillerlan/php-settings-container) were active together; our copy is now loaded early and aliased in admin to prevent duplicate class declaration.
+
+
+= 5.270 =
+* 2026-02-22
+* FIX: Secure cookies fix now writes ini_set lines before any closing PHP tag in wp-config.php, preventing "headers already sent" and cookie/login issues. Thanks to Olga for the detailed report that made this fix possible.
+* NEW: Core Scanner – You can now open a printable report when the scan finds issues. Use "Print / Download report" to open the report in a new window and print or save as PDF for your records or support.
+* IMPROVED: Core Scanner – The report button is always visible; when no issues are detected it shows a short notice so you know the option is available after the next scan with findings.
+* IMPROVED: Core Scanner – Original WordPress core files are cached for one day when restoring or comparing, so repeat operations are faster and put less load on external servers.
+* IMPROVED: Core Scanner – "View differences" now opens in the same unified File Viewer layout as "View File", with consistent styling, file metadata, and shared security validation instead of a separate standalone page.
+* FIX: Firewall enable modal – "Send email" (activate and send unblock link) now works. The unblock-email AJAX action was not registered and the handler expected the email in GET; the action is now registered and all unblock-email requests use POST only.
+* TECH: All internal script and style references now use non-minified JS and CSS only; minified copies have been removed to simplify the codebase.
+* FIX: Fixed PHP 8.1 deprecation notice "Implicit conversion from float to int loses precision" in Cloud Firewall IPv6 CIDR matching. Thanks to Lesford for the report.
+
 = 5.269 =
 * 2026-02-19
-* FIX: Fixed fatal error "Object of class WP_Error could not be converted to string" in Overview tab when displaying event details containing WP_Error objects. The code now properly checks for WP_Error objects before passing them to esc_html() and displays the error message instead.
 * NEW: Added compatibility with temporary login plugins ("Temporary Login Without Password", "One Time Login", "Magic Login", "Login Links"). Temporary login links are now automatically whitelisted from suspicious query detection when the corresponding plugin is active. Detection is logged for audit purposes. Other plugins can extend this compatibility using the `securityninja_temporary_login_params` and `securityninja_is_temporary_login_link` filters - more info on website.
+* FIX: Fixed fatal error "Object of class WP_Error could not be converted to string" in Overview tab when displaying event details containing WP_Error objects. The code now properly checks for WP_Error objects before passing them to esc_html() and displays the error message instead.
+* FIX: Fixed fatal error preventing WooCommerce logins via public forms when SN_Geolocation class was not loaded. Code now checks for class existence before use.
+
 
 = 5.268 =
 * 2026-02-18
@@ -476,7 +516,3 @@ While we strive for universal compatibility, if you face any issues, our support
 ...
 
 Entire changelog can be seen here: <a href="https://wpsecurityninja.com/changelog/" target="_blank">changelog</a>
-
-== Upgrade Notice ==
-5.267
-Recommended update.

@@ -48,6 +48,7 @@ class Wf_sn_cf {
             add_action( 'wp_ajax_sn_disable_firewall', array(__NAMESPACE__ . '\\wf_sn_cf', 'ajax_disable_firewall') );
             add_action( 'wp_ajax_sn_test_ip', array(__NAMESPACE__ . '\\wf_sn_cf', 'ajax_test_ip') );
             add_action( 'wp_ajax_sn_clear_blacklist', array(__NAMESPACE__ . '\\wf_sn_cf', 'ajax_clear_blacklist') );
+            add_action( 'wp_ajax_sn_send_unblock_email', array(__NAMESPACE__ . '\\wf_sn_cf', 'ajax_send_unblock_email') );
             // Enqueue scripts and styles
             add_action( 'admin_enqueue_scripts', array(__NAMESPACE__ . '\\wf_sn_cf', 'enqueue_scripts') );
         }
@@ -1554,27 +1555,27 @@ class Wf_sn_cf {
         }
         wp_enqueue_style(
             'select2',
-            WF_SN_PLUGIN_URL . 'modules/cloud-firewall/select2/css/select2.min.css',
+            WF_SN_PLUGIN_URL . 'modules/cloud-firewall/select2/css/select2.css',
             array(),
-            filemtime( WF_SN_PLUGIN_DIR . 'modules/cloud-firewall/select2/css/select2.min.css' )
+            filemtime( WF_SN_PLUGIN_DIR . 'modules/cloud-firewall/select2/css/select2.css' )
         );
         wp_enqueue_script(
             'select2',
-            WF_SN_PLUGIN_URL . 'modules/cloud-firewall/select2/js/select2.min.js',
+            WF_SN_PLUGIN_URL . 'modules/cloud-firewall/select2/js/select2.js',
             array('jquery'),
-            filemtime( WF_SN_PLUGIN_DIR . 'modules/cloud-firewall/select2/js/select2.min.js' )
+            filemtime( WF_SN_PLUGIN_DIR . 'modules/cloud-firewall/select2/js/select2.js' )
         );
         wp_enqueue_style(
             'sn-cf-css',
-            WF_SN_PLUGIN_URL . 'modules/cloud-firewall/css/wf-sn-cf-min.css',
+            WF_SN_PLUGIN_URL . 'modules/cloud-firewall/css/wf-sn-cf.css',
             array(),
-            filemtime( WF_SN_PLUGIN_DIR . 'modules/cloud-firewall/css/wf-sn-cf-min.css' )
+            filemtime( WF_SN_PLUGIN_DIR . 'modules/cloud-firewall/css/wf-sn-cf.css' )
         );
         wp_register_script(
             'sn-cf-js',
-            WF_SN_PLUGIN_URL . 'modules/cloud-firewall/js/wf-sn-cf-min.js',
+            WF_SN_PLUGIN_URL . 'modules/cloud-firewall/js/wf-sn-cf.js',
             array('select2'),
-            filemtime( WF_SN_PLUGIN_DIR . 'modules/cloud-firewall/js/wf-sn-cf-min.js' )
+            filemtime( WF_SN_PLUGIN_DIR . 'modules/cloud-firewall/js/wf-sn-cf.js' )
         );
         $js_vars = array(
             'nonce' => wp_create_nonce( 'wf_sn_cf' ),
@@ -1839,11 +1840,11 @@ class Wf_sn_cf {
                 'message' => __( 'Failed.', 'security-ninja' ),
             ) );
         }
-        if ( !isset( $_GET['email'] ) ) {
+        if ( !isset( $_POST['email'] ) ) {
             $error = new \WP_Error('001', 'No email?');
             wp_send_json_error( $error );
         }
-        $sanitized_email = sanitize_email( $_GET['email'] );
+        $sanitized_email = sanitize_email( $_POST['email'] );
         if ( false === is_email( $sanitized_email ) ) {
             $error = new \WP_Error('002', 'Not a valid email!');
             wp_send_json_error( $error );
@@ -1926,7 +1927,7 @@ class Wf_sn_cf {
                 $my_replacements['%%sentfromtext%%'] = 'This email was sent by ' . esc_attr( $pluginname ) . ' from ' . esc_url( self::url_to_domain( site_url() ) );
             }
         }
-        $template_path = WF_SN_PLUGIN_DIR . 'modules/scheduled-scanner/inc/email-default.php';
+        $template_path = WF_SN_PLUGIN_DIR . 'includes/email-default.php';
         // Use secure file reading with validation
         $html = Wf_Sn_Security_Utils::secure_file_get_contents( $template_path, array(
             'check_readable'     => true,
@@ -2061,7 +2062,7 @@ class Wf_sn_cf {
                 $my_replacements['%%sentfromtext%%'] = 'This email was sent by ' . esc_attr( $pluginname ) . ' from ' . esc_url( self::url_to_domain( site_url() ) );
             }
         }
-        $template_path = WF_SN_PLUGIN_DIR . 'modules/scheduled-scanner/inc/email-default.php';
+        $template_path = WF_SN_PLUGIN_DIR . 'includes/email-default.php';
         // Use secure file reading with validation
         $html = Wf_Sn_Security_Utils::secure_file_get_contents( $template_path, array(
             'check_readable'     => true,
@@ -2258,15 +2259,6 @@ class Wf_sn_cf {
                     'security_ninja',
                     'pruned_banned_ips',
                     'Pruned Firewall local banned IPs.',
-                    ''
-                );
-            }
-        } else {
-            if ( class_exists( __NAMESPACE__ . '\\wf_sn_el_modules' ) ) {
-                wf_sn_el_modules::log_event(
-                    'security_ninja',
-                    'pruned_banned_ips',
-                    'No update.',
                     ''
                 );
             }

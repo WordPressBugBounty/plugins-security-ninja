@@ -20,5 +20,6 @@ return array(
     'Da\\TwoFA\\' => array($vendorDir . '/2amigos/2fa-library/src'),
     'Da\\QrCode\\' => array($vendorDir . '/2amigos/qrcode-library/src'),
     'DASPRiD\\Enum\\' => array($vendorDir . '/dasprid/enum/src'),
+    'Composer\\Installers\\' => array($vendorDir . '/composer/installers/src/Composer/Installers'),
     'BaconQrCode\\' => array($vendorDir . '/bacon/bacon-qr-code/src'),
 );

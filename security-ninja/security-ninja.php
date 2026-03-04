@@ -5,7 +5,7 @@ Plugin Name: Security Ninja
 Plugin URI: https://wpsecurityninja.com/
 Description: Check your site for security vulnerabilities and get precise suggestions for corrective actions on passwords, user accounts, file permissions, database security, version hiding, plugins, themes, security headers and other security aspects.
 Author: WP Security Ninja
-Version: 5.269
+Version: 5.272
 Author URI: https://wpsecurityninja.com/
 License: GPLv3
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
@@ -50,6 +50,9 @@ use Utils;
 if ( !defined( 'ABSPATH' ) ) {
     exit;
 }
+if ( file_exists( __DIR__ . '/vendor/autoload.php' ) ) {
+    require_once __DIR__ . '/vendor/autoload.php';
+}
 if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
     secnin_fs()->set_basename( false, __FILE__ );
 } elseif ( !function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
@@ -90,6 +93,7 @@ if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
                     'premium_version_basename' => 'security-ninja-premium/security-ninja.php',
                 ),
                 'is_live'             => true,
+                'is_org_compliant'    => true,
             ) );
         }
         return $secnin_fs;
@@ -144,6 +148,13 @@ if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
         public static $skip_tests = array();
 
         public static $options;
+
+        /**
+         * Database schema version; bump when table structure changes so dbDelta runs on upgrade.
+         *
+         * @var int
+         */
+        const WF_SN_DB_VERSION = 5.272;
 
         /**
          * Load plugin text domain for translations
@@ -220,6 +231,7 @@ if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
                 add_action( 'admin_enqueue_scripts', array(__NAMESPACE__ . '\\Wf_Sn', 'enqueue_scripts') );
                 add_action( 'admin_init', array(__NAMESPACE__ . '\\Wf_Sn', 'register_settings') );
                 add_action( 'admin_init', array(__NAMESPACE__ . '\\Wf_Sn', 'do_action_admin_init') );
+                add_action( 'admin_init', array(__NAMESPACE__ . '\\Wf_Sn', 'maybe_upgrade_db'), 1 );
                 add_action( 'wp_ajax_sn_run_single_test', array(__NAMESPACE__ . '\\Wf_Sn', 'run_single_test') );
                 add_action( 'wp_ajax_sn_get_single_test_details', array(__NAMESPACE__ . '\\Wf_Sn', 'get_single_test_details') );
                 add_action( 'wp_ajax_sn_run_tests', array(__NAMESPACE__ . '\\Wf_Sn', 'run_tests') );
@@ -239,6 +251,23 @@ if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
         }
 
         /**
+         * Run create_tables_for_site (dbDelta) when stored DB version is older than WF_SN_DB_VERSION.
+         * Runs only in admin (admin_init) so the front-end is not hit. Set wf_sn_db_version in
+         * activate() after creating tables so the next request sees it and we avoid running twice.
+         */
+        public static function maybe_upgrade_db() {
+            $stored = (float) get_option( 'wf_sn_db_version', 0 );
+            if ( $stored >= self::WF_SN_DB_VERSION ) {
+                return;
+            }
+            global $wpdb;
+            include_once ABSPATH . 'wp-admin/includes/upgrade.php';
+            $charset = $wpdb->get_charset_collate();
+            \WPSecurityNinja\Plugin\Utils::create_tables_for_site( $charset );
+            update_option( 'wf_sn_db_version', self::WF_SN_DB_VERSION );
+        }
+
+        /**
          * do_event_run_tests.
          *
          * @author  Lars Koudal
@@ -252,6 +281,9 @@ if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
             $security_tests = wf_sn_tests::return_security_tests();
             $resultssofar = get_option( 'security_tests_results', array() );
             $set_time_limit = set_time_limit( 200 );
+            if ( !is_array( $security_tests ) || empty( $security_tests ) ) {
+                return;
+            }
             $resultssofar['last_run'] = time();
             foreach ( $security_tests as $test_name => $test ) {
                 $class_with_namespace = __NAMESPACE__ . '\\Wf_Sn_Tests';
@@ -265,11 +297,11 @@ if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
                 }
                 // Setting appropriate message
                 if ( 10 === intval( $response['status'] ) ) {
-                    $return_message = sprintf( $test['msg_ok'], $response['msg'] ?? '' );
+                    $return_message = sprintf( (string) ($test['msg_ok'] ?? '%s'), $response['msg'] ?? '' );
                 } elseif ( 0 === intval( $response['status'] ) ) {
-                    $return_message = sprintf( $test['msg_bad'], $response['msg'] ?? '' );
+                    $return_message = sprintf( (string) ($test['msg_bad'] ?? '%s'), $response['msg'] ?? '' );
                 } else {
-                    $return_message = sprintf( $test['msg_warning'], $response['msg'] ?? '' );
+                    $return_message = sprintf( (string) ($test['msg_warning'] ?? '%s'), $response['msg'] ?? '' );
                 }
                 // Updates the results
                 $resultssofar['test'][$test_name] = array(
@@ -293,6 +325,12 @@ if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
                 // Update the last test run
                 $resultssofar['last_test_run'] = $test_name;
                 update_option( 'security_tests_results', $resultssofar );
+            }
+            if ( class_exists( __NAMESPACE__ . '\\Wf_Sn_Cs' ) ) {
+                if ( method_exists( __NAMESPACE__ . '\\Wf_Sn_Cs', 'scan_files' ) ) {
+                    \WPSecurityNinja\Plugin\wf_sn_el_modules::log_event( 'security_ninja', 'security_tests', 'Checking core files.' );
+                    \WPSecurityNinja\Plugin\Wf_Sn_Cs::scan_files( true );
+                }
             }
         }
 
@@ -570,9 +608,9 @@ if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
             }
             wp_enqueue_script(
                 'sn-global',
-                WF_SN_PLUGIN_URL . 'js/min/sn-global-min.js',
+                WF_SN_PLUGIN_URL . 'js/sn-global.js',
                 array('jquery'),
-                filemtime( WF_SN_PLUGIN_DIR . 'js/min/sn-global-min.js' ),
+                filemtime( WF_SN_PLUGIN_DIR . 'js/sn-global.js' ),
                 true
             );
             // Test if we should show pointer - introduced in version 5.118
@@ -591,9 +629,9 @@ if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
                 wp_enqueue_script( 'jquery-ui-tabs' );
                 wp_enqueue_script(
                     'sn-jquery-plugins',
-                    WF_SN_PLUGIN_URL . 'js/min/sn-jquery-plugins-min.js',
+                    WF_SN_PLUGIN_URL . 'js/sn-jquery-plugins.js',
                     array('jquery'),
-                    filemtime( WF_SN_PLUGIN_DIR . 'js/min/sn-jquery-plugins-min.js' ),
+                    filemtime( WF_SN_PLUGIN_DIR . 'js/sn-jquery-plugins.js' ),
                     true
                 );
                 wp_enqueue_style( 'wp-jquery-ui-dialog' );
@@ -617,12 +655,12 @@ if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
                         true
                     );
                 }
-                // Parsing data to sn-common-min.js via $cp_sn_data
+                // Parsing data to sn-common.js via $cp_sn_data
                 wp_register_script(
                     'sn-js',
-                    WF_SN_PLUGIN_URL . 'js/min/sn-common-min.js',
+                    WF_SN_PLUGIN_URL . 'js/sn-common.js',
                     array('jquery', 'wp-i18n'),
-                    filemtime( WF_SN_PLUGIN_DIR . 'js/min/sn-common-min.js' ),
+                    filemtime( WF_SN_PLUGIN_DIR . 'js/sn-common.js' ),
                     true
                 );
                 wp_enqueue_script( 'sn-js' );
@@ -1506,11 +1544,11 @@ if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
                             $response['msg'] = '';
                         }
                         if ( 10 === intval( $response['status'] ) ) {
-                            $json_response['last_msg'] = sprintf( $test['msg_ok'], $response['msg'] );
+                            $json_response['last_msg'] = sprintf( (string) ($test['msg_ok'] ?? '%s'), $response['msg'] ?? '' );
                         } elseif ( 0 === intval( $response['status'] ) ) {
-                            $json_response['last_msg'] = sprintf( $test['msg_bad'], $response['msg'] );
+                            $json_response['last_msg'] = sprintf( (string) ($test['msg_bad'] ?? '%s'), $response['msg'] ?? '' );
                         } else {
-                            $json_response['last_msg'] = sprintf( $test['msg_warning'], $response['msg'] );
+                            $json_response['last_msg'] = sprintf( (string) ($test['msg_warning'] ?? '%s'), $response['msg'] ?? '' );
                         }
                         // Updates the results
                         $resultssofar['test'][$test_name] = array(
@@ -1721,6 +1759,7 @@ if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
                     if ( class_exists( __NAMESPACE__ . '\\Wf_Sn_El' ) ) {
                         \WPSecurityNinja\Plugin\Wf_Sn_El::default_settings( false );
                     }
+                    update_option( 'wf_sn_db_version', self::WF_SN_DB_VERSION );
                     restore_current_blog();
                 }
             } elseif ( !$network_wide ) {
@@ -1730,6 +1769,7 @@ if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
                 if ( class_exists( __NAMESPACE__ . '\\Wf_Sn_El' ) ) {
                     \WPSecurityNinja\Plugin\Wf_Sn_El::default_settings( false );
                 }
+                update_option( 'wf_sn_db_version', self::WF_SN_DB_VERSION );
             }
         }
 
