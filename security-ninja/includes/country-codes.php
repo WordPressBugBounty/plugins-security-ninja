@@ -1,5 +1,6 @@
 <?php
 namespace WPSecurityNinja\Plugin;
+
 // this is an include only WP file
 if ( ! defined( 'ABSPATH' ) ) {
 	die;

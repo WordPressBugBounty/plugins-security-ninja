@@ -1,9 +1,9 @@
 <?php return array(
     'root' => array(
         'name' => 'secninja/security-ninja-premium',
-        'pretty_version' => 'dev-master',
-        'version' => 'dev-master',
-        'reference' => '98c6cc2cde591d1231229d1703d85c7d6ae8f662',
+        'pretty_version' => 'dev-develop',
+        'version' => 'dev-develop',
+        'reference' => 'a53300d9d9dda24756674dd606bb7f34bb1d822b',
         'type' => 'library',
         'install_path' => __DIR__ . '/../../',
         'aliases' => array(),
@@ -164,9 +164,9 @@
             'dev_requirement' => false,
         ),
         'secninja/security-ninja-premium' => array(
-            'pretty_version' => 'dev-master',
-            'version' => 'dev-master',
-            'reference' => '98c6cc2cde591d1231229d1703d85c7d6ae8f662',
+            'pretty_version' => 'dev-develop',
+            'version' => 'dev-develop',
+            'reference' => 'a53300d9d9dda24756674dd606bb7f34bb1d822b',
             'type' => 'library',
             'install_path' => __DIR__ . '/../../',
             'aliases' => array(),

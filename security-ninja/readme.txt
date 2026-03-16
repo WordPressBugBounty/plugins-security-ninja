@@ -1,15 +1,15 @@
-=== Security Ninja – WordPress Security Plugin & Firewall ===
+=== Security Ninja – WordPress Security & Firewall ===
 Contributors: lkoudal, cleverplugins, freemius
 Donate link: https://wpsecurityninja.com/
 Tags: security, firewall, waf, vulnerability, malware
 License: GPLv3
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 Requires at least: 4.7
-Tested up to: 6.9.1
-Stable tag: 5.272
+Tested up to: 6.9
+Stable tag: 5.275
 Requires PHP: 7.4
 
-WordPress security plugin with free basic firewall/WAF, vulnerability scanning, and 50+ core integrity checks.
+WordPress security plugin with free basic firewall/WAF, vulnerability and core scanning, and 50+ core integrity checks.
 
 == Description ==
 
@@ -35,6 +35,7 @@ This plugin can be downloaded for free without any paid subscription from <a hre
 - **Advanced Firewall/WAF controls** – e.g. country blocking, stronger rules and automation.
 - **Secure Login & 2FA** – Add stronger authentication and login protections.
 - **Automation & reporting** – Scheduled scans, reports, and advanced tracking.
+- **AI Security Advisor** – Get a single, privacy-focused security report (no PII sent; uses WordPress 7 AI Connectors or WP Security Ninja AI).
 
 
 **Key Features**
@@ -331,6 +332,31 @@ While we strive for universal compatibility, if you face any issues, our support
 5. Core Scanner (detect modified/unknown core files).
 
 == Changelog ==
+
+
+= 5.275 =
+* 2026-03-16
+* FIX: Event Logger – Plugin and theme installs are now logged (previously only updates were recorded). Activate and deactivate events are always logged with a fallback label when plugin name cannot be read.
+* NEW: Event Logger – Now also logs activated_plugin, deactivated_plugin, add_user_role, and remove_user_role for a fuller audit trail.
+* Event Logger – reliability: Event Logger now records settings changes, post updates, plugin activation/deactivation, and user events correctly when the module is enabled. Previously, events could be missing due to licensing checks blocking the write path; logging no longer depends on that for storing events.
+* Event Logger – less noise: A single click to update an already-published post now creates one log entry instead of three. Saving a settings page (e.g. General) creates one entry instead of duplicate entries.
+* Event Logger – clearer actions: Settings saves are logged with the action "options_saved" and show which settings page was updated (e.g. General, Reading). Internal WordPress hook names like "whitelist_options" are no longer shown in the log.
+* Event Logger – security: Passwords and account activation keys are never stored in the log or shown in event details. User registration and profile update events only store non-sensitive data.
+* AI Security Advisor – Get a plain-English security summary and top improvements from your security tests. Uses WordPress 7 AI Connectors (OpenAI, Google, Anthropic); no domains, URLs, or personal data are sent.
+* AI Security Advisor – Overview tab shows when your site was last reviewed and a one-line teaser from the latest report, or invites you to run your first review or set up a connector.
+* AI Security Advisor – Dashboard widget shows advisor status at a glance (last reviewed, ready for first review, or set up) with a quick link to the Security Advisor page.
+* Event Logger – Login events are recorded only when a valid user is present, so your log stays accurate when other plugins or tools fire login-related hooks.
+* IMPROVED: Visitor Logging (Cloud Firewall) – The Visitor Logging subtab now shows how much database space the visitor log uses and how many entries it contains. A "Reset visitor log" button lets you clear all visitor log entries in one click.
+* FIX: Firewall – Removed the "blocked_kanagawa" blocked-hosts rule. Kanagawa is a Japanese prefecture and the rule caused false positives for legitimate traffic from Japanese ISPs (e.g. OCN). Thank you Masahiro.
+
+
+= 5.274 =
+* Including email template properly.
+* Improvements for 2FA redirect logic.
+
+= 5.273 =
+* 2026-03-07
+* FIX: Removed unencrypted malware signature files from the plugin package (vendor/scr34m/.../definitions/ and base64_patterns/). The scanner uses only encrypted .dat files stored elsewhere. The bundled .txt files were never used at runtime but triggered false-positive virus alerts on some hosts. They are now stripped so they are never included in the plugin itself.
 
 = 5.272 =
 * 2026-03-04

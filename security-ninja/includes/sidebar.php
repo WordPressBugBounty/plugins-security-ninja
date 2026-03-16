@@ -154,12 +154,12 @@ if ( function_exists( 'secnin_fs' ) ) {
         ?></li>
 				</ul>
 				<p><strong><?php 
-        esc_html_e( 'Try the Pro version free for 14 days!', 'security-ninja' );
+        echo esc_html( 'Try the Pro version free for 14 days!' );
         ?></strong></p>
 				<a href="<?php 
         echo esc_url( Utils::generate_sn_web_link( 'sidebar_link', '/pricing/?trial=free' ) );
         ?>" class="button button-primary trial-button" target="_blank" rel="noopener"><?php 
-        echo 'Get started';
+        esc_html_e( 'Get started', 'security-ninja' );
         ?></a>
 				<div class="wrap-collabsible">
 					<input id="collapsible-payment-details" class="toggle" type="checkbox">
@@ -181,7 +181,7 @@ if ( function_exists( 'secnin_fs' ) ) {
         esc_html_e( 'We accept Visa, Mastercard, American Express and PayPal.', 'security-ninja' );
         ?></li>
 								<li><?php 
-        esc_html_e( 'Upgrade, downgrade or cancel any time.', 'security-ninja' );
+        echo esc_html( 'Upgrade, downgrade or cancel any time.' );
         ?></li>
 								<li><?php 
         esc_html_e( 'Bulk discounts for more websites.', 'security-ninja' );
@@ -190,14 +190,14 @@ if ( function_exists( 'secnin_fs' ) ) {
 							<p><a href="<?php 
         echo esc_url( Utils::generate_sn_web_link( 'sidebar_link', '/pricing/' ) );
         ?>" target="_blank" class="button button-primary" rel="noopener"><?php 
-        esc_html_e( 'Read more about the Pro version', 'security-ninja' );
+        echo esc_html( 'Read more about the Pro version' );
         ?></a></p>
 
 						</div>
 					</div>
 				</div>
 			</div><!-- .snupgradebox -->
-	<?php 
+			<?php 
     }
 }
 ?>
@@ -231,7 +231,7 @@ if ( secnin_fs()->is_not_paying() ) {
         ?>"><?php 
         esc_html_e( 'Activate License', 'security-ninja' );
         ?></a></li>
-			<?php 
+					<?php 
     }
 }
 ?>
@@ -240,14 +240,15 @@ if ( secnin_fs()->is_not_paying() ) {
 	<?php 
 $show_pro_ad = true;
 if ( $show_pro_ad ) {
+    // Use is_plugin_page() to detect if we're on the main plugin overview page (if available)
     ?>
 		<div class="sidebarsection feature upgradepro">
 			<h3><?php 
-    esc_html_e( 'Effortless Security for Your Site!', 'security-ninja' );
+    esc_html_e( 'Get even more with WP Security Ninja Pro', 'security-ninja' );
     ?></h3>
 			<ul>
 				<li><strong><?php 
-    esc_html_e( 'Get set up in minutes', 'security-ninja' );
+    esc_html_e( 'Get premium protection in minutes', 'security-ninja' );
     ?></strong> &mdash; <?php 
     esc_html_e( 'Guided wizard, no technical skills needed.', 'security-ninja' );
     ?></li>
@@ -288,12 +289,12 @@ if ( $show_pro_ad ) {
     ?></li>
 			</ul>
 			<p style="margin-top: 10px;text-align: center;">
-				<a href="https://wpsecurityninja.com/pricing/?utm_source=overview-tab&amp;utm_medium=plugin&amp;utm_content=explore-pro&amp;utm_campaign=security_ninja_v5.235" class="" target="_blank" rel="noopener"><?php 
+				<a href="https://wpsecurityninja.com/pricing/?utm_source=overview-tab&amp;utm_medium=plugin&amp;utm_content=explore-pro&amp;utm_campaign=security_ninja_v5.235" class="button button-primary button-small" target="_blank" rel="noopener"><?php 
     esc_html_e( 'Read more', 'security-ninja' );
     ?></a>
 			</p>
 		</div>
-	<?php 
+		<?php 
 }
 ?>
 </div><!-- #sidebar-container --><?php 

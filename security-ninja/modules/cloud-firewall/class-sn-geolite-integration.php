@@ -85,7 +85,7 @@ class SN_Geolite_Integration {
 	 *                        Defaults to 'info'.
 	 */
 	private function log( $message, $level = 'info' ) {
-			wf_sn_el_modules::log_event( 'security_ninja', 'geolocation', $message );
+			wf_sn_el_modules::log_event( 'security_ninja', 'geolocation', $message, array( 'level' => $level ) );
 	}
 
 	/**

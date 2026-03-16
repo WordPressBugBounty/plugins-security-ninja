@@ -83,10 +83,8 @@ class Wf_sn_cf_Utils {
 				if ( self::ipCIDRMatch( $ip, $wip ) ) {
 					return true;
 				}
-			} else {
-				if ( $ip === $wip ) {
+			} elseif ( $ip === $wip ) {
 					return true;
-				}
 			}
 		}
 		return false;
@@ -207,10 +205,10 @@ class Wf_sn_cf_Utils {
 			return false;
 		}
 
-		$address        = ip2long( $address );
-		$subnet_address = ip2long( $subnet_address );
-		$mask           = -1 << ( 32 - $subnet_mask );
+		$address         = ip2long( $address );
+		$subnet_address  = ip2long( $subnet_address );
+		$mask            = -1 << ( 32 - $subnet_mask );
 		$subnet_address &= $mask;
-		return ( $address & $mask ) == $subnet_address;
+		return ( $address & $mask ) === $subnet_address;
 	}
 }

@@ -193,7 +193,8 @@ class FileViewer {
 	/**
 	 * Check whether the current request is a valid viewer page request.
 	 * Used by remove_admin_bar() and hide_admin_interface() for early
-	 * checks before the main page callback runs.
+	 * checks before the main page callback runs. Callers verify _wpnonce
+	 * before invoking this method.
 	 *
 	 * @return bool
 	 */
@@ -201,20 +202,24 @@ class FileViewer {
 		if ( ! is_admin() ) {
 			return false;
 		}
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- _wpnonce verified by callers; token params validated below.
 		if ( ! isset( $_GET['page'], $_GET['file'], $_GET['hash'], $_GET['nonce'], $_GET['action'] ) ) {
 			return false;
 		}
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- _wpnonce verified by callers.
 		if ( 'sn-view-file' !== $_GET['page'] ) {
 			return false;
 		}
-		$action = sanitize_text_field( wp_unslash( $_GET['action'] ) );
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- _wpnonce verified by callers.
+		$action = isset( $_GET['action'] ) ? sanitize_text_field( wp_unslash( $_GET['action'] ) ) : '';
 		if ( ! in_array( $action, self::$allowed_actions, true ) ) {
 			return false;
 		}
+		// phpcs:disable WordPress.Security.NonceVerification.Recommended -- _wpnonce verified by callers; token validated by validate_secure_file_token.
 		return Wf_Sn_Crypto::validate_secure_file_token(
-			sanitize_text_field( wp_unslash( $_GET['file'] ) ),
-			sanitize_text_field( wp_unslash( $_GET['hash'] ) ),
-			sanitize_text_field( wp_unslash( $_GET['nonce'] ) ),
+			isset( $_GET['file'] ) ? sanitize_text_field( wp_unslash( $_GET['file'] ) ) : '',
+			isset( $_GET['hash'] ) ? sanitize_text_field( wp_unslash( $_GET['hash'] ) ) : '',
+			isset( $_GET['nonce'] ) ? sanitize_text_field( wp_unslash( $_GET['nonce'] ) ) : '',
 			$action
 		);
 	}
@@ -266,6 +271,7 @@ class FileViewer {
 			wp_die( 'Access to this file is restricted or the file does not exist.' );
 		}
 
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Request validated (nonce + token) in view_file_page().
 		$highlight_line = isset( $_GET['line'] ) ? intval( $_GET['line'] ) : null;
 		$file_meta      = self::get_file_meta( $file_path );
 
@@ -331,11 +337,15 @@ class FileViewer {
 			wp_die( 'Could not read current file.' );
 		}
 
-		$diff = wp_text_diff( $original, $current, array(
-			'show_split_view' => true,
-			'title_left'      => __( 'Original (WordPress)', 'security-ninja' ),
-			'title_right'     => __( 'Current', 'security-ninja' ),
-		) );
+		$diff = wp_text_diff(
+			$original,
+			$current,
+			array(
+				'show_split_view' => true,
+				'title_left'      => __( 'Original (WordPress)', 'security-ninja' ),
+				'title_right'     => __( 'Current', 'security-ninja' ),
+			)
+		);
 		if ( '' === $diff ) {
 			$diff = '<p>' . esc_html__( 'No differences found.', 'security-ninja' ) . '</p>';
 		}
@@ -371,7 +381,7 @@ class FileViewer {
 
 		// Prevent directory traversal
 		if ( strpos( $normalized_path, '..' ) !== false ) {
-			wf_sn_el_modules::log_event( 'File Viewer', 'Directory traversal attempt: ' . $normalized_path );
+			\WPSecurityNinja\Plugin\wf_sn_el_modules::log_event( 'File Viewer', 'Directory traversal attempt: ' . $normalized_path );
 			return false;
 		}
 
@@ -381,7 +391,7 @@ class FileViewer {
 		$allowed_files      = array( 'debug.log', 'error_log', 'php_errorlog' );
 
 		if ( ! in_array( $file_extension, $allowed_extensions, true ) && ! in_array( basename( $normalized_path ), $allowed_files, true ) ) {
-			wf_sn_el_modules::log_event( 'File Viewer', 'Attempt to view disallowed file type: ' . $file_extension );
+			\WPSecurityNinja\Plugin\wf_sn_el_modules::log_event( 'File Viewer', 'Attempt to view disallowed file type: ' . $file_extension );
 			return false;
 		}
 

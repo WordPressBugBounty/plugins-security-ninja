@@ -19,7 +19,7 @@ class Wf_Sn_Tests extends WF_SN {
 
 
 	private static function is_local_request() {
-		$remote_addr = isset( $_SERVER['REMOTE_ADDR'] ) ? $_SERVER['REMOTE_ADDR'] : '';
+		$remote_addr = isset( $_SERVER['REMOTE_ADDR'] ) ? sanitize_key( $_SERVER['REMOTE_ADDR'] ) : '';
 		return in_array( $remote_addr, array( '127.0.0.1', '::1' ), true );
 	}
 
@@ -354,7 +354,7 @@ class Wf_Sn_Tests extends WF_SN {
 		} else {
 			return array(
 				'status' => 10,
-				// translators: Showing the HTTP status code
+				/* translators: %s: HTTP response code */
 				'msg'    => sprintf( __( 'REST API is not accessible. Response Code: %s', 'security-ninja' ), esc_html( $response_code ) ),
 			);
 		}
@@ -392,8 +392,6 @@ class Wf_Sn_Tests extends WF_SN {
 			'info.php'               => __( 'Should only exist briefly during development and not on a live site.', 'security-ninja' ),
 			'test.php'               => __( 'Should only exist briefly during development and not on a live site.', 'security-ninja' ),
 			'*.bak'                  => __( 'Copies of old files could contain important info about your server.', 'security-ninja' ),
-			'license.txt'            => __( 'Default license.txt file', 'security-ninja' ),
-			'readme.html'            => __( 'Default readme.html', 'security-ninja' ),
 		);
 		$return['status'] = 10;
 		$return['msg']    = '<dl>';
@@ -503,10 +501,12 @@ class Wf_Sn_Tests extends WF_SN {
 			$return['msg']    = __( 'An error occurred during the TimThumb scan.', 'security-ninja' );
 		} elseif ( $scan_result && isset( $scan_result['status'] ) && 0 === $scan_result['status'] ) {
 			$return['status'] = 0; // Indicate a potential issue
-			$return['msg']    = sprintf( __( 'TimThumb file found in theme: %s. Please remove or replace it.', 'security-ninja' ), $theme_name_version );
+			/* translators: %s: theme name and version */
+			$return['msg'] = sprintf( __( 'TimThumb file found in theme: %s. Please remove or replace it.', 'security-ninja' ), $theme_name_version );
 		} else {
 			$return['status'] = 10; // No issue found
-			$return['msg']    = sprintf( __( 'No TimThumb file found in theme: %s. Your theme is safe.', 'security-ninja' ), $theme_name_version );
+			/* translators: %s: theme name and version */
+			$return['msg'] = sprintf( __( 'No TimThumb file found in theme: %s. Your theme is safe.', 'security-ninja' ), $theme_name_version );
 		}
 
 		return $return;
@@ -619,7 +619,8 @@ class Wf_Sn_Tests extends WF_SN {
 		$user_data = get_userdata( 1 );
 		if ( $user_data ) {
 			$return['status'] = 0;
-			$return['msg']    = sprintf( __( 'The user with ID 1 exists, and the username is %s.', 'security-ninja' ), esc_html( $user_data->user_login ) );
+			/* translators: %s: username of the user with ID 1 */
+			$return['msg'] = sprintf( __( 'The user with ID 1 exists, and the username is %s.', 'security-ninja' ), esc_html( $user_data->user_login ) );
 		} else {
 			$return['status'] = 10;
 			$return['msg']    = __( 'No user exists with ID 1.', 'security-ninja' );
@@ -679,14 +680,16 @@ class Wf_Sn_Tests extends WF_SN {
 
 		if ( $parent_check ) {
 			// Found one level up - this is the best practice
-			$return['status']  = 0;
-			$return['msg']     = __( 'wp-config.php file found one level up from WordPress root directory. This is a great security improvement!', 'security-ninja' );
+			$return['status'] = 0;
+			$return['msg']    = __( 'wp-config.php file found one level up from WordPress root directory. This is a great security improvement!', 'security-ninja' );
+			/* translators: %s: path to wp-config.php */
 			$return['details'] = sprintf( __( 'Found file here: %s', 'security-ninja' ), esc_html( $parent_dir ) );
 		} else {
 			// Found in default location - warning level 5
 			// Note: wp-config.php must exist somewhere for WordPress to run, so if not found one level up, it's in the default location
-			$return['status']  = 5;
-			$return['msg']     = __( 'wp-config.php file found in the WordPress root directory. Consider moving it one level up for better security.', 'security-ninja' );
+			$return['status'] = 5;
+			$return['msg']    = __( 'wp-config.php file found in the WordPress root directory. Consider moving it one level up for better security.', 'security-ninja' );
+			/* translators: %s: path to WordPress root directory */
 			$return['details'] = sprintf( __( 'Found file here: %s', 'security-ninja' ), esc_html( ABSPATH ) );
 		}
 
@@ -720,7 +723,8 @@ class Wf_Sn_Tests extends WF_SN {
 			$return['msg']    = __( 'MySQL current user is restricted to localhost, which is a secure configuration.', 'security-ninja' );
 		} else {
 			$return['status'] = 5;
-			$return['msg']    = sprintf( __( 'Unexpected MySQL current user host: %s', 'security-ninja' ), esc_html( $current_user ) );
+			/* translators: %s: MySQL current user host value */
+			$return['msg'] = sprintf( __( 'Unexpected MySQL current user host: %s', 'security-ninja' ), esc_html( $current_user ) );
 		}
 
 		return $return;
@@ -750,7 +754,7 @@ class Wf_Sn_Tests extends WF_SN {
 		$grants = $wpdb->get_results( 'SHOW GRANTS', ARRAY_N );
 
 		if ( is_wp_error( $grants ) ) {
-			$return['status'] = 0;
+			$return['status'] = 5;
 			$return['msg']    = __( 'Failed to retrieve database permissions.', 'security-ninja' );
 			return $return;
 		}
@@ -1320,10 +1324,12 @@ class Wf_Sn_Tests extends WF_SN {
 
 		if ( username_exists( $username ) ) {
 			$return['status'] = 0;
-			$return['msg']    = sprintf( __( 'User "%s" exists.', 'security-ninja' ), $username );
+			/* translators: %s: username */
+			$return['msg'] = sprintf( __( 'User "%s" exists.', 'security-ninja' ), $username );
 		} else {
 			$return['status'] = 10;
-			$return['msg']    = sprintf( __( 'User "%s" does not exist.', 'security-ninja' ), $username );
+			/* translators: %s: username */
+			$return['msg'] = sprintf( __( 'User "%s" does not exist.', 'security-ninja' ), $username );
 		}
 
 		return $return;
@@ -1357,7 +1363,8 @@ class Wf_Sn_Tests extends WF_SN {
 		// Construct the message based on the number of updates available
 		if ( $plugin_update_cnt > 0 ) {
 			$return['status'] = 0;
-			$return['msg']    = sprintf( _n( 'There is %s plugin update available.', 'There are %s plugin updates available.', $plugin_update_cnt, 'security-ninja' ), number_format_i18n( $plugin_update_cnt ) );
+			/* translators: %s: number of plugin updates available */
+			$return['msg'] = sprintf( _n( 'There is %s plugin update available.', 'There are %s plugin updates available.', $plugin_update_cnt, 'security-ninja' ), number_format_i18n( $plugin_update_cnt ) );
 		} else {
 			$return['status'] = 10;
 			$return['msg']    = __( 'All plugins are up to date.', 'security-ninja' );
@@ -1392,16 +1399,21 @@ class Wf_Sn_Tests extends WF_SN {
 		$deactivated_plugins_count = count( $all_plugins ) - count( $active_plugins );
 
 		// Messages
-		$total_plugins_text       = sprintf( _n( 'There is %s plugin in total.', 'There are %s plugins in total.', count( $all_plugins ), 'security-ninja' ), number_format_i18n( count( $all_plugins ) ) );
-		$active_plugins_text      = sprintf( _n( '%s is active.', '%s are active.', count( $active_plugins ), 'security-ninja' ), number_format_i18n( count( $active_plugins ) ) );
+		/* translators: %s: number of plugins */
+		$total_plugins_text = sprintf( _n( 'There is %s plugin in total.', 'There are %s plugins in total.', count( $all_plugins ), 'security-ninja' ), number_format_i18n( count( $all_plugins ) ) );
+		/* translators: %s: number of active plugins */
+		$active_plugins_text = sprintf( _n( '%s is active.', '%s are active.', count( $active_plugins ), 'security-ninja' ), number_format_i18n( count( $active_plugins ) ) );
+		/* translators: %s: number of deactivated plugins */
 		$deactivated_plugins_text = sprintf( _n( '%s is deactivated.', '%s are deactivated.', $deactivated_plugins_count, 'security-ninja' ), number_format_i18n( $deactivated_plugins_count ) );
 
 		// Construct message based on site type
 		if ( is_multisite() ) {
+			/* translators: %s: number of network-activated plugins */
 			$network_active_text       = sprintf( _n( '%s is network activated.', '%s are network activated.', count( $network_active_plugins ), 'security-ninja' ), number_format_i18n( count( $network_active_plugins ) ) );
 			$site_active_plugins_count = count( array_diff( $active_plugins, $network_active_plugins ) );
-			$site_active_text          = sprintf( _n( '%s is activated on this site.', '%s are activated on this site.', $site_active_plugins_count, 'security-ninja' ), number_format_i18n( $site_active_plugins_count ) );
-			$return['msg']             = implode( ' ', array( $total_plugins_text, $active_plugins_text, $network_active_text, $site_active_text, $deactivated_plugins_text ) );
+			/* translators: %s: number of plugins activated on this site */
+			$site_active_text = sprintf( _n( '%s is activated on this site.', '%s are activated on this site.', $site_active_plugins_count, 'security-ninja' ), number_format_i18n( $site_active_plugins_count ) );
+			$return['msg']    = implode( ' ', array( $total_plugins_text, $active_plugins_text, $network_active_text, $site_active_text, $deactivated_plugins_text ) );
 		} else {
 			$return['msg'] = implode( ' ', array( $total_plugins_text, $active_plugins_text, $deactivated_plugins_text ) );
 		}
@@ -1476,7 +1488,8 @@ class Wf_Sn_Tests extends WF_SN {
 
 		if ( count( $themes_to_remove ) > 0 ) {
 			$return['status'] = 0;
-			$return['msg']    = sprintf( __( 'Safe to remove %1$d themes: %2$s', 'security-ninja' ), count( $themes_to_remove ), implode( ', ', $theme_names ) );
+			/* translators: 1: number of themes, 2: comma-separated theme names */
+			$return['msg'] = sprintf( __( 'Safe to remove %1$d themes: %2$s', 'security-ninja' ), count( $themes_to_remove ), implode( ', ', $theme_names ) );
 		} else {
 			$return['status'] = 10;
 			$return['msg']    = __( 'All unnecessary themes are already removed.', 'security-ninja' );
@@ -1520,7 +1533,8 @@ class Wf_Sn_Tests extends WF_SN {
 
 		if ( $theme_update_cnt > 0 ) {
 			$return['status'] = 0;
-			$return['msg']    = sprintf( __( 'There are %d themes with available updates.', 'security-ninja' ), $theme_update_cnt );
+			/* translators: %d: number of themes with available updates */
+			$return['msg'] = sprintf( __( 'There are %d themes with available updates.', 'security-ninja' ), $theme_update_cnt );
 		} else {
 			$return['status'] = 10;
 			$return['msg']    = __( 'All themes are up to date.', 'security-ninja' );
@@ -1664,10 +1678,12 @@ class Wf_Sn_Tests extends WF_SN {
 			$return['msg']    = __( 'Unable to determine the file permissions.', 'security-ninja' );
 		} elseif ( ! in_array( $mode, $good_modes, true ) ) {
 			$return['status'] = 0;
-			$return['msg']    = sprintf( __( 'Current file permissions are %s, which are not secure.', 'security-ninja' ), $mode );
+			/* translators: %s: file permissions (e.g. 0644) */
+			$return['msg'] = sprintf( __( 'Current file permissions are %s, which are not secure.', 'security-ninja' ), $mode );
 		} else {
 			$return['status'] = 10;
-			$return['msg']    = sprintf( __( 'Current file permissions are %s. This is a secure configuration.', 'security-ninja' ), $mode );
+			/* translators: %s: file permissions (e.g. 0644) */
+			$return['msg'] = sprintf( __( 'Current file permissions are %s. This is a secure configuration.', 'security-ninja' ), $mode );
 		}
 
 		return $return;
@@ -1818,7 +1834,8 @@ class Wf_Sn_Tests extends WF_SN {
 			$return['msg']    = __( 'No vulnerable accounts found.', 'security-ninja' );
 		} else {
 			$return['status'] = 0;
-			$return['msg']    = sprintf( __( 'Vulnerable accounts: %s', 'security-ninja' ), implode( ', ', $bad_usernames ) );
+			/* translators: %s: comma-separated list of vulnerable usernames */
+			$return['msg'] = sprintf( __( 'Vulnerable accounts: %s', 'security-ninja' ), implode( ', ', $bad_usernames ) );
 		}
 
 		return $return;
@@ -1854,7 +1871,11 @@ class Wf_Sn_Tests extends WF_SN {
 		if ( is_wp_error( $response ) ) {
 			$error_message    = $response->get_error_message();
 			$return['status'] = 0;
-			$return['msg']    = sprintf( esc_html__( 'Failed to retrieve the site headers. Error: %s', 'security-ninja' ), esc_html( $error_message ) );
+			$return['msg']    = sprintf(
+				/* translators: %s: error message from request */
+				esc_html__( 'Failed to retrieve the site headers. Error: %s', 'security-ninja' ),
+				esc_html( $error_message )
+			);
 			return $return;
 		}
 
@@ -1885,7 +1906,7 @@ class Wf_Sn_Tests extends WF_SN {
 		} else {
 			$total_headers    = count( $headers );
 			$return['status'] = 0;
-			$return['msg']    = sprintf( __( 'Strict-Transport-Security header is not set. Detected %d headers in total. Ensure your server is configured to send the HSTS header.', 'security-ninja' ), $total_headers );
+			$return['msg'] = __( 'Strict-Transport-Security header is not set. Ensure your server is configured to send the HSTS header.', 'security-ninja' );
 		}
 
 		return $return;
@@ -1919,7 +1940,11 @@ class Wf_Sn_Tests extends WF_SN {
 		if ( is_wp_error( $response ) ) {
 			$error_message    = $response->get_error_message();
 			$return['status'] = 0;
-			$return['msg']    = sprintf( esc_html__( 'Failed to retrieve the site headers. Error: %s', 'security-ninja' ), esc_html( $error_message ) );
+			$return['msg']    = sprintf(
+				/* translators: %s: error message from request */
+				esc_html__( 'Failed to retrieve the site headers. Error: %s', 'security-ninja' ),
+				esc_html( $error_message )
+			);
 			return $return;
 		}
 
@@ -1946,9 +1971,8 @@ class Wf_Sn_Tests extends WF_SN {
 				$result['details'] = '"' . esc_html( $referrer_policy_values ) . '"';
 			}
 		} else {
-			$total_headers    = count( $headers );
 			$result['status'] = 0;
-			$result['msg']    = sprintf( __( 'Referrer-Policy header is not set. Detected %d headers in total.', 'security-ninja' ), $total_headers );
+			$result['msg']    = __( 'Referrer-Policy header is not set.', 'security-ninja' );
 		}
 
 		return $result;
@@ -1982,7 +2006,11 @@ class Wf_Sn_Tests extends WF_SN {
 		if ( is_wp_error( $response ) ) {
 			$error_message    = $response->get_error_message();
 			$return['status'] = 0;
-			$return['msg']    = sprintf( esc_html__( 'Failed to retrieve the site headers. Error: %s', 'security-ninja' ), esc_html( $error_message ) );
+			$return['msg']    = sprintf(
+				/* translators: %s: error message from request */
+				esc_html__( 'Failed to retrieve the site headers. Error: %s', 'security-ninja' ),
+				esc_html( $error_message )
+			);
 			return $return;
 		}
 
@@ -2010,7 +2038,7 @@ class Wf_Sn_Tests extends WF_SN {
 		} else {
 			$total_headers    = count( $headers );
 			$result['status'] = 0;
-			$result['msg']    = esc_html__( 'Permissions-Policy header is not set.', 'security-ninja' ) . ' ' . sprintf( esc_html__( 'Detected %d headers in total.', 'security-ninja' ), $total_headers );
+			$result['msg']    = esc_html__( 'Permissions-Policy header is not set.', 'security-ninja' );
 		}
 
 		return $result;
@@ -2082,9 +2110,8 @@ class Wf_Sn_Tests extends WF_SN {
 		}
 
 		if ( ! $csp && ! $csp_ro ) {
-			$total_headers    = count( $headers );
 			$return['status'] = 0;
-			$return['msg']    = sprintf( __( 'Content-Security-Policy header is not set. Detected %d headers in total.', 'security-ninja' ), $total_headers );
+			$return['msg']    = __( 'Content-Security-Policy header is not set.', 'security-ninja' );
 		}
 
 		return $return;
@@ -2118,7 +2145,11 @@ class Wf_Sn_Tests extends WF_SN {
 		if ( is_wp_error( $response ) ) {
 			$error_message          = $response->get_error_message();
 			$return_array['status'] = 0;
-			$return_array['msg']    = sprintf( esc_html__( 'Failed to retrieve the site headers. Error: %s', 'security-ninja' ), esc_html( $error_message ) );
+			$return_array['msg']    = sprintf(
+				/* translators: %s: error message from request */
+				esc_html__( 'Failed to retrieve the site headers. Error: %s', 'security-ninja' ),
+				esc_html( $error_message )
+			);
 			return $return_array;
 		}
 
@@ -2147,9 +2178,8 @@ class Wf_Sn_Tests extends WF_SN {
 				$return_array['details'] = '"' . $x_frame_options . '"';
 			}
 		} else {
-			$total_headers          = count( $headers );
 			$return_array['status'] = 0;
-			$return_array['msg']    = sprintf( __( 'X-Frame-Options header is not set. Detected %d headers in total. This can make your site vulnerable to clickjacking attacks.', 'security-ninja' ), $total_headers );
+			$return_array['msg']    = __( 'X-Frame-Options header is not set. This can make your site vulnerable to clickjacking attacks.', 'security-ninja' );
 		}
 
 		return $return_array;
@@ -2185,7 +2215,11 @@ class Wf_Sn_Tests extends WF_SN {
 		if ( is_wp_error( $response ) ) {
 			$error_message    = $response->get_error_message();
 			$return['status'] = 0;
-			$return['msg']    = sprintf( esc_html__( 'Failed to retrieve the site headers. Error: %s', 'security-ninja' ), esc_html( $error_message ) );
+			$return['msg']    = sprintf(
+				/* translators: %s: error message from request */
+				esc_html__( 'Failed to retrieve the site headers. Error: %s', 'security-ninja' ),
+				esc_html( $error_message )
+			);
 			return $return;
 		}
 
@@ -2214,9 +2248,8 @@ class Wf_Sn_Tests extends WF_SN {
 				$return['details'] = '"' . $x_content_type_options . '"';
 			}
 		} else {
-			$total_headers    = count( $headers );
 			$return['status'] = 0;
-			$return['msg']    = sprintf( __( 'X-Content-Type-Options header is not set. Detected %d headers in total. This can make your site vulnerable to MIME type sniffing attacks.', 'security-ninja' ), $total_headers );
+			$return['msg']    = __( 'X-Content-Type-Options header is not set. This can make your site vulnerable to MIME type sniffing attacks.', 'security-ninja' );
 		}
 
 		return $return;
@@ -2249,13 +2282,21 @@ class Wf_Sn_Tests extends WF_SN {
 
 		if ( is_wp_error( $response ) ) {
 			$return['status'] = 0;
-			$return['msg']    = sprintf( __( 'Error: Unable to get the response. %s', 'security-ninja' ), $response->get_error_message() );
+			$return['msg'] = sprintf(
+				/* translators: %s: error message from HTTP request */
+				__( 'Error: Unable to get the response. %s', 'security-ninja' ),
+				$response->get_error_message()
+			);
 			return $return;
 		}
 
 		if ( wp_remote_retrieve_response_code( $response ) !== 200 ) {
 			$return['status'] = 0;
-			$return['msg']    = sprintf( __( 'Error: Unexpected response code: %d', 'security-ninja' ), wp_remote_retrieve_response_code( $response ) );
+			$return['msg'] = sprintf(
+				/* translators: %d: HTTP response code */
+				__( 'Error: Unexpected response code: %d', 'security-ninja' ),
+				wp_remote_retrieve_response_code( $response )
+			);
 			return $return;
 		}
 
@@ -2291,7 +2332,11 @@ class Wf_Sn_Tests extends WF_SN {
 
 		if ( $sensitive_found ) {
 			$return['status'] = 0;
-			$return['msg']    = sprintf( __( 'Sensitive information exposed in headers: %s', 'security-ninja' ), implode( '; ', $sensitive_details ) );
+			$return['msg'] = sprintf(
+				/* translators: %s: semicolon-separated list of sensitive header details */
+				__( 'Sensitive information exposed in headers: %s', 'security-ninja' ),
+				implode( '; ', $sensitive_details )
+			);
 		}
 
 		return $return;
@@ -2327,7 +2372,11 @@ class Wf_Sn_Tests extends WF_SN {
 		if ( is_wp_error( $response ) ) {
 			$error_message    = $response->get_error_message();
 			$return['status'] = 0;
-			$return['msg']    = sprintf( esc_html__( 'Failed to retrieve the site headers. Error: %s', 'security-ninja' ), esc_html( $error_message ) );
+			$return['msg']    = sprintf(
+				/* translators: %s: error message from request */
+				esc_html__( 'Failed to retrieve the site headers. Error: %s', 'security-ninja' ),
+				esc_html( $error_message )
+			);
 			return $return;
 		}
 
@@ -2459,7 +2508,8 @@ class Wf_Sn_Tests extends WF_SN {
 			$return['msg']    = __( 'The database password is a simple word from the dictionary.', 'security-ninja' );
 		} elseif ( strlen( $password ) < 6 ) {
 			$return['status'] = 0;
-			$return['msg']    = sprintf( __( 'The database password length is only %d characters.', 'security-ninja' ), strlen( $password ) );
+			/* translators: %d: number of characters in the database password */
+			$return['msg'] = sprintf( __( 'The database password length is only %d characters.', 'security-ninja' ), strlen( $password ) );
 		} elseif ( count( count_chars( $password, 1 ) ) < 5 ) {
 			$return['status'] = 0;
 			$return['msg']    = __( 'The database password is too simple.', 'security-ninja' );
@@ -2517,6 +2567,7 @@ class Wf_Sn_Tests extends WF_SN {
 		} else {
 			$return['status'] = 0;
 			$return['msg']    = sprintf(
+				/* translators: %s: comma-separated list of key names */
 				__( 'The following keys are not properly set: %s. Please update them for enhanced security.', 'security-ninja' ),
 				implode( ', ', $bad_keys )
 			);
@@ -2656,6 +2707,7 @@ class Wf_Sn_Tests extends WF_SN {
 			2 => array( 'pipe', 'w' ),
 		);
 
+		// phpcs:ignore Generic.PHP.ForbiddenFunctions.Found -- required for Shellshock vulnerability test
 		$process = @proc_open( 'bash -c "echo Test"', $desc, $pipes, null, $env );
 		if ( ! is_resource( $process ) || ! isset( $pipes[1] ) ) {
 			$return['status'] = 5;
@@ -2710,6 +2762,7 @@ class Wf_Sn_Tests extends WF_SN {
 			2 => array( 'pipe', 'w' ),
 		);
 
+		// phpcs:ignore Generic.PHP.ForbiddenFunctions.Found -- required for Shellshock CVE-7169 test
 		$process = @proc_open( "rm -f echo; env 'x=() { (a)=>\' bash -c \"echo date +%Y\"; cat echo", $desc, $pipes, sys_get_temp_dir() );
 		if ( ! is_resource( $process ) ) {
 			$return['status'] = 5;
@@ -2807,7 +2860,8 @@ class Wf_Sn_Tests extends WF_SN {
 			}
 			$return['msg']    = implode( ', ', $bad_plugins_names );
 			$return['status'] = 0;
-			$return['msg']    = sprintf( __( 'The following plugins are outdated: %s', 'security-ninja' ), $return['msg'] );
+			/* translators: %s: list or message describing outdated plugins */
+			$return['msg'] = sprintf( __( 'The following plugins are outdated: %s', 'security-ninja' ), $return['msg'] );
 		}
 
 		return $return;
@@ -2930,16 +2984,19 @@ class Wf_Sn_Tests extends WF_SN {
 		if ( version_compare( PHP_VERSION, '5.6', '<' ) ) {
 			$return = array(
 				'status' => 0,
+				/* translators: %s: current PHP version string */
 				'msg'    => sprintf( __( 'Current PHP version: %s. This version is outdated and not recommended for use. Please upgrade to a newer version of PHP for improved performance and security.', 'security-ninja' ), PHP_VERSION ),
 			);
 		} elseif ( version_compare( PHP_VERSION, '7.4', '<=' ) ) {
 			$return = array(
 				'status' => 5,
+				/* translators: %s: current PHP version string */
 				'msg'    => sprintf( __( 'Current PHP version: %s. This version is below the recommended PHP version. Consider upgrading to PHP 7.4 or higher for better performance and security.', 'security-ninja' ), PHP_VERSION ),
 			);
 		} else {
 			$return = array(
 				'status' => 10,
+				/* translators: %s: current PHP version string */
 				'msg'    => sprintf( __( 'Current PHP version: %s. Your PHP version is okay.', 'security-ninja' ), PHP_VERSION ),
 			);
 		}
@@ -2968,21 +3025,25 @@ class Wf_Sn_Tests extends WF_SN {
 		if ( version_compare( $mysql_version, '5.0', '<' ) ) {
 				$return = array(
 					'status' => 0,
+					/* translators: %s: current MySQL version string */
 					'msg'    => sprintf( __( 'Your MySQL version %s is outdated. Consider updating to a newer version for better performance and security.', 'security-ninja' ), $mysql_version ),
 				);
 		} elseif ( version_compare( $mysql_version, '5.6', '<' ) ) {
 				$return = array(
 					'status' => 5,
+					/* translators: %s: current MySQL version string */
 					'msg'    => sprintf( __( 'Your MySQL version %s is below the recommended version. Updating is recommended.', 'security-ninja' ), $mysql_version ),
 				);
 		} elseif ( version_compare( $mysql_version, '8.0', '<' ) ) {
 				$return = array(
 					'status' => 7,
+					/* translators: %s: current MySQL version string */
 					'msg'    => sprintf( __( 'Your MySQL version %s is below the optimal version. Consider updating to MySQL 8.0 or greater for best performance and security.', 'security-ninja' ), $mysql_version ),
 				);
 		} else {
 				$return = array(
 					'status' => 10,
+					/* translators: %s: current MySQL version string */
 					'msg'    => sprintf( __( 'Your MySQL version %s meets the recommended version for optimal performance and security.', 'security-ninja' ), $mysql_version ),
 				);
 		}

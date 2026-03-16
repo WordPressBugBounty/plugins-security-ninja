@@ -40,7 +40,8 @@ jQuery(document).ready(function($) {
                 }
             },
             error: function(response) {
-                $status.html(secnin_ajax.strings.scan_failed + ' ' + response.data.message).removeClass('success').addClass('error');
+                var msg = ( response.responseJSON && response.responseJSON.data && response.responseJSON.data.message ) ? response.responseJSON.data.message : ( response.statusText || secnin_ajax.strings.scan_failed );
+                $status.html(secnin_ajax.strings.scan_failed + ' ' + msg).removeClass('success').addClass('error');
             },
             complete: function() {
                 // Re-enable button

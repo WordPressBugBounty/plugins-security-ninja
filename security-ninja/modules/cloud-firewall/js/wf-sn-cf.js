@@ -6,7 +6,6 @@
 
 jQuery(document).ready(function ($) {
 
-  // Handle tab switching
   $('#wf-sn-cf-subtabs .nav-tab').on('click', function(e) {
     e.preventDefault();
     $('#wf-sn-cf-subtabs .nav-tab').removeClass('nav-tab-active');
@@ -73,7 +72,6 @@ jQuery(document).ready(function ($) {
     }
   });
 
-  // Handle Continue button click
   $('#sn-modal-continue,#sn-modal-skip').on('click', function () {
     var isSkip = $(this).attr('id') === 'sn-modal-skip';
 

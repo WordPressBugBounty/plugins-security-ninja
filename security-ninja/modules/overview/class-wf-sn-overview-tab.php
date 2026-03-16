@@ -2,8 +2,8 @@
 
 namespace WPSecurityNinja\Plugin;
 
-if ( !function_exists( 'add_action' ) ) {
-    die( 'Please don\'t open this file directly!' );
+if ( !defined( 'ABSPATH' ) ) {
+    exit;
 }
 class WF_SN_Overview_Tab {
     /**
@@ -13,10 +13,87 @@ class WF_SN_Overview_Tab {
      */
     public static function tab_overview() : void {
         ?>
-    <div class="sn-overview-container">
-    
-    <div id="testscores">
-    <?php 
+	<div class="sn-overview-container">
+		<?php 
+        // AI Security Advisor card (only when advisor is enabled and module is loaded).
+        if ( apply_filters( 'wf_sn_ai_advisor_enabled', true ) && class_exists( 'WPSecurityNinja\\Plugin\\AiAdvisor\\Wf_Sn_Ai_Advisor_Provider_Wp_Connectors' ) ) {
+            $ai_state = null;
+            $conn = 'WPSecurityNinja\\Plugin\\AiAdvisor\\Wf_Sn_Ai_Advisor_Provider_Wp_Connectors';
+            $available = $conn::is_available();
+            $configured = $conn::get_configured_providers();
+            $options = \WPSecurityNinja\Plugin\AiAdvisor\Wf_Sn_Ai_Advisor_Page::get_options();
+            $site_registered = !empty( $options['site_registered'] );
+            $ready = $available && (is_array( $configured ) && count( $configured ) > 0 || $site_registered);
+            $reports = ( $available ? \WPSecurityNinja\Plugin\AiAdvisor\Wf_Sn_Ai_Advisor_Reports::get_reports( 1, 0 ) : array() );
+            $has_reports = is_array( $reports ) && isset( $reports[0] );
+            if ( $available ) {
+                if ( $ready || $has_reports ) {
+                    $last_reviewed = '';
+                    $teaser = '';
+                    if ( is_array( $reports ) && isset( $reports[0] ) ) {
+                        $report = $reports[0];
+                        $created = ( isset( $report['created'] ) ? $report['created'] : '' );
+                        if ( $created ) {
+                            $last_reviewed = human_time_diff( strtotime( $created ), time() );
+                        }
+                        $text = ( isset( $report['report_text'] ) ? $report['report_text'] : '' );
+                        if ( is_string( $text ) && '' !== $text ) {
+                            $decoded = json_decode( $text, true );
+                            if ( is_array( $decoded ) ) {
+                                if ( !empty( $decoded['executive_summary'] ) && is_string( $decoded['executive_summary'] ) ) {
+                                    $teaser = wp_trim_words( $decoded['executive_summary'], 20 );
+                                } elseif ( !empty( $decoded['overview'] ) && is_string( $decoded['overview'] ) ) {
+                                    $teaser = wp_trim_words( $decoded['overview'], 20 );
+                                }
+                            }
+                        }
+                    }
+                    $ai_state = array(
+                        'state'         => 2,
+                        'last_reviewed' => $last_reviewed,
+                        'teaser'        => $teaser,
+                    );
+                } else {
+                    $ai_state = array(
+                        'state'         => 3,
+                        'last_reviewed' => '',
+                        'teaser'        => '',
+                    );
+                }
+            } else {
+                $ai_state = array(
+                    'state'         => 1,
+                    'last_reviewed' => '',
+                    'teaser'        => '',
+                );
+            }
+            if ( is_array( $ai_state ) ) {
+                $advisor_url = admin_url( 'admin.php?page=wf-sn-advisor' );
+                echo '<div class="sncard sncard-ai-advisor">';
+                echo '<h3><span class="dashicons dashicons-admin-generic"></span> ' . esc_html__( 'AI Security Advisor', 'security-ninja' ) . '</h3>';
+                if ( 1 === (int) $ai_state['state'] ) {
+                    echo '<p>' . esc_html__( 'The AI Security Advisor will be available when you update to WordPress 7. You will be able to get an AI-powered security review using WordPress AI Connectors.', 'security-ninja' ) . '</p>';
+                } elseif ( 2 === (int) $ai_state['state'] ) {
+                    if ( !empty( $ai_state['last_reviewed'] ) ) {
+                        echo '<p>' . esc_html__( 'Last reviewed', 'security-ninja' ) . ' ' . esc_html( $ai_state['last_reviewed'] ) . ' ' . esc_html__( 'ago', 'security-ninja' ) . '.</p>';
+                        if ( !empty( $ai_state['teaser'] ) ) {
+                            echo '<div class="wf-sn-ai-teaser">' . wp_kses_post( wpautop( esc_html( $ai_state['teaser'] ) ) ) . '</div>';
+                        }
+                        echo '<div class="secscore-link"><a href="' . esc_url( $advisor_url ) . '" class="button snbtn alignright">' . esc_html__( 'Security Advisor', 'security-ninja' ) . ' &rarr;</a></div>';
+                    } else {
+                        echo '<p>' . esc_html__( 'Run your first AI security review and get a privacy-safe summary with top improvements.', 'security-ninja' ) . '</p>';
+                        echo '<div class="secscore-link"><a href="' . esc_url( $advisor_url ) . '" class="button snbtn alignright">' . esc_html__( 'Run AI review', 'security-ninja' ) . ' &rarr;</a></div>';
+                    }
+                } else {
+                    echo '<p>' . esc_html__( 'Get an AI security review with anonymized data. No domains, URLs, or personal data are sent. Set up an AI connector in Security Advisor to run your first report.', 'security-ninja' ) . '</p>';
+                    echo '<div class="secscore-link"><a href="' . esc_url( $advisor_url ) . '" class="button snbtn alignright">' . esc_html__( 'Set up Security Advisor', 'security-ninja' ) . ' &rarr;</a></div>';
+                }
+                echo '</div>';
+            }
+        }
+        ?>
+	<div id="testscores">
+		<?php 
         $scores = wf_sn::return_test_scores();
         if ( 0 === $scores['score'] ) {
             echo '<div class="sncard">';
@@ -30,49 +107,49 @@ class WF_SN_Overview_Tab {
             echo '<h2><span class="dashicons dashicons-saved"></span> ' . esc_html__( 'Your Security Test Results', 'security-ninja' ) . '</h2>';
             echo '<p>' . esc_html__( 'Here is a quick overview of how your site is doing:', 'security-ninja' ) . '</p>';
             ?>
-      <div id="secscore">
-      <div class="sectitle"><?php 
+		<div id="secscore">
+		<div class="sectitle"><?php 
             echo esc_html__( 'Security Score', 'security-ninja' );
             ?></div>
-      <div class="secscore-value"><?php 
+		<div class="secscore-value"><?php 
             echo absint( $scores['score'] );
             ?>%</div>
-      </div>
-      <div id="secscorerowrow">
-      <div class="inner" style="width:<?php 
+		</div>
+		<div id="secscorerowrow">
+		<div class="inner" style="width:<?php 
             echo esc_attr( (string) absint( $scores['score'] ) );
             ?>%;"></div>
-      </div>
-      <div id="secscore-details">
-      <div class="secscore-passed"><span class="det-count"><?php 
+		</div>
+		<div id="secscore-details">
+		<div class="secscore-passed"><span class="det-count"><?php 
             echo absint( $scores['good'] );
             ?></span><span class="det"><?php 
             echo esc_html__( 'Tests passed', 'security-ninja' );
             ?></span></div>
-      <div class="secscore-warning"><span class="det-count"><?php 
+		<div class="secscore-warning"><span class="det-count"><?php 
             echo absint( $scores['warning'] );
             ?></span><span class="det"><?php 
             echo esc_html__( 'Warnings', 'security-ninja' );
             ?></span></div>
-      <div class="secscore-failed"><span class="det-count"><?php 
+		<div class="secscore-failed"><span class="det-count"><?php 
             echo absint( $scores['bad'] );
             ?></span><span class="det"><?php 
             echo esc_html__( 'Tests failed', 'security-ninja' );
             ?></span></div>
-      </div>
-      <div class="secscore-link"><a href="#sn_tests" class="button snbtn alignright"><?php 
+		</div>
+		<div class="secscore-link"><a href="#sn_tests" class="button snbtn alignright"><?php 
             echo esc_html__( 'Visit Security Tests', 'security-ninja' );
             ?> &rarr;</a></div>
-      
-      </div>
-      
-      <?php 
+	  
+		</div>
+	  
+			<?php 
         }
         ?>
-    </div>
-  <div id="snvulns">
-    
-    <?php 
+	</div>
+	<div id="snvulns">
+	
+		<?php 
         if ( class_exists( 'WPSecurityNinja\\Plugin\\Wf_Sn_Vu' ) && wf_sn_vu::$options['enable_vulns'] ) {
             // Get scan summary using the new function
             $scan_data = wf_sn_vu::get_scan_summary();
@@ -80,24 +157,24 @@ class WF_SN_Overview_Tab {
             $scan_summary = $scan_data['scan_summary'];
             $has_vulnerabilities = $scan_data['has_vulnerabilities'];
             if ( $has_vulnerabilities ) {
-                $checklist = ['plugins', 'themes', 'wordpress'];
-                $combined = [];
+                $checklist = array('plugins', 'themes', 'wordpress');
+                $combined = array();
                 foreach ( $checklist as $vulntype ) {
                     if ( isset( $vuln_results[$vulntype] ) ) {
                         foreach ( $vuln_results[$vulntype] as $data ) {
-                            if ( $vulntype === 'wordpress' ) {
+                            if ( 'WordPress' === $vulntype ) {
                                 // WordPress vulnerabilities have different structure
-                                $combined[] = [
+                                $combined[] = array(
                                     'name' => 'WordPress ' . ($data['CVE_ID'] ?? 'Vulnerability'),
-                                    'ver'  => $wp_version ?? 'unknown',
+                                    'ver'  => $scan_summary['wordpress']['current_version'] ?? get_bloginfo( 'version' ),
                                     'type' => 'wordpress',
-                                ];
+                                );
                             } else {
-                                $combined[] = [
+                                $combined[] = array(
                                     'name' => $data['name'],
                                     'ver'  => $data['installedVersion'],
                                     'type' => $vulntype,
-                                ];
+                                );
                             }
                         }
                     }
@@ -109,7 +186,7 @@ class WF_SN_Overview_Tab {
                     echo '<p>' . esc_html__( 'Here are the vulnerabilities found on your site:', 'security-ninja' ) . '</p>';
                     echo '<ul style="list-style-type: none; padding: 0; margin-bottom:0px;">';
                     foreach ( $combined as $vuln ) {
-                        $icon_class = ( $vuln['type'] === 'plugins' ? 'dashicons-admin-plugins' : (( $vuln['type'] === 'themes' ? 'dashicons-admin-appearance' : (( $vuln['type'] === 'wordpress' ? 'dashicons-wordpress' : '' )) )) );
+                        $icon_class = ( 'plugins' === $vuln['type'] ? 'dashicons-admin-plugins' : (( 'themes' === $vuln['type'] ? 'dashicons-admin-appearance' : (( 'WordPress' === $vuln['type'] ? 'dashicons-wordpress' : '' )) )) );
                         echo '<li class="vuln-item"><span class="dashicons ' . esc_attr( $icon_class ) . '"></span><strong>' . esc_html( $vuln['name'] ) . '</strong>: ' . esc_html( $vuln['ver'] ) . '</li>';
                     }
                     echo '</ul>';
@@ -124,33 +201,33 @@ class WF_SN_Overview_Tab {
                 // Show scan summary if available
                 if ( $scan_summary ) {
                     echo '<p>' . sprintf(
+                        /* translators: 1: number of plugins checked, 2: number of themes checked, 3: WordPress version or status */
                         esc_html__( 'Last scan: %1$s plugins, %2$s themes, WordPress %3$s checked.', 'security-ninja' ),
-                        number_format_i18n( $scan_summary['plugins']['plugins_checked'] ?? 0 ),
-                        number_format_i18n( $scan_summary['themes']['themes_checked'] ?? 0 ),
-                        $scan_summary['wordpress']['current_version'] ?? 'unknown'
+                        esc_html( number_format_i18n( $scan_summary['plugins']['plugins_checked'] ?? 0 ) ),
+                        esc_html( number_format_i18n( $scan_summary['themes']['themes_checked'] ?? 0 ) ),
+                        esc_html( $scan_summary['wordpress']['current_version'] ?? 'unknown' )
                     ) . '</p>';
                 }
                 echo '</div>';
             }
             ?>
-      
-      </div><!-- #snvulns -->
-      <?php 
+	  
+		</div><!-- #snvulns -->
+			<?php 
         } else {
             ?>
-      
-      <div class="sncard">
-      <h3><span class="dashicons dashicons-shield-alt"></span><?php 
+	  
+		<div class="sncard">
+		<h3><span class="dashicons dashicons-shield-alt"></span><?php 
             echo esc_html__( 'Vulnerability Scan Results', 'security-ninja' ) . '</h3>';
             ?>
-      <p><?php 
+		<p>
+			<?php 
             echo esc_html__( 'Vulnerability tracking is not enabled.', 'security-ninja' ) . '</p>';
             echo '</div></div>';
         }
         // Check for plugin and theme updates
         $plugin_updates = get_plugin_updates();
-        delete_site_transient( 'update_themes' );
-        wp_update_themes();
         // Get available theme updates
         $theme_updates = get_site_transient( 'update_themes' );
         $plugin_count = count( $plugin_updates );
@@ -162,19 +239,27 @@ class WF_SN_Overview_Tab {
         if ( $total_updates > 0 ) {
             echo '<div class="sncard">';
             echo '<h3 class="warning"><span class="dashicons dashicons-warning"></span> ' . esc_html__( 'Available Updates', 'security-ninja' ) . '</h3>';
-            $summary = '<span>' . sprintf( _n(
-                '%d update available',
-                '%d updates available',
-                $total_updates,
-                'security-ninja'
-            ), $total_updates ) . '</span>';
-            if ( $plugin_count > 0 ) {
-                $summary .= ' ' . sprintf( _n(
-                    '(%d plugin',
-                    '(%d plugins',
-                    $plugin_count,
+            $summary = '<span>' . sprintf( 
+                /* translators: %d: number of updates available */
+                _n(
+                    '%d update available',
+                    '%d updates available',
+                    $total_updates,
                     'security-ninja'
-                ), $plugin_count );
+                ),
+                $total_updates
+             ) . '</span>';
+            if ( $plugin_count > 0 ) {
+                $summary .= ' ' . sprintf( 
+                    /* translators: %d: number of plugins */
+                    _n(
+                        '(%d plugin',
+                        '(%d plugins',
+                        $plugin_count,
+                        'security-ninja'
+                    ),
+                    $plugin_count
+                 );
             }
             if ( $theme_count > 0 ) {
                 if ( $plugin_count > 0 ) {
@@ -182,12 +267,16 @@ class WF_SN_Overview_Tab {
                 } else {
                     $summary .= ' (';
                 }
-                $summary .= sprintf( _n(
-                    '%d theme',
-                    '%d themes',
-                    $theme_count,
-                    'security-ninja'
-                ), $theme_count );
+                $summary .= sprintf( 
+                    /* translators: %d: number of themes */
+                    _n(
+                        '%d theme',
+                        '%d themes',
+                        $theme_count,
+                        'security-ninja'
+                    ),
+                    $theme_count
+                 );
             }
             if ( $plugin_count > 0 || $theme_count > 0 ) {
                 $summary .= ')';
@@ -197,8 +286,8 @@ class WF_SN_Overview_Tab {
             echo '</div>';
         }
         ?>
-      
-      <?php 
+	  
+		<?php 
         // Define free user actions (available to all users)
         $free_actions_to_track = array(
             'wp_login'        => __( 'Successful login', 'security-ninja' ),
@@ -208,11 +297,11 @@ class WF_SN_Overview_Tab {
         $actions_to_track = $free_actions_to_track;
         // Show firewall summary for all users (free and premium)
         ?>
-        <div class="sncard firewall-summary">
-        <h3><span class="dashicons dashicons-warning"></span> <?php 
+		<div class="sncard firewall-summary">
+		<h3><span class="dashicons dashicons-warning"></span> <?php 
         echo esc_html__( 'Firewall Summary', 'security-ninja' );
         ?></h3>
-        <?php 
+		<?php 
         global $wpdb;
         // Prepare the table name
         $table_name = $wpdb->prefix . 'wf_sn_el';
@@ -220,15 +309,13 @@ class WF_SN_Overview_Tab {
         $placeholders = implode( ',', array_fill( 0, count( $actions_to_track ), '%s' ) );
         $action_counts = array_fill_keys( array_keys( $actions_to_track ), 0 );
         // Query to get the count of each action type
-        $count_query = $wpdb->prepare( "SELECT action, COUNT(*) as count \n            FROM {$table_name} \n            WHERE action IN ({$placeholders}) \n            GROUP BY action", array_keys( $actions_to_track ) );
-        $action_results = $wpdb->get_results( $count_query, ARRAY_A );
+        $action_results = $wpdb->get_results( $wpdb->prepare( "SELECT action, COUNT(*) as count \n            FROM {$table_name} \n            WHERE action IN ({$placeholders}) \n            GROUP BY action", array_keys( $actions_to_track ) ), ARRAY_A );
         // Populate the action_counts array with the results
         foreach ( $action_results as $action_result ) {
             $action_counts[$action_result['action']] = intval( $action_result['count'] );
         }
         // Fetch the last 10 events
-        $query = $wpdb->prepare( "SELECT id, timestamp, ip, action, raw_data \n            FROM {$table_name} \n            WHERE action IN ({$placeholders}) AND raw_data != 'N;'\n            ORDER BY timestamp DESC \n            LIMIT 10", array_keys( $actions_to_track ) );
-        $results = $wpdb->get_results( $query, ARRAY_A );
+        $results = $wpdb->get_results( $wpdb->prepare( "SELECT id, timestamp, ip, action, raw_data \n            FROM {$table_name} \n            WHERE action IN ({$placeholders}) AND raw_data != 'N;'\n            ORDER BY timestamp DESC \n            LIMIT 10", array_keys( $actions_to_track ), ARRAY_A ) );
         if ( !empty( $results ) ) {
             echo '<div class="action-counts">';
             echo '<h4>' . esc_html__( 'Action Counts', 'security-ninja' ) . '</h4>';
@@ -239,7 +326,7 @@ class WF_SN_Overview_Tab {
                     $output[] = '<span class="actiontype">' . esc_html( $actions_to_track[$action] ) . '  <strong>' . esc_html( number_format_i18n( $count ) ) . '</strong></span> ';
                 }
             }
-            echo implode( ' ', $output );
+            echo wp_kses_post( implode( ' ', $output ) );
             echo '</div>';
             echo '</div>';
             echo '<div class="recentandbtn"><div><h3>' . esc_html__( 'Recent Events', 'security-ninja' ) . '</h3></div><div><a href="#sn_logger" class="button snbtn alignright">' . esc_html__( 'View all events', 'security-ninja' ) . ' &rarr; </a></div></div>';
@@ -253,7 +340,7 @@ class WF_SN_Overview_Tab {
                 $action = ( isset( $actions_to_track[$row['action']] ) ? esc_html( $actions_to_track[$row['action']] ) : esc_html( $row['action'] ) );
                 $ip = esc_html( $row['ip'] );
                 // Prepare details
-                $details = [];
+                $details = array();
                 if ( is_array( $raw_data ) && !is_null( $raw_data ) ) {
                     foreach ( $raw_data as $key => $value ) {
                         // Check if value is a WP_Error object before passing to esc_html()
@@ -280,87 +367,87 @@ class WF_SN_Overview_Tab {
                     $details[] = '<div>' . esc_html( $display_raw_data ) . '</div>';
                 }
                 $countryimg = '';
-                echo '<div class="sn-event-row" id="' . $event_id . '">';
+                echo '<div class="sn-event-row" id="sn-event-' . esc_attr( $row['id'] ) . '">';
                 // Summary
                 echo '<div class="sn-event-summary" onclick="this.parentElement.classList.toggle(\'expanded\')">';
-                echo '<div class="sn-event-date">' . $date;
-                echo '<div class="ipcountry">IP: ' . $ip . wp_kses_post( $countryimg ) . '</div>';
+                echo '<div class="sn-event-date">' . esc_html( date_i18n( get_option( 'date_format' ) . ' ' . $time_format, strtotime( $row['timestamp'] ) ) );
+                echo '<div class="ipcountry">IP: ' . esc_html( $row['ip'] ) . wp_kses_post( $countryimg ) . '</div>';
                 echo '</div>';
-                echo '<div class="sn-event-action">' . $action . '</div>';
+                echo '<div class="sn-event-action">' . (( isset( $actions_to_track[$row['action']] ) ? esc_html( $actions_to_track[$row['action']] ) : esc_html( $row['action'] ) )) . '</div>';
                 echo '<div class="sn-event-toggle"><span class="dashicons dashicons-arrow-down-alt2"></span></div>';
                 echo '</div>';
                 // Details (hidden by default)
                 echo '<div class="sn-event-details">';
-                echo implode( '', $details );
+                echo wp_kses_post( implode( '', $details ) );
                 echo '</div>';
                 echo '</div>';
             }
             echo '</div>';
         } else {
-            echo '<p>' . __( 'Great, no firewall events found.', 'security-ninja' ) . '</p>';
+            echo '<p>' . esc_html__( 'Great, no firewall events found.', 'security-ninja' ) . '</p>';
         }
         ?>
-        </div>
-        </div>
-        <?php 
+		</div>
+		</div>
+		<?php 
         $show_pro_ad = true;
         if ( $show_pro_ad ) {
             ?>
-        <div class="sncard upgradepro">
-        <h3><?php 
-            echo esc_html__( 'Upgrade to WP Security Ninja Pro', 'security-ninja' );
+		<div class="sncard upgradepro">
+		<h3><?php 
+            echo esc_html( 'Upgrade to WP Security Ninja Pro' );
             ?></h3>
-        <div class="benefits-container">
-        
-        <div><strong><?php 
-            echo esc_html__( 'Peace of mind', 'security-ninja' );
+		<div class="benefits-container">
+		
+		<div><strong><?php 
+            echo esc_html( 'Peace of mind' );
             ?> </strong> - <?php 
-            echo esc_html__( 'Focus on your business. We handle the security.', 'security-ninja' );
+            echo esc_html( 'Focus on your business. We handle the security.' );
             ?></div>
-        
-        <div><strong><?php 
-            echo esc_html__( 'Easy Install Wizard', 'security-ninja' );
+		
+		<div><strong><?php 
+            echo esc_html( 'Easy Install Wizard' );
             ?></strong> - <?php 
-            echo esc_html__( 'Install in minutes. No technical skills required.', 'security-ninja' );
+            echo esc_html( 'Install in minutes. No technical skills required.' );
             ?></div>
-        
-        <div><strong><?php 
-            echo esc_html__( 'Real-time firewall', 'security-ninja' );
+		
+		<div><strong><?php 
+            echo esc_html( 'Real-time firewall' );
             ?></strong> - <?php 
-            echo esc_html__( 'Blocks threats before they reach your site.', 'security-ninja' );
+            echo esc_html( 'Blocks threats before they reach your site.' );
             ?></div>
-        
-        <div><strong><?php 
-            echo esc_html__( 'Proactive threat detection', 'security-ninja' );
+		
+		<div><strong><?php 
+            echo esc_html( 'Proactive threat detection' );
             ?></strong> <?php 
-            echo esc_html__( 'Stays ahead of emerging vulnerabilities.', 'security-ninja' );
+            echo esc_html( 'Stays ahead of emerging vulnerabilities.' );
             ?></div>
-        
-        <div><strong><?php 
-            echo esc_html__( 'Blocks spam & bots', 'security-ninja' );
+		
+		<div><strong><?php 
+            echo esc_html( 'Blocks spam & bots' );
             ?></strong> - <?php 
-            echo esc_html__( 'Keeps your site clean and your visitors safe.', 'security-ninja' );
+            echo esc_html( 'Keeps your site clean and your visitors safe.' );
             ?></div>
-        
-        <div><strong><?php 
-            echo esc_html__( 'Login Protection', 'security-ninja' );
+		
+		<div><strong><?php 
+            echo esc_html( 'Login Protection' );
             ?></strong> - <?php 
-            echo esc_html__( 'Prevent brute force attacks. Rename login page and use 2FA.', 'security-ninja' );
+            echo esc_html( 'Prevent brute force attacks. Rename login page and use 2FA.' );
             ?></div>
-        
-        <div><strong><?php 
-            echo esc_html__( 'Malware Scanner', 'security-ninja' );
+		
+		<div><strong><?php 
+            echo esc_html( 'Malware Scanner' );
             ?></strong> - <?php 
-            echo esc_html__( 'Scan files for malicious code - warns you of any suspicious results.', 'security-ninja' );
+            echo esc_html( 'Scan files for malicious code - warns you of any suspicious results.' );
             ?></div>
-        
-        <div><strong><?php 
-            echo esc_html__( 'White Label (25+ licenses)', 'security-ninja' );
+		
+		<div><strong><?php 
+            echo esc_html( 'White Label (25+ licenses)' );
             ?></strong> - <?php 
-            echo esc_html__( 'Put your own agency branding on the plugin.', 'security-ninja' );
+            echo esc_html( 'Put your own agency branding on the plugin.' );
             ?></div>
-    
-        <?php 
+	
+			<?php 
             $url = 'https://wpsecurityninja.com/pricing/';
             $pricing_url = Utils::generate_sn_web_link( 'explore-pro', '/pricing/', array(
                 'utm_source' => 'overview-tab',
@@ -382,26 +469,25 @@ class WF_SN_Overview_Tab {
             ), $url );
             ?>
 
-        
-        </div>
-        <div>
-        <p style="margin-top: 10px;text-align: center;">
-        <a href="<?php 
+		
+		</div>
+		<div>
+		<p style="text-align: center;">
+		<a href="<?php 
             echo esc_url( $pricing_url );
-            ?>" class="wf-sn-button button" target="_blank"><?php 
-            echo esc_html__( 'Explore WP Security Ninja Pro now!', 'security-ninja' );
-            ?></a><br><small>or try our <a href="<?php 
+            ?>" class="wf-sn-button button button-primary button-small" target="_blank"><?php 
+            echo esc_html( 'Upgrade now' );
+            ?></a> <small> or try our <a href="<?php 
             echo esc_url( $trial_url );
-            ?>" class="" target="_blank">14 days FREE trial &raquo;</a></small>
-        </p>
-        </div>
-        </div>
-        <?php 
+            ?>" class="" target="_blank">14 days FREE trial &raquo;</a></small></p>
+		</div>
+		</div>
+			<?php 
         }
         ?>
-      
-      
-      <?php 
+	  
+	  
+		<?php 
     }
 
 }

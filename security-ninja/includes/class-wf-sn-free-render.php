@@ -49,9 +49,7 @@ class Free_Render {
 			<p>
 				<em>Don't let important activities go unnoticed—activate Events Logger and maintain complete visibility over your WordPress site.</em>
 			</p>
-			<p class="fomlink"><a target="_blank" href="<?php echo esc_url( \WPSecurityNinja\Plugin\Utils::generate_sn_web_link( 'tab_events_logger', '/events-logger/' ) ); ?>" class="button button-primary" rel="noopener">
-				<?php esc_html_e( 'Learn more', 'security-ninja' ); ?>
-			</a></p>
+			<p class="fomlink"><a target="_blank" href="<?php echo esc_url( \WPSecurityNinja\Plugin\Utils::generate_sn_web_link( 'tab_events_logger', '/events-logger/' ) ); ?>" class="button button-primary" rel="noopener">Learn more</a></p>
 		</div>
 		<?php
 		echo '</div>';
@@ -72,7 +70,7 @@ class Free_Render {
 		<div class="fomcont">
 			<h3>Advanced Firewall: Proactive Security for Your Site</h3>
 
-			<img src="<?php echo esc_url( WF_SN_PLUGIN_URL . 'images/firewall.jpg' ); ?>" alt="<?php esc_html_e( 'Scan Core files of WordPress', 'security-ninja' ); ?>" class="tabimage">
+			<img src="<?php echo esc_url( WF_SN_PLUGIN_URL . 'images/firewall.jpg' ); ?>" alt="Scan Core files of WordPress" class="tabimage">
 
 			<p>
 				Protect your website and your reputation with Firewall, your always-on security partner. Instantly block hackers, malware, and suspicious activity before they can do any harm. With Firewall, you get peace of mind knowing your site is shielded by both powerful local protection and a constantly evolving global threat database. Enjoy more control, fewer worries, and a safer experience for you and your visitors.
@@ -89,9 +87,7 @@ class Free_Render {
 				<em>Give your site the proactive protection it deserves—activate Firewall and stay one step ahead of online threats.</em>
 			</p>
 
-			<p class="fomlink"><a target="_blank" href="<?php echo esc_url( \WPSecurityNinja\Plugin\Utils::generate_sn_web_link( 'tab_firewall', '/cloud-firewall/' ) ); ?>" class="button button-primary" rel="noopener">
-				<?php esc_html_e( 'Learn more', 'security-ninja' ); ?>
-			</a></p>
+			<p class="fomlink"><a target="_blank" href="<?php echo esc_url( \WPSecurityNinja\Plugin\Utils::generate_sn_web_link( 'tab_firewall', '/cloud-firewall/' ) ); ?>" class="button button-primary" rel="noopener">Learn more</a></p>
 		</div>
 		<?php
 		echo '</div>';
@@ -107,33 +103,26 @@ class Free_Render {
 	 * @return  void
 	 */
 	public static function render_malware_page() {
-		echo '<div class="submit-test-container">';
 		?>
-		<div class="fomcont">
-			<h3>Malware scanner: Detect and eliminate hidden threats</h3>
-
-			<img src="<?php echo esc_url( WF_SN_PLUGIN_URL . 'images/malware-scanner.jpg' ); ?>" alt="Find malicious files in your WordPress site" class="tabimage">
-
-			<p>
-				Even the most secure websites can fall victim to malware. With Firewall and strong passwords, you're already a step ahead—but hidden threats can still slip through.
-			</p>
-			<p>
-				That's where the Malware Scanner comes in. Enjoy peace of mind knowing your site is regularly checked for malicious code, suspicious changes, and known attack patterns. Protect your reputation, your visitors, and your business with fast, thorough scans and clear results.
-			</p>
-			<ul>
-				<li><strong>Comprehensive Site Scanning:</strong> Quickly scan your entire website for code commonly found in malicious scripts and known attack signatures.</li>
-				<li><strong>Plugin Integrity Checks:</strong> Every public plugin from WordPress.org is verified against a master checklist to detect unauthorized file changes or tampering.</li>
-				<li><strong>Real-Time Alerts:</strong> Get instant notifications if suspicious code or modifications are found, so you can act before any damage is done.</li>
-				<li><strong>Easy-to-Understand Reports:</strong> See exactly what was scanned, what was found, and what steps to take next—no technical jargon required.</li>
-				<li><strong>Continuous Protection:</strong> Schedule regular scans to keep your site safe around the clock.</li>
-			</ul>
-			<p>
-				<em>Don't let hidden threats compromise your hard work—activate Malware Scanner and keep your site clean, safe, and secure.</em>
-			</p>
-			<p class="fomlink"><a target="_blank" href="<?php echo esc_url( \WPSecurityNinja\Plugin\Utils::generate_sn_web_link( 'tab_malware', '/malware-scanner/' ) ); ?>" class="button button-primary" rel="noopener">
-				<?php esc_html_e( 'Learn more', 'security-ninja' ); ?>
-			</a></p>
-		</div>
+		<div class="sncard settings-card">
+			<h2><span class="dashicons dashicons-shield"></span>Malware</h2>
+			<p>Scan your site for malicious code and known attack signatures.</p>
+			<div class="sncard infobox">
+				<div class="inner">
+					<h3>Upgrade to Pro for Malware Scanner</h3>
+					<p>The free version includes core security tests and scanners. Upgrade to Security Ninja Pro to unlock the Malware Scanner and keep your site clean:</p>
+					<ul style="list-style: disc; margin-left: 20px; margin-top: 10px;">
+						<li>Scan your entire site for malicious code and known attack signatures</li>
+						<li>Plugin integrity checks – detect unauthorized file changes or tampering</li>
+						<li>Real-time alerts and easy-to-understand reports</li>
+						<li>Schedule regular malware scans with the Scheduler</li>
+						<li>Exclude paths and whitelist trusted files to reduce false positives</li>
+					</ul>
+					<p style="margin-top: 15px;">
+						<a href="<?php echo esc_url( Utils::generate_sn_web_link( 'upgrade_tab_malware', '/pricing/' ) ); ?>" class="button button-primary button-small" target="_blank" rel="noopener">Upgrade to Pro</a>
+					</p>
+				</div>
+			</div>
 		</div>
 		<?php
 	}
@@ -148,34 +137,27 @@ class Free_Render {
 	 * @return  void
 	 */
 	public static function render_scheduled_scanner_page() {
-		echo '<div class="submit-test-container">';
 		?>
-		<div class="fomcont">
-			<h3>Scheduled Scanner: Automated security monitoring</h3>
-
-			<img src="<?php echo esc_url( WF_SN_PLUGIN_URL . 'images/scheduler.jpg' ); ?>" alt="Automated security monitoring" class="tabimage">
-
-			<p>
-				Set up automated security scans that run on your schedule, not when you remember. Scheduled Scanner ensures your site is regularly checked for vulnerabilities, malware, and security issues without requiring manual intervention.
-			</p>
-			<p>
-				Configure scans to run daily, weekly, or monthly based on your needs. Receive detailed reports via email, and rest easy knowing your site is being monitored even when you're not actively managing it.
-			</p>
-			<ul>
-				<li><strong>Flexible Scheduling:</strong> Set up scans to run automatically on your preferred schedule—daily, weekly, or monthly.</li>
-				<li><strong>Comprehensive Coverage:</strong> Scan for vulnerabilities, malware, and security issues in one automated process.</li>
-				<li><strong>Email Notifications:</strong> Receive detailed reports via email with clear summaries of findings and recommendations.</li>
-				<li><strong>Custom Scan Profiles:</strong> Configure different scan types and depths based on your security requirements.</li>
-				<li><strong>Historical Tracking:</strong> Maintain a complete history of scan results to track security improvements over time.</li>
-			</ul>
-			<p>
-				<em>Don't let security monitoring fall through the cracks—activate Scheduled Scanner and maintain consistent protection for your site.</em>
-			</p>
-			<p class="fomlink"><a target="_blank" href="<?php echo esc_url( \WPSecurityNinja\Plugin\Utils::generate_sn_web_link( 'tab_scheduled_scanner', '/scheduled-scanner/' ) ); ?>" class="button button-primary" rel="noopener">
-				<?php esc_html_e( 'Learn more', 'security-ninja' ); ?>
-			</a></p>
+		<div class="sncard settings-card">
+			<h2><span class="dashicons dashicons-backup"></span>Scheduler</h2>
+			<p>Run security scans on a schedule and receive email reports.</p>
+			<div class="sncard infobox">
+				<div class="inner">
+					<h3>Upgrade to Pro for Scheduled Scanner</h3>
+					<p>Run security checks on a schedule without lifting a finger. Upgrade to Security Ninja Pro to unlock the Scheduler:</p>
+					<ul style="list-style: disc; margin-left: 20px; margin-top: 10px;">
+						<li>Schedule automated scans – daily, weekly, or monthly</li>
+						<li>Run Security Tests, Core Scanner, and Malware Scanner on a single schedule</li>
+						<li>Receive detailed email reports with findings and recommendations</li>
+						<li>Background execution so scans never time out</li>
+						<li>Historical tracking of scan results over time</li>
+					</ul>
+					<p style="margin-top: 15px;">
+						<a href="<?php echo esc_url( Utils::generate_sn_web_link( 'upgrade_tab_scheduler', '/pricing/' ) ); ?>" class="button button-primary button-small" target="_blank" rel="noopener">Upgrade to Pro</a>
+					</p>
+				</div>
+			</div>
 		</div>
 		<?php
-		echo '</div>';
 	}
-} 
+}

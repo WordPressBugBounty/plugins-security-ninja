@@ -2,8 +2,8 @@
 
 namespace WPSecurityNinja\Plugin;
 
-if ( !function_exists( 'add_action' ) ) {
-    die( 'Please don\'t open this file directly!' );
+if ( !defined( 'ABSPATH' ) ) {
+    exit;
 }
 class Wf_Sn_Vu {
     public static $options = null;
@@ -58,7 +58,6 @@ class Wf_Sn_Vu {
         if ( !$enable_email_notice ) {
             return;
         }
-        // *** EMAIL WARNINGS - CHECK if an email should be sent...
         $vulns = self::return_vulnerabilities();
         if ( $vulns && (!empty( $vulns['plugins'] ) || !empty( $vulns['wordpress'] ) || !empty( $vulns['themes'] )) ) {
             self::send_vulnerability_email( $vulns );
@@ -75,9 +74,7 @@ class Wf_Sn_Vu {
      */
     public static function do_action_upgrader_process_complete() {
         if ( self::$options['enable_vulns'] ) {
-            // deletes the transient before checking again
             delete_transient( 'wf_sn_return_vulnerabilities' );
-            // Updates the vuln list
             self::return_vulnerabilities();
         }
     }
@@ -89,11 +86,9 @@ class Wf_Sn_Vu {
      * @return  array The options array.
      */
     public static function get_options() {
-        // Return cached options if available
         if ( !is_null( self::$options ) ) {
             return self::$options;
         }
-        // Fetch options from the database or any other storage
         $options = get_option( 'wf_sn_vu_settings_group' );
         $defaults = array(
             'enable_vulns'              => true,
@@ -103,13 +98,10 @@ class Wf_Sn_Vu {
             'email_notice_recipient'    => '',
             'ignored_plugin_slugs'      => '',
         );
-        // Ensure $options is an array
         if ( !is_array( $options ) ) {
             $options = array();
         }
-        // Merge defaults with the actual options, prioritizing actual options
         self::$options = array_merge( $defaults, $options );
-        // Return the merged options
         return self::$options;
     }
 
@@ -119,11 +111,10 @@ class Wf_Sn_Vu {
      * @author  Lars Koudal
      * @since   v0.0.1
      * @version v1.0.0  Friday, January 23rd, 2026.
-     * @param   string  $type File type: 'plugins', 'themes', or 'wordpress'.
+     * @param   string  $type File type: 'plugins', 'themes', or 'WordPress'.
      * @return  array|false Array with validators or false if not found.
      */
     public static function get_file_validators( $type ) {
-        // Validate type against allowed values.
         if ( !isset( self::$api_urls[$type] ) ) {
             return false;
         }
@@ -141,7 +132,7 @@ class Wf_Sn_Vu {
      * @author  Lars Koudal
      * @since   v0.0.1
      * @version v1.0.0  Friday, January 23rd, 2026.
-     * @param   string  $type           File type: 'plugins', 'themes', or 'wordpress'.
+     * @param   string  $type           File type: 'plugins', 'themes', or 'WordPress'.
      * @param   string  $etag           ETag string (preserve quotes/W/ prefix).
      * @param   string  $last_modified  Last-Modified string.
      * @param   int     $last_checked   Timestamp of last check attempt.
@@ -157,7 +148,6 @@ class Wf_Sn_Vu {
         $last_success = 0,
         $last_error = ''
     ) {
-        // Validate type against allowed values.
         if ( !isset( self::$api_urls[$type] ) ) {
             return false;
         }
@@ -186,13 +176,11 @@ class Wf_Sn_Vu {
         if ( empty( $content ) || strlen( $content ) === 0 ) {
             return false;
         }
-        // Check if contains at least one newline.
         if ( strpos( $content, "\n" ) !== false ) {
             return true;
         }
-        // Check if first non-whitespace character is '{'.
         $trimmed = ltrim( $content );
-        if ( !empty( $trimmed ) && $trimmed[0] === '{' ) {
+        if ( !empty( $trimmed ) && '{' === $trimmed[0] ) {
             return true;
         }
         return false;
@@ -208,7 +196,6 @@ class Wf_Sn_Vu {
      */
     public static function admin_init() {
         register_setting( 'wf_sn_vu_settings_group', 'wf_sn_vu_settings_group', array(__NAMESPACE__ . '\\wf_sn_vu', 'sanitize_settings') );
-        // Add AJAX handlers
         add_action( 'wp_ajax_secnin_download_all_vuln_files', array(__NAMESPACE__ . '\\wf_sn_vu', 'handle_download_all_vuln_files') );
     }
 
@@ -223,7 +210,6 @@ class Wf_Sn_Vu {
             wp_schedule_event( time() + 10, 'daily', 'secnin_daily_vulnerability_warning_check' );
         }
         $scheduled_event = wp_next_scheduled( 'secnin_update_vuln_list' );
-        // Free version logic, executed only if the premium block above did not run
         if ( !$scheduled_event ) {
             wp_schedule_event( time(), 'weekly', 'secnin_update_vuln_list' );
         } else {
@@ -249,7 +235,6 @@ class Wf_Sn_Vu {
             'label'    => __( 'Vulnerabilities', 'security-ninja' ),
             'callback' => array(__NAMESPACE__ . '\\wf_sn_vu', 'render_vuln_page'),
         );
-        // Check if notification bubles enabled.
         if ( self::$options['enable_admin_notification'] ) {
             try {
                 $return_vuln_count = self::return_vuln_count();
@@ -257,7 +242,8 @@ class Wf_Sn_Vu {
                     $vuln_tab['count'] = $return_vuln_count;
                 }
             } catch ( \Exception $e ) {
-                // Leave count unset so tab renders without badge.
+                // Intentional: leave count unset so tab renders without badge.
+                unset($e);
             }
         }
         $done = 0;
@@ -318,12 +304,15 @@ class Wf_Sn_Vu {
         $filename = sanitize_file_name( $filename );
         $upload_dir = wp_upload_dir();
         $sn_dir = trailingslashit( $upload_dir['basedir'] ) . 'security-ninja/vulns/';
-        // Create directory without trying to chown
+        require_once ABSPATH . 'wp-admin/includes/file.php';
+        global $wp_filesystem;
+        if ( empty( $wp_filesystem ) && !WP_Filesystem() ) {
+            return false;
+        }
         if ( !file_exists( $sn_dir ) ) {
             wp_mkdir_p( $sn_dir );
-            // Set directory permissions but don't try to chown
-            chmod( $sn_dir, 0755 );
-            // Create .htaccess to prevent direct access
+            $wp_filesystem->chmod( $sn_dir, 0755 );
+            // Prevent direct access to vuln files.
             $htaccess_content = "deny from all\n";
             file_put_contents( $sn_dir . '.htaccess', $htaccess_content );
         }
@@ -338,26 +327,22 @@ class Wf_Sn_Vu {
         if ( false === $real_sn_dir || false === $real_temp_path || false === $real_final_path ) {
             return false;
         }
-        // Ensure paths are within the intended directory (prevent directory traversal).
         if ( 0 !== strpos( $real_temp_path, $real_sn_dir ) || 0 !== strpos( $real_final_path, $real_sn_dir ) ) {
             return false;
         }
-        // Write to temp file with lock.
         $temp_written = file_put_contents( $temp_path, $file_content, LOCK_EX );
         if ( false === $temp_written ) {
             return false;
         }
         // Verify temp file is valid (lightweight check).
         if ( !self::is_likely_jsonl( file_get_contents( $temp_path ) ) ) {
-            @unlink( $temp_path );
-            // Clean up temp file.
+            wp_delete_file( $temp_path );
             return false;
         }
-        // Atomically rename temp to final (rename is atomic on same filesystem).
-        $renamed = @rename( $temp_path, $final_path );
+        // Atomically move temp to final (WP_Filesystem::move uses rename on same filesystem).
+        $renamed = $wp_filesystem->move( $temp_path, $final_path, true );
         if ( !$renamed ) {
-            @unlink( $temp_path );
-            // Clean up temp file on failure.
+            wp_delete_file( $temp_path );
             return false;
         }
         return true;
@@ -369,16 +354,15 @@ class Wf_Sn_Vu {
      * @author  Lars Koudal
      * @since   v0.0.1
      * @version v1.0.0  Friday, January 23rd, 2026.
-     * @param   string  $type File type: 'plugins', 'themes', or 'wordpress'.
+     * @param   string  $type File type: 'plugins', 'themes', or 'WordPress'.
      * @param   string  $url  Base URL for the vulnerability file.
      * @return  array|false Array with result info on success, false on failure.
      */
     public static function download_vuln_file_with_conditional_get( $type, $url ) {
-        // Validate type against allowed values.
         if ( !isset( self::$api_urls[$type] ) ) {
             return false;
         }
-        // Validate URL is from whitelisted API URLs (security: prevent arbitrary URL downloads).
+        // Only allow whitelisted API URLs (prevent arbitrary URL downloads).
         if ( !isset( self::$api_urls[$type] ) || self::$api_urls[$type] !== $url ) {
             return false;
         }
@@ -390,24 +374,20 @@ class Wf_Sn_Vu {
             $stored_etag = ( !empty( $validators['stored_etag'] ) ? $validators['stored_etag'] : false );
             $stored_last_modified = ( !empty( $validators['stored_last_modified'] ) ? $validators['stored_last_modified'] : false );
         }
-        // Build conditional GET headers.
         $conditional_headers = array();
         if ( $stored_etag ) {
-            // Sanitize ETag header value (preserve quotes/W/ prefix but escape any dangerous characters).
+            // Preserve quotes/W/ prefix; sanitize for header.
             $conditional_headers['If-None-Match'] = sanitize_text_field( $stored_etag );
         }
         if ( $stored_last_modified ) {
-            // Sanitize Last-Modified header value.
             $conditional_headers['If-Modified-Since'] = sanitize_text_field( $stored_last_modified );
         }
-        // Prepare request arguments.
         $request_url = esc_url_raw( $url . '.gz' );
         $args = array(
             'headers'   => $conditional_headers,
             'timeout'   => 30,
             'sslverify' => true,
         );
-        // Make conditional GET request (use wp_remote_get to allow custom headers).
         $response = wp_remote_get( $request_url, $args );
         $current_time = time();
         $result_info = array(
@@ -421,10 +401,9 @@ class Wf_Sn_Vu {
             'decode_succeeded'   => false,
             'file_written'       => false,
         );
-        // Handle network errors.
         if ( is_wp_error( $response ) ) {
             $error_message = $response->get_error_message();
-            // Don't overwrite file, don't clear validators, record error.
+            // Don't overwrite file or clear validators; record error only.
             if ( $validators ) {
                 self::save_file_validators(
                     $type,
@@ -446,13 +425,11 @@ class Wf_Sn_Vu {
             }
             return false;
         }
-        // Get response code and headers.
         $response_code = wp_remote_retrieve_response_code( $response );
         $headers = wp_remote_retrieve_headers( $response );
         $result_info['status_code'] = $response_code;
-        // Handle 304 Not Modified.
         if ( 304 === $response_code ) {
-            // No body processing needed, don't update file content; update validators and touch file so "Last Updated" UI reflects check time.
+            // Update validators and touch file so "Last Updated" UI reflects check time; no file content change.
             if ( $validators ) {
                 self::save_file_validators(
                     $type,
@@ -472,7 +449,6 @@ class Wf_Sn_Vu {
                     ''
                 );
             }
-            // Touch local JSONL file so get_vulnerabilities_last_modified() shows a recent "Last Updated".
             require_once ABSPATH . 'wp-admin/includes/file.php';
             global $wp_filesystem;
             if ( !empty( $wp_filesystem ) || WP_Filesystem() ) {
@@ -485,7 +461,6 @@ class Wf_Sn_Vu {
             $result_info['success'] = true;
             return $result_info;
         }
-        // Handle 200 OK.
         if ( 200 === $response_code ) {
             $body = wp_remote_retrieve_body( $response );
             $content_length = ( isset( $headers['content-length'] ) ? (int) $headers['content-length'] : strlen( $body ) );
@@ -497,14 +472,13 @@ class Wf_Sn_Vu {
             if ( 'gzip' === $content_encoding ) {
                 $is_gzipped = true;
             } elseif ( strlen( $body ) >= 2 ) {
-                // Check magic bytes: 0x1f 0x8b indicates gzip.
+                // 0x1f 0x8b = gzip magic bytes.
                 $magic_bytes = unpack( 'C2', substr( $body, 0, 2 ) );
                 if ( 0x1f === $magic_bytes[1] && 0x8b === $magic_bytes[2] ) {
                     $is_gzipped = true;
                 }
             }
             $result_info['gzip_detected'] = $is_gzipped;
-            // Decode if gzipped.
             $decoded_content = $body;
             if ( $is_gzipped ) {
                 $decoded = gzdecode( $body );
@@ -512,11 +486,9 @@ class Wf_Sn_Vu {
                     $decoded_content = $decoded;
                     $result_info['decode_succeeded'] = true;
                 } elseif ( self::is_likely_jsonl( $body ) ) {
-                    // Already decoded, use as-is (fallback).
                     $decoded_content = $body;
                     $result_info['decode_succeeded'] = true;
                 } else {
-                    // Failed decode, treat as error - don't overwrite file.
                     $error_msg = sprintf( 
                         /* translators: %s: Vulnerability type */
                         __( 'Failed to decompress %s vulnerability file.', 'security-ninja' ),
@@ -544,10 +516,8 @@ class Wf_Sn_Vu {
                     return false;
                 }
             } else {
-                // Not gzipped, treat as plain text JSONL.
                 $result_info['decode_succeeded'] = true;
             }
-            // Sanity check: ensure decoded content is valid JSONL.
             if ( !self::is_likely_jsonl( $decoded_content ) ) {
                 $error_msg = sprintf( 
                     /* translators: %s: Vulnerability type */
@@ -575,12 +545,10 @@ class Wf_Sn_Vu {
                 }
                 return false;
             }
-            // Atomic write to file.
             $write_result = self::get_file_and_save( $decoded_content, "{$type}_vulns.jsonl" );
             if ( $write_result ) {
                 $result_info['file_written'] = true;
                 $result_info['success'] = true;
-                // Only if write succeeds: update validators and last_success_ts.
                 self::save_file_validators(
                     $type,
                     $received_etag,
@@ -590,7 +558,6 @@ class Wf_Sn_Vu {
                     ''
                 );
             } else {
-                // Write failed - don't update validators.
                 $error_msg = sprintf( 
                     /* translators: %s: Vulnerability type */
                     __( 'Failed to save %s vulnerability file.', 'security-ninja' ),
@@ -619,14 +586,12 @@ class Wf_Sn_Vu {
             }
             return $result_info;
         }
-        // Handle other HTTP status codes (4xx/5xx).
         $error_msg = sprintf( 
             /* translators: %1$s: Vulnerability type, %2$d: HTTP status code */
             __( 'HTTP error %2$d downloading %1$s vulnerabilities.', 'security-ninja' ),
             sanitize_text_field( $type ),
             absint( $response_code )
          );
-        // Don't overwrite file, don't clear validators, record error with status code.
         if ( $validators ) {
             self::save_file_validators(
                 $type,
@@ -670,13 +635,10 @@ class Wf_Sn_Vu {
         }
         $parent_dir = dirname( $dir );
         if ( !$wp_filesystem->is_dir( $parent_dir ) ) {
-            // Recursively try to create the parent directory
             if ( !self::recursive_mkdir( $parent_dir, $wp_filesystem, $mode ) ) {
                 return false;
-                // Failed to create parent directory
             }
         }
-        // Now create the directory since parent exists
         if ( !$wp_filesystem->mkdir( $dir, $mode ) ) {
             return false;
             // Failed to make directory
@@ -693,7 +655,7 @@ class Wf_Sn_Vu {
      * @version v1.0.0  Tuesday, July 25th, 2023.
      * @version v1.0.1  Monday, April 1st, 2024.
      * @param   bool $bypass_cache If true, read from disk and refresh the per-request cache (e.g. after updating files).
-     * @return  mixed Object with plugins, themes, wordpress arrays, or false on failure.
+     * @return  mixed Object with plugins, themes, WordPress arrays, or false on failure.
      */
     public static function load_vulnerabilities( $bypass_cache = false ) {
         static $cached = null;
@@ -721,7 +683,6 @@ class Wf_Sn_Vu {
                     foreach ( $file_lines as $line ) {
                         $decoded_line = json_decode( $line, true );
                         if ( is_array( $decoded_line ) ) {
-                            // Ensure decoding was successful and resulted in an array
                             $data_for_type[] = $decoded_line;
                         }
                     }
@@ -744,22 +705,27 @@ class Wf_Sn_Vu {
             return false;
         }
         $sn_dir = trailingslashit( $upload_dir['basedir'] ) . 'security-ninja/vulns/';
-        if ( !file_exists( $sn_dir ) ) {
+        require_once ABSPATH . 'wp-admin/includes/file.php';
+        global $wp_filesystem;
+        if ( empty( $wp_filesystem ) && !WP_Filesystem() ) {
+            return false;
+        }
+        if ( !$wp_filesystem->is_dir( $sn_dir ) ) {
             wp_mkdir_p( $sn_dir );
-            if ( is_dir( $sn_dir ) ) {
-                chmod( $sn_dir, 0755 );
+            if ( $wp_filesystem->is_dir( $sn_dir ) ) {
+                $wp_filesystem->chmod( $sn_dir, 0755 );
                 $htaccess_content = "deny from all\n";
-                file_put_contents( $sn_dir . '.htaccess', $htaccess_content );
+                $wp_filesystem->put_contents( $sn_dir . '.htaccess', $htaccess_content, FS_CHMOD_FILE );
             }
         }
-        return is_dir( $sn_dir ) && is_writable( $sn_dir );
+        return $wp_filesystem->is_dir( $sn_dir ) && $wp_filesystem->is_writable( $sn_dir );
     }
 
     /**
      * Get local path to a vulnerability JSONL file in uploads.
      *
      * @since   v5.263
-     * @param   string $type File type: 'plugins', 'themes', or 'wordpress'.
+     * @param   string $type File type: 'plugins', 'themes', or 'WordPress'.
      * @return  string|false Local file path on success, false on invalid type.
      */
     private static function get_vuln_jsonl_file_path( $type ) {
@@ -854,14 +820,6 @@ class Wf_Sn_Vu {
                 $all_304 = false;
                 break;
             }
-        }
-        if ( $all_304 && secnin_fs()->can_use_premium_code__premium_only() ) {
-            wf_sn_el_modules::log_event(
-                'security_ninja',
-                'vulnerabilities_update',
-                __( 'Checked for updates to the vulnerability list; no updates needed.', 'security-ninja' ),
-                ''
-            );
         }
         $new_data = self::load_vulnerabilities( true );
         // Bypass cache so we see the newly downloaded files.
@@ -981,9 +939,18 @@ class Wf_Sn_Vu {
                 // Log the event that the email was not sent
                 $last_error = error_get_last();
                 $error_message = ( isset( $last_error['message'] ) ? $last_error['message'] : __( 'Unknown error', 'security-ninja' ) );
-                Wf_Sn_El_Modules::log_event( 'security_ninja', 'vulnerabilities', sprintf( __( 'Email not sent to %1$s. Error: %2$s', 'security-ninja' ), esc_html( $recipient ), esc_html( $error_message ) ) );
+                Wf_Sn_El_Modules::log_event( 'security_ninja', 'vulnerabilities', sprintf( 
+                    /* translators: 1: recipient email, 2: error message */
+                    __( 'Email not sent to %1$s. Error: %2$s', 'security-ninja' ),
+                    esc_html( $recipient ),
+                    esc_html( $error_message )
+                 ) );
             } else {
-                Wf_Sn_El_Modules::log_event( 'security_ninja', 'vulnerabilities', sprintf( __( 'Vulnerabilities detected - Email warning sent to %s', 'security-ninja' ), esc_html( $recipient ) ) );
+                Wf_Sn_El_Modules::log_event( 'security_ninja', 'vulnerabilities', sprintf( 
+                    /* translators: %s: recipient email address */
+                    __( 'Vulnerabilities detected - Email warning sent to %s', 'security-ninja' ),
+                    esc_html( $recipient )
+                 ) );
             }
         }
         remove_filter( 'wp_mail_content_type', array(__CLASS__, 'set_html_content_type') );
@@ -1134,7 +1101,6 @@ class Wf_Sn_Vu {
                     if ( $vulns && isset( $vulns->themes ) ) {
                         $vuln_theme_arr = self::object_to_array( $vulns->themes );
                     }
-                    // Get ignored slugs (plugins & themes)
                     $ignored_slugs = array();
                     if ( !empty( self::$options['ignored_plugin_slugs'] ) ) {
                         $ignored_slugs = array_map( 'trim', explode( "\n", self::$options['ignored_plugin_slugs'] ) );
@@ -1545,7 +1511,7 @@ class Wf_Sn_Vu {
             ?></p>
 				
 				<div class="manual-scan-container">
-					<button type="button" id="secnin-manual-vuln-scan" class="button button-primary snbutton">
+					<button type="button" id="secnin-manual-vuln-scan" class="button button-secondary snbutton">
 						<?php 
             esc_html_e( 'Run Manual Scan', 'security-ninja' );
             ?>
@@ -1991,11 +1957,15 @@ class Wf_Sn_Vu {
     public static function handle_manual_vuln_scan() {
         // Security checks
         if ( !current_user_can( 'manage_options' ) ) {
-            wp_die( 'You do not have sufficient permissions to access this page.' );
+            wp_send_json_error( array(
+                'message' => __( 'You do not have sufficient permissions to access this page.', 'security-ninja' ),
+            ) );
         }
         // Verify nonce
-        if ( !isset( $_POST['nonce'] ) || !wp_verify_nonce( $_POST['nonce'], 'secnin_manual_vuln_scan' ) ) {
-            wp_die( 'Security check failed.' );
+        if ( !check_ajax_referer( 'secnin_manual_vuln_scan', 'nonce', false ) ) {
+            wp_send_json_error( array(
+                'message' => __( 'Security check failed.', 'security-ninja' ),
+            ) );
         }
         // Check if vulnerability scanning is enabled
         if ( !self::$options['enable_vulns'] ) {
@@ -2019,7 +1989,6 @@ class Wf_Sn_Vu {
         delete_option( 'wf_sn_scan_summary' );
         // Perform the vulnerability scan
         $vulnerabilities = self::return_vulnerabilities();
-        // Get scan summary for detailed reporting
         $scan_summary = get_option( 'wf_sn_scan_summary', false );
         // Count vulnerabilities found
         $vuln_count = 0;
@@ -2093,7 +2062,6 @@ class Wf_Sn_Vu {
                 number_format_i18n( $vuln_count )
              );
         }
-        // Return success response
         wp_send_json_success( array(
             'message'             => $completion_message,
             'vuln_count'          => $vuln_count,
@@ -2294,7 +2262,6 @@ class Wf_Sn_Vu {
     public static function generate_vulnerability_display( $vulnerabilities, $scan_summary = null ) {
         global $wp_version;
         $output = '';
-        // Check if any vulnerabilities were found
         $has_vulnerabilities = false;
         if ( $vulnerabilities ) {
             if ( isset( $vulnerabilities['plugins'] ) && !empty( $vulnerabilities['plugins'] ) ) {
@@ -2545,12 +2512,11 @@ class Wf_Sn_Vu {
      */
     public static function handle_download_all_vuln_files() {
         // Verify nonce
-        if ( !wp_verify_nonce( $_POST['nonce'], 'secnin_manual_vuln_scan' ) ) {
+        if ( !check_ajax_referer( 'secnin_manual_vuln_scan', 'nonce', false ) ) {
             wp_send_json_error( array(
                 'message' => __( 'Security check failed.', 'security-ninja' ),
             ) );
         }
-        // Check user permissions
         if ( !current_user_can( 'manage_options' ) ) {
             wp_send_json_error( array(
                 'message' => __( 'You do not have permission to perform this action.', 'security-ninja' ),
@@ -2572,7 +2538,7 @@ class Wf_Sn_Vu {
                 $errors[] = sprintf( __( 'Failed to download %s data.', 'security-ninja' ), ucfirst( $file_type ) );
             }
         }
-        if ( $success_count > 0 && $error_count === 0 ) {
+        if ( $success_count > 0 && 0 === $error_count ) {
             // All files downloaded successfully
             wp_send_json_success( array(
                 'message' => __( 'All vulnerability files downloaded successfully.', 'security-ninja' ),

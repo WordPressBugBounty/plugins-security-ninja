@@ -2,9 +2,11 @@
 
 namespace WPSecurityNinja\Plugin;
 
-if ( !function_exists( 'add_action' ) ) {
-    die( 'Please don\'t open this file directly!' );
+if ( !defined( 'ABSPATH' ) ) {
+    exit;
 }
+// Utils::normalize_flag() is used in default_settings(). WF_SN_PLUGIN_DIR is set by the main plugin before this file is loaded.
+require_once WF_SN_PLUGIN_DIR . 'includes/class-wf-sn-utils.php';
 require 'sn-el-modules.php';
 class Wf_Sn_El {
     private static $is_active = null;
@@ -16,11 +18,11 @@ class Wf_Sn_El {
     /**
      * init plugin
      *
-     * @author	Unknown
-     * @since	v0.0.1
-     * @version	v1.0.0	Wednesday, May 15th, 2024.
-     * @access	public static
-     * @return	void
+     * @author  Unknown
+     * @since   v0.0.1
+     * @version v1.0.0  Wednesday, May 15th, 2024.
+     * @access  public static
+     * @return  void
      */
     public static function init() {
         self::$options = get_option( 'wf_sn_el' );
@@ -52,6 +54,19 @@ class Wf_Sn_El {
                     9,
                     10
                 );
+                // Direct filters so settings (e.g. General/tagline) are always logged.
+                add_filter(
+                    'allowed_options',
+                    array(__CLASS__, 'log_settings_filter'),
+                    999,
+                    1
+                );
+                add_filter(
+                    'whitelist_options',
+                    array(__CLASS__, 'log_settings_filter'),
+                    999,
+                    1
+                );
             }
         }
         // REST API logging hooks
@@ -76,6 +91,22 @@ class Wf_Sn_El {
     }
 
     /**
+     * Log settings save (e.g. General/tagline, permalinks) via direct filters so it works even when "all" hook path does not.
+     * Returns the option array unchanged.
+     *
+     * @param array $options Allowed options array (allowed_options / whitelist_options).
+     * @return array The same $options array.
+     */
+    public static function log_settings_filter( $options ) {
+        if ( !self::$is_active || !is_array( $options ) ) {
+            return $options;
+        }
+        $hook = current_filter();
+        wf_sn_el_modules::parse_action_settings( $hook, array($options) );
+        return $options;
+    }
+
+    /**
      * Monitor creation of new admin users through WordPress
      *
      * @param int $user_id The ID of the newly created user
@@ -96,7 +127,11 @@ class Wf_Sn_El {
         wf_sn_el_modules::log_event(
             'security_ninja',
             'admin_created',
-            sprintf( __( 'New administrator account created normally: %s', 'security-ninja' ), $user->user_login ),
+            sprintf( 
+                /* translators: %s: username of the new administrator */
+                __( 'New administrator account created normally: %s', 'security-ninja' ),
+                $user->user_login
+             ),
             array(
                 'user_id' => $user_id,
             )
@@ -137,12 +172,6 @@ class Wf_Sn_El {
      * @return int|false
      */
     public static function rest_log_determine_user( $user_id ) {
-        if ( defined( 'REST_REQUEST' ) && REST_REQUEST ) {
-            $payload = array(
-                'uri'     => ( isset( $_SERVER['REQUEST_URI'] ) ? sanitize_text_field( wp_unslash( $_SERVER['REQUEST_URI'] ) ) : '' ),
-                'user_id' => $user_id,
-            );
-        }
         return $user_id;
     }
 
@@ -155,15 +184,6 @@ class Wf_Sn_El {
      * @return mixed
      */
     public static function rest_log_pre_dispatch( $result, $server, $request ) {
-        if ( is_wp_error( $result ) ) {
-            $payload = array(
-                'method'  => $request->get_method(),
-                'route'   => $request->get_route(),
-                'code'    => $result->get_error_code(),
-                'message' => $result->get_error_message(),
-                'data'    => $result->get_error_data(),
-            );
-        }
         return $result;
     }
 
@@ -201,20 +221,6 @@ class Wf_Sn_El {
             );
             return $result;
         }
-        // Log successful post creation via REST
-        if ( 'POST' === $request->get_method() && strpos( $request->get_route(), '/wp/v2/posts' ) !== false ) {
-            $post_id = null;
-            if ( is_array( $data ) && isset( $data['id'] ) ) {
-                $post_id = (int) $data['id'];
-            }
-            if ( $post_id && in_array( $status, array(200, 201), true ) ) {
-                $success_payload = array(
-                    'route'   => $request->get_route(),
-                    'status'  => $status,
-                    'post_id' => $post_id,
-                );
-            }
-        }
         return $result;
     }
 
@@ -235,21 +241,22 @@ class Wf_Sn_El {
         $new_admins = $wpdb->get_results( $query );
         if ( !empty( $new_admins ) ) {
             foreach ( $new_admins as $admin ) {
-                // Check if this admin was created through WordPress (has an action log)
+                // Check if this admin was created through WordPress (has an action log). Table: {$wpdb->prefix}tablename (identifiers cannot be prepared).
+                // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- table name from $wpdb->prefix, values use prepare placeholders
                 $was_created_normally = $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$wpdb->prefix}wf_sn_el \n\t\t\t\t\t WHERE action = %s \n\t\t\t\t\t AND description LIKE %s \n\t\t\t\t\t AND timestamp > DATE_SUB(NOW(), INTERVAL 5 MINUTE)", 'admin_created', '%' . $admin->user_login . '%' ) );
                 // @todo - what if user was created before plugin install
                 // @todo - what if user
                 // Only notify if it wasn't created through WordPress
                 // if (!$was_created_normally) {
-                // 	if (isset(self::$options['notify_new_admin']) && self::$options['notify_new_admin']) {
-                // 		self::send_admin_notification($admin, true);
-                // 	}
-                // 	wf_sn_el_modules::log_event(
-                // 		'security_ninja',
-                // 		'direct_admin_created',
-                // 		sprintf(__('WARNING: Administrator account created directly in database: %s', 'security-ninja'), $admin->user_login),
-                // 		array('user_id' => $admin->ID)
-                // 	);
+                //  if (isset(self::$options['notify_new_admin']) && self::$options['notify_new_admin']) {
+                //      self::send_admin_notification($admin, true);
+                //  }
+                //  wf_sn_el_modules::log_event(
+                //      'security_ninja',
+                //      'direct_admin_created',
+                //      sprintf(__('WARNING: Administrator account created directly in database: %s', 'security-ninja'), $admin->user_login),
+                //      array('user_id' => $admin->ID)
+                //  );
                 // }
                 update_option( 'secnin_last_checked_admin_id', $admin->ID );
             }
@@ -272,9 +279,25 @@ class Wf_Sn_El {
             $is_whitelabel = class_exists( '\\WPSecurityNinja\\Plugin\\Wf_Sn_Wl' ) && 1 === \WPSecurityNinja\Plugin\Wf_Sn_Wl::is_active();
             // Set subject based on creation type and white label status
             if ( $is_direct_creation ) {
-                $subject = ( $is_whitelabel ? sprintf( esc_html__( '[%s] WARNING: Administrator Created in Database', 'security-ninja' ), $site_name ) : sprintf( esc_html__( '[%s] Security Ninja - WARNING: Direct Database Creation', 'security-ninja' ), $site_name ) );
+                $subject = ( $is_whitelabel ? sprintf( 
+                    /* translators: %s: site name */
+                    esc_html__( '[%s] WARNING: Administrator Created in Database', 'security-ninja' ),
+                    $site_name
+                 ) : sprintf( 
+                    /* translators: %s: site name */
+                    esc_html__( '[%s] Security Ninja - WARNING: Direct Database Creation', 'security-ninja' ),
+                    $site_name
+                 ) );
             } else {
-                $subject = ( $is_whitelabel ? sprintf( esc_html__( '[%s] New Administrator Account Created', 'security-ninja' ), $site_name ) : sprintf( esc_html__( '[%s] Security Ninja - New Administrator Account', 'security-ninja' ), $site_name ) );
+                $subject = ( $is_whitelabel ? sprintf( 
+                    /* translators: %s: site name */
+                    esc_html__( '[%s] New Administrator Account Created', 'security-ninja' ),
+                    $site_name
+                 ) : sprintf( 
+                    /* translators: %s: site name */
+                    esc_html__( '[%s] Security Ninja - New Administrator Account', 'security-ninja' ),
+                    $site_name
+                 ) );
             }
             // Build the notification table
             $body = sprintf(
@@ -367,13 +390,13 @@ class Wf_Sn_El {
     /**
      * ajax_get_events_data.
      *
-     * @author	Lars Koudal
-     * @since	v0.0.1
-     * @version	v1.0.0	Friday, October 27th, 2023.	
-     * @version	v1.0.1	Thursday, October 26th, 2023.	
-     * @version	v1.0.2	Monday, May 20th, 2024.
-     * @access	public static
-     * @return	mixed
+     * @author  Lars Koudal
+     * @since   v0.0.1
+     * @version v1.0.0  Friday, October 27th, 2023.
+     * @version v1.0.1  Thursday, October 26th, 2023.
+     * @version v1.0.2  Monday, May 20th, 2024.
+     * @access  public static
+     * @return  mixed
      */
     public static function ajax_get_events_data() {
         global $wpdb;
@@ -393,49 +416,76 @@ class Wf_Sn_El {
         $search = sanitize_text_field( $_POST['search']['value'] ?? '' );
         $action_filter = sanitize_text_field( $_POST['action_filter'] ?? '' );
         $order = $_POST['order'] ?? array();
-        // Build the initial query
-        $query = 'SELECT id, timestamp, ip, user_agent, user_id, action, raw_data, description FROM ' . $wpdb->prefix . 'wf_sn_el';
-        // Handle search filtering
-        $where_conditions = array();
+        // Build the base query with placeholders for user input. Table uses {$wpdb->prefix}tablename (identifiers cannot be prepared).
+        $where_conditions_sql = array();
+        $prepare_args = array();
         if ( !empty( $search ) ) {
-            $where_conditions[] = '(description LIKE "%' . esc_sql( $search ) . '%" OR ip LIKE "%' . esc_sql( $search ) . '%" OR action LIKE "%' . esc_sql( $search ) . '%" OR user_agent LIKE "%' . esc_sql( $search ) . '%")';
+            $like = '%' . $wpdb->esc_like( $search ) . '%';
+            $where_conditions_sql[] = '(description LIKE %s OR ip LIKE %s OR action LIKE %s OR user_agent LIKE %s)';
+            $prepare_args[] = $like;
+            $prepare_args[] = $like;
+            $prepare_args[] = $like;
+            $prepare_args[] = $like;
         }
         if ( !empty( $action_filter ) ) {
-            $where_conditions[] = 'action = "' . esc_sql( $action_filter ) . '"';
+            $where_conditions_sql[] = 'action = %s';
+            $prepare_args[] = $action_filter;
         }
-        if ( !empty( $where_conditions ) ) {
-            $query .= ' WHERE ' . implode( ' AND ', $where_conditions );
+        $base_query = "SELECT id, timestamp, ip, user_agent, user_id, action, raw_data, description FROM {$wpdb->prefix}wf_sn_el";
+        if ( !empty( $where_conditions_sql ) ) {
+            $base_query .= ' WHERE ' . implode( ' AND ', $where_conditions_sql );
         }
         // Get the total number of records before filtering
-        $total_records = $wpdb->get_var( 'SELECT COUNT(*) FROM ' . $wpdb->prefix . 'wf_sn_el' );
+        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- {$wpdb->prefix}tablename, identifiers cannot be prepared
+        $total_records = $wpdb->get_var( "SELECT COUNT(*) FROM {$wpdb->prefix}wf_sn_el" );
         // Get the total number of records after filtering
-        $total_filtered = $wpdb->get_var( "SELECT COUNT(*) FROM ({$query}) AS filtered_table" );
-        // Handle sorting
+        if ( !empty( $prepare_args ) ) {
+            $count_query = 'SELECT COUNT(*) FROM (' . $base_query . ') AS filtered_table';
+            // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- base_query uses {$wpdb->prefix}wf_sn_el, values in prepare_args
+            $total_filtered = $wpdb->get_var( $wpdb->prepare( $count_query, $prepare_args ) );
+        } else {
+            // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- {$wpdb->prefix}tablename, identifiers cannot be prepared
+            $total_filtered = $wpdb->get_var( "SELECT COUNT(*) FROM {$wpdb->prefix}wf_sn_el" );
+        }
+        // Handle sorting (column index and direction are validated; no user string in SQL)
+        $columns = array(
+            'timestamp',
+            'description',
+            'ip',
+            'user_agent',
+            'user_id',
+            'action'
+        );
         $order_by = ' ORDER BY timestamp DESC';
         if ( !empty( $order ) ) {
-            $columns = array(
-                'timestamp',
-                'description',
-                'ip',
-                'user_agent',
-                'user_id',
-                'action'
-            );
             $order_by = ' ORDER BY ';
             foreach ( $order as $o ) {
                 $col_index = intval( $o['column'] );
-                $col_dir = ( $o['dir'] === 'asc' ? 'ASC' : 'DESC' );
+                if ( $col_index < 0 || $col_index >= count( $columns ) ) {
+                    continue;
+                }
+                $col_dir = ( isset( $o['dir'] ) && $o['dir'] === 'asc' ? 'ASC' : 'DESC' );
                 $order_by .= $columns[$col_index] . ' ' . $col_dir . ', ';
             }
             $order_by = rtrim( $order_by, ', ' );
+            if ( $order_by === ' ORDER BY ' ) {
+                $order_by = ' ORDER BY timestamp DESC';
+            }
         }
-        $query .= $order_by;
-        // Add pagination
+        $data_query = $base_query . $order_by;
+        // Add pagination and execute with prepare() when we have LIMIT
         if ( $length != -1 ) {
-            $query .= ' LIMIT ' . $start . ', ' . $length;
+            $data_query .= ' LIMIT %d, %d';
+            $data_prepare_args = array_merge( $prepare_args, array($start, $length) );
+            // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- data_query uses {$wpdb->prefix}wf_sn_el, values in prepare
+            $events = $wpdb->get_results( $wpdb->prepare( $data_query, $data_prepare_args ) );
+        } elseif ( !empty( $prepare_args ) ) {
+            // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- data_query uses {$wpdb->prefix}wf_sn_el, values in prepare_args
+            $events = $wpdb->get_results( $wpdb->prepare( $data_query, $prepare_args ) );
+        } else {
+            // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- data_query uses {$wpdb->prefix}wf_sn_el
+            $events = $wpdb->get_results( $data_query );
         }
-        // Execute the query to get events
-        $events = $wpdb->get_results( $query );
         $data = array();
         $current_time = current_time( 'timestamp' );
         // Process each event for output
@@ -447,18 +497,6 @@ class Wf_Sn_El {
             }
             // Geolocate IP (premium feature)
             $geolocate_ip = false;
-            if ( secnin_fs()->can_use_premium_code() ) {
-                // Ensure the geolocation class is loaded
-                if ( !class_exists( __NAMESPACE__ . '\\SN_Geolocation' ) ) {
-                    include_once WF_SN_PLUGIN_DIR . 'modules/cloud-firewall/class-sn-geolocation.php';
-                }
-                if ( class_exists( __NAMESPACE__ . '\\SN_Geolocation' ) ) {
-                    $geolocate_ip = \WPSecurityNinja\Plugin\SN_Geolocation::geolocate_ip( $event->ip, true );
-                    if ( $geolocate_ip && $geolocate_ip['country'] !== '-' ) {
-                        $country_code = $geolocate_ip['country'];
-                    }
-                }
-            }
             $user_details .= esc_html( $event->ip ) . '</small>';
             // Prepare details output
             $raw_data = maybe_unserialize( $event->raw_data );
@@ -534,11 +572,11 @@ class Wf_Sn_El {
     /**
      * Get unique actions for the filter dropdown
      *
-     * @author	Lars Koudal
-     * @since	v1.0.0
-     * @version	v1.0.0	Monday, December 9th, 2024.
-     * @access	public static
-     * @return	mixed
+     * @author  Lars Koudal
+     * @since   v1.0.0
+     * @version v1.0.0  Monday, December 9th, 2024.
+     * @access  public static
+     * @return  mixed
      */
     public static function ajax_get_events_actions() {
         global $wpdb;
@@ -557,59 +595,6 @@ class Wf_Sn_El {
             'actions' => $actions,
         ) );
         wp_die();
-    }
-
-    /**
-     * Send a webhook event.
-     *
-     * @since   v0.0.1
-     * @version v1.0.1  Thursday, October 5th, 2023.
-     * @access  public static
-     * @param   string $event The event name.
-     * @param   array  $data  The event data.
-     * @return  bool          True on success, false on failure.
-     */
-    public static function send_webhook_event( $event, $data ) {
-        if ( empty( $event ) || !is_string( $event ) || empty( $data ) || !is_array( $data ) ) {
-            return false;
-        }
-        $options = get_option( 'wf_sn_el' );
-        if ( !isset( $options['webhook_active'] ) || intval( $options['webhook_active'] ) !== 1 || empty( $options['webhook_url'] ) || !filter_var( $options['webhook_url'], FILTER_VALIDATE_URL ) ) {
-            return false;
-        }
-        if ( empty( $options[$event] ) || intval( $options[$event] ) !== 1 ) {
-            return false;
-        }
-        $data = array_merge( $data, array(
-            'event'          => sanitize_text_field( $event ),
-            'source'         => site_url(),
-            'plugin_version' => \WPSecurityNinja\Plugin\Utils::get_plugin_version(),
-            'webhook_url'    => esc_url( $options['webhook_url'] ),
-        ) );
-        $response = wp_remote_post( $options['webhook_url'], array(
-            'body'    => wp_json_encode( $data ),
-            'headers' => array(
-                'Content-Type' => 'application/json',
-            ),
-            'timeout' => 15,
-        ) );
-        if ( is_wp_error( $response ) ) {
-            wf_sn_el_modules::log_event(
-                'security_ninja',
-                'webhook_event',
-                esc_html__( 'Webhook request failed', 'security-ninja' ),
-                array(
-                    'error' => $response->get_error_message(),
-                )
-            );
-            return false;
-        }
-        wf_sn_el_modules::log_event( 'security_ninja', 'webhook_event', sprintf( 
-            // translators: %s: event name
-            esc_html__( 'Webhook event sent - %s', 'security-ninja' ),
-            esc_attr( $event )
-         ) );
-        return true;
     }
 
     /**
@@ -753,15 +738,23 @@ class Wf_Sn_El {
             'notify_new_admin'             => 0,
             'new_admin_notification_email' => get_option( 'admin_email' ),
         );
+        if ( function_exists( 'secnin_fs' ) && is_object( secnin_fs() ) ) {
+        }
         if ( $force ) {
             update_option( 'wf_sn_el', $options );
         } else {
-            add_option(
-                'wf_sn_el',
-                $options,
-                '',
-                false
-            );
+            $existing = get_option( 'wf_sn_el', array() );
+            if ( is_array( $existing ) && !empty( $existing ) ) {
+                $merged = array_merge( $options, $existing );
+                update_option( 'wf_sn_el', $merged );
+            } else {
+                add_option(
+                    'wf_sn_el',
+                    $options,
+                    '',
+                    false
+                );
+            }
         }
     }
 
@@ -786,14 +779,9 @@ class Wf_Sn_El {
                 $old_options = array();
             }
             // Normalize existing boolean values
-            $boolean_keys = array(
-                'active',
-                'webhook_firewall_events',
-                'webhook_user_logins',
-                'webhook_updates',
-                'webhook_active',
-                'notify_new_admin'
-            );
+            $boolean_keys = array('active', 'notify_new_admin');
+            if ( function_exists( 'secnin_fs' ) && is_object( secnin_fs() ) ) {
+            }
             foreach ( $boolean_keys as $key ) {
                 if ( isset( $old_options[$key] ) ) {
                     $old_options[$key] = \WPSecurityNinja\Plugin\Utils::normalize_flag( $old_options[$key] );
@@ -807,14 +795,9 @@ class Wf_Sn_El {
         }
         $new_options = $old_options;
         // Add to boolean_keys array
-        $boolean_keys = array(
-            'active',
-            'webhook_firewall_events',
-            'webhook_user_logins',
-            'webhook_updates',
-            'webhook_active',
-            'notify_new_admin'
-        );
+        $boolean_keys = array('active', 'notify_new_admin');
+        if ( function_exists( 'secnin_fs' ) && is_object( secnin_fs() ) ) {
+        }
         // Ensure all boolean keys are normalized to 0/1, defaulting to 0 if not present
         foreach ( $boolean_keys as $key ) {
             if ( isset( $values[$key] ) ) {
@@ -829,14 +812,12 @@ class Wf_Sn_El {
             switch ( $key ) {
                 case 'retention':
                 case 'email_reports':
-                case 'webhook_url':
                 case 'email_to':
                 case 'remove_settings_deactivate':
                 case 'new_admin_notification_email':
                     // Sanitize text fields
                     $new_options[$key] = sanitize_text_field( $value );
                     break;
-                case 'webhook_events':
                 case 'email_modules':
                     // Ensure array values are sanitized
                     if ( is_array( $value ) ) {
@@ -844,6 +825,8 @@ class Wf_Sn_El {
                     }
                     break;
             }
+        }
+        if ( function_exists( 'secnin_fs' ) && is_object( secnin_fs() ) ) {
         }
         // Optional: Check and initialize missing fields if necessary
         $new_options['email_modules'] = $new_options['email_modules'] ?? array();
@@ -906,6 +889,12 @@ class Wf_Sn_El {
             static $settings = null;
             static $woocommerce = null;
             static $premium_hooks_all = null;
+            static $module_hooks = null;
+            // Resolve enabled modules once per request; empty means \"all enabled\" for backward compatibility.
+            $enabled_modules = array();
+            if ( isset( self::$options['email_modules'] ) && is_array( self::$options['email_modules'] ) ) {
+                $enabled_modules = self::$options['email_modules'];
+            }
             if ( is_null( $login_actions ) ) {
                 $login_actions = array('wp_login_failed');
                 $security_ninja = array(
@@ -926,11 +915,13 @@ class Wf_Sn_El {
                     'clear_auth_cookie',
                     'delete_user',
                     'deleted_user',
-                    'set_user_role'
+                    'set_user_role',
+                    'add_user_role',
+                    'remove_user_role'
                 );
                 $menus = array('wp_create_nav_menu', 'wp_update_nav_menu', 'delete_nav_menu');
                 $file_editor = array('wp_redirect');
-                $taxonomies = array('created_term', 'delete_term', 'edited_term');
+                $taxonomies = array('created_term', 'delete_term');
                 $media = array(
                     'add_attachment',
                     'edit_attachment',
@@ -942,19 +933,19 @@ class Wf_Sn_El {
                     // When a post is deleted
                     'publish_post',
                     // When a post is published
-                    'edit_post',
-                    // When a post is updated
                     'trash_post',
                     // When a post is moved to trash
                     'untrash_post',
                 );
-                $widgets = array('update_option_sidebars_widgets', 'wp_ajax_widgets-order', 'widget_update_callback');
+                $widgets = array('update_option_sidebars_widgets');
                 $installer = array(
                     'upgrader_process_complete',
-                    'activate_plugin',
-                    'deactivate_plugin',
                     'switch_theme',
-                    '_core_updated_successfully'
+                    '_core_updated_successfully',
+                    'activate_plugin',
+                    'activated_plugin',
+                    'deactivate_plugin',
+                    'deactivated_plugin'
                 );
                 $comments = array(
                     'comment_flood_trigger',
@@ -969,7 +960,6 @@ class Wf_Sn_El {
                     'comment_duplicate_trigger'
                 );
                 $settings = array(
-                    'whitelist_options',
                     'update_site_option',
                     'update_option_permalink_structure',
                     'update_option_category_base',
@@ -1018,6 +1008,21 @@ class Wf_Sn_El {
                     $settings,
                     $woocommerce
                 ) );
+                // Map hooks to their logical modules for fast module-based filtering.
+                $module_hooks = array(
+                    'users'          => $users,
+                    'menus'          => $menus,
+                    'file_editor'    => $file_editor,
+                    'taxonomies'     => $taxonomies,
+                    'media'          => $media,
+                    'posts'          => $posts,
+                    'widgets'        => $widgets,
+                    'installer'      => $installer,
+                    'comments'       => $comments,
+                    'settings'       => $settings,
+                    'security_ninja' => $security_ninja,
+                    'woocommerce'    => $woocommerce,
+                );
             }
             // Bail early if this hook isn't one we audit (prevents calling Freemius on every hook).
             if ( !in_array( $current_action, $login_actions, true ) && !in_array( $current_action, $security_ninja, true ) && !in_array( $current_action, $premium_hooks_all, true ) ) {
@@ -1035,20 +1040,20 @@ class Wf_Sn_El {
                 return;
                 // Exit early if we handled it
             }
-            // Premium version: check only for audited premium hooks, and cache Freemius result to avoid log/memory spam.
+            // Premium hooks: dispatch to parsers (no premium check before DB write; this module only loads in premium).
             if ( in_array( $current_action, $premium_hooks_all, true ) ) {
-                static $can_use_premium = null;
-                if ( is_null( $can_use_premium ) ) {
-                    $can_use_premium = false;
-                    if ( function_exists( 'secnin_fs' ) ) {
-                        $fs = secnin_fs();
-                        if ( is_object( $fs ) && method_exists( $fs, 'can_use_premium_code' ) ) {
-                            $can_use_premium = (bool) $fs->can_use_premium_code();
+                // If specific modules are configured, skip logging for disabled modules.
+                if ( !empty( $enabled_modules ) ) {
+                    $current_module = null;
+                    foreach ( $module_hooks as $module_key => $hooks ) {
+                        if ( in_array( $current_action, $hooks, true ) ) {
+                            $current_module = $module_key;
+                            break;
                         }
                     }
-                }
-                if ( !$can_use_premium ) {
-                    return;
+                    if ( $current_module && !in_array( $current_module, $enabled_modules, true ) ) {
+                        return;
+                    }
                 }
                 if ( in_array( $current_action, $users, true ) ) {
                     wf_sn_el_modules::parse_action_users( $current_action, $args );
@@ -1158,7 +1163,7 @@ class Wf_Sn_El {
                 'security_ninja',
                 'prune_events_log',
                 sprintf( 
-                    // translators: %d: number of deleted rows
+                    /* translators: %d: number of deleted rows */
                     esc_html__( 'Cron job: Emptied event logs. Deleted rows: %d', 'security-ninja' ),
                     $deleted_rows
                  ),
@@ -1200,11 +1205,11 @@ class Wf_Sn_El {
             update_option( 'wf_sn_el', self::$options, false );
             $admin_url = admin_url( 'admin.php?page=wf-sn#sn_logger' );
             // if ($admin_url = SecNin_Rename_WP_Login::new_login_slug()) {
-            // 	$admin_url = trailingslashit(site_url( $admin_url)) . 'admin.php?page=wf-sn#sn_logger';
+            //  $admin_url = trailingslashit(site_url( $admin_url)) . 'admin.php?page=wf-sn#sn_logger';
             // }
             $headers = array('Content-Type: text/html; charset=UTF-8');
             $body .= sprintf(
-                // translators: %1$s: site name, %2$s: opening link tag, %3$s: closing link tag, %4$s: line break
+                /* translators: %1$s: site name, %2$s: opening link tag, %3$s: closing link tag, %4$s: line break */
                 __( 'Recent events on %1$s: %2$s(more details are available in WordPress admin)%3$s%4$s', 'security-ninja' ),
                 esc_html( get_bloginfo( 'name' ) ),
                 '<a href="' . esc_url( $admin_url ) . '">',
@@ -1244,7 +1249,7 @@ class Wf_Sn_El {
                 $timestamp = sprintf( '%s<br><span style="color: #666; font-size: 0.9em;">%s</span>', esc_html( date_i18n( get_option( 'date_format' ), strtotime( $event->timestamp ) ) ), esc_html( date_i18n( get_option( 'time_format' ), strtotime( $event->timestamp ) ) ) );
                 // Format the event details
                 $event_details = sprintf(
-                    // translators: 1: Event description, 2: User name, 3: Module name
+                    /* translators: 1: Event description, 2: User name, 3: Module name */
                     __( '%1$s by %2$s in %3$s module.', 'security-ninja' ),
                     esc_html( $event->description ),
                     $user,
@@ -1264,7 +1269,11 @@ class Wf_Sn_El {
                 if ( !empty( $emrep ) && is_email( $emrep ) ) {
                     try {
                         add_filter( 'wp_mail_content_type', array(__NAMESPACE__ . '\\Wf_Sn_El', 'sn_set_html_mail_content_type') );
-                        $subject = sprintf( esc_html__( '[%s] Security Ninja - Events Logger report', 'security-ninja' ), wp_specialchars_decode( get_option( 'blogname' ), ENT_QUOTES ) );
+                        $subject = sprintf( 
+                            /* translators: %s: site name (blog name) */
+                            esc_html__( '[%s] Security Ninja - Events Logger report', 'security-ninja' ),
+                            wp_specialchars_decode( get_option( 'blogname' ), ENT_QUOTES )
+                         );
                         // Ensure body is properly formatted as HTML
                         if ( strpos( $body, '<html' ) === false ) {
                             $body = sprintf( '<!DOCTYPE html><html><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /></head><body>%s</body></html>', $body );
@@ -1327,11 +1336,11 @@ class Wf_Sn_El {
     /**
      * sn_set_html_mail_content_type.
      *
-     * @author	Unknown
-     * @since	v0.0.1
-     * @version	v1.0.0	Friday, November 8th, 2024.
-     * @access	public static
-     * @return	mixed
+     * @author  Unknown
+     * @since   v0.0.1
+     * @version v1.0.0  Friday, November 8th, 2024.
+     * @access  public static
+     * @return  mixed
      */
     public static function sn_set_html_mail_content_type() {
         return 'text/html';
@@ -1400,9 +1409,6 @@ class Wf_Sn_El {
         ?></a>
 				<?php 
         $can_use_premium = false;
-        if ( secnin_fs()->can_use_premium_code() ) {
-            $can_use_premium = true;
-        }
         $pro_class = ( $can_use_premium ? '' : ' profeature' );
         ?>
 				<a href="#sn_el_notifications" class="nav-tab<?php 
@@ -1410,11 +1416,8 @@ class Wf_Sn_El {
         ?>"><?php 
         esc_html_e( 'Notifications', 'security-ninja' );
         ?></a>
-				<a href="#sn_el_webhooks" class="nav-tab<?php 
-        echo esc_attr( $pro_class );
-        ?>"><?php 
-        esc_html_e( 'Webhooks', 'security-ninja' );
-        ?></a>
+				<?php 
+        ?>
 			</div>
 
 				<form action="options.php" method="post">
@@ -1523,118 +1526,6 @@ class Wf_Sn_El {
 											</td>
 										</tr>
 										<?php 
-        if ( secnin_fs()->can_use_premium_code() ) {
-            ?>
-										<tr valign="top">
-											<th scope="row"><label for="email_reports">
-													<h3><?php 
-            esc_html_e( 'Email Reports', 'security-ninja' );
-            ?></h3>
-													<p class="description"><?php 
-            esc_html_e( 'Email reports with a specified number of latest events can be automatically emailed to alert the admin of any suspicious events. Default: Do not email any reports', 'security-ninja' );
-            ?></p>
-												</label></th>
-											<td><select id="email_reports" name="wf_sn_el[email_reports]" class="regular-text">
-													<?php 
-            foreach ( $email_reports_settings as $value => $label ) {
-                ?>
-														<option value="<?php 
-                echo esc_attr( $value );
-                ?>" <?php 
-                selected( self::$options['email_reports'], $value );
-                ?>>
-															<?php 
-                echo esc_html( $label );
-                ?>
-														</option>
-													<?php 
-            }
-            ?>
-												</select>
-
-											</td>
-										</tr>
-										<?php 
-            $selected_modules = (array) self::$options['email_modules'];
-            ?>
-										<tr valign="top">
-											<th scope="row"><label for="email_modules">
-													<h3><?php 
-            esc_html_e( 'Modules Included in Email Reports', 'security-ninja' );
-            ?>
-												</label></h3>
-												<p class="description"><?php 
-            esc_html_e( 'If you don\'t want to receive event reports from specific modules, deselect them. Default: all modules.', 'security-ninja' );
-            ?></p>
-											</th>
-											<td><select size="12" id="email_modules" multiple="multiple" name="wf_sn_el[email_modules][]">
-													<?php 
-            foreach ( $modules as $value => $label ) {
-                ?>
-														<option value="<?php 
-                echo esc_attr( $value );
-                ?>" <?php 
-                selected( in_array( $value, $selected_modules ), true );
-                ?>>
-															<?php 
-                echo esc_html( $label );
-                ?>
-														</option>
-													<?php 
-            }
-            ?>
-												</select>
-
-											</td>
-										</tr>
-										<tr valign="top">
-											<th scope="row"><label for="email_to">
-													<h3><?php 
-            esc_html_e( 'Email Recipient', 'security-ninja' );
-            ?></h3>
-													<p class="description"><?php 
-            esc_html_e( 'One or more email addresses who will receive the reports. Separate more recipients with comma. Default: WP admin email.', 'security-ninja' );
-            ?></p>
-												</label></th>
-											<td></td>
-										</tr>
-										<tr>
-											<td colspan="2"><input type="text" class="regular-text" id="email_to" name="wf_sn_el[email_to]" value="<?php 
-            echo esc_html( self::$options['email_to'] );
-            ?>" />
-
-											</td>
-										</tr>
-										<tr valign="top">
-											<th scope="row"><label for="retention">
-													<h3><?php 
-            esc_html_e( 'Log Retention Policy', 'security-ninja' );
-            ?></h3>
-													<p class="description"><?php 
-            esc_html_e( 'In order to preserve disk space logs are automatically deleted based on this option. Default: keep logs for 7 days.', 'security-ninja' );
-            ?></p>
-												</label></th>
-											<td><select id="retention" name="wf_sn_el[retention]" class="regular-text">
-													<?php 
-            foreach ( $retention_settings as $value => $label ) {
-                ?>
-														<option value="<?php 
-                echo esc_attr( $value );
-                ?>" <?php 
-                selected( self::$options['retention'], $value );
-                ?>>
-															<?php 
-                echo esc_html( $label );
-                ?>
-														</option>
-													<?php 
-            }
-            ?>
-												</select>
-											</td>
-										</tr>
-										<?php 
-        }
         ?>
 										<tr valign="top">
 											<th scope="row"><label for="">
@@ -1655,146 +1546,60 @@ class Wf_Sn_El {
 										</tr>
 									</tbody>
 								</table>
-								<?php 
-        if ( !secnin_fs()->can_use_premium_code() ) {
-            ?>
+								<div>
+									<?php 
+        if ( secnin_fs()->can_use_premium_code() ) {
+            echo ' style="display:none;"';
+        }
+        ?>
 								<div class="sncard infobox" style="margin-top: 20px;">
 									<div class="inner">
-										<h3><?php 
-            esc_html_e( 'Upgrade to Pro for Advanced Event Auditing', 'security-ninja' );
-            ?></h3>
-										<p><?php 
-            esc_html_e( 'The free version of Events Logger provides basic event auditing for your website, including login and failed login tracking. Upgrade to Security Ninja Pro to unlock powerful features:', 'security-ninja' );
-            ?></p>
+										<h3>Upgrade to Pro for Advanced Event Auditing</h3>
+										<p>The free version of Events Logger provides basic event auditing for your website, including login and failed login tracking. Upgrade to Security Ninja Pro to unlock powerful features:</p>
 										<ul style="list-style: disc; margin-left: 20px; margin-top: 10px;">
-											<li><?php 
-            esc_html_e( 'Email reports with customizable frequency and module selection', 'security-ninja' );
-            ?></li>
-											<li><?php 
-            esc_html_e( 'Advanced log retention policies for long-term auditing', 'security-ninja' );
-            ?></li>
-											<li><?php 
-            esc_html_e( 'Webhook integrations for real-time event notifications', 'security-ninja' );
-            ?></li>
-											<li><?php 
-            esc_html_e( 'Geolocation data for security events', 'security-ninja' );
-            ?></li>
-											<li><?php 
-            esc_html_e( 'Advanced filtering and search capabilities', 'security-ninja' );
-            ?></li>
-											<li><?php 
-            esc_html_e( 'Comprehensive tracking of all WordPress actions and changes', 'security-ninja' );
-            ?></li>
+											<li>Email reports with customizable frequency and module selection</li>
+											<li>Advanced log retention policies for long-term auditing</li>
+											<li>Webhook integrations for real-time event notifications</li>
+											<li>Geolocation data for security events</li>
+											<li>Advanced filtering and search capabilities</li>
+											<li>Comprehensive tracking of all WordPress actions and changes</li>
 										</ul>
 										<p style="margin-top: 15px;">
 											<a href="<?php 
-            echo esc_url( secnin_fs()->get_upgrade_url() );
-            ?>" class="button button-primary"><?php 
-            esc_html_e( 'Upgrade to Pro', 'security-ninja' );
-            ?></a>
+        echo esc_url( \WPSecurityNinja\Plugin\Utils::generate_sn_web_link( 'upgrade_tab_events_auditing', '/pricing/' ) );
+        ?>" class="button button-primary button-small" target="_blank" rel="noopener">Upgrade to Pro</a>
 										</p>
 									</div>
 								</div>
-								<?php 
-        }
-        ?>
+								</div>
 							</div>
 						</div>
 					</div>
 
 					<div id="sn_el_notifications" class="wf-sn-el-subtab" style="display:none;">
 						<?php 
-        if ( secnin_fs()->can_use_premium_code() ) {
-            ?>
-							<div class="sncard settings-card">
-								<h2><?php 
-            esc_html_e( 'Notification Settings', 'security-ninja' );
-            ?></h2>
-								<p><?php 
-            esc_html_e( 'Configure notifications for important security events', 'security-ninja' );
-            ?></p>
-								<table class="form-table">
-									<tr>
-										<th scope="row">
-											<label for="wf_sn_el_notify_new_admin">
-												<h3><?php 
-            esc_html_e( 'New Admin User Notifications', 'security-ninja' );
-            ?></h3>
-												<p class="description">
-													<?php 
-            esc_html_e( 'Get notified when a new administrator user is created', 'security-ninja' );
-            ?>
-												</p>
-											</label>
-										</th>
-										<td class="sn-cf-options">
-											<?php 
-            \WPSecurityNinja\Plugin\Utils::create_toggle_switch( 'wf_sn_el_notify_new_admin', array(
-                'saved_value' => ( isset( self::$options['notify_new_admin'] ) ? self::$options['notify_new_admin'] : 0 ),
-                'option_key'  => 'wf_sn_el[notify_new_admin]',
-            ) );
-            ?>
-
-										</td>
-									</tr>
-
-									<tr class="notify-new-admin-email">
-										<th scope="row">
-											<label for="wf_sn_el_new_admin_notification_email">
-												<h3><?php 
-            esc_html_e( 'Notification Email', 'security-ninja' );
-            ?></h3>
-												<p class="description">
-													<?php 
-            esc_html_e( 'Email address that will receive notifications about new admin users', 'security-ninja' );
-            ?>
-												</p>
-											</label>
-										</th>
-									</tr>
-									<tr>
-										<td colspan="2" class="fullwidth">
-											<input
-												name="wf_sn_el[new_admin_notification_email]"
-												type="text"
-												value="<?php 
-            echo esc_attr( ( !empty( self::$options['new_admin_notification_email'] ) ? self::$options['new_admin_notification_email'] : $current_user->user_email ) );
-            ?>"
-												class="regular-text">
-
-										</td>
-									</tr>
-								</table>
-							</div>
+        ?>
 						<?php 
-        } else {
+        $show_upsell = true;
+        if ( $show_upsell ) {
             ?>
+						<div>
 							<table class="form-table">
 								<tbody>
 									<tr>
 										<td colspan="2">
 											<div class="sncard infobox">
 												<div class="inner">
-													<h3><?php 
-            esc_html_e( 'Upgrade to Pro for Notification Settings', 'security-ninja' );
-            ?></h3>
-													<p><?php 
-            esc_html_e( 'The free version provides basic event logging. Upgrade to Security Ninja Pro to unlock notification features:', 'security-ninja' );
-            ?></p>
+													<h3>Upgrade to Pro for Notification Settings</h3>
+													<p>The free version provides basic event logging. Upgrade to Security Ninja Pro to unlock notification features:</p>
 													<ul style="list-style: disc; margin-left: 20px; margin-top: 10px;">
-														<li><?php 
-            esc_html_e( 'Get notified when new administrator users are created', 'security-ninja' );
-            ?></li>
-														<li><?php 
-            esc_html_e( 'Customize notification email addresses', 'security-ninja' );
-            ?></li>
+														<li>Get notified when new administrator users are created</li>
+														<li>Customize notification email addresses</li>
 													</ul>
 													<p style="margin-top: 15px;">
 														<a href="<?php 
-            echo esc_url( secnin_fs()->get_upgrade_url() );
-            ?>" class="button button-primary"><?php 
-            esc_html_e( 'Upgrade to Pro', 'security-ninja' );
-            ?></a>
+            echo esc_url( \WPSecurityNinja\Plugin\Utils::generate_sn_web_link( 'upgrade_tab_events_notifications', '/pricing/' ) );
+            ?>" class="button button-primary button-small" target="_blank" rel="noopener">Upgrade to Pro</a>
 													</p>
 												</div>
 											</div>
@@ -1802,204 +1607,13 @@ class Wf_Sn_El {
 									</tr>
 								</tbody>
 							</table>
+						</div>
 						<?php 
         }
         ?>
 					</div>
 
 					<?php 
-        if ( secnin_fs()->can_use_premium_code() ) {
-            ?>
-					<div id="sn_el_webhooks" class="wf-sn-el-subtab" style="display:none;">
-						<div class="sncard settings-card">
-							<h2><?php 
-            esc_html_e( 'Webhook Settings', 'security-ninja' );
-            ?></h2>
-							<p><?php 
-            esc_html_e( 'Configure webhooks to integrate with external services', 'security-ninja' );
-            ?></p>
-
-							<div class="sncard infobox">
-								<div class="inner">
-									<h3><?php 
-            esc_html_e( 'Webhooks Integration', 'security-ninja' );
-            ?></h3>
-									<p><?php 
-            esc_html_e( 'Webhooks are sent as POST requests to the URL you specify. The request body contains a JSON object with information about the event that triggered the webhook.', 'security-ninja' );
-            ?></p>
-								</div>
-							</div>
-
-
-
-
-							<table class="form-table">
-								<tr valign="top">
-									<th scope="row">
-										<label for="webhook_active">
-											<h3><?php 
-            esc_html_e( 'Webhook Active', 'security-ninja' );
-            ?></h3>
-											<p class="description"><?php 
-            esc_html_e( 'If enabled the webhook URL will be notified about the selected events.', 'security-ninja' );
-            ?></p>
-										</label>
-									</th>
-									<td class="sn-cf-options">
-										<?php 
-            \WPSecurityNinja\Plugin\Utils::create_toggle_switch( 'webhook_active', array(
-                'saved_value' => ( !empty( self::$options['webhook_active'] ) ? self::$options['webhook_active'] : 0 ),
-                'option_key'  => 'wf_sn_el[webhook_active]',
-            ) );
-            ?>
-
-									</td>
-								</tr>
-								<tr valign="top">
-									<th scope="row"><label for="webhook_url">
-											<h3><?php 
-            esc_html_e( 'Webhook URL', 'security-ninja' );
-            ?></h3>
-											<p class="description"><?php 
-            esc_html_e( 'Webhooks are sent as POST requests to the URL you specify. The request body contains a JSON object with information about the event that triggered the webhook. You can use this information to take action in your own systems.', 'security-ninja' );
-            ?></p>
-										</label></th>
-								</tr>
-								<tr>
-									<td colspan="2" class="fullwidth"><input type="text" class="regular-text code" id="webhook_url" name="wf_sn_el[webhook_url]" value="<?php 
-            echo esc_url( ( isset( self::$options['webhook_url'] ) ? self::$options['webhook_url'] : '' ) );
-            ?>" placeholder="https://" />
-
-									</td>
-								</tr>
-								<tr valign="top">
-									<th scope="row">
-										<h3><?php 
-            esc_html_e( 'Events', 'security-ninja' );
-            ?></h3>
-										<p class="description"><?php 
-            esc_html_e( 'Select the events you want to send as webhooks. Webhooks are sent as POST requests to the specified URL. Each request contains a JSON object with details about the event, enabling you to react or log these events in your system. Note: Changes apply to future events only.', 'security-ninja' );
-            ?></p>
-										</label>
-									</th>
-								</tr>
-
-								<tr>
-									<th scope="row">
-										<label for="webhook_firewall_events">
-											<h3><?php 
-            esc_html_e( 'Firewall events', 'security-ninja' );
-            ?></h3>
-											<p class="description"><?php 
-            esc_html_e( 'Notify about blocked visitors', 'security-ninja' );
-            ?></p>
-										</label>
-									</th>
-									<td class="sn-cf-options">
-										<?php 
-            \WPSecurityNinja\Plugin\Utils::create_toggle_switch( 'webhook_firewall_events', array(
-                'saved_value' => ( !empty( self::$options['webhook_firewall_events'] ) ? self::$options['webhook_firewall_events'] : 0 ),
-                'option_key'  => 'wf_sn_el[webhook_firewall_events]',
-            ) );
-            ?>
-									</td>
-								</tr>
-
-								<tr>
-									<th>
-										<label for="webhook_user_logins">
-											<h3><?php 
-            esc_html_e( 'User logins', 'security-ninja' );
-            ?></h3>
-											<p class="description"><?php 
-            esc_html_e( 'Notify on failed and successful logins', 'security-ninja' );
-            ?></p>
-										</label>
-									</th>
-									<td class="sn-cf-options">
-										<?php 
-            \WPSecurityNinja\Plugin\Utils::create_toggle_switch( 'webhook_user_logins', array(
-                'saved_value' => ( !empty( self::$options['webhook_user_logins'] ) ? self::$options['webhook_user_logins'] : 0 ),
-                'option_key'  => 'wf_sn_el[webhook_user_logins]',
-            ) );
-            ?>
-									</td>
-								</tr>
-								<tr>
-									<th>
-										<label for="webhook_updates">
-											<h3><?php 
-            esc_html_e( 'Updates', 'security-ninja' );
-            ?></h3>
-											<p class="description"><?php 
-            esc_html_e( 'Notify about WordPress, plugins, and themes updates', 'security-ninja' );
-            ?></p>
-										</label>
-									</th>
-									<td class="sn-cf-options">
-										<?php 
-            \WPSecurityNinja\Plugin\Utils::create_toggle_switch( 'webhook_updates', array(
-                'saved_value' => ( !empty( self::$options['webhook_updates'] ) ? self::$options['webhook_updates'] : 0 ),
-                'option_key'  => 'wf_sn_el[webhook_updates]',
-            ) );
-            ?>
-									</td>
-								</tr>
-							</table>
-						</div>
-					</div>
-					<?php 
-        } else {
-            ?>
-					<div id="sn_el_webhooks" class="wf-sn-el-subtab" style="display:none;">
-						<table class="form-table">
-							<tbody>
-								<tr>
-									<td colspan="2">
-										<div class="sncard infobox">
-											<div class="inner">
-												<h3><?php 
-            esc_html_e( 'Upgrade to Pro for Webhook Integrations', 'security-ninja' );
-            ?></h3>
-												<p><?php 
-            esc_html_e( 'The free version provides basic event logging. Upgrade to Security Ninja Pro to unlock webhook integrations:', 'security-ninja' );
-            ?></p>
-												<ul style="list-style: disc; margin-left: 20px; margin-top: 10px;">
-													<li><?php 
-            esc_html_e( 'Real-time webhook notifications for security events', 'security-ninja' );
-            ?></li>
-													<li><?php 
-            esc_html_e( 'Integrate with external services and APIs', 'security-ninja' );
-            ?></li>
-													<li><?php 
-            esc_html_e( 'Customize which events trigger webhooks', 'security-ninja' );
-            ?></li>
-													<li><?php 
-            esc_html_e( 'Send POST requests with JSON event data', 'security-ninja' );
-            ?></li>
-													<li><?php 
-            esc_html_e( 'Monitor firewall events, user logins, and updates', 'security-ninja' );
-            ?></li>
-													<li><?php 
-            esc_html_e( 'Build custom integrations with your workflow tools', 'security-ninja' );
-            ?></li>
-												</ul>
-												<p style="margin-top: 15px;">
-													<a href="<?php 
-            echo esc_url( secnin_fs()->get_upgrade_url() );
-            ?>" class="button button-primary"><?php 
-            esc_html_e( 'Upgrade to Pro', 'security-ninja' );
-            ?></a>
-												</p>
-											</div>
-										</div>
-									</td>
-								</tr>
-							</tbody>
-						</table>
-					</div>
-					<?php 
-        }
         ?>
 
 					<p class="submit">
@@ -2012,7 +1626,7 @@ class Wf_Sn_El {
 		</div>
 
 
-<?php 
+		<?php 
     }
 
     /**

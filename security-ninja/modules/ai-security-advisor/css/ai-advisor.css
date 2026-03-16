@@ -1,0 +1,580 @@
+/* Security Advisor page – cards and layout */
+.wf-sn-ai-advisor-page .wf-sn-ai-card {
+	background: #ffffff;
+	border: 1px solid #dcdcde;
+	border-radius: 4px;
+	box-shadow: 0 1px 1px rgba(0, 0, 0, 0.04);
+	margin-bottom: 20px;
+}
+
+.wf-sn-ai-improvement-body {
+	font-size: 1.2em;
+	line-height: 1.4em;
+}
+
+
+.wp-core-ui .wf-sn-ai-card-inner .wf-sn-ai-view-full-report {
+	margin-left: auto;
+	padding: 0;
+	height: auto;
+	border: 0;
+	background: none;
+	color: #2271b1;
+	font-size: 14px;
+}
+
+
+
+.wf-sn-ai-card-inner span.description {
+	clear: both;
+	width: 100%;
+	display: block;
+	font-style: italic;
+	padding-left: 22px;
+	margin-top: 10px;
+}
+
+.wf-sn-ai-advisor-page .wf-sn-ai-card-inner {
+	padding: 16px 20px;
+}
+
+/* Coming-soon message when WP 7 is not detected – same card style as main page */
+.wf-sn-ai-advisor-page .wf-sn-ai-coming-soon-card .wf-sn-ai-card-inner .description {
+	margin: 0;
+	padding: 0;
+	font-style: normal;
+	line-height: 1.5;
+	color: #50575e;
+}
+
+.wf-sn-ai-advisor-page .wf-sn-ai-locale-wrapper {
+	margin: 0 0 8px 0;
+}
+
+.wf-sn-ai-advisor-page .wf-sn-ai-locale-label {
+	margin-right: 6px;
+	font-weight: 500;
+}
+
+.wf-sn-ai-advisor-page .wf-sn-ai-locale {
+	min-width: 180px;
+}
+
+/* Preview data modal */
+.wf-sn-ai-preview-modal {
+	position: fixed;
+	inset: 0;
+	z-index: 100000;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding: 20px;
+	box-sizing: border-box;
+}
+.wf-sn-ai-preview-modal[hidden] {
+	display: none;
+}
+.wf-sn-ai-preview-modal-backdrop {
+	position: absolute;
+	inset: 0;
+	background: rgba(0, 0, 0, 0.5);
+	cursor: pointer;
+}
+.wf-sn-ai-preview-modal-content {
+	position: relative;
+	background: #fff;
+	border: 1px solid #c3c4c7;
+	border-radius: 4px;
+	box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+	max-width: 90%;
+	max-height: 85vh;
+	display: flex;
+	flex-direction: column;
+}
+.wf-sn-ai-preview-modal-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 12px 16px;
+	border-bottom: 1px solid #dcdcde;
+	flex-shrink: 0;
+}
+.wf-sn-ai-preview-modal-title {
+	margin: 0;
+	font-size: 1.1em;
+	font-weight: 600;
+}
+.wf-sn-ai-preview-modal-close {
+	font-size: 24px;
+	line-height: 1;
+	padding: 0 4px;
+	cursor: pointer;
+	color: #50575e;
+	background: none;
+	border: none;
+}
+.wf-sn-ai-preview-modal-close:hover {
+	color: #1d2327;
+}
+.wf-sn-ai-preview-modal-body {
+	padding: 16px;
+	overflow: auto;
+	flex: 1;
+	min-height: 0;
+}
+.wf-sn-ai-preview-modal-body pre {
+	margin: 0;
+	padding: 12px;
+	background: #f6f7f7;
+	border: 1px solid #dcdcde;
+	border-radius: 3px;
+	font-size: 12px;
+	line-height: 1.5;
+	white-space: pre-wrap;
+	word-break: break-word;
+	max-height: 60vh;
+	overflow: auto;
+}
+.wf-sn-ai-preview-modal-body code {
+	background: none;
+	padding: 0;
+}
+.wf-sn-ai-advisor-page .wf-sn-ai-preview-data-row {
+	margin-top: 8px;
+	margin-bottom: 0;
+}
+.wf-sn-ai-advisor-page .wf-sn-ai-preview-data-link {
+	text-decoration: none;
+}
+
+/* Security Advisor page – result blocks and layout */
+.wf-sn-ai-advisor-page .wf-sn-ai-result-wrapper {
+	margin-top: 12px;
+}
+.wf-sn-ai-advisor-page .wf-sn-ai-result-stage {
+	color: #646970;
+	font-size: 14px;
+	margin-bottom: 4px;
+}
+.wf-sn-ai-advisor-page .wf-sn-ai-result-timer {
+	font-family: ui-monospace, monospace;
+	font-size: 13px;
+	color: #646970;
+	margin-left: 8px;
+}
+.wf-sn-ai-advisor-page .wf-sn-ai-waiting-tip {
+	display: flex;
+	align-items: flex-start;
+	gap: 10px;
+	margin-top: 10px;
+	padding: 10px 12px 10px 12px;
+	max-width: 36em;
+	color: #50575e;
+	font-size: 13px;
+	line-height: 1.45;
+	background: linear-gradient(135deg, #f6f7f9 0%, #f0f0f1 100%);
+	border-radius: 6px;
+	border-left: 3px solid #2271b1;
+	box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+	opacity: 0;
+	transform: translateY(4px);
+	transition: opacity 0.35s ease, transform 0.35s ease;
+}
+.wf-sn-ai-advisor-page .wf-sn-ai-waiting-tip:not([hidden]) {
+	display: flex;
+}
+.wf-sn-ai-advisor-page .wf-sn-ai-waiting-tip.wf-sn-ai-tip-visible {
+	opacity: 1;
+	transform: translateY(0);
+}
+.wf-sn-ai-advisor-page .wf-sn-ai-waiting-tip.wf-sn-ai-tip-enter {
+	animation: wf-sn-ai-tip-enter 0.4s ease forwards;
+}
+@keyframes wf-sn-ai-tip-enter {
+	0% {
+		opacity: 0.5;
+		transform: translateY(6px);
+	}
+	100% {
+		opacity: 1;
+		transform: translateY(0);
+	}
+}
+.wf-sn-ai-advisor-page .wf-sn-ai-waiting-tip-icon {
+	flex-shrink: 0;
+	width: 20px;
+	height: 20px;
+	font-size: 18px;
+	line-height: 1.2;
+	color: #2271b1;
+	margin-top: 1px;
+}
+.wf-sn-ai-advisor-page .wf-sn-ai-waiting-tip-text {
+	flex: 1;
+	min-width: 0;
+}
+.wf-sn-ai-advisor-page .wf-sn-ai-result {
+	min-height: 2.5em;
+	padding: 12px;
+	margin-top: 8px;
+	background: #f0f0f1;
+	border-radius: 4px;
+	white-space: normal;
+}
+.wf-sn-ai-advisor-page .wf-sn-ai-result.loading {
+	color: #646970;
+}
+.wf-sn-ai-advisor-page .wf-sn-ai-section {
+	margin-bottom: 1.5em;
+}
+.wf-sn-ai-section-title {
+	margin-top: 0;
+}
+
+/* Parsed report sections */
+.wf-sn-ai-advisor-page .wf-sn-ai-report-section {
+	max-width: 100%;
+	margin-bottom: 1.25em;
+}
+.wf-sn-ai-advisor-page .wf-sn-ai-report-section:last-child {
+	margin-bottom: 0;
+}
+.wf-sn-ai-advisor-page .wf-sn-ai-report-heading {
+	font-size: 1.3em;
+	font-weight: 600;
+	margin: 0 0 10px 0;
+}
+.wf-sn-ai-advisor-page .wf-sn-ai-report-body {
+	font-size: 1.2em;
+	line-height: 1.5;
+}
+.wf-sn-ai-advisor-page .wf-sn-ai-report-executive {
+	border-left: 3px solid #2271b1;
+	background: rgba(0, 0, 0, 0.03);
+	border-radius: 0 4px 4px 0;
+	padding: 10px 12px;
+}
+.wf-sn-ai-advisor-page .wf-sn-ai-report-executive .wf-sn-ai-report-body {
+	margin: 0;
+}
+.wf-sn-ai-advisor-page .wf-sn-ai-report-improvements .wf-sn-ai-report-body {
+	padding-left: 0;
+}
+.wf-sn-ai-advisor-page .wf-sn-ai-risk-badge {
+	display: inline-block;
+	padding: 2px 8px;
+	font-size: 11px;
+	font-weight: 600;
+	border-radius: 10px;
+	margin-left: 4px;
+}
+.wf-sn-ai-advisor-page .wf-sn-ai-risk-badge.wf-sn-ai-risk-low {
+	background: #d4edda;
+	color: #155724;
+}
+.wf-sn-ai-advisor-page .wf-sn-ai-risk-badge.wf-sn-ai-risk-medium {
+	background: #fff3cd;
+	color: #856404;
+}
+.wf-sn-ai-advisor-page .wf-sn-ai-risk-badge.wf-sn-ai-risk-high {
+	background: #f8d7da;
+	color: #721c24;
+}
+.wf-sn-ai-advisor-page .wf-sn-ai-report-activity .wf-sn-ai-report-body {
+	color: #50575e;
+}
+
+.wf-sn-ai-advisor-page .wf-sn-ai-improvement {
+	margin-bottom: 6px;
+}
+
+.wf-sn-ai-advisor-page .wf-sn-ai-improvement-toggle {
+	width: 100%;
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 8px;
+	padding: 8px 10px;
+	border: 1px solid #c3c4c7;
+	border-radius: 3px;
+	background: #f6f7f7;
+	cursor: pointer;
+	text-align: left;
+}
+
+.wf-sn-ai-advisor-page .wf-sn-ai-improvement-toggle:hover {
+	background: #f0f0f1;
+}
+
+.wf-sn-ai-advisor-page .wf-sn-ai-improvement-label {
+	font-weight: 500;
+	font-size: 1.4em;
+}
+
+.wf-sn-ai-advisor-page .wf-sn-ai-improvement-details {
+	margin-top: 6px;
+	padding: 8px 10px;
+	border-left: 2px solid #dcdcde;
+}
+
+.wf-sn-ai-advisor-page .wf-sn-ai-improvement-title {
+	margin: 0 0 4px 0;
+	font-weight: 600;
+}
+
+.wf-sn-ai-advisor-page .wf-sn-ai-activity-trend {
+	margin-top: 6px;
+	font-size: 12px;
+	color: #646970;
+}
+
+/* Previous reports list */
+.wf-sn-ai-reports-list {
+	list-style: none;
+	padding: 0;
+	margin: 0;
+}
+.wf-sn-ai-report-item {
+	margin-bottom: 8px;
+	border: 1px solid #c3c4c7;
+	border-radius: 4px;
+	background: #fff;
+}
+.wf-sn-ai-report-toggle {
+	display: block;
+	width: 100%;
+	text-align: left;
+	padding: 10px 12px;
+	background: transparent;
+	border: none;
+	cursor: pointer;
+	font-size: 14px;
+}
+.wf-sn-ai-report-toggle:hover {
+	background: #f0f0f1;
+}
+.wf-sn-ai-report-date {
+	display: block;
+	color: #646970;
+	font-size: 12px;
+	margin-bottom: 4px;
+}
+.wf-sn-ai-report-full {
+	padding: 12px;
+	border-top: 1px solid #c3c4c7;
+	background: #f6f7f7;
+	white-space: pre-wrap;
+	font-size: 13px;
+}
+
+/* Latest Security Report card */
+.wf-sn-ai-latest-report .wf-sn-ai-latest-report-header {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 10px 16px;
+	margin-bottom: 16px;
+}
+.wf-sn-ai-latest-report .wf-sn-ai-section-title {
+	margin: 0;
+}
+.wf-sn-ai-latest-report-meta {
+	color: #646970;
+	font-size: 14px;
+}
+.wf-sn-ai-view-full-report {
+	margin-left: auto;
+	padding: 0;
+	height: auto;
+	border: 0;
+	background: none;
+	color: #2271b1;
+	font-size: 14px;
+}
+.wf-sn-ai-view-full-report:hover {
+	color: #135e96;
+	text-decoration: underline;
+}
+.wf-sn-ai-latest-report-body {
+	margin-bottom: 20px;
+}
+.wf-sn-ai-chart-title {
+	margin: 0 0 8px 0;
+	font-size: 14px;
+}
+.wf-sn-ai-chart-bars {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+}
+.wf-sn-ai-chart-bar-wrap {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	font-size: 13px;
+}
+.wf-sn-ai-chart-label {
+	min-width: 100px;
+}
+.wf-sn-ai-chart-bar {
+	height: 20px;
+	min-width: 4px;
+	border-radius: 3px;
+}
+.wf-sn-ai-chart-bar-prev { background: #dcdcde; }
+.wf-sn-ai-chart-bar-current { background: #2271b1; }
+.wf-sn-ai-chart-value {
+	min-width: 2em;
+	text-align: right;
+}
+.wf-sn-ai-latest-summary,
+.wf-sn-ai-latest-improvements {
+	margin-top: 16px;
+}
+.wf-sn-ai-latest-improvements-list {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+}
+.wf-sn-ai-latest-improvement {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	margin-bottom: 8px;
+	font-size: 14px;
+}
+.wf-sn-ai-improvement-dot {
+	width: 12px;
+	height: 12px;
+	border-radius: 2px;
+	flex-shrink: 0;
+}
+.wf-sn-ai-priority-high .wf-sn-ai-improvement-dot { background: #e8baba; }
+.wf-sn-ai-priority-medium .wf-sn-ai-improvement-dot { background: #dba617; }
+.wf-sn-ai-priority-low .wf-sn-ai-improvement-dot { background: #72aee6; }
+.wf-sn-ai-priority-badge {
+	font-size: 12px;
+	padding: 3px 10px;
+	border-radius: 4px;
+	margin-left: auto;
+	font-weight: 600;
+}
+.wf-sn-ai-priority-high .wf-sn-ai-priority-badge {
+	background: #e8baba;
+	color: #000000;
+}
+.wf-sn-ai-priority-medium .wf-sn-ai-priority-badge {
+	background: #dba617;
+	color: #fff;
+}
+.wf-sn-ai-priority-low .wf-sn-ai-priority-badge {
+	background: #f0f0f1;
+	color: #1d2327;
+}
+.wf-sn-ai-full-report-expanded {
+	margin-top: 16px;
+	padding-top: 16px;
+	border-top: 1px solid #dcdcde;
+}
+
+/* Generate block (first on page) */
+.wf-sn-ai-generate-block-first {
+	margin-bottom: 20px;
+}
+.wf-sn-ai-generate-row {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 16px;
+	margin-bottom: 8px;
+}
+.wf-sn-ai-generate-btn .dashicons {
+	font-size: 18px;
+	width: 18px;
+	height: 18px;
+	vertical-align: middle;
+	margin-right: 4px;
+}
+.wf-sn-ai-locale-inline label {
+	margin-right: 6px;
+}
+.wf-sn-ai-locale-inline .wf-sn-ai-ui-locale {
+	min-width: 180px;
+}
+.wf-sn-ai-what-happens.description {
+	margin-top: 8px;
+	margin-bottom: 0;
+	color: #646970;
+}
+.wf-sn-ai-what-happens a {
+	text-decoration: none;
+}
+
+/* Previous reports table */
+.wf-sn-ai-previous-reports .wf-sn-ai-section-title {
+	margin-top: 0;
+	margin-bottom: 4px;
+}
+.wf-sn-ai-reports-table {
+	margin-top: 12px;
+	border: 1px solid #c3c4c7;
+	border-collapse: collapse;
+}
+.wf-sn-ai-reports-table th,
+.wf-sn-ai-reports-table td {
+	padding: 10px 12px;
+	text-align: left;
+	border-bottom: 1px solid #c3c4c7;
+}
+.wf-sn-ai-reports-table th {
+	background: #f6f7f7;
+	font-weight: 600;
+}
+.wf-sn-ai-reports-table .wf-sn-ai-report-summary {
+	max-width: 400px;
+	color: #50575e;
+}
+.wf-sn-ai-reports-table .wf-sn-ai-report-toggle {
+	border: 1px solid #2271b1;
+	color: #2271b1;
+	background: #fff;
+	padding: 4px 12px;
+	border-radius: 4px;
+	font-size: 13px;
+	cursor: pointer;
+}
+.wf-sn-ai-reports-table .wf-sn-ai-report-toggle:hover {
+	background: #f0f0f1;
+	color: #135e96;
+}
+.wf-sn-ai-report-detail-cell {
+	background: #f6f7f7;
+	vertical-align: top;
+}
+.wf-sn-ai-report-detail-cell .wf-sn-ai-report-full {
+	padding: 12px;
+}
+
+/* Full-width layout when sidebar is not shown (Security Advisor page) */
+.wf-sn-ai-advisor-fullwidth.secnin_content_wrapper {
+	display: block;
+}
+.wf-sn-ai-advisor-fullwidth #secnin_content_top {
+	display: block;
+	width: 100%;
+	max-width: none;
+}
+
+/* AI badge in admin menu */
+.sn-ai-menu-badge {
+	display: inline-block;
+	margin-left: 4px;
+	padding: 2px 6px;
+	font-size: 10px;
+	font-weight: 600;
+	line-height: 1.2;
+	color: #1d2327;
+	background: #dcdcde;
+	border-radius: 3px;
+	vertical-align: middle;
+}

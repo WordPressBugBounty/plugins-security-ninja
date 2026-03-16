@@ -2,8 +2,11 @@
 /*
  * Security Ninja
  * Test descriptions and help
- * (c) 2011 - 2024 WP Security Ninja
+ * (c) 2011 - 2026 WP Security Ninja
  */
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
+}
 ?>
 <div class="sn_test_details" id="application_passwords">
 	<div class="test_name">
@@ -122,8 +125,8 @@
 
 				<p>
 				<?php
-				// translators: %s is a link to GeekFlare article about X-Frame-Options
 				printf(
+					/* translators: %s: link to GeekFlare article about X-Frame-Options */
 					esc_html__( 'Read more about %s.', 'security-ninja' ),
 					'<a href="https://geekflare.com/http-header-implementation/#X-Frame-Options" target="_blank" rel="noopener">' . esc_html__( 'the different options on GeekFlare', 'security-ninja' ) . '</a>'
 				);
@@ -255,6 +258,7 @@ remove_action('template_redirect', 'rest_output_link_header', 11, 0);</pre>
 				<?php
 					printf(
 						wp_kses(
+							/* translators: %s: URL to Dashboard - Updates page */
 							__( 'If you downloaded a plugin from the official WP repository you can easily check if there are any updates available, and update it by opening <a target="_blank" href="%s">Dashboard - Updates</a>. If you bought the plugin from somewhere else check the item\'s support on instructions how to upgrade manually. <b>Remember</b> - always backup your files and database before upgrading!', 'security-ninja' ),
 							array(
 								'a' => array(
@@ -280,6 +284,7 @@ remove_action('template_redirect', 'rest_output_link_header', 11, 0);</pre>
 				<?php
 					printf(
 						wp_kses(
+							/* translators: %s: URL to plugins page */
 							__( 'Open <a target="_blank" href="%s">plugins</a> and simply delete all plugins that are not active. Or login via FTP and move them to some folder that\'s not /wp-content/plugins/.', 'security-ninja' ),
 							array(
 								'a' => array(
@@ -304,6 +309,7 @@ remove_action('template_redirect', 'rest_output_link_header', 11, 0);</pre>
 				<?php
 						printf(
 							wp_kses(
+								/* translators: %s: URL to Appearance - Themes page */
 								__( 'If you downloaded a theme from the official WP repository you can easily check if there are any updates available, and upgrade it by opening <a target="_blank" href="%s">Appearance - Themes</a>. If you bought the theme from a theme shop check their support and upgrade manually. <b>Remember</b> - always backup your files and database before upgrading!', 'security-ninja' ),
 								array(
 									'a' => array(
@@ -331,6 +337,7 @@ remove_action('template_redirect', 'rest_output_link_header', 11, 0);</pre>
 					<?php
 							printf(
 								wp_kses(
+									/* translators: %s: URL to Appearance - Themes page */
 									__( 'Open <a target="_blank" href="%s">Appearance - Themes</a> and use the list above to delete the themes you do not need.', 'security-ninja' ),
 									array(
 										'a' => array(
@@ -414,6 +421,7 @@ remove_action('template_redirect', 'rest_output_link_header', 11, 0);</pre>
 		<?php
 				$translation = __( 'Security keys (there are eight) are defined in wp-config.php as constants on lines #49-56. They should be as unique and as long as possible. WordPress made a great script which helps you generate those strings. Please use it! After the script generates strings those 8 lines of code should look something like this:', 'security-ninja' );
 
+				/* translators: 1: introductory text about security keys, 2: URL to generate new keys */
 				printf(
 					wp_kses_post(
 						'%s <a target="_blank" href="%s" rel="noopener">' . esc_html__( 'Get new security keys', 'security-ninja' ) . '</a>',
@@ -452,6 +460,7 @@ remove_action('template_redirect', 'rest_output_link_header', 11, 0);</pre>
 			<?php
 					printf(
 						wp_kses(
+							/* translators: %s: URL to generate new security keys */
 							__( 'To edit the keys open wp-config.php, <a target="_blank" href="%s" rel="noopener">generate new keys</a> and copy/paste them to overwrite the old ones.', 'security-ninja' ),
 							array(
 								'a' => array(
@@ -620,7 +629,12 @@ php_flag display_errors Off
 			<li><?php esc_html_e( 'The "other" users should have no privileges on the file so set the last octal digit to zero', 'security-ninja' ); ?></li>
 			<li><?php esc_html_e( 'The "group" users shouldn\'t have any access right as well unless Apache falls under that category, so set group rights to 0 or 4', 'security-ninja' ); ?></li>
 		</ul>
-		<p><?php printf( esc_html__( 'This can vary depending on your server configuration - please check more details on %s', 'security-ninja' ), '<a href="https://developer.wordpress.org/advanced-administration/server/file-permissions/" target="_blank" rel="noopener">developer.wordpress.org/advanced-administration/server/file-permissions/</a>' ); ?></p>
+		<p>
+		<?php
+		/* translators: %s: link to file permissions documentation */
+		printf( esc_html__( 'This can vary depending on your server configuration - please check more details on %s', 'security-ninja' ), '<a href="https://developer.wordpress.org/advanced-administration/server/file-permissions/" target="_blank" rel="noopener">developer.wordpress.org/advanced-administration/server/file-permissions/</a>' );
+		?>
+		</p>
 	</div>
 </div>
 
@@ -642,7 +656,8 @@ php_flag display_errors Off
 
 <div class="sn_test_details" id="register_globals_check">
 	<div class="test_name"><?php esc_html_e( 'Check if register_globals PHP directive is turned off', 'security-ninja' ); ?></div>
-	<div class="test_description"><p><?php esc_html_e( 'This is one of the biggest security issues you can have on your site! If your hosting company has this directive enabled by default switch to another company immediately!', 'security-ninja' ); ?> <a target="_blank" href="<?php echo esc_url( __( 'https://php.net/manual/en/security.globals.php', 'security-ninja' ) ); ?>" rel="noopener"><?php esc_html_e( 'PHP manual', 'security-ninja' ); ?></a> <?php esc_html_e( 'has more info why this is so dangerous.', 'security-ninja' ); ?></p>
+	<div class="test_description">
+		<p><?php esc_html_e( 'This is one of the biggest security issues you can have on your site! If your hosting company has this directive enabled by default switch to another company immediately!', 'security-ninja' ); ?> <a target="_blank" href="<?php echo esc_url( 'https://php.net/manual/en/security.globals.php' ); ?>" rel="noopener"><?php esc_html_e( 'PHP manual', 'security-ninja' ); ?></a> <?php esc_html_e( 'has more info why this is so dangerous.', 'security-ninja' ); ?></p>
 		<p><?php esc_html_e( 'If you have access to php.ini file locate', 'security-ninja' ); ?></p>
 		<pre>register_globals = on</pre>
 		<p><?php esc_html_e( 'and change it to:', 'security-ninja' ); ?></p>

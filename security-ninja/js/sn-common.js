@@ -41,22 +41,6 @@ function sn_unblock_ui(content_el) {
 
 
 jQuery(document).ready(function () {
-	// Initialize subtabs
-	jQuery('#wf-sn-cf-subtabs').tabs({
-		active: 0,
-		activate: function(event, ui) {
-			// Update active class on nav-tab elements
-			jQuery('#wf-sn-cf-subtabs .nav-tab').removeClass('nav-tab-active');
-			jQuery(ui.newTab).addClass('nav-tab-active');
-		}
-	});
-
-
-	// Hide all subtabs except the first one initially
-	jQuery('.wf-sn-subtab').not(':first').hide();
-
-	jQuery('#wf-sn-cf-subtabs .nav-tab').not(':first').removeClass('nav-tab-active');
-
 	// Signing up for the newsletter
 	jQuery('.ml-block-form').on('submit', function(e) {
 		e.preventDefault();
@@ -266,7 +250,6 @@ jQuery(document).ready(function () {
 					jQuery('.test_' + testid + ' .spinner').removeClass('is-active');
 					jQuery('.test_' + testid).removeClass('testing');
 					
-					// Update the status icon in the second column
 					if (response.data.status_icon) {
 						jQuery('.test_' + testid + ' td:nth-child(2)').html(response.data.status_icon);
 					}
@@ -336,8 +319,6 @@ jQuery(document).ready(function () {
 		
 		// Create temporary container to parse the new HTML
 		var tempDiv = jQuery('<div>').html(scores.output);
-		
-		// Update each counter with animation
 		jQuery('#counters span.edge').each(function() {
 			var $counter = jQuery(this);
 			var $val = $counter.find('.val');
@@ -360,8 +341,6 @@ jQuery(document).ready(function () {
 					// Add animation classes
 					$counter.addClass('updating');
 					$val.addClass('updating');
-					
-					// Update the value
 					$val.text(newVal);
 					
 					// Remove animation classes after animation completes
@@ -410,115 +389,6 @@ jQuery(document).ready(function () {
 			'show': 'fade',
 			'autoOpen': false,
 			'closeOnEscape': true
-		});
-		
-		
-		
-		// Function to normalize hash values
-		function normalizeHash(hash) {
-			if (!hash) return '';
-			// First remove all hash symbols
-			hash = hash.replace(/#/g, '');
-			// Then remove any leading/trailing slashes
-			hash = hash.replace(/^\/+|\/+$/g, '');
-			return hash;
-		}
-
-		// sets the active tab via #hash in URL parameters
-		var hash = window.location.hash;
-		if (hash) {
-			var scrollPos = jQuery(window).scrollTop();
-			// Change to the right tab
-			jQuery("#wf-sn-tabs").find("a").removeClass("nav-tab-active");
-			jQuery(".wf-sn-tab").removeClass("active");
-			
-			// Normalize the hash in case we have other plugins messing with it - looking at you Trafft
-			hash = normalizeHash(hash);
-			// If hash is empty after normalization, default to sn_tests
-			hash = hash || 'sn_tests';
-			
-			jQuery('a[href="#' + hash + '"]').addClass('nav-tab-active').removeClass('hidden');
-			jQuery('#' + hash).addClass('active');
-			
-			jQuery(this).addClass("nav-tab-active");
-			jQuery(window).scrollTop(scrollPos);
-			
-			jQuery('[name="_wp_http_referer"]').val(window.location);
-		}
-		
-		
-		
-		jQuery('#wf-sn-tabs').tabs({
-			activate: function (event, ui) {
-				// save current scroll position
-				var scrollTop = jQuery(window).scrollTop();
-				// add hash to url - normalize it first
-				window.location.hash = normalizeHash(ui.newPanel.attr('id'));
-				// keep scroll at current position
-				jQuery(window).scrollTop(scrollTop);
-			}
-		}).fadeIn('fast');
-		
-		
-		
-		
-		
-		// init tabs
-		jQuery('#tabs').tabs({
-			activate: function () {
-				jQuery.cookie('sn_tabs_selected', jQuery('#tabs').tabs('option', 'active'));
-			},
-			active: jQuery('#tabs').tabs({ active: jQuery.cookie('sn_tabs_selected') })
-		});
-		
-		// jQuery('#wf-sn-cf-subtabs').tabs({
-		// 	activate: function () {
-		// 		jQuery.cookie('sn_tabs_selected', jQuery('#wf-sn-cf-subtabs').tabs('option', 'active'));
-		// 	},
-		// 	active: jQuery('#wf-sn-cf-subtabs').tabs({ active: jQuery.cookie('sn_tabs_selected') })
-		// });
-		
-		
-
-		// Tab handling
-		jQuery("#wf-sn-tabs").find("a").on('click', function (e) {
-			e.preventDefault();
-			jQuery("#wf-sn-tabs").find("a").removeClass("nav-tab-active"),
-			jQuery(".wf-sn-tab").removeClass("active");
-			var tabtarget = jQuery(this).attr("id").replace("-tab", "");
-			var t = jQuery("#" + tabtarget);
-			t.addClass("active"),
-			jQuery(this).addClass("nav-tab-active"),
-			t.hasClass("nosave") ? jQuery("#submit").hide() : jQuery("#submit").show();
-			var scrollPos = jQuery(window).scrollTop();
-			// Normalize the hash before setting it
-			window.location.hash = normalizeHash(tabtarget);
-			jQuery(window).scrollTop(scrollPos);
-			jQuery('[name="_wp_http_referer"]').val(window.location);
-		});
-		
-		// Handle internal links within tab content
-		jQuery(document).on('click', '#sn_overview a[href^="#"]', function(e) {
-			e.preventDefault();
-			var targetId = jQuery(this).attr('href').substring(1); // Remove the # from href
-			targetId = normalizeHash(targetId); // Normalize the hash
-			
-			// Find the corresponding tab
-			var tabLink = jQuery('a[href="#' + targetId + '"]');
-			if (tabLink.length) {
-				// Instead of triggering click, directly update the UI
-				jQuery("#wf-sn-tabs").find("a").removeClass("nav-tab-active");
-				jQuery(".wf-sn-tab").removeClass("active");
-				
-				tabLink.addClass("nav-tab-active");
-				jQuery('#' + targetId).addClass("active");
-				
-				// Update hash without triggering another event
-				var scrollPos = jQuery(window).scrollTop();
-				window.location.hash = targetId;
-				jQuery(window).scrollTop(scrollPos);
-				jQuery('[name="_wp_http_referer"]').val(window.location);
-			}
 		});
 		
 		

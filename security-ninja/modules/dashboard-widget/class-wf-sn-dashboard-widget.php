@@ -103,159 +103,16 @@ class Wf_Sn_Dashboard_Widget {
     public static function wpsn_dashboard_widget_render() {
         // Check if whitelabel is active
         echo '<div class="secnin-dashboard-widget">';
-        // Render firewall protection section
-        self::render_firewall_section();
         // Render updates section
         self::render_updates_section();
         // Render security score section
         self::render_security_score_section();
+        // Render AI Security Advisor section (when enabled)
+        self::render_ai_advisor_section();
         // Render vulnerabilities section
         self::render_vulnerabilities_section();
         echo '</div>';
         // Close secnin-dashboard-widget div
-    }
-
-    /**
-     * Render firewall protection section
-     *
-     * @author  Lars Koudal
-     * @since   v10
-     * @version v10  Sunday, May 11th,2025
-     * @access  private static
-     * @return  void
-     */
-    private static function render_firewall_section() {
-        return;
-        $cache_key = 'secnin_dashboard_firewall_stats';
-        $cached_stats = get_transient( $cache_key );
-        if ( false === $cached_stats ) {
-            $cached_stats = self::get_firewall_stats();
-            set_transient( $cache_key, $cached_stats, 5 * MINUTE_IN_SECONDS );
-        }
-        ?>
-		<div class="secnin-status-card secnin-status-card--firewall">
-			<div class="secnin-card-content">
-				<div>
-					<span class="secnin-card-header secnin-card-header--firewall">
-						<span class="dashicons dashicons-shield" style="color: #28a745;"></span> 
-						<?php 
-        esc_html_e( 'Firewall Protection', 'security-ninja' );
-        ?>
-					</span>
-					<?php 
-        if ( $cached_stats['has_activity'] ) {
-            ?>
-						<div class="secnin-card-stats secnin-card-stats--firewall">
-							<span><?php 
-            esc_html_e( 'Last 24h: ', 'security-ninja' );
-            ?> <strong><?php 
-            echo number_format_i18n( $cached_stats['total_events'] );
-            ?></strong></span>
-						</div>
-					<?php 
-        } else {
-            ?>
-						<div class="secnin-card-stats secnin-card-stats--firewall">
-							<span>✓ <?php 
-            esc_html_e( 'No threats detected', 'security-ninja' );
-            ?></span>
-						</div>
-					<?php 
-        }
-        ?>
-				</div>
-				<div class="secnin-score-display">
-					<?php 
-        if ( $cached_stats['has_activity'] ) {
-            ?>
-						<?php 
-            if ( $cached_stats['blocked_count'] > 0 ) {
-                ?>
-							<span class="secnin-update-count"><?php 
-                echo number_format_i18n( $cached_stats['blocked_count'] );
-                ?></span>
-							<br>
-						<?php 
-            }
-            ?>
-						<a href="<?php 
-            echo esc_url( admin_url( 'admin.php?page=wf-sn#sn_logger' ) );
-            ?>" class="secnin-card-link secnin-card-link--firewall">
-							<?php 
-            esc_html_e( 'View details', 'security-ninja' );
-            ?> →
-						</a>
-					<?php 
-        } else {
-            ?>
-						<span class="secnin-update-count" style="color: #28a745;">✓</span>
-						<br>
-						<a href="<?php 
-            echo esc_url( admin_url( 'admin.php?page=wf-sn#sn_logger' ) );
-            ?>" class="secnin-card-link secnin-card-link--firewall">
-							<?php 
-            esc_html_e( 'View logs', 'security-ninja' );
-            ?> →
-						</a>
-					<?php 
-        }
-        ?>
-				</div>
-			</div>
-		</div>
-		<?php 
-    }
-
-    /**
-     * Get firewall statistics
-     *
-     * @author  Lars Koudal
-     * @since   v10
-     * @version v10  Sunday, May 11th,2025
-     * @access  private static
-     * @return  array
-     */
-    private static function get_firewall_stats() {
-        global $wpdb;
-        $table_name = $wpdb->prefix . 'wf_sn_el';
-        // Check if table exists first
-        $table_exists = $wpdb->get_var( $wpdb->prepare( "SHOW TABLES LIKE %s", $table_name ) );
-        if ( $table_exists ) {
-            // Get recent security events (last 24h) with more attack types
-            $recent_events = $wpdb->get_results( $wpdb->prepare(
-                "SELECT action, COUNT(*) as count \n\t\t\t\t\t\tFROM `{$table_name}` \n\t\t\t\t\t\tWHERE `action` IN (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) \n\t\t\t\t\t\tAND `module` = %s \n\t\t\t\t\t\tAND `timestamp` >= DATE_SUB(NOW(), INTERVAL 24 HOUR)\n\t\t\t\t\t\tGROUP BY action\n\t\t\t\t\t\tLIMIT 1000",
-                'blocked_ip',
-                'blocked_ip_banned',
-                'banned_ip',
-                'blacklisted_IP',
-                'blocked_ip_suspicious_request',
-                'failed_login',
-                'login_denied_banned_ip',
-                'login_form_blocked_ip',
-                'blockadminlogin',
-                'login_error',
-                'blocked_ip_country_ban',
-                'firewall_ip_banned',
-                'security_ninja'
-            ) );
-            $total_events = 0;
-            foreach ( $recent_events as $event ) {
-                $total_events += $event->count;
-            }
-            $blocked_count = get_option( 'wf_sn_cf_blocked_count' );
-            return array(
-                'total_events'  => $total_events,
-                'blocked_count' => $blocked_count,
-                'has_activity'  => $total_events > 0 || $blocked_count > 0,
-                'table_exists'  => true,
-            );
-        }
-        return array(
-            'total_events'  => 0,
-            'blocked_count' => 0,
-            'has_activity'  => false,
-            'table_exists'  => false,
-        );
     }
 
     /**
@@ -311,7 +168,7 @@ class Wf_Sn_Dashboard_Widget {
         if ( $cached_updates['total_updates'] > 0 ) {
             ?>
 						<span class="secnin-update-count"><?php 
-            echo number_format_i18n( $cached_updates['total_updates'] );
+            echo esc_html( number_format_i18n( $cached_updates['total_updates'] ) );
             ?></span>
 						<br>
 						<a href="<?php 
@@ -357,8 +214,12 @@ class Wf_Sn_Dashboard_Widget {
         // Get last scan time from existing results
         $test_results = get_option( 'wf_sn_results' );
         if ( $test_results && isset( $test_results['last_run'] ) ) {
-            $time_diff = human_time_diff( $test_results['last_run'], current_time( 'timestamp' ) );
-            $last_scan_time = sprintf( __( '%s ago', 'security-ninja' ), $time_diff );
+            $time_diff = human_time_diff( $test_results['last_run'], time() );
+            $last_scan_time = sprintf( 
+                /* translators: %s: human-readable time difference */
+                __( '%s ago', 'security-ninja' ),
+                $time_diff
+             );
         }
         ?>
 		<div class="secnin-status-card secnin-status-card--security">
@@ -416,6 +277,144 @@ class Wf_Sn_Dashboard_Widget {
     }
 
     /**
+     * Render AI Security Advisor section.
+     * Only shown when advisor is enabled and module is loaded.
+     * Uses transient cache to avoid DB/registry lookups on every dashboard load.
+     *
+     * @return void
+     */
+    private static function render_ai_advisor_section() {
+        if ( !apply_filters( 'wf_sn_ai_advisor_enabled', true ) ) {
+            return;
+        }
+        if ( !class_exists( 'WPSecurityNinja\\Plugin\\AiAdvisor\\Wf_Sn_Ai_Advisor_Provider_Wp_Connectors' ) ) {
+            return;
+        }
+        $cache_key = 'secnin_dashboard_ai_advisor';
+        $cached = get_transient( $cache_key );
+        if ( is_array( $cached ) && isset( $cached['state'] ) ) {
+            $state = (int) $cached['state'];
+            $last_reviewed = ( isset( $cached['last_reviewed'] ) ? $cached['last_reviewed'] : '' );
+            $teaser = ( isset( $cached['teaser'] ) ? $cached['teaser'] : '' );
+        } else {
+            $available = \WPSecurityNinja\Plugin\AiAdvisor\Wf_Sn_Ai_Advisor_Provider_Wp_Connectors::is_available();
+            $configured = \WPSecurityNinja\Plugin\AiAdvisor\Wf_Sn_Ai_Advisor_Provider_Wp_Connectors::get_configured_providers();
+            $options = \WPSecurityNinja\Plugin\AiAdvisor\Wf_Sn_Ai_Advisor_Page::get_options();
+            $site_registered = !empty( $options['site_registered'] );
+            $ready = $available && (is_array( $configured ) && count( $configured ) > 0 || $site_registered);
+            $reports = ( $available ? \WPSecurityNinja\Plugin\AiAdvisor\Wf_Sn_Ai_Advisor_Reports::get_reports( 1, 0 ) : array() );
+            $has_reports = is_array( $reports ) && isset( $reports[0] );
+            $state = 1;
+            $last_reviewed = '';
+            $teaser = '';
+            if ( $ready || $has_reports ) {
+                $state = 2;
+                if ( is_array( $reports ) && isset( $reports[0] ) ) {
+                    $report = $reports[0];
+                    if ( !empty( $report['created'] ) ) {
+                        $last_reviewed = human_time_diff( strtotime( $report['created'] ), time() );
+                    }
+                    $text = ( isset( $report['report_text'] ) ? $report['report_text'] : '' );
+                    if ( is_string( $text ) && '' !== $text ) {
+                        $decoded = json_decode( $text, true );
+                        if ( is_array( $decoded ) ) {
+                            if ( !empty( $decoded['executive_summary'] ) && is_string( $decoded['executive_summary'] ) ) {
+                                $teaser = wp_trim_words( $decoded['executive_summary'], 20 );
+                            } elseif ( !empty( $decoded['overview'] ) && is_string( $decoded['overview'] ) ) {
+                                $teaser = wp_trim_words( $decoded['overview'], 20 );
+                            }
+                        }
+                    }
+                }
+            } elseif ( $available ) {
+                $state = 3;
+            }
+            set_transient( $cache_key, array(
+                'state'         => $state,
+                'last_reviewed' => $last_reviewed,
+                'teaser'        => $teaser,
+            ), 5 * MINUTE_IN_SECONDS );
+        }
+        $advisor_url = admin_url( 'admin.php?page=wf-sn-advisor' );
+        ?>
+		<div class="secnin-status-card secnin-status-card--advisor">
+			<div class="secnin-card-content">
+				<div>
+					<span class="secnin-card-header secnin-card-header--advisor">
+						<span class="dashicons dashicons-admin-generic" style="color: #6c757d;"></span>
+						<?php 
+        esc_html_e( 'Security Advisor', 'security-ninja' );
+        ?>
+						<span class="secnin-ai-badge">AI</span>
+					</span>
+					<div class="secnin-card-stats secnin-card-stats--advisor">
+						<?php 
+        if ( 1 === $state ) {
+            esc_html_e( 'Coming with WordPress 7', 'security-ninja' );
+        } elseif ( 2 === $state && $last_reviewed ) {
+            echo esc_html( sprintf( 
+                /* translators: %s: human-readable time since last review */
+                __( 'Last reviewed %s ago', 'security-ninja' ),
+                $last_reviewed
+             ) );
+        } elseif ( 2 === $state ) {
+            esc_html_e( 'Ready for first review', 'security-ninja' );
+        } else {
+            esc_html_e( 'Set up for anonymized AI review', 'security-ninja' );
+        }
+        ?>
+					</div>
+					<?php 
+        if ( 2 === $state && '' !== $teaser ) {
+            ?>
+						<div class="secnin-card-teaser"><?php 
+            echo esc_html( $teaser );
+            ?></div>
+					<?php 
+        }
+        ?>
+					<?php 
+        if ( 2 === $state ) {
+            ?>
+						<p class="description secnin-advisor-hint" style="margin: 0.5em 0 0; font-size: 12px;"><?php 
+            esc_html_e( 'Run Security Tests first, then generate for latest results.', 'security-ninja' );
+            ?></p>
+					<?php 
+        }
+        ?>
+				</div>
+				<div class="secnin-score-display">
+					<?php 
+        if ( 1 === $state ) {
+            ?>
+						<span class="secnin-update-count" style="color: #6c757d;">-</span>
+					<?php 
+        } else {
+            ?>
+						<a href="<?php 
+            echo esc_url( $advisor_url );
+            ?>" class="secnin-card-link secnin-card-link--advisor">
+							<?php 
+            if ( 2 === $state && $last_reviewed ) {
+                esc_html_e( 'Security Advisor', 'security-ninja' );
+            } elseif ( 2 === $state ) {
+                esc_html_e( 'Run AI review', 'security-ninja' );
+            } else {
+                esc_html_e( 'Set up', 'security-ninja' );
+            }
+            ?>
+							→
+						</a>
+					<?php 
+        }
+        ?>
+				</div>
+			</div>
+		</div>
+		<?php 
+    }
+
+    /**
      * Render vulnerabilities section
      *
      * @author  Lars Koudal
@@ -440,17 +439,21 @@ class Wf_Sn_Dashboard_Widget {
 				<span class="secnin-card-header secnin-card-header--vulnerabilities">
 					<span class="dashicons dashicons-warning" style="color: #f39c12;"></span> 
 					<?php 
-        echo esc_html( sprintf( _n(
-            '%s Vulnerability Found',
-            '%s Vulnerabilities Found',
-            $total,
-            'security-ninja'
-        ), number_format_i18n( $total ) ) );
+        echo esc_html( sprintf( 
+            /* translators: %s: number of vulnerabilities (used for both singular and plural) */
+            _n(
+                '%s Vulnerability Found',
+                '%s Vulnerabilities Found',
+                $total,
+                'security-ninja'
+            ),
+            number_format_i18n( $total )
+         ) );
         ?>
 				</span>
 				<div class="secnin-score-display">
 					<span class="secnin-update-count" style="color: #f39c12;"><?php 
-        echo number_format_i18n( $total );
+        echo esc_html( number_format_i18n( $total ) );
         ?></span>
 					<br>
 					<a href="<?php 

@@ -13,10 +13,10 @@ class Utils {
      * @author Lars Koudal
      * @author Unknown
      * @since v0.0.1
-     * @version v1.0.0 Wednesday, January 13th, 2021.	
+     * @version v1.0.0 Wednesday, January 13th, 2021.
      * @version v1.0.1 Thursday, July 10th, 2025.
      * @access public static
-     * @param mixed $show	
+     * @param mixed $show
      * @param mixed $msg
      * @return mixed
      */
@@ -54,7 +54,7 @@ class Utils {
                 echo esc_html( $wf_sn_vu_vulns_notice );
                 ?></p>
 				</div>
-		<?php 
+				<?php 
                 delete_option( 'wf_sn_vu_vulns_notice' );
             }
         }
@@ -80,7 +80,6 @@ class Utils {
         if ( !$load ) {
             return;
         }
-        // Update the review option now.
         update_option( 'wf_sn_review_notice', $review, false );
         $current_user = wp_get_current_user();
         $fname = '';
@@ -118,7 +117,7 @@ class Utils {
 			<p><strong>Lars Koudal,</br>wpsecurityninja.com</strong></p>
 			<p>
 			<ul>
-				<li><a href="https://wordpress.org/support/plugin/security-ninja/reviews/?filter=5#new-post" class="wfsn-dismiss-review-notice wfsn-reviewlink button-primary" target="_blank" rel="noopener">Ok, you deserve
+				<li><a href="https://wordpress.org/support/plugin/security-ninja/reviews/#new-post" class="wfsn-dismiss-review-notice wfsn-reviewlink button-primary" target="_blank" rel="noopener">Ok, you deserve
 						it</a></li>
 				<li><span class="dashicons dashicons-calendar"></span><a href="#" class="wfsn-dismiss-review-notice" target="_blank" rel="noopener">Nope, maybe later</a></li>
 				<li><span class="dashicons dashicons-smiley"></span><a href="#" class="wfsn-dismiss-review-notice" target="_blank" rel="noopener">I already did</a></li>
@@ -150,7 +149,6 @@ class Utils {
         if ( false !== strpos( $current_screen->id, 'page_security-ninja-wizard' ) ) {
             return;
         }
-        // Check if been dismissed already
         $review = get_option( 'wf_sn_review_notice' );
         if ( $review && isset( $review['dismissed'] ) && $review['dismissed'] ) {
             return;
@@ -197,7 +195,7 @@ class Utils {
             ?>" target="_blank" rel="noopener">Privacy Policy</a>.</p>
 				<p><small>Signup form is shown every 30 days.</small> - <a href="javascript:;" class="dismiss-this">Click here to dismiss</a></p>
 			</div>
-		<?php 
+			<?php 
         }
     }
 
@@ -281,7 +279,6 @@ class Utils {
         if ( 'pending' !== get_option( 'secnin_fs_migrated2fs', 'pending' ) ) {
             return;
         }
-        // Check if license_key.txt exists in the plugin directory and use it to activate the license
         $license_file = WF_SN_PLUGIN_DIR . 'license_key.txt';
         $license_key = '';
         if ( file_exists( $license_file ) ) {
@@ -298,24 +295,6 @@ class Utils {
         } catch ( \Exception $e ) {
             update_option( 'secnin_fs_migrated2fs', 'unexpected_error', false );
             return;
-        }
-        if ( secnin_fs()->can_use_premium_code() ) {
-            update_option( 'secnin_fs_migrated2fs', 'done', false );
-            // Delete the license file if it exists
-            if ( file_exists( $license_file ) ) {
-                wp_delete_file( $license_file );
-            }
-            // Display admin notice for successful activation
-            add_action( 'admin_notices', function () {
-                echo '<div class="notice notice-success is-dismissible"><p>' . esc_html__( 'License automatically activated!', 'security-ninja' ) . '</p></div>';
-            } );
-            if ( is_array( $next_page ) && isset( $next_page['success'] ) && 1 === $next_page['success'] && isset( $next_page['next_page'] ) ) {
-                $next_page_url = wp_validate_redirect( $next_page['next_page'], admin_url() );
-                wp_safe_redirect( $next_page_url );
-                exit;
-            }
-        } else {
-            update_option( 'secnin_fs_migrated2fs', 'failed', false );
         }
     }
 
@@ -338,7 +317,6 @@ class Utils {
                     'plan' => 'Free',
                     'ver'  => self::get_plugin_version(),
                 );
-                // Check vulnerabilities
                 if ( class_exists( __NAMESPACE__ . '\\wf_sn_vu' ) ) {
                     try {
                         $vulns = \WPSecurityNinja\Plugin\Wf_Sn_Vu::return_vuln_count();
@@ -350,7 +328,6 @@ class Utils {
                     $information['SecNin_get_details']['vulns'] = $vulns;
                     $information['SecNin_get_details']['vulndetails'] = $vulndetails;
                 }
-                // Get test scores
                 $information['SecNin_get_details']['tests'] = \WPSecurityNinja\Plugin\Wf_Sn::return_test_scores();
                 $information['SecNin_get_details']['test_results'] = \WPSecurityNinja\Plugin\Wf_Sn::get_test_results();
                 // Core Scanner (free) – sync results for all sites.
@@ -501,18 +478,11 @@ class Utils {
      * @return  mixed
      */
     public static function add_freemius_extra_permission( $permissions ) {
-        $permissions['wpsnapi'] = array(
-            'id'         => 'security_ninja_api',
-            'icon-class' => 'dashicons dashicons-sos',
-            'label'      => __( 'Security Ninja API', 'security-ninja' ),
-            'desc'       => __( 'Sending and getting data from Security Ninja API servers.', 'security-ninja' ),
-            'priority'   => 17,
-        );
         $permissions['newsletter'] = array(
             'id'         => 'security_ninja_newsletter',
             'icon-class' => 'dashicons dashicons-email-alt2',
-            'label'      => __( 'Newsletter', 'security-ninja' ),
-            'desc'       => __( 'You are added to our newsletter. Unsubscribe anytime.', 'security-ninja' ),
+            'label'      => 'Newsletter',
+            'desc'       => 'You are added to our newsletter. Unsubscribe anytime.',
             'priority'   => 18,
         );
         return $permissions;
@@ -583,36 +553,27 @@ class Utils {
      */
     public static function render_whitelabel_page() {
         ?>
-		<div class="submit-test-container">
-			<div class="fomcont">
-				<h3>Unlock Agency-Level Branding</h3>
-				<img src="<?php 
-        echo esc_url( WF_SN_PLUGIN_URL . 'images/whitelabel.jpg' );
-        ?>" alt="Whitelabel your security work." class="tabimage">
-
-
-
-				<p>
-					White label is the ultimate branding tool for agencies and professionals. Present a fully customized security solution to your clients, boosting your brand recognition and client loyalty. Hide WP Security Ninja branding, customize the plugin name, add your company URL, and even use your own logo.
-				</p>
-				<ul>
-					<li><strong>Increase Brand Visibility:</strong> Showcase your brand with every security scan and notification.</li>
-					<li><strong>Enhanced Client Loyalty:</strong> Provide a seamless, branded experience that keeps clients coming back.</li>
-				</ul>
-				<p>
-					<em>This feature is available for Pro users with 25+ site licenses.</em>
-				</p>
-
-
-
-
-
-				<p class="fomlink"><a target="_blank" href="<?php 
-        echo esc_url( \WPSecurityNinja\Plugin\Utils::generate_sn_web_link( 'tab_whitelabel', '/' ) );
-        ?>" class="button button-primary" rel="noopener"><?php 
-        esc_html_e( 'Learn more', 'security-ninja' );
-        ?></a></p>
-
+		<div class="sncard settings-card">
+				<h2><span class="dashicons dashicons-admin-appearance"></span> <?php 
+        esc_html_e( 'White label', 'security-ninja' );
+        ?></h2>
+			<p>Customize the plugin branding for your agency or clients.</p>
+			<div class="sncard infobox">
+				<div class="inner">
+					<h3>Upgrade to Pro for White Label</h3>
+					<p>Present a fully customized security solution to your clients. Upgrade to Security Ninja Pro (25+ site license) to unlock White Label:</p>
+					<ul style="list-style: disc; margin-left: 20px; margin-top: 10px;">
+						<li>Hide Security Ninja branding and use your own logo</li>
+						<li>Customize the plugin name and add your company URL</li>
+						<li>Increase brand visibility with every scan and notification</li>
+						<li>Provide a seamless, branded experience for client loyalty</li>
+					</ul>
+					<p style="margin-top: 15px;">
+						<a href="<?php 
+        echo esc_url( self::generate_sn_web_link( 'upgrade_tab_whitelabel', '/pricing/' ) );
+        ?>" class="button button-primary button-small" target="_blank" rel="noopener">Upgrade to Pro</a>
+					</p>
+				</div>
 			</div>
 		</div>
 		<?php 
@@ -656,7 +617,6 @@ class Utils {
      */
     public static function create_tables_for_site( $charset ) {
         global $wpdb;
-        // Create main tests table
         $table_name = $wpdb->prefix . 'wf_sn_tests';
         $sql = "CREATE TABLE {$table_name} (\n\t\t\t\tid bigint(20) unsigned NOT NULL AUTO_INCREMENT,\n\t\t\t\ttestid varchar(30) NOT NULL,\n\t\t\t\ttimestamp datetime NOT NULL,\n\t\t\t\ttitle text,\n\t\t\t\tstatus tinyint(4) NOT NULL,\n\t\t\t\tscore tinyint(4) NOT NULL,\n\t\t\t\truntime float DEFAULT NULL,\n\t\t\t\tmsg text,\n\t\t\t\tdetails text,\n\t\t\t\tPRIMARY KEY  (testid),\n\t\t\t\tKEY id (id)\n\t\t\t) {$charset};";
         dbDelta( $sql );
@@ -664,15 +624,14 @@ class Utils {
         $table_name = $wpdb->prefix . 'wf_sn_el';
         $sql = "CREATE TABLE {$table_name} (\n\t\t\t\tid bigint(20) unsigned NOT NULL AUTO_INCREMENT,\n\t\t\t\ttimestamp datetime NOT NULL,\n\t\t\t\tip varchar(39) NOT NULL,\n\t\t\t\tuser_agent varchar(255) NOT NULL,\n\t\t\t\tuser_id int(10) unsigned NOT NULL,\n\t\t\t\tmodule varchar(32) NOT NULL,\n\t\t\t\taction varchar(64) NOT NULL,\n\t\t\t\tdescription text NOT NULL,\n\t\t\t\traw_data blob NOT NULL,\n\t\t\t\tPRIMARY KEY  (id)\n\t\t\t) {$charset};";
         dbDelta( $sql );
+        // AI Advisor reports (when module is loaded)
+        if ( class_exists( '\\WPSecurityNinja\\Plugin\\AiAdvisor\\Wf_Sn_Ai_Advisor_Reports' ) ) {
+            \WPSecurityNinja\Plugin\AiAdvisor\Wf_Sn_Ai_Advisor_Reports::ensure_table();
+        }
         // Firewall - local list of blocked IPs (free feature)
         $table_name = $wpdb->prefix . 'wf_sn_cf_bl_ips';
         $sql = "CREATE TABLE {$table_name} (\n\t\t\t\ttid datetime NOT NULL DEFAULT NOW(),\n\t\t\t\tip varchar(46) NOT NULL,\n\t\t\t\treason varchar(255) NOT NULL,\n\t\t\t\tPRIMARY KEY  (ip),\n\t\t\t\tKEY tid (tid)\n\t\t\t) {$charset};";
         dbDelta( $sql );
-        // Set up default settings for Event logger (free feature)
-        if ( class_exists( '\\WPSecurityNinja\\Plugin\\Wf_Sn_El' ) ) {
-            include_once WF_SN_PLUGIN_DIR . 'modules/cloud-firewall/class-sn-geolocation.php';
-            Wf_Sn_El::default_settings( false );
-        }
         return true;
     }
 
@@ -759,7 +718,7 @@ class Utils {
         $topbar = '<div id="sntopbar">';
         $topbar .= '<div class="plugname">';
         if ( !empty( $icon_url ) ) {
-            $topbar .= '<img src="' . $icon_url . '" height="28" alt="' . esc_attr( $menu_title ) . '" class="logoleft">';
+            $topbar .= '<img src="' . esc_url( $icon_url ) . '" height="28" alt="' . esc_attr( $menu_title ) . '" class="logoleft">';
         }
         $topbar .= '<div class="name">' . esc_html( $menu_title ) . ' <span>v.' . esc_html( self::get_plugin_version() ) . '</span></div></div>';
         $menu_links = '<a href="https://wordpress.org/support/plugin/security-ninja/" target="_blank" rel="noopener noreferrer" class="extlink">Support Forum</a>';
@@ -905,10 +864,10 @@ class Utils {
 
     /**
      * Normalize a boolean-like value to integer 0 or 1
-     * 
+     *
      * Converts various boolean representations (true, false, 'true', '1', 1, 0, etc.)
      * to a consistent integer format (0 or 1) for storage and comparison.
-     * 
+     *
      * @author  Lars Koudal
      * @since   v1.0.0
      * @version v1.0.0  Monday, January 20th, 2025.
@@ -917,14 +876,12 @@ class Utils {
      * @return  int     Returns 1 if value is truthy, 0 otherwise
      */
     public static function normalize_flag( $value ) {
-        // Handle explicit true/false
         if ( $value === true ) {
             return 1;
         }
         if ( $value === false ) {
             return 0;
         }
-        // Handle string representations
         if ( is_string( $value ) ) {
             $value = strtolower( trim( $value ) );
             if ( $value === 'true' || $value === '1' || $value === 'yes' || $value === 'on' ) {
@@ -932,7 +889,6 @@ class Utils {
             }
             return 0;
         }
-        // Handle numeric values
         if ( is_numeric( $value ) ) {
             return ( (int) $value ? 1 : 0 );
         }
