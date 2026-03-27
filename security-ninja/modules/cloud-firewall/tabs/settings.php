@@ -12,6 +12,7 @@ namespace WPSecurityNinja\Plugin;
 if ( !defined( 'ABSPATH' ) ) {
     exit;
 }
+// Ensure we have access to the main class
 if ( !class_exists( 'Wf_sn_cf' ) ) {
     return;
 }
@@ -200,7 +201,7 @@ function wf_sn_cf_render_settings_content(  $options, $ips = array()  ) {
         ?>
 						<select name="wf_sn_cf[blocked_countries][]" id="wf_sn_cf_blocked_countries" multiple="multiple" style="width:100%;" class="">
 							<?php 
-        $blocked_countries = \WPSecurityNinja\Plugin\wf_sn_cf::get_blocked_countries__premium_only();
+        $blocked_countries = \WPSecurityNinja\Plugin\wf_sn_cf::get_blocked_countries();
         if ( $geoip_countrylist ) {
             foreach ( $geoip_countrylist as $key => $gc ) {
                 $selected = ( in_array( $key, $blocked_countries, true ) ? ' selected="selected" ' : '' );

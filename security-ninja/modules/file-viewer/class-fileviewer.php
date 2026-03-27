@@ -172,8 +172,12 @@ class FileViewer {
 			/* Diff view styles */
 			.diff { overflow-x: auto; }
 			.diff table { border-collapse: collapse; width: 100%; font-size: 12px; line-height: 1.25; }
-			.diff td, .diff th { border: 1px solid #c3c4c7; padding: 0 6px; vertical-align: top; text-align: left; line-height: 1.25; }
-			.diff tr { line-height: 1.25; }
+			.diff td, .diff th { 
+				border: 0px;
+				text-align: left;
+				line-height: 1.25 !important;
+			 }
+			.diff tr { line-height: 1.25 !important; }
 			.diff .diff-deletedline { background: #f8d7da; }
 			.diff .diff-addedline { background: #d4edda; }
 

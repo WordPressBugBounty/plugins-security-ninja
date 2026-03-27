@@ -5,8 +5,6 @@ namespace WPSecurityNinja\Plugin;
 if ( !defined( 'ABSPATH' ) ) {
     exit;
 }
-// Utils::normalize_flag() is used in default_settings(). WF_SN_PLUGIN_DIR is set by the main plugin before this file is loaded.
-require_once WF_SN_PLUGIN_DIR . 'includes/class-wf-sn-utils.php';
 require 'sn-el-modules.php';
 class Wf_Sn_El {
     private static $is_active = null;
@@ -54,19 +52,6 @@ class Wf_Sn_El {
                     9,
                     10
                 );
-                // Direct filters so settings (e.g. General/tagline) are always logged.
-                add_filter(
-                    'allowed_options',
-                    array(__CLASS__, 'log_settings_filter'),
-                    999,
-                    1
-                );
-                add_filter(
-                    'whitelist_options',
-                    array(__CLASS__, 'log_settings_filter'),
-                    999,
-                    1
-                );
             }
         }
         // REST API logging hooks
@@ -88,22 +73,6 @@ class Wf_Sn_El {
         if ( !wp_next_scheduled( 'secnin_prune_logs_cron' ) ) {
             wp_schedule_event( time(), 'daily', 'secnin_prune_logs_cron' );
         }
-    }
-
-    /**
-     * Log settings save (e.g. General/tagline, permalinks) via direct filters so it works even when "all" hook path does not.
-     * Returns the option array unchanged.
-     *
-     * @param array $options Allowed options array (allowed_options / whitelist_options).
-     * @return array The same $options array.
-     */
-    public static function log_settings_filter( $options ) {
-        if ( !self::$is_active || !is_array( $options ) ) {
-            return $options;
-        }
-        $hook = current_filter();
-        wf_sn_el_modules::parse_action_settings( $hook, array($options) );
-        return $options;
     }
 
     /**
@@ -241,8 +210,7 @@ class Wf_Sn_El {
         $new_admins = $wpdb->get_results( $query );
         if ( !empty( $new_admins ) ) {
             foreach ( $new_admins as $admin ) {
-                // Check if this admin was created through WordPress (has an action log). Table: {$wpdb->prefix}tablename (identifiers cannot be prepared).
-                // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- table name from $wpdb->prefix, values use prepare placeholders
+                // Check if this admin was created through WordPress (has an action log)
                 $was_created_normally = $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$wpdb->prefix}wf_sn_el \n\t\t\t\t\t WHERE action = %s \n\t\t\t\t\t AND description LIKE %s \n\t\t\t\t\t AND timestamp > DATE_SUB(NOW(), INTERVAL 5 MINUTE)", 'admin_created', '%' . $admin->user_login . '%' ) );
                 // @todo - what if user was created before plugin install
                 // @todo - what if user
@@ -416,7 +384,8 @@ class Wf_Sn_El {
         $search = sanitize_text_field( $_POST['search']['value'] ?? '' );
         $action_filter = sanitize_text_field( $_POST['action_filter'] ?? '' );
         $order = $_POST['order'] ?? array();
-        // Build the base query with placeholders for user input. Table uses {$wpdb->prefix}tablename (identifiers cannot be prepared).
+        $table = $wpdb->prefix . 'wf_sn_el';
+        // Build the base query with placeholders for user input (WordPress: use prepare() for queries with user data).
         $where_conditions_sql = array();
         $prepare_args = array();
         if ( !empty( $search ) ) {
@@ -431,21 +400,18 @@ class Wf_Sn_El {
             $where_conditions_sql[] = 'action = %s';
             $prepare_args[] = $action_filter;
         }
-        $base_query = "SELECT id, timestamp, ip, user_agent, user_id, action, raw_data, description FROM {$wpdb->prefix}wf_sn_el";
+        $base_query = 'SELECT id, timestamp, ip, user_agent, user_id, action, raw_data, description FROM ' . $table;
         if ( !empty( $where_conditions_sql ) ) {
             $base_query .= ' WHERE ' . implode( ' AND ', $where_conditions_sql );
         }
         // Get the total number of records before filtering
-        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- {$wpdb->prefix}tablename, identifiers cannot be prepared
-        $total_records = $wpdb->get_var( "SELECT COUNT(*) FROM {$wpdb->prefix}wf_sn_el" );
+        $total_records = $wpdb->get_var( 'SELECT COUNT(*) FROM ' . $table );
         // Get the total number of records after filtering
         if ( !empty( $prepare_args ) ) {
             $count_query = 'SELECT COUNT(*) FROM (' . $base_query . ') AS filtered_table';
-            // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- base_query uses {$wpdb->prefix}wf_sn_el, values in prepare_args
             $total_filtered = $wpdb->get_var( $wpdb->prepare( $count_query, $prepare_args ) );
         } else {
-            // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- {$wpdb->prefix}tablename, identifiers cannot be prepared
-            $total_filtered = $wpdb->get_var( "SELECT COUNT(*) FROM {$wpdb->prefix}wf_sn_el" );
+            $total_filtered = $wpdb->get_var( 'SELECT COUNT(*) FROM ' . $table );
         }
         // Handle sorting (column index and direction are validated; no user string in SQL)
         $columns = array(
@@ -477,13 +443,10 @@ class Wf_Sn_El {
         if ( $length != -1 ) {
             $data_query .= ' LIMIT %d, %d';
             $data_prepare_args = array_merge( $prepare_args, array($start, $length) );
-            // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- data_query uses {$wpdb->prefix}wf_sn_el, values in prepare
             $events = $wpdb->get_results( $wpdb->prepare( $data_query, $data_prepare_args ) );
         } elseif ( !empty( $prepare_args ) ) {
-            // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- data_query uses {$wpdb->prefix}wf_sn_el, values in prepare_args
             $events = $wpdb->get_results( $wpdb->prepare( $data_query, $prepare_args ) );
         } else {
-            // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- data_query uses {$wpdb->prefix}wf_sn_el
             $events = $wpdb->get_results( $data_query );
         }
         $data = array();
@@ -1163,7 +1126,7 @@ class Wf_Sn_El {
                 'security_ninja',
                 'prune_events_log',
                 sprintf( 
-                    /* translators: %d: number of deleted rows */
+                    // translators: %d: number of deleted rows
                     esc_html__( 'Cron job: Emptied event logs. Deleted rows: %d', 'security-ninja' ),
                     $deleted_rows
                  ),
@@ -1209,7 +1172,7 @@ class Wf_Sn_El {
             // }
             $headers = array('Content-Type: text/html; charset=UTF-8');
             $body .= sprintf(
-                /* translators: %1$s: site name, %2$s: opening link tag, %3$s: closing link tag, %4$s: line break */
+                // translators: %1$s: site name, %2$s: opening link tag, %3$s: closing link tag, %4$s: line break
                 __( 'Recent events on %1$s: %2$s(more details are available in WordPress admin)%3$s%4$s', 'security-ninja' ),
                 esc_html( get_bloginfo( 'name' ) ),
                 '<a href="' . esc_url( $admin_url ) . '">',
@@ -1249,7 +1212,7 @@ class Wf_Sn_El {
                 $timestamp = sprintf( '%s<br><span style="color: #666; font-size: 0.9em;">%s</span>', esc_html( date_i18n( get_option( 'date_format' ), strtotime( $event->timestamp ) ) ), esc_html( date_i18n( get_option( 'time_format' ), strtotime( $event->timestamp ) ) ) );
                 // Format the event details
                 $event_details = sprintf(
-                    /* translators: 1: Event description, 2: User name, 3: Module name */
+                    // translators: 1: Event description, 2: User name, 3: Module name
                     __( '%1$s by %2$s in %3$s module.', 'security-ninja' ),
                     esc_html( $event->description ),
                     $user,
@@ -1269,11 +1232,7 @@ class Wf_Sn_El {
                 if ( !empty( $emrep ) && is_email( $emrep ) ) {
                     try {
                         add_filter( 'wp_mail_content_type', array(__NAMESPACE__ . '\\Wf_Sn_El', 'sn_set_html_mail_content_type') );
-                        $subject = sprintf( 
-                            /* translators: %s: site name (blog name) */
-                            esc_html__( '[%s] Security Ninja - Events Logger report', 'security-ninja' ),
-                            wp_specialchars_decode( get_option( 'blogname' ), ENT_QUOTES )
-                         );
+                        $subject = sprintf( esc_html__( '[%s] Security Ninja - Events Logger report', 'security-ninja' ), wp_specialchars_decode( get_option( 'blogname' ), ENT_QUOTES ) );
                         // Ensure body is properly formatted as HTML
                         if ( strpos( $body, '<html' ) === false ) {
                             $body = sprintf( '<!DOCTYPE html><html><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /></head><body>%s</body></html>', $body );

@@ -3,9 +3,8 @@
 /**
  * AI Security Advisor – privacy-safe payload for AI context.
  *
- * Single source of truth: feature flags, test results (testid, summary/details when present; no status/score),
- * aggregated counts, optional vulnerability summary, and (when Pro) Pro-only options with descriptions.
- * No domain, URLs, IPs, usernames, emails, or file paths.
+ * Single source of truth: feature flags, test results (testid, status, summary/details when present),
+ * and aggregated counts. No domain, URLs, IPs, usernames, emails, or file paths.
  *
  * @package Security_Ninja
  */
@@ -27,6 +26,7 @@ class Wf_Sn_Ai_Advisor_Payload {
      * @return array Context array safe for JSON; no PII.
      */
     public static function build( $request_type = 'full_report', $ui_locale_override = '' ) {
+        $count_data = self::get_test_counts();
         $flags = self::get_feature_flags();
         $tests = self::get_test_results_safe();
         $counts = Wf_Sn_Ai_Advisor_Aggregation::get_counts_7d();
@@ -57,39 +57,35 @@ class Wf_Sn_Ai_Advisor_Payload {
             'ui_locale'                => $ui_locale,
             'ui_language_name'         => $ui_locale,
         );
-        // Vulnerability summary (available in both free and premium).
-        $vuln_summary = self::get_vulnerability_summary();
-        if ( !empty( $vuln_summary ) ) {
-            $context = array_merge( $context, $vuln_summary );
-        }
         return $context;
     }
 
     /**
-     * Get privacy-safe vulnerability summary (counts only). Available in both free and premium.
+     * Get test result counts from existing API (no overall score).
      *
-     * @return array<string, int|bool> Empty if vulnerability module not available.
+     * @return array{good: int, bad: int, warning: int}
      */
-    private static function get_vulnerability_summary() {
-        if ( !class_exists( 'WPSecurityNinja\\Plugin\\Wf_Sn_Vu' ) || !method_exists( 'WPSecurityNinja\\Plugin\\Wf_Sn_Vu', 'get_scan_summary' ) ) {
-            return array();
+    private static function get_test_counts() {
+        if ( !class_exists( '\\WPSecurityNinja\\Plugin\\Wf_Sn' ) ) {
+            return array(
+                'good'    => 0,
+                'bad'     => 0,
+                'warning' => 0,
+            );
         }
-        $summary = \WPSecurityNinja\Plugin\Wf_Sn_Vu::get_scan_summary();
-        if ( !is_array( $summary ) ) {
-            return array();
+        $response = \WPSecurityNinja\Plugin\Wf_Sn::return_test_scores();
+        if ( !is_array( $response ) ) {
+            return array(
+                'good'    => 0,
+                'bad'     => 0,
+                'warning' => 0,
+            );
         }
-        $vuln_count = ( isset( $summary['vuln_count'] ) ? (int) $summary['vuln_count'] : 0 );
-        $out = array(
-            'vuln_count'          => $vuln_count,
-            'has_vulnerabilities' => $vuln_count > 0,
+        return array(
+            'good'    => ( isset( $response['good'] ) ? (int) $response['good'] : 0 ),
+            'bad'     => ( isset( $response['bad'] ) ? (int) $response['bad'] : 0 ),
+            'warning' => ( isset( $response['warning'] ) ? (int) $response['warning'] : 0 ),
         );
-        if ( !empty( $summary['vulnerabilities'] ) && is_array( $summary['vulnerabilities'] ) ) {
-            $plugins = ( isset( $summary['vulnerabilities']['plugins'] ) && is_array( $summary['vulnerabilities']['plugins'] ) ? count( $summary['vulnerabilities']['plugins'] ) : 0 );
-            $themes = ( isset( $summary['vulnerabilities']['themes'] ) && is_array( $summary['vulnerabilities']['themes'] ) ? count( $summary['vulnerabilities']['themes'] ) : 0 );
-            $out['vuln_plugins_count'] = $plugins;
-            $out['vuln_themes_count'] = $themes;
-        }
-        return $out;
     }
 
     /**
@@ -121,23 +117,6 @@ class Wf_Sn_Ai_Advisor_Payload {
     }
 
     /**
-     * Redact user path segments (e.g. /Users/username/) from text to avoid sending usernames to AI.
-     *
-     * @param string $text Raw text that may contain filesystem paths.
-     * @return string Text with user path segments replaced by [user-path].
-     */
-    private static function redact_user_paths_for_context( $text ) {
-        if ( !is_string( $text ) || '' === $text ) {
-            return $text;
-        }
-        // Unix/macOS: /Users/username/ or /Users/username
-        $text = preg_replace( '#/Users/[^/\\s]+#', '/Users/[user-path]', $text );
-        // Windows: \Users\username\ or C:\Users\username\
-        $text = preg_replace( '#(?i)([A-Z]:)?\\\\Users\\\\[^\\\\\\s]+#', '$1\\Users\\[user-path]', $text );
-        return $text;
-    }
-
-    /**
      * Strip HTML and normalize to plain text for AI context (privacy-safe: no paths, domains, IPs).
      *
      * @param string $text Raw text possibly containing HTML.
@@ -148,15 +127,13 @@ class Wf_Sn_Ai_Advisor_Payload {
             return '';
         }
         $text = wp_strip_all_tags( $text );
-        $text = self::redact_user_paths_for_context( $text );
-        $text = apply_filters( 'wf_sn_ai_advisor_redact_pii_text', $text );
         return trim( $text );
     }
 
     /**
-     * Test results: testid and when present plain-text summary and details for the AI. No status or score.
+     * Test results: testid, status, and when failing/warning a plain-text summary (and details) for the AI.
      *
-     * @return array List of arrays with testid and optionally summary, details.
+     * @return array List of arrays with testid, status, and optionally summary, details.
      */
     private static function get_test_results_safe() {
         if ( !class_exists( '\\WPSecurityNinja\\Plugin\\Wf_Sn' ) ) {
@@ -175,6 +152,7 @@ class Wf_Sn_Ai_Advisor_Payload {
         }
         $out = array();
         foreach ( $response['test'] as $testid => $row ) {
+            $status = ( isset( $row['status'] ) ? (int) $row['status'] : 0 );
             $entry = array(
                 'testid' => $testid,
             );

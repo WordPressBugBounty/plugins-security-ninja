@@ -12,40 +12,19 @@ jQuery(document).ready(function($) {
 		return;
 	}
 
-	// Cloud Firewall subtabs: simple click + show/hide (panels are siblings of #wf-sn-cf-subtabs, so jQuery UI .tabs() cannot find them).
+	// Initialize Cloud Firewall subtabs if present
 	if ($('#wf-sn-cf-subtabs').length) {
+		$('#wf-sn-cf-subtabs').tabs({
+			active: 0,
+			activate: function(event, ui) {
+				$('#wf-sn-cf-subtabs .nav-tab').removeClass('nav-tab-active');
+				$(ui.newTab).addClass('nav-tab-active');
+			}
+		});
+
+		// Hide all subtabs except the first one initially
 		$('.wf-sn-subtab').not(':first').hide();
 		$('#wf-sn-cf-subtabs .nav-tab').not(':first').removeClass('nav-tab-active');
-
-		$('#wf-sn-cf-subtabs .nav-tab').on('click', function(e) {
-			e.preventDefault();
-			$('#wf-sn-cf-subtabs .nav-tab').removeClass('nav-tab-active');
-			$('.wf-sn-subtab').hide();
-			$(this).addClass('nav-tab-active');
-			var targetId = $(this).attr('href');
-			$(targetId).show();
-		});
-
-		// Reset visitor log button (Visitor Logging subtab)
-		$(document).on('click', '#secnin-reset-visitor-log', function() {
-			var $btn = $(this);
-			var confirmMsg = $btn.data('confirm') || 'Clear all visitor log entries? This cannot be undone.';
-			if (!confirm(confirmMsg)) {
-				return;
-			}
-			var nonce = $btn.data('nonce');
-			$.post(ajaxurl, { action: 'secnin_reset_visitor_log', nonce: nonce })
-				.done(function(response) {
-					if (response.success && response.data) {
-						var $stats = $('#secnin-vl-stats');
-						var label = $stats.data('entries-label') || 'entries';
-						$stats.text(response.data.size_formatted + ' (' + response.data.count + ' ' + label + ')');
-					}
-				})
-				.fail(function() {
-					alert('Something went wrong.');
-				});
-		});
 	}
 
 	// Helper to normalize hash values
@@ -62,6 +41,7 @@ jQuery(document).ready(function($) {
 		return hash;
 	}
 
+	// Handle initial hash to activate correct main tab
 	if ($('#wf-sn-tabs').length) {
 		var hash = window.location.hash;
 		if (hash) {
@@ -121,6 +101,7 @@ jQuery(document).ready(function($) {
 			$('[name="_wp_http_referer"]').val(window.location);
 		});
 
+		// Handle internal links within overview tab content that point to other tabs
 		$(document).on('click', '#sn_overview a[href^="#"]', function(e) {
 			e.preventDefault();
 			var targetId = $(this).attr('href').substring(1);

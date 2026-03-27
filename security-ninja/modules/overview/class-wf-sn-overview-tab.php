@@ -315,7 +315,8 @@ class WF_SN_Overview_Tab {
             $action_counts[$action_result['action']] = intval( $action_result['count'] );
         }
         // Fetch the last 10 events
-        $results = $wpdb->get_results( $wpdb->prepare( "SELECT id, timestamp, ip, action, raw_data \n            FROM {$table_name} \n            WHERE action IN ({$placeholders}) AND raw_data != 'N;'\n            ORDER BY timestamp DESC \n            LIMIT 10", array_keys( $actions_to_track ), ARRAY_A ) );
+        $query = $wpdb->prepare( "SELECT id, timestamp, ip, action, raw_data \n            FROM {$table_name} \n            WHERE action IN ({$placeholders}) AND raw_data != 'N;'\n            ORDER BY timestamp DESC \n            LIMIT 10", array_keys( $actions_to_track ) );
+        $results = $wpdb->get_results( $query, ARRAY_A );
         if ( !empty( $results ) ) {
             echo '<div class="action-counts">';
             echo '<h4>' . esc_html__( 'Action Counts', 'security-ninja' ) . '</h4>';

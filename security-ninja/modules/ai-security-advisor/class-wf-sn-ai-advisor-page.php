@@ -107,18 +107,11 @@ class Wf_Sn_Ai_Advisor_Page {
 			$text    = isset( $first['report_text'] ) ? $first['report_text'] : '';
 			$decoded = is_string( $text ) && '' !== $text ? json_decode( $text, true ) : null;
 			if ( is_array( $decoded ) && ( isset( $decoded['executive_summary'] ) || isset( $decoded['top_improvements'] ) ) ) {
-				$improvements = isset( $decoded['top_improvements'] ) && is_array( $decoded['top_improvements'] ) ? $decoded['top_improvements'] : array();
-				$risk_order  = array( 'low' => 0, 'medium' => 1, 'high' => 2 );
-				usort( $improvements, function ( $a, $b ) use ( $risk_order ) {
-					$r_a = isset( $a['risk'] ) ? ( $risk_order[ strtolower( (string) $a['risk'] ) ] ?? 0 ) : 0;
-					$r_b = isset( $b['risk'] ) ? ( $risk_order[ strtolower( (string) $b['risk'] ) ] ?? 0 ) : 0;
-					return $r_a - $r_b;
-				} );
 				$latest_report_data = array(
 					'created'           => isset( $first['created'] ) ? $first['created'] : '',
 					'report_json'       => $text,
 					'executive_summary' => isset( $decoded['executive_summary'] ) && is_string( $decoded['executive_summary'] ) ? $decoded['executive_summary'] : '',
-					'top_improvements'  => array_slice( $improvements, 0, 3 ),
+					'top_improvements'  => isset( $decoded['top_improvements'] ) && is_array( $decoded['top_improvements'] ) ? array_slice( $decoded['top_improvements'], 0, 3 ) : array(),
 				);
 			}
 		}
@@ -144,6 +137,12 @@ class Wf_Sn_Ai_Advisor_Page {
 						?>
 						</p>
 					<?php endif; ?>
+
+					<p class="description wf-sn-ai-rescan-tip">
+						<?php
+						esc_html_e( 'The report is based on the last Security Tests run and does not update by itself. To get an up-to-date report after changing the site (e.g. updating plugins, removing files), run Security Tests first from the main Security Ninja page, then click Generate Security Audit here.', 'security-ninja' );
+						?>
+					</p>
 
 					<div class="wf-sn-ai-section wf-sn-ai-generate-block wf-sn-ai-card wf-sn-ai-generate-block-first" id="wf_sn_ai_section_full_report" data-request-type="full_report" data-ui-locale="<?php echo esc_attr( $effective_locale ); ?>">
 						<div class="wf-sn-ai-card-inner">
@@ -198,6 +197,7 @@ class Wf_Sn_Ai_Advisor_Page {
 									<span class="wf-sn-ai-latest-report-meta">
 										<?php echo esc_html( $latest_report_data['created'] ? human_time_diff( strtotime( $latest_report_data['created'] ), time() ) . ' ' . __( 'ago', 'security-ninja' ) : '' ); ?>
 									</span>
+									<button type="button" class="button button-link wf-sn-ai-view-full-report" aria-expanded="false"><?php esc_html_e( 'View Full Report', 'security-ninja' ); ?> &rarr;</button>
 								</div>
 								<?php
 								$report_created_ts = ! empty( $latest_report_data['created'] ) ? strtotime( $latest_report_data['created'] ) : 0;
@@ -227,9 +227,31 @@ class Wf_Sn_Ai_Advisor_Page {
 										<div class="wf-sn-ai-report-body"><?php echo wp_kses_post( wpautop( esc_html( $latest_report_data['executive_summary'] ) ) ); ?></div>
 									</div>
 								<?php endif; ?>
-								<p class="wf-sn-ai-view-full-report-wrap">
-									<button type="button" class="button button-link wf-sn-ai-view-full-report" aria-expanded="false"><?php esc_html_e( 'View Full Report', 'security-ninja' ); ?> &rarr;</button>
-								</p>
+								<?php if ( ! empty( $latest_report_data['top_improvements'] ) ) : ?>
+									<div class="wf-sn-ai-latest-improvements">
+										<h3 class="wf-sn-ai-report-heading"><?php esc_html_e( 'Top Improvements', 'security-ninja' ); ?></h3>
+										<ul class="wf-sn-ai-latest-improvements-list">
+											<?php foreach ( $latest_report_data['top_improvements'] as $imp ) : ?>
+												<?php
+												$risk = isset( $imp['risk'] ) ? strtolower( $imp['risk'] ) : 'low';
+												if ( isset( $imp['id'] ) && 'mysql_permissions' === $imp['id'] ) {
+													$risk = 'low';
+												}
+												if ( ! in_array( $risk, array( 'high', 'medium', 'low' ), true ) ) {
+													$risk = 'low';
+												}
+												$priority_label = 'high' === $risk ? __( 'High Priority', 'security-ninja' ) : ( 'medium' === $risk ? __( 'Medium Priority', 'security-ninja' ) : __( 'Low Priority', 'security-ninja' ) );
+												$label          = isset( $imp['short_label'] ) && '' !== $imp['short_label'] ? $imp['short_label'] : ( isset( $imp['title'] ) ? $imp['title'] : '' );
+												?>
+												<li class="wf-sn-ai-latest-improvement wf-sn-ai-priority-<?php echo esc_attr( $risk ); ?>">
+													<span class="wf-sn-ai-improvement-dot" aria-hidden="true"></span>
+													<span class="wf-sn-ai-improvement-label"><?php echo esc_html( $label ); ?></span>
+													<span class="wf-sn-ai-priority-badge"><?php echo esc_html( $priority_label ); ?></span>
+												</li>
+											<?php endforeach; ?>
+										</ul>
+									</div>
+								<?php endif; ?>
 								<div class="wf-sn-ai-full-report-expanded" id="wf_sn_ai_full_report_expanded" hidden></div>
 							</div>
 						</div>

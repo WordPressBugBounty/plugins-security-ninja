@@ -250,6 +250,7 @@ jQuery(document).ready(function () {
 					jQuery('.test_' + testid + ' .spinner').removeClass('is-active');
 					jQuery('.test_' + testid).removeClass('testing');
 					
+					// Update the status icon in the second column
 					if (response.data.status_icon) {
 						jQuery('.test_' + testid + ' td:nth-child(2)').html(response.data.status_icon);
 					}
@@ -319,6 +320,8 @@ jQuery(document).ready(function () {
 		
 		// Create temporary container to parse the new HTML
 		var tempDiv = jQuery('<div>').html(scores.output);
+		
+		// Update each counter with animation
 		jQuery('#counters span.edge').each(function() {
 			var $counter = jQuery(this);
 			var $val = $counter.find('.val');
@@ -341,6 +344,8 @@ jQuery(document).ready(function () {
 					// Add animation classes
 					$counter.addClass('updating');
 					$val.addClass('updating');
+					
+					// Update the value
 					$val.text(newVal);
 					
 					// Remove animation classes after animation completes

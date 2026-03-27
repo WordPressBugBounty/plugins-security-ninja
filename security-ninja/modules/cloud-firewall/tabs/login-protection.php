@@ -11,6 +11,7 @@ namespace WPSecurityNinja\Plugin;
 if ( !defined( 'ABSPATH' ) ) {
     exit;
 }
+// Ensure we have access to the main class
 if ( !class_exists( 'Wf_sn_cf' ) ) {
     return;
 }

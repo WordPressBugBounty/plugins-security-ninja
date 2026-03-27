@@ -1,4 +1,4 @@
-/* globals jQuery:true, ajaxurl:true, wf_sn_cf:true, wf_sn:true, sn_block_ui:true, alert:true */
+/* globals jQuery:true, ajaxurl:true, wf_sn_cf:true, sn_block_ui:true, alert:true */
 /*
 * Security Ninja PRO
 * (c) 2018. Web factory Ltd
@@ -6,6 +6,7 @@
 
 jQuery(document).ready(function ($) {
 
+  // Handle tab switching
   $('#wf-sn-cf-subtabs .nav-tab').on('click', function(e) {
     e.preventDefault();
     $('#wf-sn-cf-subtabs .nav-tab').removeClass('nav-tab-active');
@@ -72,6 +73,7 @@ jQuery(document).ready(function ($) {
     }
   });
 
+  // Handle Continue button click
   $('#sn-modal-continue,#sn-modal-skip').on('click', function () {
     var isSkip = $(this).attr('id') === 'sn-modal-skip';
 
@@ -80,7 +82,7 @@ jQuery(document).ready(function ($) {
     $('#sn-modal-skip').attr('disabled', 'disabled');
     $('#sn-firewall-email').attr('disabled', 'disabled');
     
-    $('#sn-unblock-message').html('<img title="Loading ..." src="' + wf_sn.sn_plugin_url + 'images/ajax-loader.gif" alt="Loading...">');
+    $('#sn-unblock-message').html('<img title="Loading ..." src="' + wf_sn_cf.sn_plugin_url + 'images/ajax-loader.gif" alt="Loading...">');
     $('#sn-unblock-message').removeClass('sn-unblock-message-bad');
     $('#sn-unblock-message').removeClass('sn-unblock-message-good');
 
@@ -161,7 +163,7 @@ jQuery(document).ready(function ($) {
       _ajax_nonce: wf_sn_cf.nonce
     };
 
-    $('#sn-unblock-message').html('<img title="Loading ..." src="' + wf_sn.sn_plugin_url + 'images/ajax-loader.gif" alt="Loading...">');
+    $('#sn-unblock-message').html('<img title="Loading ..." src="' + wf_sn_cf.sn_plugin_url + 'images/ajax-loader.gif" alt="Loading...">');
     $('#sn-unblock-message').removeClass('sn-unblock-message-bad');
     $('#sn-unblock-message').removeClass('sn-unblock-message-good');
 
@@ -197,7 +199,7 @@ jQuery(document).ready(function ($) {
     };
 
     $('#sn-firewall-blacklist-clear').remove();
-    $('#sn-firewall-blacklist').append('<img title="Loading ..." src="' + wf_sn.sn_plugin_url + 'images/ajax-loader.gif" alt="Loading...">');
+    $('#sn-firewall-blacklist').append('<img title="Loading ..." src="' + wf_sn_cf.sn_plugin_url + 'images/ajax-loader.gif" alt="Loading...">');
 
     $.get(ajaxurl, data, function (response) {
       if (response !== '1') {

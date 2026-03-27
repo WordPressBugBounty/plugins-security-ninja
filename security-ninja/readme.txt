@@ -6,7 +6,7 @@ License: GPLv3
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 Requires at least: 4.7
 Tested up to: 6.9
-Stable tag: 5.275
+Stable tag: 5.276
 Requires PHP: 7.4
 
 WordPress security plugin with free basic firewall/WAF, vulnerability and core scanning, and 50+ core integrity checks.
@@ -333,6 +333,11 @@ While we strive for universal compatibility, if you face any issues, our support
 
 == Changelog ==
 
+= 5.276 =
+* 2026-03-27
+* Maintenance release - Minor improvements and stability.
+* FIX: Security Fixes — Saving the Fixes screen now applies wp-config changes only when toggles are ON: disable file editor, disable WP_DEBUG, and secure session cookies. Previously, always-present form keys made the “on” paths run even when options were OFF, which could append duplicate `define()` lines and trigger PHP notices (thanks Masahiro Kasahara for the report). `update_define` also skips appending a constant that is already defined (e.g. set from an included file).
+* Setup wizard – Fixed errors in the wizard and made a few small improvements.
 
 = 5.275 =
 * 2026-03-16
@@ -346,8 +351,6 @@ While we strive for universal compatibility, if you face any issues, our support
 * AI Security Advisor – Overview tab shows when your site was last reviewed and a one-line teaser from the latest report, or invites you to run your first review or set up a connector.
 * AI Security Advisor – Dashboard widget shows advisor status at a glance (last reviewed, ready for first review, or set up) with a quick link to the Security Advisor page.
 * Event Logger – Login events are recorded only when a valid user is present, so your log stays accurate when other plugins or tools fire login-related hooks.
-* IMPROVED: Visitor Logging (Cloud Firewall) – The Visitor Logging subtab now shows how much database space the visitor log uses and how many entries it contains. A "Reset visitor log" button lets you clear all visitor log entries in one click.
-* FIX: Firewall – Removed the "blocked_kanagawa" blocked-hosts rule. Kanagawa is a Japanese prefecture and the rule caused false positives for legitimate traffic from Japanese ISPs (e.g. OCN). Thank you Masahiro.
 
 
 = 5.274 =

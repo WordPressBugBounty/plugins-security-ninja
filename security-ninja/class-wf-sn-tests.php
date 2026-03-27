@@ -1871,11 +1871,7 @@ class Wf_Sn_Tests extends WF_SN {
 		if ( is_wp_error( $response ) ) {
 			$error_message    = $response->get_error_message();
 			$return['status'] = 0;
-			$return['msg']    = sprintf(
-				/* translators: %s: error message from request */
-				esc_html__( 'Failed to retrieve the site headers. Error: %s', 'security-ninja' ),
-				esc_html( $error_message )
-			);
+			$return['msg']    = sprintf( esc_html__( 'Failed to retrieve the site headers. Error: %s', 'security-ninja' ), esc_html( $error_message ) );
 			return $return;
 		}
 
@@ -1906,7 +1902,8 @@ class Wf_Sn_Tests extends WF_SN {
 		} else {
 			$total_headers    = count( $headers );
 			$return['status'] = 0;
-			$return['msg'] = __( 'Strict-Transport-Security header is not set. Ensure your server is configured to send the HSTS header.', 'security-ninja' );
+			/* translators: %d: total number of response headers detected */
+			$return['msg'] = sprintf( __( 'Strict-Transport-Security header is not set. Detected %d headers in total. Ensure your server is configured to send the HSTS header.', 'security-ninja' ), $total_headers );
 		}
 
 		return $return;
@@ -1940,11 +1937,7 @@ class Wf_Sn_Tests extends WF_SN {
 		if ( is_wp_error( $response ) ) {
 			$error_message    = $response->get_error_message();
 			$return['status'] = 0;
-			$return['msg']    = sprintf(
-				/* translators: %s: error message from request */
-				esc_html__( 'Failed to retrieve the site headers. Error: %s', 'security-ninja' ),
-				esc_html( $error_message )
-			);
+			$return['msg']    = sprintf( esc_html__( 'Failed to retrieve the site headers. Error: %s', 'security-ninja' ), esc_html( $error_message ) );
 			return $return;
 		}
 
@@ -1971,8 +1964,10 @@ class Wf_Sn_Tests extends WF_SN {
 				$result['details'] = '"' . esc_html( $referrer_policy_values ) . '"';
 			}
 		} else {
+			$total_headers    = count( $headers );
 			$result['status'] = 0;
-			$result['msg']    = __( 'Referrer-Policy header is not set.', 'security-ninja' );
+			/* translators: %d: total number of response headers detected */
+			$result['msg'] = sprintf( __( 'Referrer-Policy header is not set. Detected %d headers in total.', 'security-ninja' ), $total_headers );
 		}
 
 		return $result;
@@ -2006,11 +2001,7 @@ class Wf_Sn_Tests extends WF_SN {
 		if ( is_wp_error( $response ) ) {
 			$error_message    = $response->get_error_message();
 			$return['status'] = 0;
-			$return['msg']    = sprintf(
-				/* translators: %s: error message from request */
-				esc_html__( 'Failed to retrieve the site headers. Error: %s', 'security-ninja' ),
-				esc_html( $error_message )
-			);
+			$return['msg']    = sprintf( esc_html__( 'Failed to retrieve the site headers. Error: %s', 'security-ninja' ), esc_html( $error_message ) );
 			return $return;
 		}
 
@@ -2038,7 +2029,7 @@ class Wf_Sn_Tests extends WF_SN {
 		} else {
 			$total_headers    = count( $headers );
 			$result['status'] = 0;
-			$result['msg']    = esc_html__( 'Permissions-Policy header is not set.', 'security-ninja' );
+			$result['msg']    = esc_html__( 'Permissions-Policy header is not set.', 'security-ninja' ) . ' ' . sprintf( esc_html__( 'Detected %d headers in total.', 'security-ninja' ), $total_headers );
 		}
 
 		return $result;
@@ -2110,8 +2101,10 @@ class Wf_Sn_Tests extends WF_SN {
 		}
 
 		if ( ! $csp && ! $csp_ro ) {
+			$total_headers    = count( $headers );
 			$return['status'] = 0;
-			$return['msg']    = __( 'Content-Security-Policy header is not set.', 'security-ninja' );
+			/* translators: %d: total number of response headers detected */
+			$return['msg'] = sprintf( __( 'Content-Security-Policy header is not set. Detected %d headers in total.', 'security-ninja' ), $total_headers );
 		}
 
 		return $return;
@@ -2145,11 +2138,7 @@ class Wf_Sn_Tests extends WF_SN {
 		if ( is_wp_error( $response ) ) {
 			$error_message          = $response->get_error_message();
 			$return_array['status'] = 0;
-			$return_array['msg']    = sprintf(
-				/* translators: %s: error message from request */
-				esc_html__( 'Failed to retrieve the site headers. Error: %s', 'security-ninja' ),
-				esc_html( $error_message )
-			);
+			$return_array['msg']    = sprintf( esc_html__( 'Failed to retrieve the site headers. Error: %s', 'security-ninja' ), esc_html( $error_message ) );
 			return $return_array;
 		}
 
@@ -2178,8 +2167,10 @@ class Wf_Sn_Tests extends WF_SN {
 				$return_array['details'] = '"' . $x_frame_options . '"';
 			}
 		} else {
+			$total_headers          = count( $headers );
 			$return_array['status'] = 0;
-			$return_array['msg']    = __( 'X-Frame-Options header is not set. This can make your site vulnerable to clickjacking attacks.', 'security-ninja' );
+			/* translators: %d: total number of response headers detected */
+			$return_array['msg'] = sprintf( __( 'X-Frame-Options header is not set. Detected %d headers in total. This can make your site vulnerable to clickjacking attacks.', 'security-ninja' ), $total_headers );
 		}
 
 		return $return_array;
@@ -2215,11 +2206,7 @@ class Wf_Sn_Tests extends WF_SN {
 		if ( is_wp_error( $response ) ) {
 			$error_message    = $response->get_error_message();
 			$return['status'] = 0;
-			$return['msg']    = sprintf(
-				/* translators: %s: error message from request */
-				esc_html__( 'Failed to retrieve the site headers. Error: %s', 'security-ninja' ),
-				esc_html( $error_message )
-			);
+			$return['msg']    = sprintf( esc_html__( 'Failed to retrieve the site headers. Error: %s', 'security-ninja' ), esc_html( $error_message ) );
 			return $return;
 		}
 
@@ -2248,8 +2235,10 @@ class Wf_Sn_Tests extends WF_SN {
 				$return['details'] = '"' . $x_content_type_options . '"';
 			}
 		} else {
+			$total_headers    = count( $headers );
 			$return['status'] = 0;
-			$return['msg']    = __( 'X-Content-Type-Options header is not set. This can make your site vulnerable to MIME type sniffing attacks.', 'security-ninja' );
+			/* translators: %d: total number of response headers detected */
+			$return['msg'] = sprintf( __( 'X-Content-Type-Options header is not set. Detected %d headers in total. This can make your site vulnerable to MIME type sniffing attacks.', 'security-ninja' ), $total_headers );
 		}
 
 		return $return;
@@ -2282,21 +2271,15 @@ class Wf_Sn_Tests extends WF_SN {
 
 		if ( is_wp_error( $response ) ) {
 			$return['status'] = 0;
-			$return['msg'] = sprintf(
-				/* translators: %s: error message from HTTP request */
-				__( 'Error: Unable to get the response. %s', 'security-ninja' ),
-				$response->get_error_message()
-			);
+			/* translators: %s: error message from HTTP request */
+			$return['msg'] = sprintf( __( 'Error: Unable to get the response. %s', 'security-ninja' ), $response->get_error_message() );
 			return $return;
 		}
 
 		if ( wp_remote_retrieve_response_code( $response ) !== 200 ) {
 			$return['status'] = 0;
-			$return['msg'] = sprintf(
-				/* translators: %d: HTTP response code */
-				__( 'Error: Unexpected response code: %d', 'security-ninja' ),
-				wp_remote_retrieve_response_code( $response )
-			);
+			/* translators: %d: HTTP response code */
+			$return['msg'] = sprintf( __( 'Error: Unexpected response code: %d', 'security-ninja' ), wp_remote_retrieve_response_code( $response ) );
 			return $return;
 		}
 
@@ -2332,11 +2315,8 @@ class Wf_Sn_Tests extends WF_SN {
 
 		if ( $sensitive_found ) {
 			$return['status'] = 0;
-			$return['msg'] = sprintf(
-				/* translators: %s: semicolon-separated list of sensitive header details */
-				__( 'Sensitive information exposed in headers: %s', 'security-ninja' ),
-				implode( '; ', $sensitive_details )
-			);
+			/* translators: %s: semicolon-separated list of sensitive header details */
+			$return['msg'] = sprintf( __( 'Sensitive information exposed in headers: %s', 'security-ninja' ), implode( '; ', $sensitive_details ) );
 		}
 
 		return $return;
@@ -2372,11 +2352,7 @@ class Wf_Sn_Tests extends WF_SN {
 		if ( is_wp_error( $response ) ) {
 			$error_message    = $response->get_error_message();
 			$return['status'] = 0;
-			$return['msg']    = sprintf(
-				/* translators: %s: error message from request */
-				esc_html__( 'Failed to retrieve the site headers. Error: %s', 'security-ninja' ),
-				esc_html( $error_message )
-			);
+			$return['msg']    = sprintf( esc_html__( 'Failed to retrieve the site headers. Error: %s', 'security-ninja' ), esc_html( $error_message ) );
 			return $return;
 		}
 
@@ -2567,7 +2543,6 @@ class Wf_Sn_Tests extends WF_SN {
 		} else {
 			$return['status'] = 0;
 			$return['msg']    = sprintf(
-				/* translators: %s: comma-separated list of key names */
 				__( 'The following keys are not properly set: %s. Please update them for enhanced security.', 'security-ninja' ),
 				implode( ', ', $bad_keys )
 			);
@@ -2707,7 +2682,6 @@ class Wf_Sn_Tests extends WF_SN {
 			2 => array( 'pipe', 'w' ),
 		);
 
-		// phpcs:ignore Generic.PHP.ForbiddenFunctions.Found -- required for Shellshock vulnerability test
 		$process = @proc_open( 'bash -c "echo Test"', $desc, $pipes, null, $env );
 		if ( ! is_resource( $process ) || ! isset( $pipes[1] ) ) {
 			$return['status'] = 5;
@@ -2762,7 +2736,6 @@ class Wf_Sn_Tests extends WF_SN {
 			2 => array( 'pipe', 'w' ),
 		);
 
-		// phpcs:ignore Generic.PHP.ForbiddenFunctions.Found -- required for Shellshock CVE-7169 test
 		$process = @proc_open( "rm -f echo; env 'x=() { (a)=>\' bash -c \"echo date +%Y\"; cat echo", $desc, $pipes, sys_get_temp_dir() );
 		if ( ! is_resource( $process ) ) {
 			$return['status'] = 5;

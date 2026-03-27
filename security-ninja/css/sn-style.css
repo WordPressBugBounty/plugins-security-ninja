@@ -241,18 +241,30 @@ table#sn-el-datatable {
     padding: 4px 12px;
   }
   .sncard.infobox a.button,
-  /* .sncard.upgradepro a.button, */
   .sncard.settings-card a.button,
   .sncard.settings-card .button-primary {
     float: left;
     background-color: #fab41d;
     font-size: 14px;
-    border-radius: 5px;
+    border-radius: 3px;
     color: #000000;
     font-weight: 500;
+    border: 1px solid #2472b1;
+  }
+
+  .sncard button.button-primary {
+    background-color: #fab41d;
+    border-radius: 3px;
+    color: #000000;
     border: 1px solid #e2e8f0;
   }
 
+
+  .sncard button.button-primary:hover {
+    background-color: #f6c251;
+    color:#282828;
+  }
+ 
   .sncard.settings-card a.button:hover {
     background-color: #f6c251;
   }
@@ -2200,6 +2212,21 @@ html.sn-overlay-active {
 .sn-expand-button:hover {
   color: #135e96;
 }
+.whizzie-wrap .button.button-primary {
+  float: left;
+  background-color: #fab41d;
+  font-size: 14px;
+  border-radius: 3px;
+  color: #000000;
+  font-weight: 500;
+  border: 1px solid #2472b1;
+  cursor: pointer;
+}
+
+.whizzie-wrap .button.button-primary:hover {
+  background-color: #f6c251;
+  color:#282828;
+}
 
 .whizzie-menu .summary a {
   color: #149658;
@@ -2256,14 +2283,6 @@ html.sn-overlay-active {
 .column-primary .testdesc {
   clear: both;
   font-style: italic;
-}
-
-.whizzie-wrap .wizardnewsletter {
-  float: left;
-  background: #f6f7f7;
-  border: 1px solid #149658;
-  padding: 10px;
-  font-size: 1.3em;
 }
 
 .whizzie-wrap .step-intro h2 {
@@ -2878,11 +2897,11 @@ ul.whizzie-do-plugins li span {
 }
 
 .upgradepro a.button-primary {
-border-radius: 5px;
+border-radius: 3px;
   background-color: #fab41d;
         color: #000000;
         font-weight: 500;
-        border: 1px solid #e2e8f0;
+        border: 1px solid #2472b1;
 }
 
 .upgradepro a.button-primary:hover {

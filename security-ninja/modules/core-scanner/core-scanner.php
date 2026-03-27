@@ -379,12 +379,10 @@ add_filter(\'securityninja_core_scanner_ignore_files\', function($ignored) {
             wp_send_json_error( $error );
         }
         // Validate the secure token
-        $hash = ( isset( $_POST['hash'] ) ? sanitize_text_field( wp_unslash( $_POST['hash'] ) ) : '' );
-        $nonce = ( isset( $_POST['nonce'] ) ? sanitize_text_field( wp_unslash( $_POST['nonce'] ) ) : '' );
-        if ( '' === $hash || '' === $nonce || !\WPSecurityNinja\Plugin\Wf_Sn_Crypto::validate_secure_file_token(
+        if ( !isset( $_POST['hash'] ) || !isset( $_POST['nonce'] ) || !\WPSecurityNinja\Plugin\Wf_Sn_Crypto::validate_secure_file_token(
             $filename,
-            $hash,
-            $nonce,
+            wp_unslash( $_POST['hash'] ),
+            wp_unslash( $_POST['nonce'] ),
             'view_file'
         ) ) {
             $error = new \WP_Error('002', __( 'Invalid file access token.', 'security-ninja' ));
@@ -1183,12 +1181,10 @@ add_filter(\'securityninja_core_scanner_ignore_files\', function($ignored) {
             ) );
         }
         // Validate the secure token if provided
-        $hash = ( isset( $_POST['hash'] ) ? sanitize_text_field( wp_unslash( $_POST['hash'] ) ) : '' );
-        $nonce = ( isset( $_POST['nonce'] ) ? sanitize_text_field( wp_unslash( $_POST['nonce'] ) ) : '' );
-        if ( '' !== $hash && '' !== $nonce && !\WPSecurityNinja\Plugin\Wf_Sn_Crypto::validate_secure_file_token(
+        if ( isset( $_POST['hash'] ) && isset( $_POST['nonce'] ) && !\WPSecurityNinja\Plugin\Wf_Sn_Crypto::validate_secure_file_token(
             $file,
-            $hash,
-            $nonce,
+            wp_unslash( $_POST['hash'] ),
+            wp_unslash( $_POST['nonce'] ),
             'restore_file'
         ) ) {
             wp_send_json_error( array(
@@ -1267,12 +1263,10 @@ add_filter(\'securityninja_core_scanner_ignore_files\', function($ignored) {
             ) );
         }
         // Validate the secure token if provided
-        $hash = ( isset( $_POST['hash'] ) ? sanitize_text_field( wp_unslash( $_POST['hash'] ) ) : '' );
-        $nonce = ( isset( $_POST['nonce'] ) ? sanitize_text_field( wp_unslash( $_POST['nonce'] ) ) : '' );
-        if ( '' !== $hash && '' !== $nonce && !\WPSecurityNinja\Plugin\Wf_Sn_Crypto::validate_secure_file_token(
+        if ( isset( $_POST['hash'] ) && isset( $_POST['nonce'] ) && !\WPSecurityNinja\Plugin\Wf_Sn_Crypto::validate_secure_file_token(
             $file,
-            $hash,
-            $nonce,
+            wp_unslash( $_POST['hash'] ),
+            wp_unslash( $_POST['nonce'] ),
             'delete_file'
         ) ) {
             wp_send_json_error( array(
@@ -1290,21 +1284,13 @@ add_filter(\'securityninja_core_scanner_ignore_files\', function($ignored) {
         );
         if ( !WP_Filesystem( $creds ) ) {
             wp_send_json_error( array(
-                'message' => sprintf( 
-                    /* translators: %s: File name. */
-                    __( 'Cannot delete %s', 'security-ninja' ),
-                    $file
-                 ),
+                'message' => sprintf( __( 'Cannot delete %s', 'security-ninja' ), $file ),
             ) );
         }
         global $wp_filesystem;
         if ( !$wp_filesystem->delete( trailingslashit( ABSPATH ) . $file, false ) ) {
             wp_send_json_error( array(
-                'message' => sprintf( 
-                    /* translators: %s: File name. */
-                    __( 'Unknown error deleting %s', 'security-ninja' ),
-                    esc_html( $file )
-                 ),
+                'message' => sprintf( __( 'Unknown error deleting %s', 'security-ninja' ), esc_html( $file ) ),
             ) );
         }
         wp_send_json_success();

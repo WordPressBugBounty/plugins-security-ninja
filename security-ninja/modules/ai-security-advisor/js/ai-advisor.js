@@ -30,34 +30,6 @@
 	}
 
 	/**
-	 * Sort key for risk (low first): low=0, medium=1, high=2; unknown treated as low.
-	 *
-	 * @param {string} risk Risk value from improvement item.
-	 * @return {number}
-	 */
-	function getRiskSortOrder(risk) {
-		var order = { low: 0, medium: 1, high: 2 };
-		return order[String(risk || 'low').toLowerCase()] !== undefined ? order[String(risk || 'low').toLowerCase()] : 0;
-	}
-
-	/**
-	 * Sort top_improvements by risk (low first). Returns a new array.
-	 *
-	 * @param {Array} improvements top_improvements array.
-	 * @return {Array}
-	 */
-	function sortImprovementsByRiskLowFirst(improvements) {
-		if (!Array.isArray(improvements) || !improvements.length) {
-			return improvements;
-		}
-		return improvements.slice().sort(function (a, b) {
-			var itemA = a || {};
-			var itemB = b || {};
-			return getRiskSortOrder(itemA.risk) - getRiskSortOrder(itemB.risk);
-		});
-	}
-
-	/**
 	 * Convert report object to plain text for print/copy.
 	 *
 	 * @param {Object} report Decoded report object.
@@ -81,9 +53,8 @@
 		}
 		if (Array.isArray(report.top_improvements) && report.top_improvements.length) {
 			lines.push(base.strings.topImprovements || 'Top improvements');
-			var sortedImprovements = sortImprovementsByRiskLowFirst(report.top_improvements);
-			for (var i = 0; i < sortedImprovements.length; i++) {
-				var item = sortedImprovements[i] || {};
+			for (var i = 0; i < report.top_improvements.length; i++) {
+				var item = report.top_improvements[i] || {};
 				var title = item.title || item.short_label || '';
 				var details = item.details || '';
 				lines.push(title);
@@ -135,9 +106,8 @@
 				var improvementsHtml = [];
 				var improvementLinks = base.improvementLinks || {};
 				var baseUrlPath = base.baseUrlPath || '/wp-admin/admin.php?page=wf-sn';
-				var sortedImprovements = sortImprovementsByRiskLowFirst(report.top_improvements);
-				for (var i = 0; i < sortedImprovements.length; i++) {
-					var item = sortedImprovements[i] || {};
+				for (var i = 0; i < report.top_improvements.length; i++) {
+					var item = report.top_improvements[i] || {};
 					var title = item.title || item.short_label || '';
 					var label = item.short_label || title;
 					var details = item.details || '';

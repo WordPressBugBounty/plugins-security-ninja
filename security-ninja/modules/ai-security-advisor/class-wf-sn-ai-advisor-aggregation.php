@@ -38,6 +38,18 @@ class Wf_Sn_Ai_Advisor_Aggregation {
 		$table = $wpdb->prefix . 'wf_sn_el';
 		$since = gmdate( 'Y-m-d H:i:s', strtotime( '-7 days' ) );
 
+		// Table may not exist on fresh installs.
+		if ( $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $table ) ) !== $table ) {
+			$result = array(
+				'blocked_logins_7d'  => 0,
+				'xmlrpc_blocks_7d'   => 0,
+				'firewall_events_7d' => 0,
+				'failed_logins_7d'   => 0,
+			);
+			set_transient( $key, $result, self::CACHE_TTL );
+			return $result;
+		}
+
 		$blocked_logins_actions = array(
 			'login_form_blocked_ip',
 			'login_denied_banned_IP',
@@ -56,8 +68,6 @@ class Wf_Sn_Ai_Advisor_Aggregation {
 		);
 		$placeholders_firewall = implode( ', ', array_fill( 0, count( $firewall_actions ), '%s' ) );
 
-		// Custom table wf_sn_el; no WP API. Results cached via transient (see get_transient/set_transient).
-		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 		$blocked_logins_7d = (int) $wpdb->get_var(
 			$wpdb->prepare(
 				"SELECT COUNT(*) FROM {$table} WHERE module = 'security_ninja' AND action IN ($placeholders_blocked) AND timestamp >= %s",
@@ -65,19 +75,6 @@ class Wf_Sn_Ai_Advisor_Aggregation {
 			)
 		);
 
-		// Table may not exist on fresh installs; return zeros and cache.
-		if ( '' !== $wpdb->last_error ) {
-			$result = array(
-				'blocked_logins_7d'  => 0,
-				'xmlrpc_blocks_7d'   => 0,
-				'firewall_events_7d' => 0,
-				'failed_logins_7d'   => 0,
-			);
-			set_transient( $key, $result, self::CACHE_TTL );
-			return $result;
-		}
-
-		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 		$xmlrpc_blocks_7d = (int) $wpdb->get_var(
 			$wpdb->prepare(
 				"SELECT COUNT(*) FROM {$table} WHERE module = 'security_ninja' AND action = 'xmlrpc_pingback_blocked' AND timestamp >= %s",
@@ -85,7 +82,6 @@ class Wf_Sn_Ai_Advisor_Aggregation {
 			)
 		);
 
-		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 		$firewall_events_7d = (int) $wpdb->get_var(
 			$wpdb->prepare(
 				"SELECT COUNT(*) FROM {$table} WHERE module = 'security_ninja' AND action IN ($placeholders_firewall) AND timestamp >= %s",
@@ -93,7 +89,6 @@ class Wf_Sn_Ai_Advisor_Aggregation {
 			)
 		);
 
-		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 		$failed_logins_7d = (int) $wpdb->get_var(
 			$wpdb->prepare(
 				"SELECT COUNT(*) FROM {$table} WHERE module = 'security_ninja' AND action = 'wp_login_failed' AND timestamp >= %s",
@@ -128,6 +123,18 @@ class Wf_Sn_Ai_Advisor_Aggregation {
 		$end   = gmdate( 'Y-m-d H:i:s', strtotime( '-7 days' ) );
 		$start = gmdate( 'Y-m-d H:i:s', strtotime( '-14 days' ) );
 
+		// Table may not exist on fresh installs.
+		if ( $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $table ) ) !== $table ) {
+			$result = array(
+				'blocked_logins_prev_7d'  => 0,
+				'xmlrpc_blocks_prev_7d'   => 0,
+				'firewall_events_prev_7d' => 0,
+				'failed_logins_prev_7d'   => 0,
+			);
+			set_transient( $key, $result, self::CACHE_TTL );
+			return $result;
+		}
+
 		$blocked_logins_actions = array(
 			'login_form_blocked_ip',
 			'login_denied_banned_IP',
@@ -146,8 +153,6 @@ class Wf_Sn_Ai_Advisor_Aggregation {
 		);
 		$placeholders_firewall = implode( ', ', array_fill( 0, count( $firewall_actions ), '%s' ) );
 
-		// Custom table wf_sn_el; no WP API. Results cached via transient (see get_transient/set_transient).
-		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 		$blocked_logins_prev_7d = (int) $wpdb->get_var(
 			$wpdb->prepare(
 				"SELECT COUNT(*) FROM {$table} WHERE module = 'security_ninja' AND action IN ($placeholders_blocked) AND timestamp >= %s AND timestamp < %s",
@@ -155,19 +160,6 @@ class Wf_Sn_Ai_Advisor_Aggregation {
 			)
 		);
 
-		// Table may not exist on fresh installs; return zeros and cache.
-		if ( '' !== $wpdb->last_error ) {
-			$result = array(
-				'blocked_logins_prev_7d'  => 0,
-				'xmlrpc_blocks_prev_7d'   => 0,
-				'firewall_events_prev_7d' => 0,
-				'failed_logins_prev_7d'   => 0,
-			);
-			set_transient( $key, $result, self::CACHE_TTL );
-			return $result;
-		}
-
-		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 		$xmlrpc_blocks_prev_7d = (int) $wpdb->get_var(
 			$wpdb->prepare(
 				"SELECT COUNT(*) FROM {$table} WHERE module = 'security_ninja' AND action = 'xmlrpc_pingback_blocked' AND timestamp >= %s AND timestamp < %s",
@@ -176,7 +168,6 @@ class Wf_Sn_Ai_Advisor_Aggregation {
 			)
 		);
 
-		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 		$firewall_events_prev_7d = (int) $wpdb->get_var(
 			$wpdb->prepare(
 				"SELECT COUNT(*) FROM {$table} WHERE module = 'security_ninja' AND action IN ($placeholders_firewall) AND timestamp >= %s AND timestamp < %s",
@@ -184,7 +175,6 @@ class Wf_Sn_Ai_Advisor_Aggregation {
 			)
 		);
 
-		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 		$failed_logins_prev_7d = (int) $wpdb->get_var(
 			$wpdb->prepare(
 				"SELECT COUNT(*) FROM {$table} WHERE module = 'security_ninja' AND action = 'wp_login_failed' AND timestamp >= %s AND timestamp < %s",

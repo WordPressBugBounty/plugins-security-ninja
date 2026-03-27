@@ -84,8 +84,8 @@ class wf_sn_el_modules extends wf_sn_el {
             if ( isset( $_SERVER['HTTP_USER_AGENT'] ) ) {
                 $ua = sanitize_text_field( $_SERVER['HTTP_USER_AGENT'] );
             }
-            // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- {$wpdb->prefix}tablename pattern, identifiers cannot be prepared in MySQL
-            $insert_result = $wpdb->insert( $wpdb->prefix . 'wf_sn_el', array(
+            $table_name = $wpdb->prefix . 'wf_sn_el';
+            $insert_result = $wpdb->insert( $table_name, array(
                 'timestamp'   => current_time( 'mysql' ),
                 'ip'          => $ip,
                 'user_agent'  => $ua,
@@ -274,7 +274,12 @@ class wf_sn_el_modules extends wf_sn_el {
                  );
                 break;
             default:
-                return;
+                $desc = sprintf( 
+                    /* translators: %s: action name */
+                    esc_html__( 'Unknown action or filter - %s.', 'security-ninja' ),
+                    esc_html( $action_name )
+                 );
+                break;
         }
         self::log_event(
             'users',
@@ -325,7 +330,11 @@ class wf_sn_el_modules extends wf_sn_el {
                  );
                 break;
             default:
-                return;
+                $desc = sprintf( 
+                    /* translators: %s: action name */
+                    esc_html__( 'Unknown action or filter - %s.', 'security-ninja' ),
+                    esc_html( $action_name )
+                 );
         }
         self::log_event(
             'menus',
@@ -382,7 +391,11 @@ class wf_sn_el_modules extends wf_sn_el {
                 }
                 break;
             default:
-                return;
+                $desc = sprintf( 
+                    /* translators: %s: action name */
+                    esc_html__( 'Unknown action or filter - %s.', 'security-ninja' ),
+                    esc_html( $action_name )
+                 );
         }
         self::log_event(
             'file_editor',
@@ -441,7 +454,11 @@ class wf_sn_el_modules extends wf_sn_el {
                 }
                 break;
             default:
-                return;
+                $desc = sprintf( 
+                    /* translators: %s: action name */
+                    esc_html__( 'Unknown action or filter - %s.', 'security-ninja' ),
+                    esc_html( $action_name )
+                 );
         }
         self::log_event(
             'taxonomies',
@@ -507,7 +524,11 @@ class wf_sn_el_modules extends wf_sn_el {
                 }
                 break;
             default:
-                return;
+                $desc = sprintf( 
+                    /* translators: %s: action name */
+                    esc_html__( 'Unknown action or filter - %s.', 'security-ninja' ),
+                    esc_html( $action_name )
+                 );
         }
         self::log_event(
             'media',
@@ -548,19 +569,12 @@ class wf_sn_el_modules extends wf_sn_el {
                 $post_type = get_post_type_object( $post->post_type );
                 $type = strtolower( $post_type->labels->singular_name );
                 $title = ( empty( $post->post_title ) ? __( 'No title', 'security-ninja' ) : $post->post_title );
-                $desc = sprintf( 
-                    /* translators: 1: post title, 2: post type singular name */
-                    esc_html__( '"%1$s" %2$s published.', 'security-ninja' ),
-                    esc_html( $title ),
-                    esc_html( $type )
-                 );
+                /* translators: 1: post title, 2: post type singular name */
+                $desc = sprintf( esc_html__( '"%1$s" %2$s published.', 'security-ninja' ), esc_html( $title ), esc_html( $type ) );
                 break;
             case 'trash_post':
-                $desc = sprintf( 
-                    /* translators: %s: post title */
-                    esc_html__( 'Trashed "%s".', 'security-ninja' ),
-                    esc_html( $params[2]->post_title )
-                 );
+                /* translators: %s: post title */
+                $desc = sprintf( esc_html__( 'Trashed "%s".', 'security-ninja' ), esc_html( $params[2]->post_title ) );
                 break;
             case 'untrash_post':
                 $post = get_post( $params[0] );
@@ -573,12 +587,8 @@ class wf_sn_el_modules extends wf_sn_el {
                 $post_type = get_post_type_object( $post->post_type );
                 $type = strtolower( $post_type->labels->singular_name );
                 $title = ( empty( $post->post_title ) ? __( 'No title', 'security-ninja' ) : $post->post_title );
-                $desc = sprintf( 
-                    /* translators: 1: post title, 2: post type singular name */
-                    esc_html__( '"%1$s" %2$s restored from trash.', 'security-ninja' ),
-                    esc_html( $title ),
-                    esc_html( $type )
-                 );
+                /* translators: 1: post title, 2: post type singular name */
+                $desc = sprintf( esc_html__( '"%1$s" %2$s restored from trash.', 'security-ninja' ), esc_html( $title ), esc_html( $type ) );
                 break;
             case 'deleted_post':
                 $post = get_post( $params[1] );
@@ -591,15 +601,12 @@ class wf_sn_el_modules extends wf_sn_el {
                 if ( in_array( $type, array('nav_menu_item', 'attachment', 'revision'), true ) ) {
                     return;
                 }
-                $desc = sprintf( 
-                    /* translators: 1: post title, 2: post type singular name */
-                    esc_html__( '%1$s %2$s deleted from trash.', 'security-ninja' ),
-                    esc_html( $post->post_title ),
-                    esc_html( $type )
-                 );
+                /* translators: 1: post title, 2: post type singular name */
+                $desc = sprintf( esc_html__( '%1$s %2$s deleted from trash.', 'security-ninja' ), esc_html( $post->post_title ), esc_html( $type ) );
                 break;
             default:
-                return;
+                /* translators: %s: action or filter name */
+                $desc = sprintf( esc_html__( 'Unknown action or filter - %s.', 'security-ninja' ), esc_html( $action_name ) );
         }
         if ( $desc ) {
             self::log_event(
@@ -628,18 +635,14 @@ class wf_sn_el_modules extends wf_sn_el {
                     $widget_id = ( isset( $_POST['the-widget-id'] ) ? sanitize_text_field( wp_unslash( $_POST['the-widget-id'] ) ) : '' );
                     $id_base = ( preg_match( '#(.*)-(\\d+)$#', $widget_id, $matches ) ? $matches[1] : null );
                     $widget = ( null !== $id_base && isset( $ids[$id_base] ) && isset( $wp_widget_factory->widgets[$ids[$id_base]]->name ) ? $wp_widget_factory->widgets[$ids[$id_base]]->name : __( 'Unknown widget', 'security-ninja' ) );
-                    $desc = sprintf( 
-                        /* translators: 1: widget name, 2: sidebar name */
-                        esc_html__( '%1$s widget was removed from %2$s sidebar.', 'security-ninja' ),
-                        esc_html( $widget ),
-                        esc_html( $name )
-                     );
+                    /* translators: 1: widget name, 2: sidebar name */
+                    $desc = sprintf( esc_html__( '%1$s widget was removed from %2$s sidebar.', 'security-ninja' ), esc_html( $widget ), esc_html( $name ) );
                 } else {
                     return;
                 }
                 break;
             default:
-                return;
+                $desc = sprintf( esc_html__( 'Unknown action or filter - %s.', 'security-ninja' ), esc_html( $action_name ) );
         }
         self::log_event(
             'widgets',
@@ -662,11 +665,8 @@ class wf_sn_el_modules extends wf_sn_el {
                 } else {
                     $label = ( '' !== $plugin_path ? $plugin_path : esc_html__( 'Unknown plugin', 'security-ninja' ) );
                 }
-                $desc = sprintf( 
-                    /* translators: %s: plugin name or path */
-                    esc_html__( 'Plugin %s activated.', 'security-ninja' ),
-                    esc_html( $label )
-                 );
+                /* translators: %s: plugin name or path */
+                $desc = sprintf( esc_html__( 'Plugin %s activated.', 'security-ninja' ), esc_html( $label ) );
                 break;
             case 'deactivate_plugin':
             case 'deactivated_plugin':
@@ -677,25 +677,16 @@ class wf_sn_el_modules extends wf_sn_el {
                 } else {
                     $label = ( '' !== $plugin_path ? $plugin_path : esc_html__( 'Unknown plugin', 'security-ninja' ) );
                 }
-                $desc = sprintf( 
-                    /* translators: %s: plugin name or path */
-                    esc_html__( 'Plugin %s deactivated.', 'security-ninja' ),
-                    esc_html( $label )
-                 );
+                /* translators: %s: plugin name or path */
+                $desc = sprintf( esc_html__( 'Plugin %s deactivated.', 'security-ninja' ), esc_html( $label ) );
                 break;
             case 'switch_theme':
-                $desc = sprintf( 
-                    /* translators: %s: theme name */
-                    esc_html__( 'Theme %s activated.', 'security-ninja' ),
-                    esc_html( $params[1] )
-                 );
+                /* translators: %s: theme name */
+                $desc = sprintf( esc_html__( 'Theme %s activated.', 'security-ninja' ), esc_html( $params[1] ) );
                 break;
             case '_core_updated_successfully':
-                $desc = sprintf( 
-                    /* translators: %s: WordPress version */
-                    esc_html__( 'WordPress core updated to v%s.', 'security-ninja' ),
-                    esc_html( $params[1] )
-                 );
+                /* translators: %s: WordPress version */
+                $desc = sprintf( esc_html__( 'WordPress core updated to v%s.', 'security-ninja' ), esc_html( $params[1] ) );
                 $raw_data = array(
                     'type'    => 'wordpress',
                     'version' => esc_attr( $params[1] ),
@@ -731,11 +722,8 @@ class wf_sn_el_modules extends wf_sn_el {
                         if ( !$theme->exists() || $theme->errors() && 'theme_no_stylesheet' === $theme->errors()->get_error_code() ) {
                             return;
                         }
-                        $desc[] = sprintf( 
-                            /* translators: %s: theme name */
-                            esc_html__( 'Theme %s updated.', 'security-ninja' ),
-                            esc_html( $theme->get( 'Name' ) )
-                         );
+                        /* translators: %s: theme name */
+                        $desc[] = sprintf( esc_html__( 'Theme %s updated.', 'security-ninja' ), esc_html( $theme->get( 'Name' ) ) );
                         $raw_data = array(
                             'type' => 'theme',
                             'name' => esc_html( $theme->get( 'Name' ) ),
@@ -748,11 +736,7 @@ class wf_sn_el_modules extends wf_sn_el {
                     if ( !$theme->exists() || $theme->errors() && 'theme_no_stylesheet' === $theme->errors()->get_error_code() ) {
                         return;
                     }
-                    $desc = sprintf( 
-                        /* translators: %s: theme name */
-                        esc_html__( 'Theme %s updated.', 'security-ninja' ),
-                        esc_html( $theme->get( 'Name' ) )
-                     );
+                    $desc = sprintf( esc_html__( 'Theme %s updated.', 'security-ninja' ), esc_html( $theme->get( 'Name' ) ) );
                     $raw_data = array(
                         'type' => 'theme',
                         'name' => esc_html( $theme->get( 'Name' ) ),
@@ -771,11 +755,7 @@ class wf_sn_el_modules extends wf_sn_el {
                             'type' => 'plugin',
                             'name' => esc_html( $plugin['Name'] ),
                         );
-                        $desc[] = sprintf( 
-                            /* translators: %s: plugin name */
-                            esc_html__( 'Plugin %s updated.', 'security-ninja' ),
-                            esc_html( $plugin['Name'] )
-                         );
+                        $desc[] = sprintf( esc_html__( 'Plugin %s updated.', 'security-ninja' ), esc_html( $plugin['Name'] ) );
                     }
                 } elseif ( isset( $params[2]['plugin'] ) ) {
                     $plugin = get_plugin_data( WP_PLUGIN_DIR . '/' . $params[2]['plugin'] );
@@ -786,17 +766,13 @@ class wf_sn_el_modules extends wf_sn_el {
                         'type' => 'plugin',
                         'name' => esc_html( $plugin['Name'] ),
                     );
-                    $desc = sprintf( 
-                        /* translators: %s: plugin name */
-                        esc_html__( 'Plugin %s updated.', 'security-ninja' ),
-                        esc_html( $plugin['Name'] )
-                     );
+                    $desc = sprintf( esc_html__( 'Plugin %s updated.', 'security-ninja' ), esc_html( $plugin['Name'] ) );
                 } else {
                     $desc = esc_html__( 'Unknown plugin updated.', 'security-ninja' );
                 }
                 break;
             default:
-                return;
+                $desc = sprintf( esc_html__( 'Unknown action or filter - %s.', 'security-ninja' ), esc_html( $action_name ) );
         }
         self::log_event(
             'installer',
@@ -812,101 +788,51 @@ class wf_sn_el_modules extends wf_sn_el {
         switch ( $action_name ) {
             case 'comment_duplicate_trigger':
                 $post_title = ( ($post = get_post( $params[1]['comment_post_ID'] )) ? $post->post_title : __( 'Untitled', 'security-ninja' ) );
-                $desc = sprintf( 
-                    /* translators: 1: comment author email, 2: post title */
-                    esc_html__( 'Duplicate comment by %1$s prevented on %2$s.', 'security-ninja' ),
-                    esc_html( $params[1]['comment_author_email'] ),
-                    esc_html( $post_title )
-                 );
+                $desc = sprintf( esc_html__( 'Duplicate comment by %1$s prevented on %2$s.', 'security-ninja' ), esc_html( $params[1]['comment_author_email'] ), esc_html( $post_title ) );
                 break;
             case 'comment_flood_trigger':
                 $post_title = ( ($post = get_post( $params[1]['comment_post_ID'] )) ? $post->post_title : __( 'Untitled', 'security-ninja' ) );
                 $email = ( isset( $_POST['email'] ) ? sanitize_email( wp_unslash( $_POST['email'] ) ) : '' );
-                $desc = sprintf( 
-                    /* translators: 1: email address, 2: post title */
-                    esc_html__( 'Comment flooding by %1$s prevented on %2$s.', 'security-ninja' ),
-                    esc_html( $email ),
-                    esc_html( $post_title )
-                 );
+                $desc = sprintf( esc_html__( 'Comment flooding by %1$s prevented on %2$s.', 'security-ninja' ), esc_html( $email ), esc_html( $post_title ) );
                 break;
             case 'wp_insert_comment':
                 $post_title = ( ($post = get_post( $params[2]->comment_post_ID )) ? $post->post_title : __( 'Untitled', 'security-ninja' ) );
                 if ( $params[2]->comment_parent ) {
-                    $desc = sprintf( 
-                        /* translators: 1: comment author email, 2: post title */
-                        esc_html__( 'New comment reply by %1$s created on %2$s.', 'security-ninja' ),
-                        esc_html( $params[2]->comment_author_email ),
-                        esc_html( $post_title )
-                     );
+                    $desc = sprintf( esc_html__( 'New comment reply by %1$s created on %2$s.', 'security-ninja' ), esc_html( $params[2]->comment_author_email ), esc_html( $post_title ) );
                 } else {
-                    $desc = sprintf( 
-                        /* translators: 1: comment author email, 2: post title */
-                        esc_html__( 'New comment by %1$s created on %2$s.', 'security-ninja' ),
-                        esc_html( $params[2]->comment_author_email ),
-                        esc_html( $post_title )
-                     );
+                    $desc = sprintf( esc_html__( 'New comment by %1$s created on %2$s.', 'security-ninja' ), esc_html( $params[2]->comment_author_email ), esc_html( $post_title ) );
                 }
                 break;
             case 'edit_comment':
                 if ( isset( $params[2]['comment_post_ID'] ) ) {
                     $post_title = ( ($post = get_post( $params[2]['comment_post_ID'] )) ? $post->post_title : __( 'Untitled', 'security-ninja' ) );
-                    $desc = sprintf( 
-                        /* translators: 1: comment author email, 2: post title */
-                        esc_html__( 'Comment by %1$s on %2$s edited.', 'security-ninja' ),
-                        esc_html( $params[2]['newcomment_author_email'] ),
-                        esc_html( $post_title )
-                     );
+                    $desc = sprintf( esc_html__( 'Comment by %1$s on %2$s edited.', 'security-ninja' ), esc_html( $params[2]['newcomment_author_email'] ), esc_html( $post_title ) );
                 }
                 break;
             case 'trash_comment':
                 $comment = get_comment( $params[1] );
                 $post_title = ( ($post = get_post( $comment->comment_post_ID )) ? $post->post_title : __( 'Untitled', 'security-ninja' ) );
-                $desc = sprintf( 
-                    /* translators: 1: comment author email, 2: post title */
-                    esc_html__( 'Comment by %1$s on %2$s trashed.', 'security-ninja' ),
-                    esc_html( $comment->comment_author_email ),
-                    esc_html( $post_title )
-                 );
+                $desc = sprintf( esc_html__( 'Comment by %1$s on %2$s trashed.', 'security-ninja' ), esc_html( $comment->comment_author_email ), esc_html( $post_title ) );
                 break;
             case 'untrash_comment':
                 $comment = get_comment( $params[1] );
                 $post_title = ( ($post = get_post( $comment->comment_post_ID )) ? $post->post_title : __( 'Untitled', 'security-ninja' ) );
-                $desc = sprintf( 
-                    /* translators: 1: comment author email, 2: post title */
-                    esc_html__( 'Comment by %1$s on %2$s restored.', 'security-ninja' ),
-                    esc_html( $comment->comment_author_email ),
-                    esc_html( $post_title )
-                 );
+                $desc = sprintf( esc_html__( 'Comment by %1$s on %2$s restored.', 'security-ninja' ), esc_html( $comment->comment_author_email ), esc_html( $post_title ) );
                 break;
             case 'delete_comment':
                 $comment = get_comment( $params[1] );
                 $post_title = ( ($post = get_post( $comment->comment_post_ID )) ? $post->post_title : __( 'Untitled', 'security-ninja' ) );
-                $desc = sprintf( 
-                    /* translators: 1: comment author email, 2: post title */
-                    esc_html__( 'Comment by %1$s on %2$s permanently deleted.', 'security-ninja' ),
-                    esc_html( $comment->comment_author_email ),
-                    esc_html( $post_title )
-                 );
+                $desc = sprintf( esc_html__( 'Comment by %1$s on %2$s permanently deleted.', 'security-ninja' ), esc_html( $comment->comment_author_email ), esc_html( $post_title ) );
                 break;
             case 'spam_comment':
                 $comment = get_comment( $params[1] );
                 $post_title = ( ($post = get_post( $comment->comment_post_ID )) ? $post->post_title : __( 'Untitled', 'security-ninja' ) );
-                $desc = sprintf( 
-                    /* translators: 1: comment author email, 2: post title */
-                    esc_html__( 'Comment by %1$s on %2$s marked as spam.', 'security-ninja' ),
-                    esc_html( $comment->comment_author_email ),
-                    esc_html( $post_title )
-                 );
+                $desc = sprintf( esc_html__( 'Comment by %1$s on %2$s marked as spam.', 'security-ninja' ), esc_html( $comment->comment_author_email ), esc_html( $post_title ) );
                 break;
             case 'unspam_comment':
                 $comment = get_comment( $params[1] );
                 $post_title = ( ($post = get_post( $comment->comment_post_ID )) ? $post->post_title : __( 'Untitled', 'security-ninja' ) );
-                $desc = sprintf( 
-                    /* translators: 1: comment author email, 2: post title */
-                    esc_html__( 'Comment by %1$s on %2$s unmarked as spam.', 'security-ninja' ),
-                    esc_html( $comment->comment_author_email ),
-                    esc_html( $post_title )
-                 );
+                $desc = sprintf( esc_html__( 'Comment by %1$s on %2$s unmarked as spam.', 'security-ninja' ), esc_html( $comment->comment_author_email ), esc_html( $post_title ) );
                 break;
             case 'transition_comment_status':
                 if ( $params[1] != 'approved' && $params[1] != 'unapproved' || $params[2] == 'trash' || $params[2] == 'spam' ) {
@@ -915,7 +841,6 @@ class wf_sn_el_modules extends wf_sn_el {
                 $comment = get_comment( $params[3]->comment_ID );
                 $post_title = ( ($post = get_post( $params[3]->comment_post_ID )) ? $post->post_title : __( 'Untitled', 'security-ninja' ) );
                 $desc = sprintf(
-                    /* translators: 1: comment author email, 2: post title, 3: status */
                     esc_html__( 'Comment by %1$s on %2$s %3$s.', 'security-ninja' ),
                     esc_html( $params[3]->comment_author_email ),
                     esc_html( $post_title ),
@@ -923,7 +848,7 @@ class wf_sn_el_modules extends wf_sn_el {
                 );
                 break;
             default:
-                return;
+                $desc = sprintf( esc_html__( 'Unknown action or filter - %s.', 'security-ninja' ), esc_html( $action_name ) );
         }
         self::log_event(
             'comments',
@@ -950,7 +875,7 @@ class wf_sn_el_modules extends wf_sn_el {
             case 'update_site_option':
                 return;
             default:
-                return;
+                $desc = sprintf( esc_html__( 'Unknown action or filter - %s.', 'security-ninja' ), esc_html( $action_name ) );
         }
         self::log_event(
             'settings',
@@ -983,20 +908,12 @@ class wf_sn_el_modules extends wf_sn_el {
         switch ( $action_name ) {
             case 'woocommerce_new_product_data':
                 if ( isset( $params['post_title'] ) ) {
-                    $desc = sprintf( 
-                        /* translators: %s: product title */
-                        esc_html__( 'WooCommerce - New product "%s".', 'security-ninja' ),
-                        esc_html( $params['post_title'] )
-                     );
+                    $desc = sprintf( esc_html__( 'WooCommerce - New product "%s".', 'security-ninja' ), esc_html( $params['post_title'] ) );
                 }
                 break;
             case 'woocommerce_update_product':
                 if ( isset( $params['ID'] ) ) {
-                    $desc = sprintf( 
-                        /* translators: %d: product ID */
-                        esc_html__( 'WooCommerce - Updated product #%d.', 'security-ninja' ),
-                        absint( $params['ID'] )
-                     );
+                    $desc = sprintf( esc_html__( 'WooCommerce - Updated product #%d.', 'security-ninja' ), absint( $params['ID'] ) );
                 }
                 break;
             case 'woocommerce_new_customer':
@@ -1005,22 +922,14 @@ class wf_sn_el_modules extends wf_sn_el {
                     $first_name = $customer->get_first_name();
                     $last_name = $customer->get_last_name();
                     $customer_name = $first_name . ' ' . $last_name;
-                    $desc = sprintf( 
-                        /* translators: %s: customer name */
-                        esc_html__( 'WooCommerce - New customer %s.', 'security-ninja' ),
-                        esc_html( $customer_name )
-                     );
+                    $desc = sprintf( esc_html__( 'WooCommerce - New customer %s.', 'security-ninja' ), esc_html( $customer_name ) );
                 }
                 break;
             case 'woocommerce_new_order':
                 if ( isset( $params['order_id'] ) ) {
                     $order = wc_get_order( $params['order_id'] );
                     if ( $order ) {
-                        $desc = sprintf( 
-                            /* translators: %d: order ID */
-                            esc_html__( 'WooCommerce - New order #%d.', 'security-ninja' ),
-                            absint( $params['order_id'] )
-                         );
+                        $desc = sprintf( esc_html__( 'WooCommerce - New order #%d.', 'security-ninja' ), absint( $params['order_id'] ) );
                     } else {
                         $desc = esc_html__( 'WooCommerce - New order.', 'security-ninja' );
                     }
@@ -1040,19 +949,13 @@ class wf_sn_el_modules extends wf_sn_el {
                     $order = wc_get_order( $params['order_id'] );
                     if ( $order ) {
                         $desc = sprintf(
-                            /* translators: 1: order ID, 2: old status, 3: new status */
                             esc_html__( 'WooCommerce - Order #%1$d status changed from %2$s to %3$s.', 'security-ninja' ),
                             absint( $params['order_id'] ),
                             esc_html( $params['old_status'] ),
                             esc_html( $params['new_status'] )
                         );
                     } else {
-                        $desc = sprintf( 
-                            /* translators: 1: old status, 2: new status */
-                            esc_html__( 'WooCommerce - Order status changed from %1$s to %2$s.', 'security-ninja' ),
-                            esc_html( $params['old_status'] ),
-                            esc_html( $params['new_status'] )
-                         );
+                        $desc = sprintf( esc_html__( 'WooCommerce - Order status changed from %1$s to %2$s.', 'security-ninja' ), esc_html( $params['old_status'] ), esc_html( $params['new_status'] ) );
                     }
                 }
                 break;
@@ -1061,12 +964,7 @@ class wf_sn_el_modules extends wf_sn_el {
                     $order = wc_get_order( $params['order_id'] );
                     $refund = wc_get_order( $params['refund_id'] );
                     if ( $order && $refund ) {
-                        $desc = sprintf( 
-                            /* translators: 1: order ID, 2: refund ID */
-                            esc_html__( 'WooCommerce - Order #%1$d refunded (Refund ID: %2$d).', 'security-ninja' ),
-                            absint( $params['order_id'] ),
-                            absint( $params['refund_id'] )
-                         );
+                        $desc = sprintf( esc_html__( 'WooCommerce - Order #%1$d refunded (Refund ID: %2$d).', 'security-ninja' ), absint( $params['order_id'] ), absint( $params['refund_id'] ) );
                     } else {
                         $desc = esc_html__( 'WooCommerce - Order refunded.', 'security-ninja' );
                     }
@@ -1078,7 +976,7 @@ class wf_sn_el_modules extends wf_sn_el {
                     $duplicate_product = wc_get_product( $params['duplicate_id'] );
                     if ( $original_product && $duplicate_product ) {
                         $desc = sprintf(
-                            /* translators: 1: original product name, 2: original product ID, 3: duplicate product name, 4: duplicate product ID */
+                            /* translators: %1$s: original product name, %2$d: original product ID, %3$s: duplicate product name, %4$d: duplicate product ID */
                             esc_html__( 'WooCommerce - Duplicated product "%1$s" (ID: %2$d) to "%3$s" (ID: %4$d).', 'security-ninja' ),
                             esc_html( $original_product->get_name() ),
                             absint( $params['original_id'] ),
@@ -1091,7 +989,7 @@ class wf_sn_el_modules extends wf_sn_el {
                 }
                 break;
             default:
-                return;
+                $desc = sprintf( esc_html__( 'Unknown action or filter - %s.', 'security-ninja' ), esc_html( $action_name ) );
         }
         self::log_event(
             'woocommerce',
@@ -1159,7 +1057,7 @@ class wf_sn_el_modules extends wf_sn_el {
                 }
                 break;
             default:
-                return;
+                $desc = sprintf( esc_html__( 'Unknown action or filter - %s.', 'security-ninja' ), esc_html( $action_name ) );
         }
         self::log_event(
             'security_ninja',

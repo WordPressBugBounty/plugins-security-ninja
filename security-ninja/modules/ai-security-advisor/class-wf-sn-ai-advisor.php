@@ -92,20 +92,12 @@ class Wf_Sn_Ai_Advisor {
             'baseUrlPath'      => $base_url_path,
             'strings'          => array(
                 'requestFailed'     => __( 'Request failed.', 'security-ninja' ),
-                'riskLabel'         => sprintf( 
-                    /* translators: %s: risk level label */
-                    __( 'Risk: %s', 'security-ninja' ),
-                    '%s'
-                 ),
+                'riskLabel'         => __( 'Risk: %s', 'security-ninja' ),
                 'executiveSummary'  => __( 'Executive summary', 'security-ninja' ),
                 'overview'          => __( 'Overview', 'security-ninja' ),
                 'topImprovements'   => __( 'Top improvements', 'security-ninja' ),
                 'activityLast7Days' => __( 'Activity (last 7 days)', 'security-ninja' ),
-                'trendLabel'        => sprintf( 
-                    /* translators: %s: trend description (e.g. up, down, stable) */
-                    __( 'Trend: %s', 'security-ninja' ),
-                    '%s'
-                 ),
+                'trendLabel'        => __( 'Trend: %s', 'security-ninja' ),
                 'stagePreparing'    => __( 'Preparing security data', 'security-ninja' ),
                 'stageSending'      => __( 'Sending to AI', 'security-ninja' ),
                 'stageWaiting'      => __( 'Waiting for response', 'security-ninja' ),
@@ -375,7 +367,8 @@ class Wf_Sn_Ai_Advisor {
         if ( !$screen || !isset( $screen->id ) ) {
             return;
         }
-        if ( strpos( $screen->id, 'connector' ) === false && strpos( $screen->id, 'ai' ) === false ) {
+        // WordPress 7+ Settings → Connectors: wp-admin/options-connectors.php → screen id options-connectors.
+        if ( 'options-connectors' !== $screen->id ) {
             return;
         }
         echo '<div class="notice notice-info"><p>' . esc_html__( 'Security Ninja uses the AI connectors configured on this page to generate Security Advisor reports. You can choose which connector to use on the Security Advisor page in the Security Ninja menu.', 'security-ninja' ) . '</p></div>';

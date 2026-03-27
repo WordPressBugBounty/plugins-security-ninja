@@ -80,6 +80,7 @@ class Utils {
         if ( !$load ) {
             return;
         }
+        // Update the review option now.
         update_option( 'wf_sn_review_notice', $review, false );
         $current_user = wp_get_current_user();
         $fname = '';
@@ -117,7 +118,7 @@ class Utils {
 			<p><strong>Lars Koudal,</br>wpsecurityninja.com</strong></p>
 			<p>
 			<ul>
-				<li><a href="https://wordpress.org/support/plugin/security-ninja/reviews/#new-post" class="wfsn-dismiss-review-notice wfsn-reviewlink button-primary" target="_blank" rel="noopener">Ok, you deserve
+				<li><a href="https://wordpress.org/support/plugin/security-ninja/reviews/?filter=5#new-post" class="wfsn-dismiss-review-notice wfsn-reviewlink button-primary" target="_blank" rel="noopener">Ok, you deserve
 						it</a></li>
 				<li><span class="dashicons dashicons-calendar"></span><a href="#" class="wfsn-dismiss-review-notice" target="_blank" rel="noopener">Nope, maybe later</a></li>
 				<li><span class="dashicons dashicons-smiley"></span><a href="#" class="wfsn-dismiss-review-notice" target="_blank" rel="noopener">I already did</a></li>
@@ -149,6 +150,7 @@ class Utils {
         if ( false !== strpos( $current_screen->id, 'page_security-ninja-wizard' ) ) {
             return;
         }
+        // Check if been dismissed already
         $review = get_option( 'wf_sn_review_notice' );
         if ( $review && isset( $review['dismissed'] ) && $review['dismissed'] ) {
             return;
@@ -279,6 +281,7 @@ class Utils {
         if ( 'pending' !== get_option( 'secnin_fs_migrated2fs', 'pending' ) ) {
             return;
         }
+        // Check if license_key.txt exists in the plugin directory and use it to activate the license
         $license_file = WF_SN_PLUGIN_DIR . 'license_key.txt';
         $license_key = '';
         if ( file_exists( $license_file ) ) {
@@ -317,6 +320,7 @@ class Utils {
                     'plan' => 'Free',
                     'ver'  => self::get_plugin_version(),
                 );
+                // Check vulnerabilities
                 if ( class_exists( __NAMESPACE__ . '\\wf_sn_vu' ) ) {
                     try {
                         $vulns = \WPSecurityNinja\Plugin\Wf_Sn_Vu::return_vuln_count();
@@ -328,6 +332,7 @@ class Utils {
                     $information['SecNin_get_details']['vulns'] = $vulns;
                     $information['SecNin_get_details']['vulndetails'] = $vulndetails;
                 }
+                // Get test scores
                 $information['SecNin_get_details']['tests'] = \WPSecurityNinja\Plugin\Wf_Sn::return_test_scores();
                 $information['SecNin_get_details']['test_results'] = \WPSecurityNinja\Plugin\Wf_Sn::get_test_results();
                 // Core Scanner (free) – sync results for all sites.
@@ -617,6 +622,7 @@ class Utils {
      */
     public static function create_tables_for_site( $charset ) {
         global $wpdb;
+        // Create main tests table
         $table_name = $wpdb->prefix . 'wf_sn_tests';
         $sql = "CREATE TABLE {$table_name} (\n\t\t\t\tid bigint(20) unsigned NOT NULL AUTO_INCREMENT,\n\t\t\t\ttestid varchar(30) NOT NULL,\n\t\t\t\ttimestamp datetime NOT NULL,\n\t\t\t\ttitle text,\n\t\t\t\tstatus tinyint(4) NOT NULL,\n\t\t\t\tscore tinyint(4) NOT NULL,\n\t\t\t\truntime float DEFAULT NULL,\n\t\t\t\tmsg text,\n\t\t\t\tdetails text,\n\t\t\t\tPRIMARY KEY  (testid),\n\t\t\t\tKEY id (id)\n\t\t\t) {$charset};";
         dbDelta( $sql );
@@ -632,6 +638,10 @@ class Utils {
         $table_name = $wpdb->prefix . 'wf_sn_cf_bl_ips';
         $sql = "CREATE TABLE {$table_name} (\n\t\t\t\ttid datetime NOT NULL DEFAULT NOW(),\n\t\t\t\tip varchar(46) NOT NULL,\n\t\t\t\treason varchar(255) NOT NULL,\n\t\t\t\tPRIMARY KEY  (ip),\n\t\t\t\tKEY tid (tid)\n\t\t\t) {$charset};";
         dbDelta( $sql );
+        // Set up default settings for Event logger (free feature)
+        if ( class_exists( '\\WPSecurityNinja\\Plugin\\Wf_Sn_El' ) ) {
+            Wf_Sn_El::default_settings( false );
+        }
         return true;
     }
 
@@ -876,12 +886,14 @@ class Utils {
      * @return  int     Returns 1 if value is truthy, 0 otherwise
      */
     public static function normalize_flag( $value ) {
+        // Handle explicit true/false
         if ( $value === true ) {
             return 1;
         }
         if ( $value === false ) {
             return 0;
         }
+        // Handle string representations
         if ( is_string( $value ) ) {
             $value = strtolower( trim( $value ) );
             if ( $value === 'true' || $value === '1' || $value === 'yes' || $value === 'on' ) {
@@ -889,6 +901,7 @@ class Utils {
             }
             return 0;
         }
+        // Handle numeric values
         if ( is_numeric( $value ) ) {
             return ( (int) $value ? 1 : 0 );
         }
