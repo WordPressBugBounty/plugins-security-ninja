@@ -11,6 +11,10 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+if ( ! defined( 'WF_SN_CF_AI_CRAWLER_RANGES' ) ) {
+	define( 'WF_SN_CF_AI_CRAWLER_RANGES', 'wf_sn_cf_ai_crawler_ranges' );
+}
+
 /**
  * Class Wf_sn_cf_Utils
  *
@@ -210,5 +214,186 @@ class Wf_sn_cf_Utils {
 		$mask            = -1 << ( 32 - $subnet_mask );
 		$subnet_address &= $mask;
 		return ( $address & $mask ) === $subnet_address;
+	}
+
+	/**
+	 * Map User-Agent substrings to official published-prefix JSON URLs (OpenAI, Perplexity).
+	 *
+	 * @since 5.277
+	 * @param string $ua Sanitized User-Agent.
+	 * @return string[] Unique HTTPS feed URLs.
+	 */
+	public static function get_ai_crawler_feed_urls_for_ua( $ua ) {
+		if ( '' === $ua ) {
+			return array();
+		}
+
+		static $token_to_url = null;
+		if ( null === $token_to_url ) {
+			$token_to_url = array(
+				'GPTBot'          => 'https://openai.com/gptbot.json',
+				'ChatGPT-User'    => 'https://openai.com/chatgpt-user.json',
+				'OAI-SearchBot'   => 'https://openai.com/searchbot.json',
+				'PerplexityBot'   => 'https://www.perplexity.com/perplexitybot.json',
+				'Perplexity-User' => 'https://www.perplexity.com/perplexity-user.json',
+			);
+		}
+
+		$urls = array();
+		foreach ( $token_to_url as $token => $url ) {
+			if ( false !== strpos( $ua, $token ) ) {
+				$urls[ $url ] = true;
+			}
+		}
+
+		return array_keys( $urls );
+	}
+
+	/**
+	 * Return CIDRs for a feed: fresh cache, stale cache with opportunistic refresh, or empty.
+	 *
+	 * @since 5.277
+	 * @param string $feed_url HTTPS URL.
+	 * @return string[]
+	 */
+	public static function get_ai_crawler_cidrs_for_feed_url( $feed_url ) {
+		$ttl = DAY_IN_SECONDS;
+
+		$option = get_option( WF_SN_CF_AI_CRAWLER_RANGES, array() );
+		if ( ! is_array( $option ) ) {
+			$option = array();
+		}
+		$sources = isset( $option['sources'] ) && is_array( $option['sources'] ) ? $option['sources'] : array();
+
+		$cached = isset( $sources[ $feed_url ] ) && is_array( $sources[ $feed_url ] ) ? $sources[ $feed_url ] : null;
+		$now    = time();
+
+		if ( $cached && ! empty( $cached['cidrs'] ) && is_array( $cached['cidrs'] ) && isset( $cached['fetched_at'] ) ) {
+			$age = $now - (int) $cached['fetched_at'];
+			if ( $age < $ttl ) {
+				return $cached['cidrs'];
+			}
+			$fresh = self::fetch_and_store_ai_crawler_ranges( $feed_url );
+			if ( is_array( $fresh ) && ! empty( $fresh ) ) {
+				return $fresh;
+			}
+			return $cached['cidrs'];
+		}
+
+		$fresh = self::fetch_and_store_ai_crawler_ranges( $feed_url );
+		return is_array( $fresh ) ? $fresh : array();
+	}
+
+	/**
+	 * Extract CIDR strings from OpenAI/Perplexity-style prefix JSON.
+	 *
+	 * @since 5.277
+	 * @param array $data Decoded JSON (top-level).
+	 * @return string[]
+	 */
+	private static function parse_ai_provider_prefixes_json( $data ) {
+		if ( ! is_array( $data ) || empty( $data['prefixes'] ) || ! is_array( $data['prefixes'] ) ) {
+			return array();
+		}
+
+		$cidrs = array();
+		foreach ( $data['prefixes'] as $row ) {
+			if ( ! is_array( $row ) ) {
+				continue;
+			}
+			if ( ! empty( $row['ipv4Prefix'] ) && is_string( $row['ipv4Prefix'] ) ) {
+				$cidrs[] = $row['ipv4Prefix'];
+			}
+			if ( ! empty( $row['ipv6Prefix'] ) && is_string( $row['ipv6Prefix'] ) ) {
+				$cidrs[] = $row['ipv6Prefix'];
+			}
+		}
+
+		return array_values( array_unique( array_filter( $cidrs ) ) );
+	}
+
+	/**
+	 * Fetch provider JSON and persist under WF_SN_CF_AI_CRAWLER_RANGES.
+	 *
+	 * @since 5.277
+	 * @param string $feed_url HTTPS URL only.
+	 * @return string[]|null CIDR list on success, null on failure.
+	 */
+	private static function fetch_and_store_ai_crawler_ranges( $feed_url ) {
+		if ( ! is_string( $feed_url ) || '' === $feed_url ) {
+			return null;
+		}
+		if ( 0 !== strpos( $feed_url, 'https://' ) ) {
+			return null;
+		}
+
+		$response = wp_remote_get(
+			$feed_url,
+			array(
+				'timeout'     => 4,
+				'redirection' => 5,
+				'user-agent'  => 'WordPress/' . get_bloginfo( 'version' ) . '; ' . home_url( '/' ),
+			)
+		);
+
+		if ( is_wp_error( $response ) ) {
+			self::store_ai_crawler_last_error( $feed_url, $response->get_error_message() );
+			return null;
+		}
+
+		$code = (int) wp_remote_retrieve_response_code( $response );
+		if ( 200 !== $code ) {
+			self::store_ai_crawler_last_error( $feed_url, 'HTTP ' . $code );
+			return null;
+		}
+
+		$body = wp_remote_retrieve_body( $response );
+		if ( '' === $body ) {
+			self::store_ai_crawler_last_error( $feed_url, 'empty body' );
+			return null;
+		}
+
+		$data  = json_decode( $body, true );
+		$cidrs = self::parse_ai_provider_prefixes_json( $data );
+		if ( empty( $cidrs ) ) {
+			self::store_ai_crawler_last_error( $feed_url, 'no prefixes' );
+			return null;
+		}
+
+		$option = get_option( WF_SN_CF_AI_CRAWLER_RANGES, array() );
+		if ( ! is_array( $option ) ) {
+			$option = array();
+		}
+		if ( ! isset( $option['sources'] ) || ! is_array( $option['sources'] ) ) {
+			$option['sources'] = array();
+		}
+		$option['sources'][ $feed_url ] = array(
+			'fetched_at' => time(),
+			'cidrs'      => $cidrs,
+		);
+		$option['last_error'] = '';
+		update_option( WF_SN_CF_AI_CRAWLER_RANGES, $option, false );
+
+		return $cidrs;
+	}
+
+	/**
+	 * Record last AI crawler range fetch error (debugging).
+	 *
+	 * @since 5.277
+	 * @param string $feed_url Feed URL.
+	 * @param string $message  Short error message.
+	 */
+	private static function store_ai_crawler_last_error( $feed_url, $message ) {
+		$option = get_option( WF_SN_CF_AI_CRAWLER_RANGES, array() );
+		if ( ! is_array( $option ) ) {
+			$option = array();
+		}
+		$option['last_error'] = array(
+			'feed'    => $feed_url,
+			'message' => $message,
+			'at'      => time(),
+		);
+		update_option( WF_SN_CF_AI_CRAWLER_RANGES, $option, false );
 	}
 }

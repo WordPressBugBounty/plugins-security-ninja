@@ -318,15 +318,20 @@ class Wf_sn_cf {
     /**
      * Validate a crawlers IP against the hostname
      *
+     * Also validates known AI crawlers (OpenAI, Perplexity) when User-Agent matches and the IP is in
+     * published provider ranges (cached; non-blocking refresh). Anthropic is not included: no stable
+     * published IP ranges for verification. Google-Extended is a robots policy token, not a crawler UA.
+     *
      * @author  Lars Koudal
      * @since   v5.123
      * @version v1.0.0  Monday, August 30th, 2021.
      * @version v1.0.1  Monday, June 3rd, 2024.
      * @access  private static
-     * @param   mixed   $testip
+     * @param   mixed       $testip Client IP.
+     * @param   string|null $ua     User-Agent string; null reads HTTP_USER_AGENT when present.
      * @return  boolean
      */
-    public static function validate_crawler_ip( $testip ) {
+    public static function validate_crawler_ip( $testip, $ua = null ) {
         // Lets check if the IP has already been validated
         $validated_crawlers = get_option( WF_SN_CF_VALIDATED_CRAWLERS );
         if ( $validated_crawlers ) {
@@ -379,6 +384,37 @@ class Wf_sn_cf {
                         esc_attr( $testip )
                     );
                     return true;
+                }
+            }
+        }
+        // Verified AI crawlers: UA token + IP in provider-published ranges (cached).
+        if ( null === $ua ) {
+            $ua = '';
+            if ( isset( $_SERVER['HTTP_USER_AGENT'] ) ) {
+                $ua = sanitize_text_field( wp_unslash( $_SERVER['HTTP_USER_AGENT'] ) );
+            }
+        }
+        $ai_feed_urls = Wf_sn_cf_Utils::get_ai_crawler_feed_urls_for_ua( $ua );
+        if ( !empty( $ai_feed_urls ) ) {
+            foreach ( $ai_feed_urls as $feed_url ) {
+                $cidrs = Wf_sn_cf_Utils::get_ai_crawler_cidrs_for_feed_url( $feed_url );
+                foreach ( $cidrs as $cidr ) {
+                    if ( Wf_sn_cf_Utils::ipCIDRMatch( $testip, $cidr ) ) {
+                        $validated_crawlers[] = $testip;
+                        update_option( WF_SN_CF_VALIDATED_CRAWLERS, $validated_crawlers, false );
+                        wf_sn_el_modules::log_event(
+                            'security_ninja',
+                            'validated_crawler_ip',
+                            __( 'Valid AI crawler (published IP ranges)', 'security-ninja' ),
+                            array(
+                                'feed' => $feed_url,
+                                'ua'   => $ua,
+                            ),
+                            null,
+                            ( is_string( $testip ) ? $testip : null )
+                        );
+                        return true;
+                    }
                 }
             }
         }
@@ -1336,9 +1372,15 @@ class Wf_sn_cf {
         // Forces dynamic content, not cacheable
         // Checks if we need to redirect the killed request.
         $redirect_url = esc_url_raw( self::$options['redirect_url'] );
-        if ( isset( $redirect_url ) && wp_http_validate_url( $redirect_url ) ) {
-            wp_safe_redirect( $redirect_url, 301 );
-            exit;
+        if ( !empty( $redirect_url ) && wp_http_validate_url( $redirect_url ) ) {
+            $redirect_scheme = wp_parse_url( $redirect_url, PHP_URL_SCHEME );
+            $redirect_scheme = ( is_string( $redirect_scheme ) ? strtolower( $redirect_scheme ) : '' );
+            if ( in_array( $redirect_scheme, array('http', 'https'), true ) ) {
+                // Redirect target is admin-configured and validated above.
+                wp_redirect( $redirect_url, 301 );
+                // phpcs:ignore WordPress.Security.SafeRedirect.wp_redirect_wp_redirect
+                exit;
+            }
         }
         $message = '<p>' . esc_html( self::$options['message'] ) . '</p>';
         // Add IP info to message
@@ -1502,6 +1544,7 @@ class Wf_sn_cf {
             delete_option( 'wf_sn_cf_bl_ips' );
             delete_option( 'wf_sn_cf_vl' );
             delete_option( WF_SN_CF_VALIDATED_CRAWLERS );
+            delete_option( WF_SN_CF_AI_CRAWLER_RANGES );
             delete_option( 'wf_sn_cf_blocked_count' );
             delete_option( WF_SN_CF_OPTIONS_KEY );
             delete_option( 'wf_sn_cf_ips' );

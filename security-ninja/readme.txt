@@ -6,7 +6,7 @@ License: GPLv3
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 Requires at least: 4.7
 Tested up to: 6.9
-Stable tag: 5.276
+Stable tag: 5.277
 Requires PHP: 7.4
 
 WordPress security plugin with free basic firewall/WAF, vulnerability and core scanning, and 50+ core integrity checks.
@@ -332,6 +332,12 @@ While we strive for universal compatibility, if you face any issues, our support
 5. Core Scanner (detect modified/unknown core files).
 
 == Changelog ==
+
+= 5.277 =
+* 2026-04-04
+* FIX: Firewall redirect - Blocked visitor redirect now supports external URLs as configured. We now use validated `wp_redirect()` for this setting (http/https only), preventing fallback to wp-admin when an external domain is set.
+* IMPROVED: Cloud Firewall crawler validation now supports verified AI crawlers (OpenAI and Perplexity) using user-agent plus cached published IP ranges. Anthropic are not auto-whitelisted.
+
 
 = 5.276 =
 * 2026-03-27
