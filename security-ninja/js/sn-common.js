@@ -18,11 +18,6 @@ function sn_block_ui(content_el) {
 
 
 
-function sn_fix_dialog_close(event) {
-	jQuery('.ui-widget-overlay').bind('click', function () { jQuery('#' + event.target.id).dialog('close'); });
-}
-
-
 function sn_unblock_ui(content_el) {
 	jQuery('html.wp-toolbar').removeClass('sn-overlay-active');
 	jQuery('#wpadminbar').removeClass('sn-overlay-active');
@@ -41,6 +36,48 @@ function sn_unblock_ui(content_el) {
 
 
 jQuery(document).ready(function () {
+	var snTestDescriptions = null;
+	var snTestDescriptionsPromise = null;
+
+	/**
+	 * Load security test long descriptions once (cached). Uses same nonce as run tests.
+	 * @returns {jQuery.Promise}
+	 */
+	function ensureTestDescriptions() {
+		if (snTestDescriptions) {
+			return jQuery.Deferred().resolve(snTestDescriptions).promise();
+		}
+		if (snTestDescriptionsPromise) {
+			return snTestDescriptionsPromise;
+		}
+		snTestDescriptionsPromise = jQuery.ajax({
+			type: 'POST',
+			url: ajaxurl,
+			data: {
+				action: 'sn_get_test_descriptions',
+				_ajax_nonce: wf_sn.nonce_run_tests
+			},
+			dataType: 'json'
+		}).then(function (response) {
+			snTestDescriptionsPromise = null;
+			if (response && response.success && response.data && response.data.tests) {
+				snTestDescriptions = response.data.tests;
+			} else {
+				snTestDescriptions = {};
+			}
+			return snTestDescriptions;
+		}, function () {
+			snTestDescriptionsPromise = null;
+			snTestDescriptions = {};
+			return snTestDescriptions;
+		});
+		return snTestDescriptionsPromise;
+	}
+
+	if (jQuery('#security-ninja').length) {
+		ensureTestDescriptions();
+	}
+
 	// Signing up for the newsletter
 	jQuery('.ml-block-form').on('submit', function(e) {
 		e.preventDefault();
@@ -376,28 +413,6 @@ jQuery(document).ready(function () {
 		});
 		
 		
-		
-		jQuery('#test-details-dialog').dialog({
-			'dialogClass': 'wp-dialog sn-dialog',
-			'modal': true,
-			'resizable': false,
-			'zIndex': 9999,
-			'width': 750,
-			'height': 'auto',
-			'hide': 'fade',
-			'open': function (event, ui) {
-				sn_fix_dialog_close(event, ui);
-			},
-			'close': function () {
-				jQuery('#test-details-dialog').html('<p>Please wait.</p>')
-			},
-			'show': 'fade',
-			'autoOpen': false,
-			'closeOnEscape': true
-		});
-		
-		
-		
 		// Asks before importing settings
 		jQuery(document).on('click', '#wf-import-settings-button', function () {
 			if (!confirm('Are you sure you want to import and overwrite the current settings?')) { //i8n
@@ -420,37 +435,18 @@ jQuery(document).ready(function () {
 		
 		jQuery(document).on('click', '#sn_tests .sn-details a', function (e) {
 			e.preventDefault();
-			
-			jQuery(this).remove();
-			var test_id = jQuery(this).data('test-id');
-			var test_status = jQuery(this).data('test-status');
 
-			// Trigger action to show auto-fix
+			var $link = jQuery(this);
+			$link.remove();
+			var test_id = $link.data('test-id');
+			var test_status = $link.data('test-status');
 
-			jQuery(document).trigger('sn_test_details_dialog_open', [ test_id, test_status  ] );
+			jQuery(document).trigger('sn_test_details_dialog_open', [ test_id, test_status ] );
 
-			var name = jQuery('#' + test_id + ' .test_name').text();
-			var content = jQuery('#' + test_id + ' .test_description').html();
-			
-			// get_single_test_details
-			
-			if (name === '') {
-				name = 'Unknown test ID'; // @i8n
-				content = 'Help is not available for this test. Make sure you have the latest version installed.'; // @i8n
-			}
-			else {
-				content = '<span class="ui-helper-hidden-accessible"><input type="text"></span><span class="spinner"></span>' + jQuery('#' + test_id + ' .test_description').html();
-				
-				content += '<div id="auto-fixer-content-cont"><hr><h3>Auto Fixer</h3><div id="auto-fixer-content"></div></div>'; // @i8n
-
-			}
-			
 			var target = '.tdesc-test-id-' + test_id;
-			
-			jQuery(target).slideUp().html(content).slideDown('slow');
-			
+
 			jQuery('.' + test_id + '.testtimedetails').prepend('<div class="spinner is-active"></div>');
-			
+
 			jQuery.ajax({
 				type: 'POST',
 				url: ajaxurl,
@@ -459,42 +455,51 @@ jQuery(document).ready(function () {
 					'action': 'sn_get_single_test_details',
 					'testid': test_id
 				},
-				dataType: "json",
+				dataType: 'json',
 				success: function (response) {
 					jQuery('.' + test_id + '.testtimedetails .spinner').remove();
 					if (response.success) {
 						if (response.data.runtime) {
 							jQuery('.' + test_id + '.testtimedetails .runtime').html('Runtime: ' + response.data.runtime + ' ' + 'sec');
 						}
-						
+
 						if (response.data.timestamp) {
 							jQuery('.' + test_id + '.testtimedetails .lasttest').html('Last test: ' + response.data.timestamp);
 						}
-						
+
 						if (response.data.timestamp) {
 							jQuery('.' + test_id + '.testtimedetails .score').html('Score: ' + response.data.score);
 						}
 						if (response.data.timestamp) {
 							jQuery('.' + test_id + '.testtimedetails .status').html('Status: ' + response.data.status);
 						}
-						
+
 						jQuery('.' + test_id + '.testtimedetails').show();
-						
 					}
-					
-					
 				},
 				error: function () {
 					jQuery('.' + test_id + '.testtimedetails .spinner').remove();
 				}
 			});
-			
-			
-			
-			
-			
+
+			ensureTestDescriptions().then(function (tests) {
+				var entry = tests && tests[ test_id ];
+				var name = entry && entry.title ? entry.title : '';
+				var descHtml = entry && entry.html ? entry.html : '';
+				if (!name && !descHtml) {
+					name = 'Unknown test ID'; // @i8n
+					descHtml = '<p>' + jQuery('<div/>').text('Help is not available for this test. Make sure you have the latest version installed.').html() + '</p>'; // @i8n
+				}
+				var parts = [];
+				parts.push('<span class="ui-helper-hidden-accessible"><input type="text"></span><span class="spinner is-active"></span>');
+				parts.push('<h3 class="wf-sn-test-help-title">' + jQuery('<div/>').text(name).html() + '</h3>');
+				parts.push('<div class="test_description">' + descHtml + '</div>');
+				parts.push('<div id="auto-fixer-content-cont"><hr><h3>Auto Fixer</h3><div id="auto-fixer-content"></div></div>'); // @i8n
+				jQuery(target).slideUp().html(parts.join('')).slideDown('slow');
+			});
+
 			return false;
-		}); // show test details dialog
+		}); // show test details (inline expand)
 		
 		
 		

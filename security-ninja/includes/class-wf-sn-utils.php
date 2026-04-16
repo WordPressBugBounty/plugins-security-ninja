@@ -515,10 +515,6 @@ class Utils {
             echo '</div>';
             // wf-sn-overlay-content
             echo '</div></div></div></div>';
-            echo '<div id="test-details-dialog" style="display: none;" title="Test details"><p>Please wait.</p></div>';
-            echo '<div id="sn_tests_descriptions" style="display: none;">';
-            include_once WF_SN_PLUGIN_DIR . 'sn-tests-description.php';
-            echo '</div>';
         }
     }
 

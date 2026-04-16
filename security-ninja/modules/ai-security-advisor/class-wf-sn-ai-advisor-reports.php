@@ -120,11 +120,12 @@ class Wf_Sn_Ai_Advisor_Reports {
 	/**
 	 * Get recent reports for display (e.g. previous responses list).
 	 *
-	 * @param int $limit  Max rows.
-	 * @param int $offset Offset.
+	 * @param int         $limit        Max rows.
+	 * @param int         $offset       Offset.
+	 * @param string|null $request_type If set, filter to this request_type (e.g. full_report, prompt_chip).
 	 * @return array List of arrays with id, created, report_text, provider, model, token_input, token_output, request_type.
 	 */
-	public static function get_reports( $limit = 20, $offset = 0 ) {
+	public static function get_reports( $limit = 20, $offset = 0, $request_type = null ) {
 		global $wpdb;
 		$table = self::get_table_name();
 		if ( $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $table ) ) !== $table ) {
@@ -132,15 +133,102 @@ class Wf_Sn_Ai_Advisor_Reports {
 		}
 		$limit  = max( 1, min( 100, (int) $limit ) );
 		$offset = max( 0, (int) $offset );
-		// Table name from get_table_name() (internal); limit/offset are prepared.
-		$rows = $wpdb->get_results(
+
+		if ( null !== $request_type && '' !== $request_type ) {
+			$type = sanitize_key( (string) $request_type );
+			$rows = $wpdb->get_results(
+				$wpdb->prepare(
+					"SELECT id, created, report_text, provider, model, token_input, token_output, request_type FROM {$table} WHERE request_type = %s ORDER BY created DESC LIMIT %d OFFSET %d", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+					$type,
+					$limit,
+					$offset
+				),
+				ARRAY_A
+			);
+		} else {
+			$rows = $wpdb->get_results(
+				$wpdb->prepare(
+					"SELECT id, created, report_text, provider, model, token_input, token_output, request_type FROM {$table} ORDER BY created DESC LIMIT %d OFFSET %d", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+					$limit,
+					$offset
+				),
+				ARRAY_A
+			);
+		}
+		return is_array( $rows ) ? $rows : array();
+	}
+
+	/**
+	 * Count rows for a request type.
+	 *
+	 * @param string $request_type Request type key.
+	 * @return int
+	 */
+	public static function count_by_request_type( $request_type ) {
+		global $wpdb;
+		$table = self::get_table_name();
+		if ( $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $table ) ) !== $table ) {
+			return 0;
+		}
+		$type = sanitize_key( (string) $request_type );
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name internal
+		$n = $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$table} WHERE request_type = %s", $type ) );
+		return (int) $n;
+	}
+
+	/**
+	 * Fetch one row by id (this site's table only).
+	 *
+	 * @param int $id Row id.
+	 * @return array<string, mixed>|null
+	 */
+	public static function get_row_by_id( $id ) {
+		global $wpdb;
+		$table = self::get_table_name();
+		if ( $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $table ) ) !== $table ) {
+			return null;
+		}
+		$id = (int) $id;
+		if ( $id <= 0 ) {
+			return null;
+		}
+		$row = $wpdb->get_row(
 			$wpdb->prepare(
-				"SELECT id, created, report_text, provider, model, token_input, token_output, request_type FROM {$table} ORDER BY created DESC LIMIT %d OFFSET %d", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name from get_table_name()
-				$limit,
-				$offset
+				"SELECT id, created, report_text, provider, model, token_input, token_output, request_type FROM {$table} WHERE id = %d LIMIT 1", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+				$id
 			),
 			ARRAY_A
 		);
-		return is_array( $rows ) ? $rows : array();
+		return is_array( $row ) ? $row : null;
+	}
+
+	/**
+	 * Delete one report row by id.
+	 *
+	 * @param int $id Row id.
+	 * @return bool True if a row was deleted.
+	 */
+	public static function delete_report( $id ) {
+		global $wpdb;
+		$table = self::get_table_name();
+		if ( $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $table ) ) !== $table ) {
+			return false;
+		}
+		$id = (int) $id;
+		if ( $id <= 0 ) {
+			return false;
+		}
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$deleted = $wpdb->delete( $table, array( 'id' => $id ), array( '%d' ) );
+		return false !== $deleted && $deleted > 0;
+	}
+
+	/**
+	 * Two most recent full_report rows (newest first), for delta chips.
+	 *
+	 * @return array<int, array<string, mixed>>
+	 */
+	public static function get_latest_two_full_reports() {
+		return self::get_reports( 2, 0, 'full_report' );
 	}
 }

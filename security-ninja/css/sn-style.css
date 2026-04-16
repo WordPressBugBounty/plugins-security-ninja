@@ -1816,6 +1816,18 @@ border-top-left-radius: 10px;
   font-style: italic;
 }
 
+.column-primary .testdesc .wf-sn-test-help-title {
+  font-style: normal;
+  font-size: 1.05em;
+  margin: 0 0 8px 0;
+  color: #1d2327;
+}
+
+.column-primary .testdesc .test_description ul {
+  list-style: disc;
+  list-style-position: inside;
+}
+
 .toplevel_page_wf-sn .ui-tabs .widefat td {
   vertical-align: middle !important;
 }
@@ -1879,6 +1891,12 @@ max-width: 200px;
 }
 
 .toplevel_page_wf-sn .wrap {
+  margin: 10px 2px 0 2px;
+}
+
+/* Security Advisor submenu — same horizontal/top spacing as main Security Ninja screen */
+.wf-sn_page_wf-sn-advisor .wrap,
+.security-ninja_page_wf-sn-advisor .wrap {
   margin: 10px 2px 0 2px;
 }
 
@@ -2656,20 +2674,8 @@ ul.whizzie-do-plugins li span {
   max-width: 170px;
 }
 
-#test-details-dialog p:first-of-type {
-  margin-top: 0;
-}
-
 #sn-scheduled-scanner-results {
   width: 100%;
-}
-
-#test-details-dialog.ui-dialog-content {
-  padding: 25px 25px 20px 25px;
-}
-
-#test-details-dialog.ui-dialog-content h3 {
-  color: #444444;
 }
 
 .sn-dialog .ui-dialog-titlebar {
@@ -2679,11 +2685,6 @@ ul.whizzie-do-plugins li span {
 
 .sn-dialog .ui-button.ui-dialog-titlebar-close {
   top: 9px;
-}
-
-#test-details-dialog ul {
-  list-style: disc;
-  list-style-position: inside;
 }
 
 .toplevel_page_wf-sn .wp-dialog .ui-dialog-title {

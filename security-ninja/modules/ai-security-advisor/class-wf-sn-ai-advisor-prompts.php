@@ -19,15 +19,23 @@ if ( ! defined( 'ABSPATH' ) ) {
 class Wf_Sn_Ai_Advisor_Prompts {
 
 	/**
-	 * Get system instruction and user prompt text for full report.
+	 * Get system instruction and user prompt text.
 	 *
-	 * @param string $request_type Only full_report is supported.
-	 * @param array  $context     Privacy-safe context from Wf_Sn_Ai_Advisor_Payload::build().
+	 * @param string $request_type full_report or prompt_chip.
+	 * @param array  $context      Privacy-safe context; for prompt_chip include prompt_id, report_a, report_b, parent_report_id.
 	 * @return array{system_instruction: string, prompt: string}
 	 */
 	public static function get( $request_type, array $context ) {
+		$tier_block = Wf_Sn_Ai_Advisor_Feature_Tiers::get_feature_tier_instructions();
+		if ( 'prompt_chip' === $request_type ) {
+			$prompt_id = isset( $context['prompt_id'] ) ? sanitize_key( (string) $context['prompt_id'] ) : '';
+			$chip_ctx  = $context;
+			return array(
+				'system_instruction' => self::get_system_prompt_chip( $prompt_id ) . "\n\n" . $tier_block,
+				'prompt'             => self::format_chip_context_for_prompt( $chip_ctx ),
+			);
+		}
 		$context_text = self::format_context_for_prompt( $context );
-		$tier_block   = Wf_Sn_Ai_Advisor_Feature_Tiers::get_feature_tier_instructions();
 		$system       = self::get_system_full_report() . "\n\n" . $tier_block;
 		return array(
 			'system_instruction' => $system,
@@ -44,7 +52,7 @@ class Wf_Sn_Ai_Advisor_Prompts {
 	public static function format_context_for_prompt( array $context ) {
 		$lines = array();
 		foreach ( $context as $key => $value ) {
-			if ( 'tests' === $key ) {
+			if ( 'tests' === $key || 'tests_with_guidance' === $key ) {
 				continue;
 			}
 			if ( is_bool( $value ) ) {
@@ -58,7 +66,78 @@ class Wf_Sn_Ai_Advisor_Prompts {
 		if ( ! empty( $context['tests'] ) && is_array( $context['tests'] ) ) {
 			$lines[] = 'tests: ' . wp_json_encode( $context['tests'] );
 		}
+		if ( ! empty( $context['tests_with_guidance'] ) && is_array( $context['tests_with_guidance'] ) ) {
+			$lines[] = 'tests_with_guidance: ' . wp_json_encode( $context['tests_with_guidance'] );
+		}
 		return implode( "\n", $lines );
+	}
+
+	/**
+	 * Chip prompts: strip internal keys and serialize.
+	 *
+	 * @param array $context Chip context.
+	 * @return string
+	 */
+	private static function format_chip_context_for_prompt( array $context ) {
+		$skip = array( 'prompt_id', 'parent_report_id', 'report_a', 'report_b', 'report_a_id', 'report_b_id' );
+		$lines = array();
+		foreach ( $context as $key => $value ) {
+			if ( in_array( $key, $skip, true ) ) {
+				continue;
+			}
+			if ( is_bool( $value ) ) {
+				$value = $value ? 'true' : 'false';
+			}
+			if ( is_array( $value ) ) {
+				$value = wp_json_encode( $value );
+			}
+			$lines[] = $key . ': ' . $value;
+		}
+		if ( ! empty( $context['report_a'] ) && is_string( $context['report_a'] ) ) {
+			$lines[] = 'latest_stored_full_report_json: ' . $context['report_a'];
+		}
+		if ( ! empty( $context['report_b'] ) && is_string( $context['report_b'] ) ) {
+			$lines[] = 'previous_stored_full_report_json: ' . $context['report_b'];
+		}
+		return implode( "\n", $lines );
+	}
+
+	/**
+	 * System block for a prompt chip (JSON-only answer).
+	 *
+	 * @param string $prompt_id Chip id.
+	 * @return string
+	 */
+	private static function get_system_prompt_chip( $prompt_id ) {
+		$base = 'You are a security advisor for WordPress (Security Ninja plugin). Answer using ONLY the context provided (current site data and any stored report JSON). Do not invent findings. Stay calm and practical: no hype, no fear-mongering, no marketing tone. Be brief.
+
+Return ONE JSON object only. No markdown fences. No text before or after the JSON.
+
+Language: Match ui_locale from context when set; otherwise English.
+
+';
+
+		switch ( $prompt_id ) {
+			case 'delta_since_last':
+				return $base . 'Task: Compare the latest vs previous stored full-report JSON with the CURRENT site context. Call out if stored reports may be stale vs current tests. Output JSON keys exactly:
+{"delta_summary":"string (2-4 short sentences)","new_items":["string"],"resolved_items":["string"],"priority_shifts":"string (1-2 sentences)","notes":"string (optional, short)"}
+Arrays may be empty. Be specific using text from the reports/tests; do not add issues not evidenced.';
+
+			case 'what_improved':
+				return $base . 'Task: Focus on what improved between the previous and latest stored full-report JSON and current context. Output JSON keys exactly:
+{"answer":"string (2-4 sentences)","bullets":["string"]}
+bullets optional (max 5 short items). Positive, factual tone.';
+
+			case 'what_next':
+			case 'most_urgent':
+			case 'what_can_wait':
+				return $base . 'Task: Prioritize next actions for this site using current context and the latest stored full-report JSON when present. For what_can_wait, name lower-priority items without sounding dismissive. Output JSON keys exactly:
+{"answer":"string (2-4 sentences)","bullets":["string"]}
+bullets optional (max 5).';
+
+			default:
+				return $base . 'Output JSON: {"answer":"string","bullets":[]}';
+		}
 	}
 
 	/**
@@ -94,7 +173,7 @@ class Wf_Sn_Ai_Advisor_Prompts {
 	private static function get_system_full_report() {
 		return 'You are a security advisor for WordPress. Produce a single combined report as ONE JSON object only. Do not add any text before or after the JSON. Do not wrap JSON in markdown code fences. Use ONLY the structured context provided.
 
-Assessment: Base your assessment solely on the test results and other context provided. The context includes a tests array: each item has testid, status, and when the test is failing or warning also summary and optionally details (plain-text findings such as plugin names, file names, or specific messages). Evaluate the importance and severity of findings from the actual content of these tests—what failed, what the summary and details say—and from the test counts, feature flags, and activity data. Do not rely on or refer to any pre-computed overall score or risk level. Draw your own conclusions about severity and priorities and express them in the executive summary and overview in plain language. You MUST use the exact finding text from the context when describing issues—do not infer or invent findings that are not present. Also use: test-status counts (tests_passed, tests_warning, tests_failed), security feature flags (firewall_enabled, login_protection_enabled, two_factor_enabled), blocked_logins_7d, xmlrpc_blocks_7d, firewall_events_7d, failed_logins_7d, plan_tier, attack_activity, ui_locale, ui_language_name. Do NOT say firewall, login protection, or 2FA are disabled if the context shows them as enabled. Do not mention upgrading, licenses, or premium in the response. Do not mention or output any single numeric overall security score (0–100 or similar) or overall risk label; describe strengths and weaknesses in plain language.
+Assessment: Base your assessment solely on the test results and other context provided. The context includes a tests array (testid, status, summary/details when present) and tests_with_guidance for failing/warning tests: each includes product-approved guidance text—use it as the authoritative explanation base; summarize and adapt, do not replace with generic advice. Evaluate severity from actual findings. You MUST use exact finding text from tests when describing issues. Use tests_passed, tests_warning, tests_failed, feature flags, activity counts, plan_tier, attack_activity, ui_locale. Do NOT say firewall, login protection, or 2FA are disabled if the context shows them enabled. Do not mention upgrading, licenses, or premium. Do not output a single numeric overall score or overall risk label.
 
 Product context: The user sees this report inside the WordPress plugin Security Ninja. The firewall, login protection, and 2FA flags refer to this plugin\'s Cloud Firewall, Login Protection, and 2FA features. When writing improvement details, refer to Security Ninja by name and to specific areas (e.g. Cloud Firewall, Login Protection) where it helps. Do NOT give generic numbered steps like "1. Open the security plugin dashboard" or "2. Locate the cloud firewall settings"—they sound vague and apply to any product. Either give one or two short, specific sentences (e.g. "In Security Ninja, enable the Cloud Firewall from the Cloud Firewall menu so traffic is inspected and blocked where needed.") or a brief explanation of why it matters.
 
@@ -103,9 +182,9 @@ Language: If the context contains non-empty ui_locale and ui_language_name, resp
 Structure (map your reasoning into the JSON fields):
 Formatting: Use newline characters between sentences or paragraphs in executive_summary, overview, and in long improvement details so the report displays with clear line breaks.
 
-1) EXECUTIVE SUMMARY (executive_summary): 2–4 sentences. It must include an insight on attack volume: whether blocked_logins_7d, firewall_events_7d, failed_logins_7d, and any attack_activity summary suggest activity is up, down, stable, or unknown in the last 7 days, and what that means in one sentence. Form your own conclusion from the test results and configuration: capture the overall security posture and the most critical takeaway based on the substance of the findings (what the tests actually report), not on a count of failures alone. Do not use or cite any pre-computed score or risk.
+1) EXECUTIVE SUMMARY (executive_summary): 2–3 short sentences. One sentence on attack volume (up/down/stable/unknown from counts and attack_activity). One or two sentences on posture and the single most important takeaway from real findings—not failure count alone. No score or risk label.
 
-2) OVERVIEW (overview): Short overview of the site security posture. Summarize the number of passing, warning, and failing tests, the key security features (for example, whether firewall, login protection, and 2FA are enabled), and any obvious configuration gaps or patterns in recent attack/activity metrics, without just repeating the executive summary. Form your own conclusion from the test results and configuration; do not mention or infer any single numeric overall score or overall risk label.
+2) OVERVIEW (overview): 2–4 short sentences. Passing/warning/failing counts, key feature flags, one pattern from activity if relevant. Do not repeat the executive summary verbatim.
 
 3) TOP IMPROVEMENTS (top_improvements): A prioritized array of the most impactful improvements (ONLY those available for the user\'s plan_tier). Base each improvement ONLY on failing or warning tests that appear in the context; do NOT invent or infer issues (e.g. do not mention "incompatible plugins" or "outdated plugins" or "dangerous files" unless the context contains a test with that finding and with summary/details). When the context provides summary or details for a test (e.g. plugin names, file names, specific messages), you MUST cite that exact information in the improvement title or details—e.g. "Update or replace the following plugins: [names from context]" or "Remove these files: [from context]". For each improvement you MUST:
 - Set a stable id (for example, "enable_firewall", "add_security_headers", "incompatible_plugins", "old_plugins", "dangerous_files").

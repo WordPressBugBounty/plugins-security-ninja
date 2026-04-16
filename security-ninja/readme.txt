@@ -6,7 +6,7 @@ License: GPLv3
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 Requires at least: 4.7
 Tested up to: 6.9
-Stable tag: 5.277
+Stable tag: 5.279
 Requires PHP: 7.4
 
 WordPress security plugin with free basic firewall/WAF, vulnerability and core scanning, and 50+ core integrity checks.
@@ -29,13 +29,13 @@ This plugin can be downloaded for free without any paid subscription from <a hre
 - **Vulnerability Scanner** – Highlights known issues in plugins/themes so you can patch faster.
 - **Core Scanner** – Detect modified or unexpected files in WordPress core folders.
 - **Basic Events Logger** – Logs **firewall events** and **login attempts (successful/failed)**.
+- **Security Advisor** – Turn your security test results into a short, easy-to-read summary and practical next steps (requires **WordPress 7** and an AI connection you set up in WordPress).
 
 **Pro adds**
 - **Advanced Malware Scanner** – Detect and clean malicious code and suspicious files.
 - **Advanced Firewall/WAF controls** – e.g. country blocking, stronger rules and automation.
 - **Secure Login & 2FA** – Add stronger authentication and login protections.
 - **Automation & reporting** – Scheduled scans, reports, and advanced tracking.
-- **AI Security Advisor** – Get a single, privacy-focused security report (no PII sent; uses WordPress 7 AI Connectors or WP Security Ninja AI).
 
 
 **Key Features**
@@ -128,6 +128,18 @@ Hackers and spammers use bots to exploit WordPress websites. Security Ninja prev
 - **Fake registrations and spam comments** – Stops bots from even getting to your site.
 - **Malicious bot attacks** – Blocks scripts attempting to hack your site.
 - **Unwanted traffic** – Reduces server load by preventing unnecessary bot access.
+
+**Security Advisor — from scan results to clear next steps**
+
+Understanding a security scan shouldn’t feel like homework. **Security Advisor** helps you make sense of what Security Ninja found: a concise summary of where things stand, what deserves attention first, and practical follow-up prompts you can run when you want more context—without turning the plugin into an open-ended chat bot.
+
+**What you need**  
+Security Advisor is available in the free plugin and uses **WordPress 7’s AI Connectors**. That means your site needs to be running **WordPress 7**, and **you** connect the AI service you want to use through **WordPress** (Connectors in your site settings). Security Ninja does not replace that step—you pick the provider and credentials you are comfortable with.
+
+**Privacy, in everyday language**  
+Only non-identifying information about your security checks is sent to your chosen AI service to build the report—so you get useful guidance without handing over personal or site-identifying details. Past reports stay on your site until you remove them.
+
+If you are not on WordPress 7 yet, you will see a simple notice on the Security Advisor screen; the rest of Security Ninja continues to work as usual.
 
 ---
 
@@ -332,6 +344,14 @@ While we strive for universal compatibility, if you face any issues, our support
 5. Core Scanner (detect modified/unknown core files).
 
 == Changelog ==
+
+= 5.279 =
+* 2026-04-15
+* Improved - AI Security Advisor interface and functionality - Big improvements.
+* FIX: Cloud Firewall — Failed login warning emails no longer cause a fatal error ("Class Wf_Sn_Security_Utils not found") when `wp_login_failed` ran before the `init` hook (e.g. another plugin handling login during `plugins_loaded`).
+* IMPROVED: Security Tests — long help text is no longer embedded on every plugin admin screen, so the dashboard stays lighter in memory and loads faster. 
+* Updated translation files
+
 
 = 5.277 =
 * 2026-04-04

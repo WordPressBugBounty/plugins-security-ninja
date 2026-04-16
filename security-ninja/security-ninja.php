@@ -5,7 +5,7 @@ Plugin Name: Security Ninja
 Plugin URI: https://wpsecurityninja.com/
 Description: Check your site for security vulnerabilities and get precise suggestions for corrective actions on passwords, user accounts, file permissions, database security, version hiding, plugins, themes, security headers and other security aspects.
 Author: WP Security Ninja
-Version: 5.277
+Version: 5.279
 Author URI: https://wpsecurityninja.com/
 License: GPLv3
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
@@ -117,8 +117,10 @@ if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
     // File viewer
     include_once WF_SN_PLUGIN_DIR . 'modules/file-viewer/class-fileviewer.php';
     include_once WF_SN_PLUGIN_DIR . 'modules/cloud-firewall/class-wf-sn-cf-utils.php';
+    include_once WF_SN_PLUGIN_DIR . 'modules/cloud-firewall/class-wf-sn-security-utils.php';
     include_once WF_SN_PLUGIN_DIR . 'modules/cloud-firewall/cloud-firewall.php';
     include_once WF_SN_PLUGIN_DIR . 'includes/class-wf-sn-utils.php';
+    include_once WF_SN_PLUGIN_DIR . 'includes/class-wf-sn-test-descriptions.php';
     include_once WF_SN_PLUGIN_DIR . 'includes/class-wf-sn-free-render.php';
     include_once WF_SN_PLUGIN_DIR . 'includes/class-wf-sn-crypto.php';
     include_once WF_SN_PLUGIN_DIR . 'modules/events-logger/events-logger.php';
@@ -191,7 +193,6 @@ if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
             // Load security tests
             include_once WF_SN_PLUGIN_DIR . 'class-wf-sn-tests.php';
             include_once WF_SN_PLUGIN_DIR . 'includes/class-wf-sn-utils.php';
-            include_once WF_SN_PLUGIN_DIR . 'modules/cloud-firewall/class-wf-sn-security-utils.php';
             // MainWP integration - run here to make sure it's loaded
             add_filter(
                 'mainwp_child_extra_execution',
@@ -206,6 +207,13 @@ if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
                 2
             );
             add_action( 'secnin_run_tests_event', array(__NAMESPACE__ . '\\Wf_Sn', 'do_event_run_tests') );
+            // Admin-ajax: register always; each callback enforces current_user_can( 'manage_options' ) (or stricter).
+            add_action( 'wp_ajax_sn_run_single_test', array(__NAMESPACE__ . '\\Wf_Sn', 'run_single_test') );
+            add_action( 'wp_ajax_sn_get_single_test_details', array(__NAMESPACE__ . '\\Wf_Sn', 'get_single_test_details') );
+            add_action( 'wp_ajax_sn_get_test_descriptions', array(__NAMESPACE__ . '\\Wf_Sn', 'get_test_descriptions') );
+            add_action( 'wp_ajax_sn_run_tests', array(__NAMESPACE__ . '\\Wf_Sn', 'run_tests') );
+            add_action( 'wp_ajax_sn_reset_secret_url', array(__NAMESPACE__ . '\\Wf_Sn', 'reset_secret_url') );
+            add_action( 'wp_ajax_wf_sn_dismiss_review', array(__NAMESPACE__ . '\\Wf_Sn', 'wf_sn_dismiss_review') );
             // does the user have enough privilages to use the plugin?
             if ( current_user_can( 'activate_plugins' ) ) {
                 // Adds extra permission to Freemius
@@ -238,12 +246,7 @@ if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
                 add_action( 'admin_init', array(__NAMESPACE__ . '\\Wf_Sn', 'register_settings') );
                 add_action( 'admin_init', array(__NAMESPACE__ . '\\Wf_Sn', 'do_action_admin_init') );
                 add_action( 'admin_init', array(__NAMESPACE__ . '\\Wf_Sn', 'maybe_upgrade_db'), 1 );
-                add_action( 'wp_ajax_sn_run_single_test', array(__NAMESPACE__ . '\\Wf_Sn', 'run_single_test') );
-                add_action( 'wp_ajax_sn_get_single_test_details', array(__NAMESPACE__ . '\\Wf_Sn', 'get_single_test_details') );
-                add_action( 'wp_ajax_sn_run_tests', array(__NAMESPACE__ . '\\Wf_Sn', 'run_tests') );
-                add_action( 'wp_ajax_sn_reset_secret_url', array(__NAMESPACE__ . '\\Wf_Sn', 'reset_secret_url') );
                 add_action( 'admin_notices', array(__NAMESPACE__ . '\\Utils', 'do_admin_notices') );
-                add_action( 'wp_ajax_wf_sn_dismiss_review', array(__NAMESPACE__ . '\\Wf_Sn', 'wf_sn_dismiss_review') );
                 add_action( 'admin_footer', array(__NAMESPACE__ . '\\Utils', 'admin_footer') );
                 add_action( 'secnin_signup_to_newsletter', array(__NAMESPACE__ . '\\Utils', 'signup_to_newsletter') );
                 add_filter( 'manage_users_columns', array(__NAMESPACE__ . '\\Utils', 'add_user_last_login_column') );
@@ -1286,6 +1289,7 @@ if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
             $out .= '<span class="runtestsbn spinner"></span>';
             $out .= '<div id="secninja-tests-quickselect">';
             $out .= '<span>' . __( 'Quick Filter', 'security-ninja' ) . ':</span><ul><li><a href="#" id="sn-quickselect-all">' . __( 'All', 'security-ninja' ) . '</a></li><li><a href="#" id="sn-quickselect-failed">' . __( 'Failed', 'security-ninja' ) . '</a></li><li><a href="#"  id="sn-quickselect-warning">' . __( 'Warning', 'security-ninja' ) . '</a></li><li><a href="#" id="sn-quickselect-okay">' . __( 'Passed', 'security-ninja' ) . '</a></li><li><a href="#" id="sn-quickselect-untested">' . __( 'Untested', 'security-ninja' ) . '</a></li></ul>';
+            $out .= ' <span class="secnin-expand-all-wrap">| <a href="#" class="secnin_expand_all_details">' . esc_html__( 'Expand all details', 'security-ninja' ) . '</a></span>';
             $out .= '</div></div>';
             $out .= '<table class="wp-list-table widefat" cellspacing="0" id="security-ninja">';
             $out .= '<thead><tr>';
@@ -1435,6 +1439,27 @@ if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
                 wp_send_json_error();
             }
             die;
+        }
+
+        /**
+         * Returns long help text for all security tests (JSON) for lazy-loaded UI.
+         *
+         * @since 5.278
+         * @return void
+         */
+        public static function get_test_descriptions() {
+            if ( defined( 'DOING_AJAX' ) && DOING_AJAX ) {
+                check_ajax_referer( 'wf_sn_run_tests' );
+            }
+            if ( !current_user_can( 'manage_options' ) ) {
+                wp_send_json_error( array(
+                    'message' => __( 'Failed.', 'security-ninja' ),
+                ) );
+            }
+            $payload = Wf_Sn_Test_Descriptions::get_payload_for_tests_ui();
+            wp_send_json_success( array(
+                'tests' => $payload,
+            ) );
         }
 
         /**

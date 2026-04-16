@@ -302,7 +302,7 @@ class Wf_Sn_Dashboard_Widget {
             $options = \WPSecurityNinja\Plugin\AiAdvisor\Wf_Sn_Ai_Advisor_Page::get_options();
             $site_registered = !empty( $options['site_registered'] );
             $ready = $available && (is_array( $configured ) && count( $configured ) > 0 || $site_registered);
-            $reports = ( $available ? \WPSecurityNinja\Plugin\AiAdvisor\Wf_Sn_Ai_Advisor_Reports::get_reports( 1, 0 ) : array() );
+            $reports = ( $available ? \WPSecurityNinja\Plugin\AiAdvisor\Wf_Sn_Ai_Advisor_Reports::get_reports( 1, 0, 'full_report' ) : array() );
             $has_reports = is_array( $reports ) && isset( $reports[0] );
             $state = 1;
             $last_reviewed = '';

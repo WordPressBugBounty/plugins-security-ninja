@@ -10,6 +10,7 @@
  */
 namespace WPSecurityNinja\Plugin\AiAdvisor;
 
+use WPSecurityNinja\Plugin\Wf_Sn_Test_Descriptions;
 use function WPSecurityNinja\Plugin\secnin_fs;
 if ( !defined( 'ABSPATH' ) ) {
     exit;
@@ -52,12 +53,47 @@ class Wf_Sn_Ai_Advisor_Payload {
             'login_protection_enabled' => $flags['login_protection_enabled'],
             'two_factor_enabled'       => $flags['two_factor_enabled'],
             'tests'                    => $tests,
+            'tests_passed'             => ( isset( $count_data['good'] ) ? (int) $count_data['good'] : 0 ),
+            'tests_warning'            => ( isset( $count_data['warning'] ) ? (int) $count_data['warning'] : 0 ),
+            'tests_failed'             => ( isset( $count_data['bad'] ) ? (int) $count_data['bad'] : 0 ),
+            'tests_with_guidance'      => self::build_tests_with_guidance( $tests ),
             'plan_tier'                => $plan_tier,
             'attack_activity'          => $attack_state,
             'ui_locale'                => $ui_locale,
             'ui_language_name'         => $ui_locale,
         );
         return $context;
+    }
+
+    /**
+     * Failing/warning tests with product guidance text for AI (no HTML).
+     *
+     * @param array $tests From get_test_results_safe().
+     * @return array<int, array<string, mixed>>
+     */
+    private static function build_tests_with_guidance( array $tests ) {
+        if ( !class_exists( '\\WPSecurityNinja\\Plugin\\Wf_Sn_Test_Descriptions' ) ) {
+            return array();
+        }
+        $out = array();
+        foreach ( $tests as $t ) {
+            if ( !is_array( $t ) || empty( $t['testid'] ) ) {
+                continue;
+            }
+            $status = ( isset( $t['status'] ) ? (int) $t['status'] : 10 );
+            // 10 = pass; 0 = fail; 5 = warning (Security Ninja test convention).
+            if ( 10 === $status ) {
+                continue;
+            }
+            $guidance = Wf_Sn_Test_Descriptions::get_guidance_for_ai( (string) $t['testid'] );
+            if ( '' === $guidance['guidance'] && '' === $guidance['title'] ) {
+                continue;
+            }
+            $row = $t;
+            $row['guidance'] = $guidance;
+            $out[] = $row;
+        }
+        return $out;
     }
 
     /**
@@ -155,6 +191,7 @@ class Wf_Sn_Ai_Advisor_Payload {
             $status = ( isset( $row['status'] ) ? (int) $row['status'] : 0 );
             $entry = array(
                 'testid' => $testid,
+                'status' => $status,
             );
             $msg = ( isset( $row['msg'] ) ? $row['msg'] : '' );
             $details = ( isset( $row['details'] ) ? $row['details'] : '' );
