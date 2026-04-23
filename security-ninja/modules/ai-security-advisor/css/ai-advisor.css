@@ -269,7 +269,7 @@
 .wf-sn-ai-advisor-page .wf-sn-ai-waiting-tip.wf-sn-ai-tip-visible {
 	max-width: initial;
 	margin: 0px 10px 10px 10px;
-	width: 100%;
+	width: auto;
 	opacity: 1;
 	transform: translateY(0);
 }

@@ -1505,12 +1505,11 @@ class Wf_Sn_El {
 										</tr>
 									</tbody>
 								</table>
-								<div>
-									<?php 
+								<div<?php 
         if ( secnin_fs()->can_use_premium_code() ) {
             echo ' style="display:none;"';
         }
-        ?>
+        ?>>
 								<div class="sncard infobox" style="margin-top: 20px;">
 									<div class="inner">
 										<h3>Upgrade to Pro for Advanced Event Auditing</h3>

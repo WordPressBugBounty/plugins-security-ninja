@@ -1,10 +1,11 @@
 <?php
 
 /**
- * AI Security Advisor – privacy-safe payload for AI context.
+ * AI Security Advisor – payload for AI context.
  *
  * Single source of truth: feature flags, test results (testid, status, summary/details when present),
- * and aggregated counts. No domain, URLs, IPs, usernames, emails, or file paths.
+ * and aggregated counts. Plain text sent to the model is stripped of HTML and passed through
+ * redact_sensitive_for_ai() to reduce filesystem paths and known username patterns from test output.
  *
  * @package Security_Ninja
  */
@@ -24,7 +25,7 @@ class Wf_Sn_Ai_Advisor_Payload {
      *
      * @param string $request_type       Request type; only full_report is used. Kept for API consistency.
      * @param string $ui_locale_override Optional UI locale override for this request.
-     * @return array Context array safe for JSON; no PII.
+     * @return array Context array safe for JSON (paths/usernames in test copy redacted for AI).
      */
     public static function build( $request_type = 'full_report', $ui_locale_override = '' ) {
         $count_data = self::get_test_counts();
@@ -88,6 +89,18 @@ class Wf_Sn_Ai_Advisor_Payload {
             $guidance = Wf_Sn_Test_Descriptions::get_guidance_for_ai( (string) $t['testid'] );
             if ( '' === $guidance['guidance'] && '' === $guidance['title'] ) {
                 continue;
+            }
+            $tid = sanitize_key( (string) $t['testid'] );
+            foreach ( array(
+                'title',
+                'short',
+                'guidance',
+                'caveats',
+                'fix_hints'
+            ) as $gk ) {
+                if ( isset( $guidance[$gk] ) && is_string( $guidance[$gk] ) && '' !== $guidance[$gk] ) {
+                    $guidance[$gk] = self::redact_sensitive_for_ai( $guidance[$gk], $tid );
+                }
             }
             $row = $t;
             $row['guidance'] = $guidance;
@@ -153,17 +166,96 @@ class Wf_Sn_Ai_Advisor_Payload {
     }
 
     /**
-     * Strip HTML and normalize to plain text for AI context (privacy-safe: no paths, domains, IPs).
+     * Strip HTML and normalize to plain text for AI context, then redact paths and known username patterns.
      *
-     * @param string $text Raw text possibly containing HTML.
+     * @param string $text   Raw text possibly containing HTML.
+     * @param string $testid Optional test slug; when `user_exists`, username-regex redaction is skipped for that test's copy (admin check).
      * @return string
      */
-    private static function strip_html_for_context( $text ) {
+    private static function strip_html_for_context( $text, $testid = '' ) {
         if ( !is_string( $text ) || '' === $text ) {
             return '';
         }
         $text = wp_strip_all_tags( $text );
-        return trim( $text );
+        $text = trim( $text );
+        return self::redact_sensitive_for_ai( $text, $testid );
+    }
+
+    /**
+     * Remove or neutralize filesystem paths and Security Ninja test message usernames before sending text to AI.
+     *
+     * Skips username-pattern redaction for test `user_exists` so the model still sees the literal `admin` check result.
+     *
+     * @param string $text   Plain text.
+     * @param string $testid Optional test slug (see strip_html_for_context).
+     * @return string
+     */
+    public static function redact_sensitive_for_ai( $text, $testid = '' ) {
+        if ( !is_string( $text ) || '' === $text ) {
+            return '';
+        }
+        $original = $text;
+        // WordPress install paths: replace longest prefixes first (ABSPATH before its parent directory).
+        if ( defined( 'ABSPATH' ) && is_string( ABSPATH ) && '' !== ABSPATH ) {
+            $abs_norm = wp_normalize_path( ABSPATH );
+            $parent_norm = wp_normalize_path( dirname( $abs_norm ) );
+            $pairs = array();
+            foreach ( array($abs_norm, $parent_norm) as $base ) {
+                if ( '' === $base || '.' === $base ) {
+                    continue;
+                }
+                $slug = ( $base === $abs_norm ? '[WP_ROOT]' : '[WP_PARENT]' );
+                foreach ( array(trailingslashit( $base ), untrailingslashit( $base )) as $variant ) {
+                    if ( '' !== $variant && strlen( $variant ) > 1 ) {
+                        $pairs[$variant] = $slug;
+                    }
+                }
+            }
+            uksort( $pairs, function ( $a, $b ) {
+                return strlen( $b ) - strlen( $a );
+            } );
+            foreach ( $pairs as $from => $to ) {
+                if ( strpos( $text, $from ) !== false ) {
+                    $text = str_replace( $from, $to, $text );
+                }
+            }
+        }
+        // Common dev home-directory segments not covered by ABSPATH alone.
+        $path_replacements = array(
+            '#/Users/[^/]+/#'                           => '/Users/[user]/',
+            '#/home/[^/]+/#'                            => '/home/[user]/',
+            '#(?i)([a-z]:\\\\Users\\\\)[^\\\\]+(\\\\)#' => '$1[user]$2',
+        );
+        $username_replacements = array(
+            '/(The user with ID 1 exists, and the username is)\\s+.+?\\./u' => '$1 [redacted].',
+            '/(User\\s+")([^"]+)("\\s+exists\\.)/u'                         => '$1[redacted]$3',
+            '/(User\\s+")([^"]+)("\\s+does not exist\\.)/u'                 => '$1[redacted]$3',
+            '/(Vulnerable accounts:)\\s*.+$/um'                             => '$1 [redacted]',
+            '/(Unexpected MySQL current user host:)\\s*.+$/um'              => '$1 [redacted]',
+        );
+        $replacements = $path_replacements;
+        if ( 'user_exists' !== sanitize_key( (string) $testid ) ) {
+            $replacements = array_merge( $replacements, $username_replacements );
+        }
+        foreach ( $replacements as $pattern => $replacement ) {
+            $next = preg_replace( $pattern, $replacement, $text );
+            if ( is_string( $next ) ) {
+                $text = $next;
+            }
+        }
+        /**
+         * Filter plain text after AI advisor path/username redaction.
+         *
+         * @param string $text     Redacted text.
+         * @param string $original Original plain text before redaction.
+         * @param string $testid   Test slug passed to redact_sensitive_for_ai(), or empty string.
+         */
+        return (string) apply_filters(
+            'wf_sn_ai_advisor_redacted_text',
+            $text,
+            $original,
+            $testid
+        );
     }
 
     /**
@@ -196,10 +288,10 @@ class Wf_Sn_Ai_Advisor_Payload {
             $msg = ( isset( $row['msg'] ) ? $row['msg'] : '' );
             $details = ( isset( $row['details'] ) ? $row['details'] : '' );
             if ( '' !== $msg ) {
-                $entry['summary'] = self::strip_html_for_context( $msg );
+                $entry['summary'] = self::strip_html_for_context( $msg, $testid );
             }
             if ( '' !== $details ) {
-                $entry['details'] = self::strip_html_for_context( $details );
+                $entry['details'] = self::strip_html_for_context( $details, $testid );
             }
             $out[] = $entry;
         }

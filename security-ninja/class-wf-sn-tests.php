@@ -2764,8 +2764,8 @@ class Wf_Sn_Tests extends WF_SN {
 
 
 	/**
-	 * check if any active plugin hasn't been updated in last 365 days
-	 * Note: This function stores details about plugins and stores it in an option for later use in incompatible_plugins() - This test needs to be run before incompatible_plugins().
+	 * Check if any active plugin hasn't been updated in last 365 days.
+	 * Uses WordPress.org plugin information in this request only (nothing persisted to wp_options).
 	 *
 	 * @author  Lars Koudal
 	 * @since   v0.0.1
@@ -2774,11 +2774,10 @@ class Wf_Sn_Tests extends WF_SN {
 	 * @return  mixed
 	 */
 	public static function old_plugins() {
-		$return               = array();
-		$good                 = array();
-		$bad                  = array();
-		$wf_sn_active_plugins = array();
-		$active_plugins       = get_option( 'active_plugins', array() );
+		$return         = array();
+		$good           = array();
+		$bad            = array();
+		$active_plugins = get_option( 'active_plugins', array() );
 
 		foreach ( $active_plugins as $plugin_path ) {
 			if ( empty( $plugin_path ) ) {
@@ -2807,8 +2806,7 @@ class Wf_Sn_Tests extends WF_SN {
 				continue;
 			}
 
-			$wf_sn_active_plugins[ $plugin_path ] = $details;
-			$updated                              = strtotime( $details['last_updated'] );
+			$updated = strtotime( $details['last_updated'] );
 
 			if ( $updated + 365 * DAY_IN_SECONDS < time() ) {
 				$bad[ $plugin_path ] = true;
@@ -2816,8 +2814,6 @@ class Wf_Sn_Tests extends WF_SN {
 				$good[ $plugin_path ] = true;
 			}
 		}
-
-		update_option( 'wf_sn_active_plugins', $wf_sn_active_plugins, false );
 
 		if ( empty( $bad ) && empty( $good ) ) {
 			$return['status'] = 5;
@@ -2893,7 +2889,7 @@ class Wf_Sn_Tests extends WF_SN {
 		} // foreach active plugin
 
 		if ( empty( $wf_sn_active_plugins ) ) {
-			// No active plugins stored from the old_plugins() test
+			// No plugin data returned from the WordPress.org API for any active plugin.
 			return array(
 				'status' => 0,
 				'msg'    => esc_html__( 'No active plugins to check.', 'security-ninja' ),

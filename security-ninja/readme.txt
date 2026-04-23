@@ -5,8 +5,8 @@ Tags: security, firewall, waf, vulnerability, malware
 License: GPLv3
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 Requires at least: 4.7
-Tested up to: 6.9
-Stable tag: 5.279
+Tested up to: 7.0
+Stable tag: 5.281
 Requires PHP: 7.4
 
 WordPress security plugin with free basic firewall/WAF, vulnerability and core scanning, and 50+ core integrity checks.
@@ -344,6 +344,19 @@ While we strive for universal compatibility, if you face any issues, our support
 5. Core Scanner (detect modified/unknown core files).
 
 == Changelog ==
+
+= 5.281 =
+* 2026-04-22
+* FIX: 2FA — Post-verification redirects now match WordPress core validation for relative and absolute `redirect_to` URLs ( Rename Login compatible ). AJAX responses always include a safe `redir_to` / `redirect_url` with `admin_url()` fallback so editors and other roles are not sent to the front page unexpectedly. Thank you Davina.
+* IMPROVED: Security Tests — the "outdated plugins" check no longer saves full WordPress.org plugin metadata to the database. Thank you Davina.
+* IMPROVED: AI Security Advisor — improved PII handling.
+* FIX: Malware Scanner — "Revert Whitelist" now correctly persists file removal, so reverted files no longer reappear after page reload. Thank you Vassos.
+* IMPROVED: Malware Scanner — respects the same ignore paths as the scanner library during filesystem traversal (e.g. `wp-admin/` and `wp-includes/`), so WordPress core files are no longer signature-scanned when already excluded—use Core Scanner for core integrity.
+* IMPROVED: Malware Scanner — WordPress core JS bundles under `wp-includes/js/dist/` and `wp-admin/js/` are excluded from malware pattern matching by default (fewer false positives on minified/vendor scripts). Plugins, themes, and uploads are still scanned.
+
+= 5.280 =
+* 2026-04-17
+* Fix for display bug on Events -> Settings subtab. Thank you Aldin for spotting it.
 
 = 5.279 =
 * 2026-04-15
