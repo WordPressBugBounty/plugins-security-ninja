@@ -623,12 +623,21 @@
 	margin-top: 0;
 	flex: 1 1 220px;
 }
-.wf-sn-ai-generate-btn .dashicons {
+/* Override wp-includes/css/buttons.css (.wp-core-ui .button .dashicons line-height 1.9, vertical-align top) */
+.wp-core-ui .wf-sn-ai-advisor-page .wf-sn-ai-generate-btn.button .dashicons {
 	font-size: 18px;
 	width: 18px;
 	height: 18px;
+	min-width: 18px;
+	line-height: 1;
+	margin: 0;
+	padding: 0;
 	vertical-align: middle;
-	margin-right: 4px;
+	/* Taller strut from core 1.9 line-height was pushing the icon off; flex centers the ::before glyph */
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	flex-shrink: 0;
 }
 .wf-sn-ai-rescan-details {
 	margin: 14px 0 0 0;
@@ -1049,7 +1058,6 @@
 .wf-sn-ai-advisor-page .wf-sn-ai-generate-primary-wrap .wf-sn-ai-generate-btn.button-large {
 	width: 100%;
 	box-sizing: border-box;
-	justify-content: center;
 	padding: 14px 22px;
 	height: auto;
 	font-size: 15px;
@@ -1113,6 +1121,13 @@
 	border: 1px solid var(--wf-sn-ai-border);
 	border-radius: var(--wf-sn-ai-radius);
 	gap: 12px 14px;
+}
+
+.wp-core-ui .wf-sn-ai-advisor-page .wf-sn-ai-generate-btn.button {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	gap: 6px;
 }
 
 .wp-core-ui .wf-sn-ai-advisor-page .wf-sn-ai-generate-btn.button-primary,

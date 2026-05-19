@@ -6,7 +6,7 @@ License: GPLv3
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 Requires at least: 4.7
 Tested up to: 7.0
-Stable tag: 5.281
+Stable tag: 5.283
 Requires PHP: 7.4
 
 WordPress security plugin with free basic firewall/WAF, vulnerability and core scanning, and 50+ core integrity checks.
@@ -344,6 +344,25 @@ While we strive for universal compatibility, if you face any issues, our support
 5. Core Scanner (detect modified/unknown core files).
 
 == Changelog ==
+
+= 5.283 =
+* 2026-05-18
+* FIX: Cloud Firewall (Pro) — Satellite ASN softening now works consistently across country blocking (including Starlink).
+* FIX: 2FA setup during frontend login now shows the manual entry secret key again, matching the backend user profile setup flow.
+* IMPROVED: Cloud Firewall (Pro) — IP Management shows your blacklist, whitelist, and temporary blocks in one searchable table, so you can see everything in one place.
+* IMPROVED: Add, edit, and remove IP rules directly from the table; add several at once with one IP or range per line.
+* IMPROVED: Copy your full blacklisted or whitelisted lists, or clear temporary blocks, from easy buttons below the table.
+
+= 5.282 =
+* 2026-05-05
+* FIX: Two-factor authentication (Pro) — When 2FA is enabled but required roles were missing or invalid, login could skip the 2FA step. Security Ninja now falls back to requiring **Administrator** so the code prompt always appears for protected accounts.
+* FIX: Saving 2FA status would fail if firewall not enabled. Thank you Vassos.
+* Added a new Tools-page Cleanup button. Securely removes any legacy options or data. Thank you Davina for the idea.
+* FIX: Cloud Firewall (Pro) — Clearing **all** countries in country blocking and saving now actually turns country blocking off. Previously, choosing “none” could leave old selections in place because empty lists were not saved correctly.
+* IMPROVED: Cloud Firewall — IP whitelist entries written as **ranges** (CIDR, one per line on IP Management) now apply the same way everywhere: visitor checks, secret recovery links, and automatic whitelist logic no longer treat ranges like plain single IPs only in some code paths.
+* NEW: Cloud Firewall (Pro) — Option to soften country blocking for satellite ISPs like Starlink. Easily enable or adjust under Firewall → Settings for smoother access while keeping strong protection.
+* IMPROVED: Cloud Firewall (Pro) — If a country or cloud block is skipped because the visitor is using a satellite ISP (satellite ASN softening), you'll now see this clearly in the Events log.
+
 
 = 5.281 =
 * 2026-04-22

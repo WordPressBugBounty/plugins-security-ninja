@@ -5,7 +5,7 @@ Plugin Name: Security Ninja
 Plugin URI: https://wpsecurityninja.com/
 Description: Check your site for security vulnerabilities and get precise suggestions for corrective actions on passwords, user accounts, file permissions, database security, version hiding, plugins, themes, security headers and other security aspects.
 Author: WP Security Ninja
-Version: 5.281
+Version: 5.283
 Author URI: https://wpsecurityninja.com/
 License: GPLv3
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
@@ -139,6 +139,11 @@ if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
          */
         public static $version = null;
 
+        /**
+         * Cached dashboard test score payload.
+         *
+         * @var array<string, int|string>|null
+         */
         public static $test_scores = null;
 
         /**
@@ -155,6 +160,11 @@ if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
          */
         public static $skip_tests = array();
 
+        /**
+         * Plugin options.
+         *
+         * @var array<string, mixed>
+         */
         public static $options;
 
         /**
@@ -299,7 +309,8 @@ if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
                 if ( !method_exists( $class_with_namespace, $test_name ) ) {
                     continue;
                 }
-                // Call the method dynamically
+                // Start timer and call the test dynamically.
+                \WPSecurityNinja\Plugin\Utils::timerstart( 'run_test_' . esc_attr( $test_name ) );
                 $response = $class_with_namespace::$test_name();
                 if ( !is_array( $response ) || empty( $response ) ) {
                     continue;
@@ -319,7 +330,7 @@ if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
                     'score'  => $test['score'],
                     'msg'    => $return_message,
                 );
-                $end_time = \WPSecurityNinja\Plugin\Utils::timerstart( 'run_test_' . esc_attr( $test_name ) );
+                $end_time = \WPSecurityNinja\Plugin\Utils::timerstop( 'run_test_' . esc_attr( $test_name ) );
                 $testresult = array(
                     'testid'    => $test_name,
                     'timestamp' => current_time( 'mysql' ),
@@ -352,7 +363,6 @@ if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
          * @version v1.0.0  Tuesday, February 22nd, 2022.
          * @version v1.0.1  Saturday, March 5th, 2022.
          * @access  public static
-         * @global
          * @return  void
          */
         public static function do_action_admin_init() {
@@ -362,6 +372,12 @@ if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
                 delete_transient( 'sn_secret_url_reset_success' );
                 add_action( 'admin_notices', function () use($reset_success_url) {
                     echo '<div class="notice notice-success secnin-notice"><p>' . esc_html__( 'Secret access URL has been reset successfully.', 'security-ninja' ) . ' <strong>' . esc_html__( 'New URL:', 'security-ninja' ) . '</strong> <code>' . esc_url( $reset_success_url ) . '</code></p></div>';
+                } );
+            }
+            // Check for cleanup success notice.
+            if ( isset( $_GET['legacy_cleanup'] ) && 'success' === sanitize_text_field( wp_unslash( $_GET['legacy_cleanup'] ) ) ) {
+                add_action( 'admin_notices', function () {
+                    echo '<div class="notice notice-success secnin-notice"><p>' . esc_html__( 'Cleanup completed successfully.', 'security-ninja' ) . '</p></div>';
                 } );
             }
             $target_admin_url = 'admin.php?page=wf-sn';
@@ -1647,7 +1663,7 @@ if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
          * @since   v0.0.1
          * @version v1.0.0  Thursday, January 14th, 2021.
          * @access  public static
-         * @param   boolean $return Default: false
+         * @param   bool $return_response Default: false.
          * @return  void
          */
         public static function run_tests( $return_response = false ) {
@@ -1684,6 +1700,7 @@ if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
                 $json_response['step'] = $step;
             }
             $security_tests = \WPSecurityNinja\Plugin\Wf_Sn_Tests::return_security_tests();
+            $totaltests = 0;
             if ( $security_tests ) {
                 $totaltests = count( $security_tests );
                 $json_response['totaltests'] = $totaltests;
@@ -1791,6 +1808,7 @@ if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
             \WPSecurityNinja\Plugin\Utils::timerstart( 'wf_sn_run_all_tests' );
             $security_tests = wf_sn_tests::return_security_tests();
             $resultssofar = array();
+            $json_response = array();
             $set_time_limit = set_time_limit( 200 );
             $loop_count = 1;
             $resultssofar['last_run'] = time();

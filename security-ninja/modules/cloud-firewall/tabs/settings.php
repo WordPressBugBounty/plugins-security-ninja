@@ -198,7 +198,9 @@ function wf_sn_cf_render_settings_content(  $options, $ips = array()  ) {
         echo '<tr><td class="fullwidth" colspan="2">';
         $countrylist_uri = WF_SN_PLUGIN_DIR . 'modules/cloud-firewall/class-sn-geoip-countrylist.php';
         require_once $countrylist_uri;
+        // Sentinel: HTML multi-select with zero selections sends no blocked_countries keys; sanitize_settings uses this to persist [].
         ?>
+						<input type="hidden" name="wf_sn_cf[blocked_countries_present]" value="1" />
 						<select name="wf_sn_cf[blocked_countries][]" id="wf_sn_cf_blocked_countries" multiple="multiple" style="width:100%;" class="">
 							<?php 
         $blocked_countries = \WPSecurityNinja\Plugin\wf_sn_cf::get_blocked_countries();
@@ -247,6 +249,47 @@ function wf_sn_cf_render_settings_content(  $options, $ips = array()  ) {
             'option_key'  => WF_SN_CF_OPTIONS_KEY . '[countryblock_loginonly]',
         ) );
         ?>
+							</td>
+						</tr>
+
+						<tr>
+							<td colspan="2"><hr></td>
+						</tr>
+						<tr valign="top">
+							<th scope="row">
+								<label for="wf_sn_cf_satellite_soft_enabled">
+									<h3><?php 
+        esc_html_e( 'Satellite ISP softening (ASN)', 'security-ninja' );
+        ?></h3>
+									<p class="description"><?php 
+        esc_html_e( 'Reduce false blocks on satellite connections (e.g. Starlink) by detecting the ISP autonomous system number (ASN). When matched, country blocking and cloud reputation lists may be softened—not manual blocks, login/brute-force limits, or suspicious-request filtering.', 'security-ninja' );
+        ?></p>
+								</label>
+							</th>
+							<td class="sn-cf-options">
+								<?php 
+        $satellite_on = ( isset( $options['satellite_soft_enabled'] ) ? $options['satellite_soft_enabled'] : 1 );
+        \WPSecurityNinja\Plugin\Utils::create_toggle_switch( WF_SN_CF_OPTIONS_KEY . '_satellite_soft_enabled', array(
+            'saved_value' => $satellite_on,
+            'option_key'  => WF_SN_CF_OPTIONS_KEY . '[satellite_soft_enabled]',
+        ) );
+        ?>
+								<p class="description" style="margin-top:10px;">
+									<label for="wf_sn_cf_satellite_soft_asns"><?php 
+        esc_html_e( 'ASN numbers to treat as satellite/residential (comma or space separated). Default includes Starlink (14593).', 'security-ninja' );
+        ?></label>
+								</p>
+								<?php 
+        $asns = ( isset( $options['satellite_soft_asns'] ) && is_array( $options['satellite_soft_asns'] ) ? $options['satellite_soft_asns'] : array('14593') );
+        ?>
+								<input type="text" class="regular-text" id="wf_sn_cf_satellite_soft_asns" name="<?php 
+        echo esc_attr( WF_SN_CF_OPTIONS_KEY );
+        ?>[satellite_soft_asns]" value="<?php 
+        echo esc_attr( implode( ', ', array_map( 'strval', $asns ) ) );
+        ?>" />
+								<p class="description"><?php 
+        esc_html_e( 'ASN is resolved on demand when a visitor would otherwise be blocked by country or cloud reputation, then cached per IP.', 'security-ninja' );
+        ?></p>
 							</td>
 						</tr>
 

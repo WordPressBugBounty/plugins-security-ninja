@@ -13,7 +13,10 @@
   background-color: rgba(0, 0, 0, 0.5);
 }
 
-
+.sn-cf-ip-management .form-table td {
+  padding-left: 0px;
+  padding-right: 0;
+}
 
 
 .disabled-link {
@@ -152,4 +155,390 @@
   background:#eb1e22;
   color:#ffffff;
   padding:10px 0;
+}
+
+/* IP Management */
+.sn-cf-quick-whitelist {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px 24px;
+  max-width: 640px;
+}
+
+@media (max-width: 782px) {
+  .sn-cf-quick-whitelist {
+    grid-template-columns: 1fr;
+  }
+}
+
+.sn-cf-quick-whitelist-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.sn-cf-quick-whitelist-item label {
+  font-weight: 600;
+  margin: 0;
+}
+
+.sn-cf-quick-whitelist-note {
+  margin-top: 12px;
+}
+
+.sn-cf-manage-ip-lists {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  max-width: 100%;
+}
+
+@media (max-width: 782px) {
+  .sn-cf-manage-ip-lists {
+    grid-template-columns: 1fr;
+  }
+}
+
+.sn-cf-manage-ip-col label {
+  display: block;
+  margin-bottom: 6px;
+}
+
+.sn-cf-manage-ip-col textarea {
+  width: 100%;
+  min-height: 120px;
+}
+
+.sn-cf-ip-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+
+.sn-cf-ip-toolbar-top {
+  margin-bottom: 12px;
+}
+
+.sn-cf-ip-toolbar-below {
+  margin-top: 14px;
+}
+
+.sn-cf-ip-toolbar-filters,
+.sn-cf-ip-toolbar-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.sn-cf-ip-notice {
+  margin: 8px 0;
+  padding: 8px 12px;
+  background: #d4edda;
+  border-left: 4px solid #28a745;
+  color: #155724;
+}
+
+.sn-cf-ip-notice:empty {
+  display: none;
+}
+
+.sn-cf-ip-notice.sn-cf-ip-notice-error {
+  background: #f8d7da;
+  border-left-color: #dc3545;
+  color: #721c24;
+}
+
+.sn-cf-status-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 3px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.sn-cf-status-whitelisted {
+  background: #d4edda;
+  color: #155724;
+}
+
+.sn-cf-status-blacklisted {
+  background: #f8d7da;
+  color: #721c24;
+}
+
+.sn-cf-ip-table-wrap {
+  position: relative;
+  min-height: 80px;
+}
+
+.sn-cf-ip-table-wrap--loading .sn-cf-ip-table,
+.sn-cf-ip-table-wrap--loading .sn-cf-ip-pagination {
+  opacity: 0.45;
+  pointer-events: none;
+  user-select: none;
+}
+
+.sn-cf-ip-table-loading {
+  display: none;
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.sn-cf-ip-table-wrap--loading .sn-cf-ip-table-loading {
+  display: flex;
+}
+
+.sn-cf-ip-table-loading .spinner {
+  float: none;
+  margin: 0;
+  visibility: visible;
+}
+
+.sn-cf-ip-pagination {
+  margin-top: 10px;
+}
+
+.sn-cf-ip-pagination-pages {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+}
+
+.sn-cf-ip-pagination-pages .button {
+  margin: 0;
+  float: none;
+}
+
+.sn-cf-ip-pagination-pages .sn-cf-ip-page-num {
+  min-width: 2.25em;
+  text-align: center;
+}
+
+.sn-cf-ip-pagination-pages .sn-cf-ip-page-num.sn-cf-ip-page-current {
+  background: #f0f0f1;
+  border-color: #8c8f94;
+  color: #1d2327;
+  box-shadow: inset 0 0 0 1px #8c8f94;
+}
+
+.sn-cf-ip-table {
+  table-layout: auto;
+  width: 100%;
+}
+
+.sn-cf-ip-table tbody td,
+.sn-cf-ip-table thead th {
+  padding-top: 5px;
+  padding-bottom: 5px;
+  vertical-align: middle;
+}
+
+.sn-cf-ip-table th.column-ip,
+.sn-cf-ip-table td.column-ip {
+  min-width: 160px;
+  padding-left: 12px;
+  padding-right: 10px;
+}
+
+.sn-cf-ip-table th.column-status,
+.sn-cf-ip-table td.column-status {
+  white-space: nowrap;
+  padding-left: 8px;
+  padding-right: 8px;
+}
+
+.sn-cf-ip-table th.column-details,
+.sn-cf-ip-table td.column-details {
+  padding-left: 8px;
+  padding-right: 8px;
+}
+
+.sn-cf-ip-table th.column-actions,
+.sn-cf-ip-table td.column-actions {
+  width: 110px;
+  min-width: 110px;
+  white-space: nowrap;
+  padding-left: 8px;
+  padding-right: 12px;
+  text-align: right;
+  vertical-align: middle;
+}
+
+.sn-cf-ip-row-actions {
+  display: inline-flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+}
+
+.sn-cf-ip-address {
+  word-break: break-all;
+  white-space: normal;
+}
+
+.sn-cf-ip-details {
+  font-size: 12px;
+  line-height: 1.35;
+  color: #50575e;
+}
+
+.sn-cf-ip-detail-line {
+  display: block;
+  margin-bottom: 1px;
+}
+
+.sn-cf-ip-detail-line:last-child {
+  margin-bottom: 0;
+}
+
+.sn-cf-ip-table .sn-cf-icon-btn {
+  padding: 0 4px !important;
+  min-height: 26px;
+  line-height: 1;
+  vertical-align: middle;
+  color: #50575e;
+  border-color: #c3c4c7;
+  background: #f6f7f7;
+  box-shadow: none;
+}
+
+.sn-cf-ip-table .sn-cf-icon-btn .dashicons {
+  font-size: 18px;
+  width: 18px;
+  height: 18px;
+  line-height: 1;
+  vertical-align: middle;
+  color: #50575e;
+}
+
+.sn-cf-ip-table .sn-cf-icon-btn:hover,
+.sn-cf-ip-table .sn-cf-icon-btn:focus {
+  color: #2271b1;
+  border-color: #2271b1;
+  background: #f0f6fc;
+  box-shadow: none;
+}
+
+.sn-cf-ip-table .sn-cf-icon-btn:hover .dashicons,
+.sn-cf-ip-table .sn-cf-icon-btn:focus .dashicons {
+  color: #2271b1;
+}
+
+.sn-cf-ip-rule-modal-content {
+  position: relative;
+  text-align: left;
+}
+
+.sn-cf-ip-rule-modal-content h3 {
+  margin-top: 0;
+  padding-right: 28px;
+}
+
+.sn-cf-ip-rule-modal-close {
+  position: absolute;
+  top: 8px;
+  right: 12px;
+  float: none;
+}
+
+.sn-cf-ip-rule-form label {
+  display: block;
+  margin-bottom: 4px;
+}
+
+.sn-cf-ip-rule-form input.regular-text {
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.sn-cf-ip-rule-list-type {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px;
+  margin: 12px 0 0;
+  padding: 0;
+  border: 0;
+}
+
+.sn-cf-ip-rule-list-type label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  font-weight: normal;
+  cursor: pointer;
+  line-height: 1;
+}
+
+.sn-cf-ip-rule-list-type label input[type="radio"] {
+  margin: 0;
+  flex-shrink: 0;
+  vertical-align: middle;
+}
+
+.sn-cf-ip-rule-modal-actions {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 10px;
+  margin: 1em 0 0;
+  padding: 0;
+  clear: both;
+  float: none;
+}
+
+.sn-cf-ip-rule-modal-actions .button {
+  float: none;
+  margin: 0;
+  vertical-align: middle;
+}
+
+.sn-cf-remove-ip-modal-content {
+  position: relative;
+  text-align: left;
+}
+
+.sn-cf-remove-ip-modal-content h3 {
+  margin-top: 0;
+  padding-right: 28px;
+}
+
+.sn-cf-remove-ip-modal-close {
+  position: absolute;
+  top: 8px;
+  right: 12px;
+  float: none;
+}
+
+.sn-cf-remove-ip-modal-actions {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 10px;
+  margin: 1em 0 0;
+  padding: 0;
+  clear: both;
+  float: none;
+}
+
+.sn-cf-remove-ip-modal-actions .button {
+  float: none;
+  margin: 0;
+  vertical-align: middle;
 }

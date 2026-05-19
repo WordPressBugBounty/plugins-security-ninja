@@ -331,6 +331,8 @@ class Wf_Sn_Settings {
 					'woo_coupon_failed_attempts'    => 3,
 					'woo_coupon_window'             => 180,
 					'woo_coupon_ban_time'           => 900,
+					'satellite_soft_enabled'        => true,
+					'satellite_soft_asns'           => array( '14593' ),
 				);
 
 			case 'vulnerabilities':
