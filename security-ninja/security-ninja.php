@@ -5,7 +5,7 @@ Plugin Name: Security Ninja
 Plugin URI: https://wpsecurityninja.com/
 Description: Check your site for security vulnerabilities and get precise suggestions for corrective actions on passwords, user accounts, file permissions, database security, version hiding, plugins, themes, security headers and other security aspects.
 Author: WP Security Ninja
-Version: 5.283
+Version: 5.286
 Author URI: https://wpsecurityninja.com/
 License: GPLv3
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
@@ -49,36 +49,45 @@ use Utils;
 if ( !defined( 'ABSPATH' ) ) {
     exit;
 }
+// Free (including older wp.org builds) may already be active: hand off to Freemius, do not load vendor again.
+if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
+    secnin_fs()->set_basename( false, __FILE__ );
+    return;
+}
 if ( file_exists( __DIR__ . '/vendor/autoload.php' ) ) {
     require_once __DIR__ . '/vendor/autoload.php';
 }
-if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
-    secnin_fs()->set_basename( false, __FILE__ );
-} elseif ( !function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
+if ( !function_exists( '\\fs_dynamic_init' ) && file_exists( __DIR__ . '/freemius/start.php' ) ) {
+    require_once __DIR__ . '/freemius/start.php';
+}
+if ( !function_exists( '\\fs_dynamic_init' ) ) {
+    return;
+}
+if ( !function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
+    define( 'WF_SN_BASE_FILE', __FILE__ );
     // Create a helper function for easy SDK access.
     function secnin_fs() {
         global $secnin_fs;
-        include_once __DIR__ . '/vendor/autoload.php';
         if ( !isset( $secnin_fs ) ) {
             // Activate multisite network integration.
             if ( !defined( 'WP_FS__PRODUCT_3690_MULTISITE' ) ) {
                 define( 'WP_FS__PRODUCT_3690_MULTISITE', true );
             }
-            $secnin_fs = fs_dynamic_init( array(
-                'id'                  => '3690',
-                'slug'                => 'security-ninja',
-                'enable_anonymous'    => true,
-                'type'                => 'plugin',
-                'public_key'          => 'pk_f990ec18700a90c02db544f1aa986',
-                'is_premium'          => false,
-                'has_addons'          => true,
-                'has_paid_plans'      => true,
-                'trial'               => array(
+            $secnin_fs = \fs_dynamic_init( array(
+                'id'               => '3690',
+                'slug'             => 'security-ninja',
+                'enable_anonymous' => true,
+                'type'             => 'plugin',
+                'public_key'       => 'pk_f990ec18700a90c02db544f1aa986',
+                'is_premium'       => false,
+                'has_addons'       => true,
+                'has_paid_plans'   => true,
+                'trial'            => array(
                     'days'               => 14,
                     'is_require_payment' => false,
                 ),
-                'has_affiliation'     => false,
-                'menu'                => ( is_multisite() ? array(
+                'has_affiliation'  => false,
+                'menu'             => ( is_multisite() ? array(
                     'support' => false,
                     'network' => false,
                 ) : array(
@@ -87,12 +96,8 @@ if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
                     'support'    => false,
                     'network'    => false,
                 ) ),
-                'parallel_activation' => array(
-                    'enabled'                  => true,
-                    'premium_version_basename' => 'security-ninja-premium/security-ninja.php',
-                ),
-                'is_live'             => true,
-                'is_org_compliant'    => true,
+                'is_live'          => true,
+                'is_org_compliant' => true,
             ) );
         }
         return $secnin_fs;
@@ -105,7 +110,6 @@ if ( function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
     define( 'WF_SN_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
     define( 'WF_SN_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
     define( 'WF_SN_PLUGIN_BASENAME', plugin_basename( __FILE__ ) );
-    define( 'WF_SN_BASE_FILE', __FILE__ );
     include_once WF_SN_PLUGIN_DIR . 'modules/overview/class-wf-sn-overview-tab.php';
     // Dashboard widget
     include_once WF_SN_PLUGIN_DIR . 'modules/dashboard-widget/class-wf-sn-dashboard-widget.php';

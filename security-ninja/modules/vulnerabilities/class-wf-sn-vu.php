@@ -2108,6 +2108,7 @@ class Wf_Sn_Vu {
              );
         }
         // Return success response
+        do_action( 'security_ninja_vulnerability_scan_done' );
         wp_send_json_success( array(
             'message'             => $completion_message,
             'vuln_count'          => $vuln_count,

@@ -7,8 +7,18 @@ if ( !defined( 'ABSPATH' ) ) {
 }
 require 'sn-el-modules.php';
 class Wf_Sn_El {
+    /**
+     * Cached module active state.
+     *
+     * @var bool|null
+     */
     private static $is_active = null;
 
+    /**
+     * Cached module options.
+     *
+     * @var array<string, mixed>|false|null
+     */
     private static $options = null;
 
     private static $watching_actions = false;
@@ -180,6 +190,10 @@ class Wf_Sn_El {
                 $error_payload['code'] = ( isset( $data['code'] ) ? $data['code'] : '' );
                 $error_payload['message'] = ( isset( $data['message'] ) ? $data['message'] : '' );
             }
+            // Ignore expected connector plugin probe misses from WP Connectors UI.
+            if ( 404 === $status && isset( $error_payload['code'] ) && 'rest_plugin_not_found' === $error_payload['code'] && is_string( $error_payload['route'] ) && strpos( $error_payload['route'], '/wp/v2/plugins/' ) === 0 ) {
+                return $result;
+            }
             // Use hardcoded string to prevent infinite loop with translation functions
             wf_sn_el_modules::log_event(
                 'rest',
@@ -234,8 +248,9 @@ class Wf_Sn_El {
     /**
      * Send admin creation notification email
      *
-     * @param WP_User|object $user User object
-     * @param bool $is_direct_creation Whether the user was created directly in database
+     * @param \WP_User|object $user               User object.
+     * @param bool            $is_direct_creation Whether the user was created directly in database.
+     *
      * @return void
      */
     private static function send_admin_notification( $user, $is_direct_creation ) {
@@ -1084,7 +1099,6 @@ class Wf_Sn_El {
      * @version v1.0.1  Tuesday, October 24th, 2023.
      * @version v1.0.2  Monday, November 13th, 2023.
      * @access  public static
-     * @param   boolean $force  Default: false
      * @return  void
      */
     public static function do_cron_prune_logs() {

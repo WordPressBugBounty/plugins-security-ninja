@@ -3017,15 +3017,7 @@ msgstr ""
 msgid "Could not delete."
 msgstr ""
 
-#: modules/ai-security-advisor/class-wf-sn-ai-advisor.php:739
-msgid "The AI service is temporarily unavailable. Try again in a few minutes."
-msgstr ""
-
-#: modules/ai-security-advisor/class-wf-sn-ai-advisor.php:742
-msgid "The selected connector is not configured. Check Settings → Connectors."
-msgstr ""
-
-#: modules/ai-security-advisor/class-wf-sn-ai-advisor.php:748
+#: modules/ai-security-advisor/class-wf-sn-ai-advisor.php:792
 msgid "The AI request could not be completed. Try again or check your connector under Settings → Connectors."
 msgstr ""
 

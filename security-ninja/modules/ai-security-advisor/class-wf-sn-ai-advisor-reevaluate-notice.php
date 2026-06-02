@@ -23,6 +23,7 @@ class Wf_Sn_Ai_Advisor_Reevaluate_Notice {
 	 * Default CSS class on the wrapper (BEM-friendly).
 	 */
 	const WRAPPER_CLASS = 'wf-sn-ai-reevaluate-notice';
+	const OPTION_KEY    = 'wf_sn_ai_reevaluate_pending';
 
 	/**
 	 * Render the notice block.
@@ -33,9 +34,10 @@ class Wf_Sn_Ai_Advisor_Reevaluate_Notice {
 	 *     @type string $cta_href  URL or href; use #anchor for in-page (optional).
 	 *     @type string $context   Slug for analytics/future hooks (optional).
 	 * }
+	 * @param bool  $dismissable Whether to show dismiss button.
 	 * @return void Echoes HTML.
 	 */
-	public static function render( array $args ) {
+	public static function render( array $args, $dismissable = false ) {
 		$message = isset( $args['message'] ) ? (string) $args['message'] : '';
 		if ( '' === $message ) {
 			return;
@@ -45,6 +47,9 @@ class Wf_Sn_Ai_Advisor_Reevaluate_Notice {
 		$context   = isset( $args['context'] ) ? sanitize_key( (string) $args['context'] ) : '';
 
 		$wrapper_class = 'notice notice-info ' . self::WRAPPER_CLASS;
+		if ( $dismissable ) {
+			$wrapper_class .= ' is-dismissible';
+		}
 		if ( '' !== $context ) {
 			$wrapper_class .= ' ' . self::WRAPPER_CLASS . '--' . $context;
 		}
@@ -53,6 +58,7 @@ class Wf_Sn_Ai_Advisor_Reevaluate_Notice {
 		if ( '' !== $context ) {
 			echo ' data-context="' . esc_attr( $context ) . '"';
 		}
+		echo ' data-dismiss-nonce="' . esc_attr( wp_create_nonce( 'wf_sn_ai_advisor_dismiss_reevaluate' ) ) . '"';
 		echo '>';
 		echo '<div class="' . esc_attr( self::WRAPPER_CLASS . '__inner' ) . '">';
 		echo '<span class="dashicons dashicons-yes-alt ' . esc_attr( self::WRAPPER_CLASS . '__icon' ) . '" aria-hidden="true"></span>';
@@ -83,14 +89,142 @@ class Wf_Sn_Ai_Advisor_Reevaluate_Notice {
 		if ( empty( $_GET['settings-updated'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 			return;
 		}
+		self::set_pending( 'settings_saved' );
+	}
+
+	/**
+	 * Set pending reevaluate notice context.
+	 *
+	 * @param string $context Context slug.
+	 * @return void
+	 */
+	public static function set_pending( $context ) {
+		$context = sanitize_key( (string) $context );
+		if ( '' === $context ) {
+			return;
+		}
+		if ( ! class_exists( __NAMESPACE__ . '\\Wf_Sn_Ai_Advisor_Reports' ) || Wf_Sn_Ai_Advisor_Reports::count_by_request_type( 'full_report' ) < 1 ) {
+			return;
+		}
+		if ( ! class_exists( __NAMESPACE__ . '\\Wf_Sn_Ai_Advisor_Provider_Wp_Connectors' ) ) {
+			return;
+		}
+		if ( ! Wf_Sn_Ai_Advisor_Provider_Wp_Connectors::is_available() ) {
+			return;
+		}
+		if ( empty( Wf_Sn_Ai_Advisor_Provider_Wp_Connectors::get_configured_providers() ) ) {
+			return;
+		}
+		update_option( self::OPTION_KEY, $context, false );
+	}
+
+	/**
+	 * Clear pending reevaluate state.
+	 *
+	 * @return void
+	 */
+	public static function clear_pending() {
+		delete_option( self::OPTION_KEY );
+	}
+
+	/**
+	 * Render pending notice on Security Ninja pages.
+	 *
+	 * @return void
+	 */
+	public static function admin_notice_pending() {
+		if ( ! is_admin() || ! current_user_can( 'manage_options' ) || ! self::is_security_ninja_page() ) {
+			return;
+		}
+		$context = get_option( self::OPTION_KEY, '' );
+		if ( ! is_string( $context ) || '' === $context ) {
+			return;
+		}
+		if ( ! class_exists( __NAMESPACE__ . '\\Wf_Sn_Ai_Advisor_Provider_Wp_Connectors' ) ) {
+			return;
+		}
+		if ( ! Wf_Sn_Ai_Advisor_Provider_Wp_Connectors::is_available() ) {
+			return;
+		}
+		if ( empty( Wf_Sn_Ai_Advisor_Provider_Wp_Connectors::get_configured_providers() ) ) {
+			return;
+		}
+
 		self::render(
 			array(
-				'message'   => __( 'Settings saved. Run Security Tests if needed, then generate a fresh Security Audit so advice matches your site.', 'security-ninja' ),
+				'message'   => self::message_for_context( $context ),
 				'cta_label' => __( 'Re-evaluate with AI', 'security-ninja' ),
-				'cta_href'  => self::default_generate_section_id(),
-				'context'   => 'settings_saved',
-			)
+				'cta_href'  => admin_url( 'admin.php?page=' . Wf_Sn_Ai_Advisor::SLUG ) . self::default_generate_section_id(),
+				'context'   => $context,
+			),
+			true
 		);
+	}
+
+	/**
+	 * Handle AJAX dismiss.
+	 *
+	 * @return void
+	 */
+	public static function ajax_dismiss() {
+		check_ajax_referer( 'wf_sn_ai_advisor_dismiss_reevaluate', 'nonce' );
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_send_json_error( array( 'message' => __( 'Forbidden.', 'security-ninja' ) ) );
+		}
+		self::clear_pending();
+		wp_send_json_success();
+	}
+
+	/**
+	 * Print JS for dismissing pending notice.
+	 *
+	 * @return void
+	 */
+	public static function print_dismiss_script() {
+		if ( ! is_admin() || ! self::is_security_ninja_page() ) {
+			return;
+		}
+		?>
+		<script>
+		(function($){
+			'use strict';
+			$(document).on('click', '.<?php echo esc_js( self::WRAPPER_CLASS ); ?> .notice-dismiss', function () {
+				var $notice = $(this).closest('.<?php echo esc_js( self::WRAPPER_CLASS ); ?>');
+				var nonce = $notice.data('dismiss-nonce');
+				if (!nonce) {
+					return;
+				}
+				$.post(ajaxurl, { action: 'wf_sn_ai_advisor_dismiss_reevaluate', nonce: nonce });
+			});
+		})(jQuery);
+		</script>
+		<?php
+	}
+
+	/**
+	 * @param string $context Context slug.
+	 * @return string
+	 */
+	private static function message_for_context( $context ) {
+		$messages = array(
+			'settings_saved'          => __( 'Settings saved. Run Security Tests if needed, then generate a fresh Security Audit so advice matches your site.', 'security-ninja' ),
+			'tests_completed'         => __( 'Security Tests finished. Generate a fresh Security Audit so the AI advice reflects your latest results.', 'security-ninja' ),
+			'core_scan_completed'     => __( 'Core Scanner just finished. Re-evaluate with AI to include the latest file integrity findings.', 'security-ninja' ),
+			'vuln_scan_completed'     => __( 'Vulnerability scan just finished. Re-evaluate with AI to prioritize newly detected vulnerabilities.', 'security-ninja' ),
+			'malware_scan_completed'  => __( 'Malware scan results changed. Re-evaluate with AI for updated guidance.', 'security-ninja' ),
+			'firewall_settings_saved' => __( 'Firewall settings changed. Re-evaluate with AI to get recommendations based on current protection settings.', 'security-ninja' ),
+		);
+		return isset( $messages[ $context ] ) ? $messages[ $context ] : __( 'Security settings changed. Re-evaluate with AI for updated guidance.', 'security-ninja' );
+	}
+
+	/**
+	 * Whether current admin screen is Security Ninja page.
+	 *
+	 * @return bool
+	 */
+	private static function is_security_ninja_page() {
+		$page = isset( $_GET['page'] ) ? sanitize_text_field( wp_unslash( $_GET['page'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		return is_string( $page ) && strpos( $page, 'wf-sn' ) === 0;
 	}
 
 	/**

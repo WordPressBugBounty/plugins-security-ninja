@@ -78,28 +78,16 @@ class Wf_Sn_Ai_Advisor_Page {
 			}
 		}
 
-		$last_test = null;
-		$results   = get_option( 'wf_sn_results', array() );
-		if ( is_array( $results ) && ! empty( $results['last_run'] ) ) {
-			$last_test = (int) $results['last_run'];
-		}
+		$full_reports = Wf_Sn_Ai_Advisor_Reports::get_reports( 1, 0, 'full_report' );
 
-		$full_reports = array();
-		if ( class_exists( __NAMESPACE__ . '\\Wf_Sn_Ai_Advisor_Reports' ) ) {
-			$full_reports = Wf_Sn_Ai_Advisor_Reports::get_reports( 1, 0, 'full_report' );
-		}
-
-		$counts_7d   = array(
-			'current_7d_total' => 0,
-			'prev_7d_total'    => 0,
+		$attack_summary = Wf_Sn_Ai_Advisor_Attack_Activity::build_summary(
+			Wf_Sn_Ai_Advisor_Aggregation::get_counts_7d(),
+			Wf_Sn_Ai_Advisor_Aggregation::get_counts_prev_7d()
 		);
-		$prev_counts = array();
-		if ( class_exists( __NAMESPACE__ . '\\Wf_Sn_Ai_Advisor_Aggregation' ) ) {
-			$curr                          = Wf_Sn_Ai_Advisor_Aggregation::get_counts_7d();
-			$prev                          = Wf_Sn_Ai_Advisor_Aggregation::get_counts_prev_7d();
-			$counts_7d['current_7d_total'] = (int) ( isset( $curr['blocked_logins_7d'] ) ? $curr['blocked_logins_7d'] : 0 ) + (int) ( isset( $curr['xmlrpc_blocks_7d'] ) ? $curr['xmlrpc_blocks_7d'] : 0 ) + (int) ( isset( $curr['firewall_events_7d'] ) ? $curr['firewall_events_7d'] : 0 ) + (int) ( isset( $curr['failed_logins_7d'] ) ? $curr['failed_logins_7d'] : 0 );
-			$counts_7d['prev_7d_total']    = (int) ( isset( $prev['blocked_logins_prev_7d'] ) ? $prev['blocked_logins_prev_7d'] : 0 ) + (int) ( isset( $prev['xmlrpc_blocks_prev_7d'] ) ? $prev['xmlrpc_blocks_prev_7d'] : 0 ) + (int) ( isset( $prev['firewall_events_prev_7d'] ) ? $prev['firewall_events_prev_7d'] : 0 ) + (int) ( isset( $prev['failed_logins_prev_7d'] ) ? $prev['failed_logins_prev_7d'] : 0 );
-		}
+		$counts_7d        = array(
+			'current_7d_total' => $attack_summary['current_total'],
+			'prev_7d_total'    => $attack_summary['previous_total'],
+		);
 
 		$latest_report_data = null;
 		if ( ! empty( $full_reports ) ) {
@@ -107,20 +95,8 @@ class Wf_Sn_Ai_Advisor_Page {
 			$text    = isset( $first['report_text'] ) ? $first['report_text'] : '';
 			$decoded = is_string( $text ) && '' !== $text ? json_decode( $text, true ) : null;
 			if ( is_array( $decoded ) && ( isset( $decoded['executive_summary'] ) || isset( $decoded['top_improvements'] ) ) ) {
+				Wf_Sn_Ai_Advisor_Improvements::prepare_report_improvements( $decoded );
 				$all_imp = isset( $decoded['top_improvements'] ) && is_array( $decoded['top_improvements'] ) ? $decoded['top_improvements'] : array();
-				if ( ! empty( $all_imp ) ) {
-					$risk_order = array( 'high' => 0, 'medium' => 1, 'low' => 2 );
-					usort(
-						$all_imp,
-						function ( $a, $b ) use ( $risk_order ) {
-							$ia = is_array( $a ) ? $a : array();
-							$ib = is_array( $b ) ? $b : array();
-							$ra = $risk_order[ self::normalize_improvement_risk( $ia ) ];
-							$rb = $risk_order[ self::normalize_improvement_risk( $ib ) ];
-							return $ra <=> $rb;
-						}
-					);
-				}
 				$latest_report_data = array(
 					'created'            => isset( $first['created'] ) ? $first['created'] : '',
 					'report_json'        => $text,
@@ -140,7 +116,7 @@ class Wf_Sn_Ai_Advisor_Page {
 			return;
 		}
 
-		$improvement_links = class_exists( __NAMESPACE__ . '\\Wf_Sn_Ai_Advisor' ) ? Wf_Sn_Ai_Advisor::get_improvement_links() : array();
+		$improvement_links = Wf_Sn_Ai_Advisor::get_improvement_links();
 
 		?>
 		<div class="wrap">
@@ -167,32 +143,6 @@ class Wf_Sn_Ai_Advisor_Page {
 							</div>
 						</div>
 					</header>
-
-					<div class="wf-sn-ai-workspace-band">
-						<div class="wf-sn-ai-workspace-band__main">
-							<h3 class="wf-sn-ai-subheading"><?php esc_html_e( 'Quick info', 'security-ninja' ); ?></h3>
-							<?php if ( $last_test ) : ?>
-								<p class="description">
-								<?php
-								/* translators: %s: human-readable time difference (e.g. "2 hours") */
-								echo esc_html( sprintf( __( 'Last security test: %s ago.', 'security-ninja' ), human_time_diff( $last_test, time() ) ) );
-								?>
-								</p>
-							<?php else : ?>
-								<p class="description"><?php esc_html_e( 'No security test run recorded yet. Run Security Tests on the main Security Ninja page first.', 'security-ninja' ); ?></p>
-							<?php endif; ?>
-							<p class="description wf-sn-ai-activity-line">
-								<?php
-								/* translators: 1: events last 7 days, 2: events previous 7 days */
-								echo esc_html( sprintf( __( 'Recorded security-related events: %1$s in the last 7 days vs %2$s in the previous 7 days.', 'security-ninja' ), (string) $counts_7d['current_7d_total'], (string) $counts_7d['prev_7d_total'] ) );
-								?>
-							</p>
-						</div>
-						<div class="wf-sn-ai-workspace-band__delta wf-sn-ai-delta-card" id="wf_sn_ai_delta_card" aria-live="polite">
-							<h3 class="wf-sn-ai-subheading"><?php esc_html_e( 'Delta analysis', 'security-ninja' ); ?></h3>
-							<p class="description wf-sn-ai-delta-card__placeholder"><?php esc_html_e( 'Run “What changed since last report?” under Follow-ups when you have two saved audits (newest and previous).', 'security-ninja' ); ?></p>
-						</div>
-					</div>
 
 					<div class="wf-sn-ai-section wf-sn-ai-panel--interact" id="wf_sn_ai_section_full_report" data-request-type="full_report" data-ui-locale="<?php echo esc_attr( $effective_locale ); ?>">
 						<div class="wf-sn-ai-workspace-columns<?php echo $has_connectors ? '' : ' wf-sn-ai-workspace-columns--no-chat'; ?>">
@@ -230,6 +180,7 @@ class Wf_Sn_Ai_Advisor_Page {
 										<div id="wf_sn_ai_latest_report_card" class="wf-sn-ai-latest-report<?php echo null === $latest_report_data ? ' wf-sn-ai-latest-report--empty' : ''; ?>"
 											data-current-7d="<?php echo esc_attr( (string) $counts_7d['current_7d_total'] ); ?>"
 											data-prev-7d="<?php echo esc_attr( (string) $counts_7d['prev_7d_total'] ); ?>"
+											data-parent-report-id="<?php echo null !== $latest_report_data && ! empty( $latest_report_data['row_id'] ) ? esc_attr( (string) (int) $latest_report_data['row_id'] ) : '0'; ?>"
 											data-report-json="<?php echo null !== $latest_report_data ? esc_attr( $latest_report_data['report_json'] ) : ''; ?>">
 											<div class="wf-sn-ai-latest-report-primary" id="wf_sn_ai_latest_report_primary">
 												<?php if ( null !== $latest_report_data ) : ?>
@@ -310,17 +261,21 @@ class Wf_Sn_Ai_Advisor_Page {
 									<div class="wf-sn-ai-card-inner wf-sn-ai-chat-column-inner">
 										<div class="wf-sn-ai-chat-column__head">
 											<h2 class="wf-sn-ai-section-title"><?php esc_html_e( 'Follow-ups', 'security-ninja' ); ?></h2>
-											<p class="description wf-sn-ai-convo-intro"><?php esc_html_e( 'Choose a suggested prompt at the bottom. Follow-ups use your latest saved full audit. Use “Load older messages” for earlier saved answers.', 'security-ninja' ); ?></p>
+											<p class="description wf-sn-ai-convo-intro"><?php esc_html_e( 'Choose a suggested prompt at the bottom. Messages apply to your current security report only.', 'security-ninja' ); ?></p>
 										</div>
 										<div class="wf-sn-ai-chat-column__convo-wrap">
 											<div class="wf-sn-ai-assistant-output wf-sn-ai-result-canvas wf-sn-ai-assistant-output--convo" id="wf_sn_ai_assistant_output" aria-live="polite">
-												<div class="wf-sn-ai-convo" id="wf_sn_ai_convo" role="log" aria-label="<?php esc_attr_e( 'Assistant conversation', 'security-ninja' ); ?>">
+												<div class="wf-sn-ai-convo-loading" id="wf_sn_ai_convo_loading" role="status" aria-live="polite">
+													<span class="spinner is-active" aria-hidden="true"></span>
+													<span class="wf-sn-ai-convo-loading__text"><?php esc_html_e( 'Loading messages…', 'security-ninja' ); ?></span>
+												</div>
+												<div class="wf-sn-ai-convo" id="wf_sn_ai_convo" role="log" aria-label="<?php esc_attr_e( 'Assistant conversation', 'security-ninja' ); ?>" hidden>
 													<div class="wf-sn-ai-convo__load-wrap" id="wf_sn_ai_convo_load_wrap" hidden>
 														<button type="button" class="button button-link wf-sn-ai-convo__load-older" id="wf_sn_ai_convo_load_older"><?php esc_html_e( 'Load older messages', 'security-ninja' ); ?></button>
 													</div>
 													<div class="wf-sn-ai-convo__turns" id="wf_sn_ai_convo_turns"></div>
 												</div>
-												<p class="description wf-sn-ai-empty-state" id="wf_sn_ai_assistant_empty"><?php esc_html_e( 'No messages yet. Choose a suggested prompt below.', 'security-ninja' ); ?></p>
+												<p class="description wf-sn-ai-empty-state" id="wf_sn_ai_assistant_empty" hidden><?php esc_html_e( 'No messages yet. Choose a suggested prompt below.', 'security-ninja' ); ?></p>
 											</div>
 											<p class="description wf-sn-ai-chip-status" id="wf_sn_ai_chip_status" hidden></p>
 										</div>
@@ -355,30 +310,15 @@ class Wf_Sn_Ai_Advisor_Page {
 					</div>
 
 					<?php
-					$current_connector = isset( $options['last_connector_provider'] ) ? $options['last_connector_provider'] : '';
+					$current_connector    = isset( $options['last_connector_provider'] ) ? $options['last_connector_provider'] : '';
+					$abilities_exposed    = Wf_Sn_Ai_Advisor_Abilities::is_exposed_enabled();
+					$abilities_for_ui     = Wf_Sn_Ai_Advisor_Abilities::get_definitions_for_ui();
 					?>
-					<div class="wf-sn-ai-card wf-sn-ai-settings-card wf-sn-ai-settings-card--footer">
+					<div class="wf-sn-ai-card wf-sn-ai-settings-card wf-sn-ai-settings-card--footer sncard settings-card">
 						<div class="wf-sn-ai-card-inner">
 							<h2 class="wf-sn-ai-section-title"><?php esc_html_e( 'Settings', 'security-ninja' ); ?></h2>
 							<p class="description"><?php esc_html_e( 'Connectors are configured in WordPress under Settings → Connectors. Here you choose which AI connector Security Advisor uses to generate reports.', 'security-ninja' ); ?></p>
-							<?php if ( ! empty( $configured_connectors ) ) : ?>
-								<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" class="wf-sn-ai-settings-form">
-									<input type="hidden" name="action" value="wf_sn_ai_advisor_save_settings" />
-									<?php wp_nonce_field( 'wf_sn_ai_advisor_save_settings', 'wf_sn_ai_advisor_nonce' ); ?>
-									<input type="hidden" name="wf_sn_ai_advisor_provider" value="wordpress_connectors" />
-									<p>
-										<label for="wf_sn_ai_advisor_connector"><?php esc_html_e( 'AI connector', 'security-ninja' ); ?></label>
-										<select name="wf_sn_ai_advisor_connector" id="wf_sn_ai_advisor_connector">
-											<?php foreach ( $configured_connectors as $conn_id ) : ?>
-												<option value="<?php echo esc_attr( $conn_id ); ?>" <?php selected( $current_connector, $conn_id ); ?>><?php echo esc_html( ucfirst( $conn_id ) ); ?></option>
-											<?php endforeach; ?>
-										</select>
-									</p>
-									<p>
-										<button type="submit" class="button button-primary"><?php esc_html_e( 'Save', 'security-ninja' ); ?></button>
-									</p>
-								</form>
-							<?php else : ?>
+							<?php if ( empty( $configured_connectors ) ) : ?>
 								<p><?php esc_html_e( 'No AI connectors are configured yet. Add and configure a connector under Settings → Connectors to use the Security Advisor.', 'security-ninja' ); ?></p>
 								<?php
 								$connectors_url = admin_url( 'options-connectors.php' );
@@ -388,6 +328,72 @@ class Wf_Sn_Ai_Advisor_Page {
 								?>
 								<p><a href="<?php echo esc_url( $connectors_url ); ?>" class="button button-secondary"><?php esc_html_e( 'Go to Settings → Connectors', 'security-ninja' ); ?></a></p>
 							<?php endif; ?>
+							<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" class="wf-sn-ai-settings-form">
+								<input type="hidden" name="action" value="wf_sn_ai_advisor_save_settings" />
+								<?php wp_nonce_field( 'wf_sn_ai_advisor_save_settings', 'wf_sn_ai_advisor_nonce' ); ?>
+								<input type="hidden" name="wf_sn_ai_advisor_provider" value="wordpress_connectors" />
+								<table class="form-table wf-sn-ai-settings-table">
+									<tbody>
+										<?php if ( ! empty( $configured_connectors ) ) : ?>
+											<tr valign="top">
+												<th scope="row">
+													<label for="wf_sn_ai_advisor_connector">
+														<h3><?php esc_html_e( 'AI connector', 'security-ninja' ); ?></h3>
+														<p class="description"><?php esc_html_e( 'Which configured WordPress AI connector Security Advisor uses to generate reports and follow-ups.', 'security-ninja' ); ?></p>
+													</label>
+												</th>
+												<td class="sn-cf-options">
+													<select name="wf_sn_ai_advisor_connector" id="wf_sn_ai_advisor_connector">
+														<?php foreach ( $configured_connectors as $conn_id ) : ?>
+															<option value="<?php echo esc_attr( $conn_id ); ?>" <?php selected( $current_connector, $conn_id ); ?>><?php echo esc_html( ucfirst( $conn_id ) ); ?></option>
+														<?php endforeach; ?>
+													</select>
+												</td>
+											</tr>
+										<?php endif; ?>
+										<tr valign="top">
+											<th scope="row">
+												<label for="wf_sn_ai_advisor_abilities_exposed">
+													<h3><?php esc_html_e( 'Expose data to WordPress AI abilities', 'security-ninja' ); ?></h3>
+													<p class="description"><?php esc_html_e( 'Lets other WordPress AI tools read Security Ninja summaries when enabled. Report generation and follow-ups on this page are not affected.', 'security-ninja' ); ?></p>
+												</label>
+											</th>
+											<td class="sn-cf-options">
+												<?php
+												\WPSecurityNinja\Plugin\Utils::create_toggle_switch(
+													'wf_sn_ai_advisor_abilities_exposed',
+													array(
+														'value'       => 1,
+														'saved_value' => Wf_Sn_Ai_Advisor_Abilities::get_exposed_saved_value(),
+														'option_key'  => 'wf_sn_ai_advisor_abilities_exposed',
+													)
+												);
+												?>
+											</td>
+										</tr>
+									</tbody>
+								</table>
+								<p class="submit wf-sn-ai-settings-submit">
+									<button type="submit" class="button button-primary input-button"><?php esc_html_e( 'Save Changes', 'security-ninja' ); ?></button>
+								</p>
+							</form>
+							<div class="wf-sn-ai-abilities-list" aria-labelledby="wf_sn_ai_abilities_list_title">
+									<h3 id="wf_sn_ai_abilities_list_title" class="wf-sn-ai-abilities-list__title"><?php esc_html_e( 'WordPress AI abilities', 'security-ninja' ); ?></h3>
+									<p class="description wf-sn-ai-abilities-list__intro"><?php esc_html_e( 'When exposure is enabled above, other WordPress AI tools on this site can use these read-only abilities:', 'security-ninja' ); ?></p>
+									<?php if ( ! $abilities_exposed ) : ?>
+										<div class="wf-sn-ai-abilities-notice notice notice-warning inline">
+											<p><?php esc_html_e( 'Not exposed to WordPress AI clients until you enable the setting above and save.', 'security-ninja' ); ?></p>
+										</div>
+									<?php endif; ?>
+									<ul class="wf-sn-ai-abilities-list__items">
+										<?php foreach ( $abilities_for_ui as $ability ) : ?>
+											<li class="wf-sn-ai-abilities-list__item">
+												<strong class="wf-sn-ai-abilities-list__label"><?php echo esc_html( $ability['label'] ); ?></strong>
+												<span class="wf-sn-ai-abilities-list__summary"><?php echo esc_html( $ability['summary'] ); ?></span>
+											</li>
+										<?php endforeach; ?>
+									</ul>
+							</div>
 						</div>
 					</div>
 
@@ -440,23 +446,6 @@ class Wf_Sn_Ai_Advisor_Page {
 	}
 
 	/**
-	 * Normalize improvement risk for display and sorting (matches JS normalization).
-	 *
-	 * @param array $imp Improvement row.
-	 * @return string One of high, medium, low.
-	 */
-	private static function normalize_improvement_risk( array $imp ) {
-		$risk = isset( $imp['risk'] ) ? strtolower( (string) $imp['risk'] ) : 'low';
-		if ( isset( $imp['id'] ) && 'mysql_permissions' === $imp['id'] ) {
-			$risk = 'low';
-		}
-		if ( ! in_array( $risk, array( 'high', 'medium', 'low' ), true ) ) {
-			$risk = 'low';
-		}
-		return $risk;
-	}
-
-	/**
 	 * Single improvement list item HTML for latest report.
 	 *
 	 * @param array $imp               Improvement row from AI JSON.
@@ -464,7 +453,7 @@ class Wf_Sn_Ai_Advisor_Page {
 	 * @return string HTML.
 	 */
 	private static function render_latest_improvement_li( array $imp, array $improvement_links = array() ) {
-		$risk = self::normalize_improvement_risk( $imp );
+		$risk = Wf_Sn_Ai_Advisor_Improvements::normalize_risk( $imp );
 		$priority_label = 'high' === $risk ? __( 'High Priority', 'security-ninja' ) : ( 'medium' === $risk ? __( 'Medium Priority', 'security-ninja' ) : __( 'Low Priority', 'security-ninja' ) );
 		$label          = isset( $imp['short_label'] ) && '' !== $imp['short_label'] ? $imp['short_label'] : ( isset( $imp['title'] ) ? $imp['title'] : '' );
 		$title          = isset( $imp['title'] ) && is_string( $imp['title'] ) ? $imp['title'] : '';

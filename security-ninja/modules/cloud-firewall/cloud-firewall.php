@@ -9,13 +9,27 @@ define( 'WF_SN_CF_OPTIONS_KEY', 'wf_sn_cf' );
 // @important - if changed, this is used various places, 2FA, etc.
 define( 'WF_SN_CF_VALIDATED_CRAWLERS', 'wf_sn_cf_validated_crawlers' );
 class Wf_sn_cf {
+    /**
+     * Cached visitor IP for the current request.
+     *
+     * @var string|null
+     */
     private static $cached_ip = null;
 
+    /**
+     * Cloud Firewall options.
+     *
+     * @var array<string, mixed>|null
+     */
     public static $options = null;
 
+    /**
+     * Locally banned IPs (IP => expiry timestamp), cached per request.
+     *
+     * @var array<string, int>|null
+     */
     public static $banned_ips = null;
 
-    // Bruges til at cache lokalt bannede IPs så ikke indlæst hver pageload.
     /**
      * Per-request cache for get_satellite_soften_info() keyed by IP (avoids duplicate ASN lookups).
      *
@@ -832,7 +846,7 @@ class Wf_sn_cf {
             'special_chars'       => '/(\\*|"|\'|\\.|,|&|&amp;?)/?$',
             'php_file'            => '\\.(php)(\\()?([0-9]+)(\\))?(/)?$',
             'header_cookie'       => '/(.*)(header:|set-cookie:)(.*)=',
-            'config_files'        => '\\.(s?ftp-?)config|(s?ftp-?)config\\.',
+            'ftp_config_files'    => '\\.(s?ftp-?)config|(s?ftp-?)config\\.',
             'file_editors'        => '/(f?ckfinder|fck/|f?ckeditor|fullclick)',
             'download_framework'  => '/((force-)?download|framework/main)(\\.php)',
             'misc_chars'          => '\\{0\\}|"0"="0|/\\(/\\|\\.\\.\\.|\\+\\+\\+|\\\\"',
@@ -2520,6 +2534,12 @@ class Wf_sn_cf {
         return $user;
     }
 
+    /**
+     * Update the locally cached banned IP list.
+     *
+     * @param array<string, int> $new_list IP => expiry timestamp.
+     * @return bool False when $new_list is not an array.
+     */
     public static function update_banned_ips( $new_list ) {
         // Check if $new_list is an array
         if ( !is_array( $new_list ) ) {
@@ -2804,55 +2824,6 @@ class Wf_sn_cf {
             'as_label' => '',
         );
         return $empty;
-        if ( !is_string( $ip ) || !filter_var( $ip, FILTER_VALIDATE_IP ) ) {
-            return $empty;
-        }
-        if ( isset( self::$satellite_soften_info_cache[$ip] ) ) {
-            return self::$satellite_soften_info_cache[$ip];
-        }
-        if ( is_null( self::$options ) ) {
-            self::$options = self::get_options();
-        }
-        if ( empty( self::$options['satellite_soft_enabled'] ) ) {
-            self::$satellite_soften_info_cache[$ip] = $empty;
-            return $empty;
-        }
-        $allowed_asns = self::$options['satellite_soft_asns'] ?? array('14593');
-        if ( !is_array( $allowed_asns ) || empty( $allowed_asns ) ) {
-            self::$satellite_soften_info_cache[$ip] = $empty;
-            return $empty;
-        }
-        $asn_file = WF_SN_PLUGIN_DIR . 'modules/cloud-firewall/class-sn-ip-asn.php';
-        if ( !file_exists( $asn_file ) ) {
-            self::$satellite_soften_info_cache[$ip] = $empty;
-            return $empty;
-        }
-        require_once $asn_file;
-        if ( !class_exists( __NAMESPACE__ . '\\SN_Ip_Asn' ) ) {
-            self::$satellite_soften_info_cache[$ip] = $empty;
-            return $empty;
-        }
-        $data = \WPSecurityNinja\Plugin\SN_Ip_Asn::get_asn_for_ip( $ip );
-        if ( null === $data || empty( $data['asn'] ) ) {
-            self::$satellite_soften_info_cache[$ip] = $empty;
-            return $empty;
-        }
-        $asn_str = (string) (int) $data['asn'];
-        $as_label = ( isset( $data['label'] ) && is_string( $data['label'] ) ? $data['label'] : '' );
-        $match_found = false;
-        foreach ( $allowed_asns as $a ) {
-            if ( (string) (int) $a === $asn_str ) {
-                $match_found = true;
-                break;
-            }
-        }
-        $result = array(
-            'applies'  => $match_found,
-            'asn'      => (int) $data['asn'],
-            'as_label' => $as_label,
-        );
-        self::$satellite_soften_info_cache[$ip] = $result;
-        return $result;
     }
 
     /**
@@ -3785,6 +3756,7 @@ class Wf_sn_cf {
         $two_fa_on = !empty( $existing['2fa_enabled'] );
         $existing['2fa_required_roles'] = self::normalize_2fa_required_roles( $existing['2fa_required_roles'] ?? array(), $two_fa_on );
         update_option( 'wf_sn_cf', $existing, false );
+        do_action( 'security_ninja_firewall_settings_saved' );
         self::$options = null;
         wp_safe_redirect( admin_url( 'admin.php?page=wf-sn&settings-updated=1#sn_login' ) );
         exit;
@@ -4079,7 +4051,9 @@ class Wf_sn_cf {
 
 			<div id="sn_cf_visitors" class="wf-sn-subtab">
 				<?php 
-            ?>
+            $sn_cf_show_visitor_upgrade = true;
+            if ( $sn_cf_show_visitor_upgrade ) {
+                ?>
 					<table class="form-table">
 						<tbody>
 							<tr>
@@ -4096,8 +4070,8 @@ class Wf_sn_cf {
 											</ul>
 											<p style="margin-top: 15px;">
 												<a href="<?php 
-            echo esc_url( \WPSecurityNinja\Plugin\Utils::generate_sn_web_link( 'upgrade_tab_visitor_logging', '/pricing/' ) );
-            ?>" class="button button-primary button-small" target="_blank" rel="noopener">Upgrade to Pro</a>
+                echo esc_url( \WPSecurityNinja\Plugin\Utils::generate_sn_web_link( 'upgrade_tab_visitor_logging', '/pricing/' ) );
+                ?>" class="button button-primary button-small" target="_blank" rel="noopener">Upgrade to Pro</a>
 											</p>
 										</div>
 									</div>
@@ -4105,13 +4079,16 @@ class Wf_sn_cf {
 							</tr>
 						</tbody>
 					</table>
-				<?php 
+					<?php 
+            }
             ?>
 			</div>
 
 			<div id="sn_cf_ip" class="wf-sn-subtab">
 				<?php 
-            ?>
+            $sn_cf_show_ip_upgrade = true;
+            if ( $sn_cf_show_ip_upgrade ) {
+                ?>
 					<table class="form-table">
 						<tbody>
 							<tr>
@@ -4129,8 +4106,8 @@ class Wf_sn_cf {
 											</ul>
 											<p style="margin-top: 15px;">
 												<a href="<?php 
-            echo esc_url( \WPSecurityNinja\Plugin\Utils::generate_sn_web_link( 'upgrade_tab_ip_management', '/pricing/' ) );
-            ?>" class="button button-primary button-small" target="_blank" rel="noopener">Upgrade to Pro</a>
+                echo esc_url( \WPSecurityNinja\Plugin\Utils::generate_sn_web_link( 'upgrade_tab_ip_management', '/pricing/' ) );
+                ?>" class="button button-primary button-small" target="_blank" rel="noopener">Upgrade to Pro</a>
 											</p>
 										</div>
 									</div>
@@ -4138,13 +4115,16 @@ class Wf_sn_cf {
 							</tr>
 						</tbody>
 					</table>
-				<?php 
+					<?php 
+            }
             ?>
 			</div>
 
 			<div id="sn_cf_404guard" class="wf-sn-subtab">
 				<?php 
-            ?>
+            $sn_cf_show_404guard_upgrade = true;
+            if ( $sn_cf_show_404guard_upgrade ) {
+                ?>
 					<table class="form-table">
 						<tbody>
 							<tr>
@@ -4163,8 +4143,8 @@ class Wf_sn_cf {
 											</ul>
 											<p style="margin-top: 15px;">
 												<a href="<?php 
-            echo esc_url( \WPSecurityNinja\Plugin\Utils::generate_sn_web_link( 'upgrade_tab_404guard', '/pricing/' ) );
-            ?>" class="button button-primary button-small" target="_blank" rel="noopener">Upgrade to Pro</a>
+                echo esc_url( \WPSecurityNinja\Plugin\Utils::generate_sn_web_link( 'upgrade_tab_404guard', '/pricing/' ) );
+                ?>" class="button button-primary button-small" target="_blank" rel="noopener">Upgrade to Pro</a>
 											</p>
 										</div>
 									</div>
@@ -4172,13 +4152,16 @@ class Wf_sn_cf {
 							</tr>
 						</tbody>
 					</table>
-				<?php 
+					<?php 
+            }
             ?>
 			</div>
 
 			<div id="sn_cf_woocommerce" class="wf-sn-subtab">
 				<?php 
-            ?>
+            $sn_cf_show_woocommerce_upgrade = true;
+            if ( $sn_cf_show_woocommerce_upgrade ) {
+                ?>
 					<table class="form-table">
 						<tbody>
 							<tr>
@@ -4197,8 +4180,8 @@ class Wf_sn_cf {
 											</ul>
 											<p style="margin-top: 15px;">
 												<a href="<?php 
-            echo esc_url( \WPSecurityNinja\Plugin\Utils::generate_sn_web_link( 'upgrade_tab_woocommerce', '/pricing/' ) );
-            ?>" class="button button-primary button-small" target="_blank" rel="noopener">Upgrade to Pro</a>
+                echo esc_url( \WPSecurityNinja\Plugin\Utils::generate_sn_web_link( 'upgrade_tab_woocommerce', '/pricing/' ) );
+                ?>" class="button button-primary button-small" target="_blank" rel="noopener">Upgrade to Pro</a>
 											</p>
 										</div>
 									</div>
@@ -4206,7 +4189,8 @@ class Wf_sn_cf {
 							</tr>
 						</tbody>
 					</table>
-				<?php 
+					<?php 
+            }
             ?>
 			</div>
 		</div>

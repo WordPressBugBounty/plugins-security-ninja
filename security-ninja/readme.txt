@@ -6,22 +6,24 @@ License: GPLv3
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 Requires at least: 4.7
 Tested up to: 7.0
-Stable tag: 5.283
+Stable tag: 5.286
 Requires PHP: 7.4
 
-WordPress security plugin with free basic firewall/WAF, vulnerability and core scanning, and 50+ core integrity checks.
+WordPress security plugin with free 8G firewall/WAF, 50+ security tests, vulnerability and core scanning, events logging, and AI-powered security reports (WordPress 7).
 
 == Description ==
 
 Security Ninja is a lightweight **WordPress security plugin** that helps protect your site from common attacks and security mistakes — without turning your dashboard into a cockpit.
 
-**Free includes a basic Web Application Firewall (WAF)** (based on the 8G ruleset) to block common malicious requests, plus 50+ security checks, a full vulnerability scanner, and a core integrity scanner to spot risky settings and unexpected file changes.
+[youtube https://www.youtube.com/watch?v=5zzzQTPmbS0]
 
-Upgrade to Pro if you need deeper protection like advanced malware scanning/cleanup, stronger WAF controls (e.g. country blocking), and more automation/alerting.
+**Web Application Firewall (WAF)** (based on the 8G ruleset) to block common malicious requests, plus 50+ security checks, a full vulnerability scanner, and a core integrity scanner to spot risky settings and unexpected file changes.
+
+Upgrade to Pro for Cloud Firewall, malware scanning/cleanup, login brute-force protection and 2FA, export/webhooks, and scheduled scans.
 
 This plugin can be downloaded for free without any paid subscription from <a href="https://wordpress.org/plugins/security-ninja/">the official WordPress repository</a>.
 
-**Why Security Ninja**
+
 
 **Included for free**
 - **Basic Firewall (8G-based)** – Blocks common malicious requests and bot noise before it becomes a problem.
@@ -29,24 +31,26 @@ This plugin can be downloaded for free without any paid subscription from <a hre
 - **Vulnerability Scanner** – Highlights known issues in plugins/themes so you can patch faster.
 - **Core Scanner** – Detect modified or unexpected files in WordPress core folders.
 - **Basic Events Logger** – Logs **firewall events** and **login attempts (successful/failed)**.
-- **Security Advisor** – Turn your security test results into a short, easy-to-read summary and practical next steps (requires **WordPress 7** and an AI connection you set up in WordPress).
+- **AI Security Advisor (WordPress 7)** – AI-generated audit summaries and guided follow-ups from your scans, using WordPress AI Connectors (you choose the LLM provider). Optional WordPress Abilities let other AI tools on your site read test summaries, attack activity, and your latest saved report.
 
 **Pro adds**
+- **Cloud Firewall & advanced WAF** – Block 600+ million known bad IPs, country blocking, IP management, and stronger firewall controls (free includes the 8G-based firewall).
 - **Advanced Malware Scanner** – Detect and clean malicious code and suspicious files.
-- **Advanced Firewall/WAF controls** – e.g. country blocking, stronger rules and automation.
-- **Secure Login & 2FA** – Add stronger authentication and login protections.
-- **Automation & reporting** – Scheduled scans, reports, and advanced tracking.
+- **Login protection & 2FA** – Limit failed logins, rename the login URL, and add two-factor authentication.
+- **One-click Fixes** – Harden WordPress from the Fixes page (XML-RPC, file editor, headers, and more).
+- **Full Events Logger** – Export logs, scheduled email reports, webhooks (e.g. Slack/Discord), and deeper alerting.
+- **Scheduled scans & reporting** – Automated security scans and reports.
 
 
 **Key Features**
 
-Security Ninja is a lightweight **WordPress firewall plugin** and security toolkit designed to protect your website from hackers, malware, brute-force attacks, and known vulnerabilities — without slowing it down.
+Security Ninja is a lightweight **WordPress firewall plugin** and security toolkit designed to help you find misconfigurations, block common attacks, and stay ahead of known vulnerabilities — without slowing your site down.
 
 **Comprehensive WordPress Security Testing**
 
-Security Ninja performs 50+ advanced security tests to identify vulnerabilities before hackers exploit them. This includes:
+Security Ninja performs 50+ advanced security tests to identify issues before attackers exploit them. This includes:
 
-- **Brute-force protection** – Blocks unauthorized login attempts to prevent forced entry.
+- **Login and password checks** – Audits weak passwords and related settings (Pro adds failed-login limits, rename login, and 2FA).
 - **File integrity monitoring** – Detects unauthorized changes to WordPress core files, themes, and plugins.
 - **Database security checks** – Identifies weak database permissions and potential SQL injection threats.
 - **User role audits** – Ensures no unauthorized administrator accounts exist.
@@ -82,9 +86,9 @@ Security Ninja includes a high-performance malware scanner that automatically ch
 
 Security Ninja includes a **basic firewall for free** (8G-based) to block common malicious requests. Upgrade to Pro for more advanced WAF controls.
 
-- **Basic protection (Free)** – Blocks common exploit patterns and bad requests.
-- **Advanced protection (Pro)** – Country blocking, stronger controls, and additional intelligence/automation.
-- **Brute-force & bot mitigation** – Reduce noisy and abusive traffic hitting WordPress.
+- **Basic protection (Free)** – 8G rules block many common exploit patterns and abusive requests.
+- **Advanced protection (Pro)** – Cloud Firewall, country blocking, IP lists, and additional intelligence/automation.
+- **Login brute-force protection (Pro)** – Limit failed logins and harden the login flow (not included in the free firewall).
 
 **Login Security & Two-Factor Authentication (2FA) (PRO)**
 
@@ -108,10 +112,8 @@ And many more fixes to harden your WordPress security!
 
 Security Ninja includes a **basic events logger for free** so you can see what’s happening on your site.
 
-- **Free:** firewall events + login attempts (successful/failed).
-- **Pro:** deeper tracking, alerting, and reporting.
-- Export security logs for audits and compliance reports.
-- Includes webhook functionality so you can integrate with other services (e.g. Slack/Discord/webhooks).
+- **Free:** firewall events and login attempts (successful/failed) in the dashboard.
+- **Pro:** export security logs, scheduled email reports, webhooks (e.g. Slack/Discord), and deeper alerting.
 
 **Automated Security Scans & Reports (PRO)**
 
@@ -129,32 +131,32 @@ Hackers and spammers use bots to exploit WordPress websites. Security Ninja prev
 - **Malicious bot attacks** – Blocks scripts attempting to hack your site.
 - **Unwanted traffic** – Reduces server load by preventing unnecessary bot access.
 
-**Security Advisor — from scan results to clear next steps**
+**AI Security Advisor — from scan results to clear next steps (WordPress 7)**
 
-Understanding a security scan shouldn’t feel like homework. **Security Advisor** helps you make sense of what Security Ninja found: a concise summary of where things stand, what deserves attention first, and practical follow-up prompts you can run when you want more context—without turning the plugin into an open-ended chat bot.
+Understanding a security scan shouldn’t feel like homework. **AI Security Advisor** uses your connected LLM (via **WordPress 7 AI Connectors**) to turn Security Ninja findings into a readable audit: executive summary, prioritized improvements, and suggested follow-up prompts—not an open-ended chatbot.
+
+Reports draw on Security Tests, the Vulnerability Scanner, Core Scanner, recent firewall/login events, and on Pro sites Malware Scanner results when available. Saved reports stay on your site until you remove them.
 
 **What you need**  
-Security Advisor is available in the free plugin and uses **WordPress 7’s AI Connectors**. That means your site needs to be running **WordPress 7**, and **you** connect the AI service you want to use through **WordPress** (Connectors in your site settings). Security Ninja does not replace that step—you pick the provider and credentials you are comfortable with.
+AI Security Advisor is included in the free plugin but requires **WordPress 7**. You connect the AI/LLM provider yourself under **Settings → Connectors** in WordPress; Security Ninja does not host or supply API keys.
+
+**WordPress Abilities (optional)**  
+On WordPress 7, Security Ninja can register read-only **Abilities** so other AI tools on the same site can fetch a test summary, 7-day attack activity, or your latest saved audit—useful if you use multiple AI integrations. Report generation and follow-ups on the Security Advisor page work independently of this.
 
 **Privacy, in everyday language**  
-Only non-identifying information about your security checks is sent to your chosen AI service to build the report—so you get useful guidance without handing over personal or site-identifying details. Past reports stay on your site until you remove them.
+Only non-identifying security context (test results, scan status, event counts—not personal data) is sent to your chosen AI provider to build a report.
 
-If you are not on WordPress 7 yet, you will see a simple notice on the Security Advisor screen; the rest of Security Ninja continues to work as usual.
+If you are not on WordPress 7 yet, you will see a notice on the AI Security Advisor screen; the rest of Security Ninja continues to work as usual.
 
 ---
 
-**Join thousands of satisfied users who trust Security Ninja to keep their websites safe. Start protecting your online presence today and help yourself to peace of mind.**
-
-**Why Security Ninja is Best WordPress Security Plugin**
-
-Security Ninja is the best WordPress security plugin because it provides a comprehensive, lightweight, and easy-to-use solution to protect your website from hackers, malware, and vulnerabilities. With 50+ security tests, an advanced malware scanner, a firewall, and two-factor authentication (2FA), it ensures complete website protection without slowing down performance.
-
-Unlike bloated security plugins, Security Ninja is optimized for speed and efficiency. It offers one-click security fixes, automated scans, real-time threat detection, and login protection, making it ideal for beginners and advanced users alike. Trusted since 2011, it keeps thousands of websites secure while offering proactive protection against cyber threats.
+**Join thousands of satisfied users who trust Security Ninja to keep their websites safe. Start protecting your online presence today.**
 
 ===Extensions===
-* MainWP - The MainWP Dashboard allows administrators to manage many WordPress websites from a central location.
+**MainWP** — Manage Security Ninja across many sites from one MainWP Dashboard. Security Ninja on each child site includes MainWP integration built in (no extra plugin on child sites).
 
-Install the **FREE <a href="https://wordpress.org/plugins/security-ninja-for-mainwp/" target="_blank">Security Ninja for MainWP Extension</a>** to get an overview of all websites you have installed Security Ninja on!
+* **Free addon** — <a href="https://wordpress.org/plugins/security-ninja-for-mainwp/" target="_blank">Security Ninja for MainWP</a> (WordPress.org): view test results and vulnerabilities per site, trigger remote security scans, and sync fresh results. Works with child sites on free or Pro Security Ninja; data shown matches what each site’s installed version provides.
+* **Premium addon** — Adds a combined events log across all connected sites, search/filter for security events, and remote white-label control on Pro child sites. Requires Security Ninja Pro on child sites for log and white-label features. Available from your <a href="https://wpsecurityninja.com/account/" target="_blank">WP Security Ninja account</a>; see <a href="https://wpsecurityninja.com/mainwp/" target="_blank">MainWP integration</a> for details.
 
 https://wordpress.org/plugins/security-ninja-for-mainwp/
 
@@ -189,7 +191,7 @@ https://wordpress.org/plugins/security-ninja-for-mainwp/
 Enhance your website's security, performance, and user experience with Security Ninja - your trusted partner in WordPress protection.
 
 
-> **Security Ninja Pro** has extra features: Firewall, Filter Suspicious Queries, Country Blocking, Core Scanner, Malware Scanner, Auto Fixer for some of the tests, Events Logger & Scheduled Scans.
+> **Security Ninja Pro** adds Cloud Firewall (600+ million known bad IPs), country blocking, advanced WAF controls, Malware Scanner, login protection (failed-login limits, rename login, 2FA), One-click Fixes, full Events Logger (export, webhooks, scheduled reports), and scheduled scans. The free plugin already includes the 8G firewall, 50+ security tests, Vulnerability Scanner, Core Scanner, basic Events Logger, and AI Security Advisor on WordPress 7.
 
 An all-in-one security solution for any site. With premium support and continuous updates Security Ninja **Pro** is a perfect tool to keep your site safe. <a href="https://wpsecurityninja.com/?utm_source=wordpressorg&utm_medium=content&utm_campaign=readme&utm_content=see-what-pro-offers">See what the PRO version offers</a>
 
@@ -317,7 +319,7 @@ You can report security bugs through the Patchstack Vulnerability Disclosure Pro
 Yes. Security Ninja includes a **basic Web Application Firewall (WAF) for free**, based on the 8G ruleset. It blocks common malicious requests and reduces bot noise.
 
 = Does Security Ninja protect against brute force attacks and login attempts? =
-Yes. It includes login protections (Pro adds more), and the **free Events Logger records login attempts (successful/failed)** so you can spot suspicious behavior.
+**Pro** includes login brute-force protection (failed-login limits), rename login, and 2FA. The **free** version records login attempts (successful/failed) in the Events Logger and runs security tests that check password strength—it does not block repeated failed logins on its own.
 
 = Does Security Ninja include a WordPress vulnerability scanner? =
 Yes. The **Vulnerability Scanner is fully available in the free version** and helps you identify known vulnerabilities in plugins/themes so you can patch quickly.
@@ -344,6 +346,33 @@ While we strive for universal compatibility, if you face any issues, our support
 5. Core Scanner (detect modified/unknown core files).
 
 == Changelog ==
+
+= 5.286 =
+* 2026-06-01
+* NEW: MainWP integration — child sites accept allowlisted Security Ninja settings updates from the Security Ninja for MainWP extension (`update_settings` remote action; changed keys only).
+* IMPROVED: MainWP settings updates are logged in Events with a list of changed setting keys (no values stored), so you can see what was changed from the dashboard.
+* IMPROVED: AI Security Advisor — works more reliably with WordPress 7 AI connectors (including DeepSeek and OpenAI). The plugin picks the right request format for each service instead of failing when structured JSON is not supported.
+* IMPROVED: AI Security Advisor — Reports are faster and cheaper. Only tests that need attention are included, with short summaries.
+* IMPROVED: AI Security Advisor — report output is cleaned up and checked before it is saved.
+* IMPROVED: AI Security Advisor — full reports can be longer (higher token limit).
+* IMPROVED: AI Security Advisor — when something goes wrong, the page shows a more helpful error message, and the failure is logged in Events so you can see what happened.
+* IMPROVED: AI Security Advisor — successful and failed AI requests in Events now record which connector and model were used (prompt chip id only when relevant).
+
+= 5.285 =
+* 2026-05-26
+* FIX: Upgrading from the free plugin to Pro no longer causes a site error when both versions are present during install or activation. Pro skips loading Composer again if the free copy already loaded it, then Freemius deactivates free on activation.
+* IMPROVED: AI Security Advisor — when an AI connector request fails, the page now shows the provider's actual error message instead of a generic "temporarily unavailable" notice, so quota, billing, and configuration issues are easier to diagnose.
+* NEW: MainWP integration (Phase 1) — sync now includes IP management entries (up to 200), AI Security Advisor executive summary, and optional event raw_data for the top 50 events. Remote IP actions (whitelist/blacklist add/remove, lift local ban, lift 404 guard ban) via the Security Ninja for MainWP extension 2.1.0+.
+
+= 5.284 =
+* 2026-05-23
+* FIX: Change Login URL (Pro) — Checkout and other frontend flows that use WordPress `admin-post.php` (for example FluentCart account creation during checkout) no longer show “Access Denied” for visitors. Legitimate public handlers registered with `admin_post_nopriv_*` are allowed; direct access to the rest of wp-admin stays blocked.
+* IMPROVED: Rename Login (Pro) — Recognized temporary-login plugin links (Temporary Login Without Password, One Time Login, Magic Login, Login Links) are no longer blocked when accessing wp-admin before authentication completes. Extend via the `securityninja_rename_login_allow_autologin` filter.
+* IMPROVED: AI Security Advisor now uses WordPress 7 structured AI responses for more reliable report output.
+* IMPROVED: AI Security Advisor reports now include richer context from Security Tests, Vulnerability Scanner, Core Scanner, and recent security events.
+* IMPROVED: Pro sites now include Malware Scanner findings in AI report context when available.
+* NEW: WordPress 7 Abilities (optional, on by default): expose read-only security data to other WordPress AI clients—Security Test summary (passed/warning/failed), 7-day attack activity vs the previous week, and the latest saved AI Security Advisor report. Control exposure under Security Advisor → Settings; turning this off does not affect generating reports or follow-ups on the Security Advisor page.
+* NEW: Added a dismissable "Re-evaluate with AI" reminder after tests, scans, and firewall setting changes (stays hidden after dismiss until a new security event occurs).
 
 = 5.283 =
 * 2026-05-18

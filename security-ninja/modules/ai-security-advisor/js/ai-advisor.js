@@ -32,6 +32,18 @@
 		return escHtml(str).replace(/\n/g, '<br>');
 	}
 
+	function extractAjaxErrorMessage(response, fallback) {
+		if (response && response.data) {
+			if (typeof response.data === 'string' && response.data) {
+				return response.data;
+			}
+			if (response.data.message) {
+				return response.data.message;
+			}
+		}
+		return fallback || '';
+	}
+
 	function escAttr(str) {
 		return String(str)
 			.replace(/&/g, '&amp;')
@@ -48,19 +60,6 @@
 		return t.slice(0, max).trim() + '\u2026';
 	}
 
-	/** Sort key for top_improvements: high (0), medium (1), low (2). Matches PHP normalize_improvement_risk. */
-	function improvementRiskSortWeight(item) {
-		var imp = item && typeof item === 'object' ? item : {};
-		var risk = (imp.risk || 'low').toLowerCase();
-		if (imp.id === 'mysql_permissions') {
-			risk = 'low';
-		}
-		if (['low', 'medium', 'high'].indexOf(risk) === -1) {
-			risk = 'low';
-		}
-		return risk === 'high' ? 0 : risk === 'medium' ? 1 : 2;
-	}
-
 	function chipSummaryNewCount(count) {
 		var tpl = base.strings.chipNewItems || 'New items (%d)';
 		return tpl.replace('%d', String(count));
@@ -69,6 +68,30 @@
 	function chipSummaryResolvedCount(count) {
 		var tpl = base.strings.chipResolvedItems || 'Resolved (%d)';
 		return tpl.replace('%d', String(count));
+	}
+
+	function getCurrentParentReportId() {
+		var $card = $('#wf_sn_ai_latest_report_card');
+		if ($card.length) {
+			var fromCard = parseInt($card.data('parent-report-id'), 10);
+			if (!isNaN(fromCard) && fromCard > 0) {
+				return fromCard;
+			}
+		}
+		var fromBase = parseInt(base.latestParentReportId, 10);
+		return !isNaN(fromBase) && fromBase > 0 ? fromBase : 0;
+	}
+
+	function setCurrentParentReportId(reportId) {
+		var id = parseInt(reportId, 10);
+		if (isNaN(id) || id <= 0) {
+			return;
+		}
+		base.latestParentReportId = id;
+		var $card = $('#wf_sn_ai_latest_report_card');
+		if ($card.length) {
+			$card.attr('data-parent-report-id', String(id));
+		}
 	}
 
 	function chipLabelForPromptId(promptId) {
@@ -147,7 +170,7 @@
 	 * @param {Object} usage Usage metadata.
 	 * @return {boolean} True if DOM was updated.
 	 */
-	function syncLatestReportCard(report, usage) {
+	function syncLatestReportCard(report, usage, reportId) {
 		var $card = $('#wf_sn_ai_latest_report_card');
 		var $primary = $('#wf_sn_ai_latest_report_primary');
 		if (!$card.length || !$primary.length || !report || typeof report !== 'object') {
@@ -158,10 +181,21 @@
 		} catch (e) {
 			return false;
 		}
+		if (reportId) {
+			setCurrentParentReportId(reportId);
+		}
 		$card.removeClass('wf-sn-ai-latest-report--empty');
 		$primary.html(buildLatestReportPrimaryFromAjax(report, usage));
 		renderAttackChart();
 		return true;
+	}
+
+	function resetConvoForNewReport() {
+		convoNextOffset = 0;
+		convoHasMore = false;
+		$('#wf_sn_ai_convo_turns').empty();
+		$('#wf_sn_ai_convo_load_wrap').prop('hidden', true);
+		fetchChipHistoryPage(0, false);
 	}
 
 	function assistantSkeletonHtml() {
@@ -278,21 +312,12 @@
 				var improvementsHtml = [];
 				var improvementLinks = base.improvementLinks || {};
 				var baseUrlPath = base.baseUrlPath || '/wp-admin/admin.php?page=wf-sn';
-				var sortedImprovements = report.top_improvements.slice().sort(function (a, b) {
-					return improvementRiskSortWeight(a) - improvementRiskSortWeight(b);
-				});
-				for (var i = 0; i < sortedImprovements.length; i++) {
-					var item = sortedImprovements[i] || {};
+				for (var i = 0; i < report.top_improvements.length; i++) {
+					var item = report.top_improvements[i] || {};
 					var title = item.title || item.short_label || '';
 					var label = item.short_label || title;
 					var details = item.details || '';
 					var risk = (item.risk || 'low').toLowerCase();
-					if (item.id === 'mysql_permissions') {
-						risk = 'low';
-					}
-					if (['low', 'medium', 'high'].indexOf(risk) === -1) {
-						risk = 'low';
-					}
 					var riskLabel = risk.charAt(0).toUpperCase() + risk.slice(1);
 					var hash = item.id && improvementLinks[item.id] ? improvementLinks[item.id] : '';
 					var openInSnUrl = hash ? (window.location.origin + baseUrlPath + hash) : '';
@@ -513,14 +538,37 @@
 		return 15;
 	}
 
+	function setConvoLoading(isLoading) {
+		var $loading = $('#wf_sn_ai_convo_loading');
+		var $convo = $('#wf_sn_ai_convo');
+		var $empty = $('#wf_sn_ai_assistant_empty');
+		if (!$loading.length) {
+			return;
+		}
+		$loading.prop('hidden', !isLoading);
+		if (isLoading) {
+			$convo.prop('hidden', true);
+			$empty.prop('hidden', true);
+		}
+	}
+
+	function finishInitialConvoLoad() {
+		setConvoLoading(false);
+		syncConvoEmptyState();
+	}
+
 	function syncConvoEmptyState() {
 		var $turns = $('#wf_sn_ai_convo_turns');
 		var $empty = $('#wf_sn_ai_assistant_empty');
+		var $convo = $('#wf_sn_ai_convo');
 		if (!$turns.length || !$empty.length) {
 			return;
 		}
 		var hasContent = $turns.children('.wf-sn-ai-convo__turn').length > 0;
 		$empty.prop('hidden', hasContent);
+		if ($convo.length) {
+			$convo.prop('hidden', !hasContent);
+		}
 	}
 
 	function removeConvoPending() {
@@ -611,6 +659,7 @@
 		var $wrap = $('#wf_sn_ai_convo_load_wrap');
 		var $convo = $('#wf_sn_ai_convo');
 		var $btnOlder = $('#wf_sn_ai_convo_load_older');
+		var isInitialLoad = offset === 0 && !isPrepend;
 		if (!$turns.length) {
 			return;
 		}
@@ -619,7 +668,10 @@
 		}
 		convoLoadInProgress = true;
 		$btnOlder.prop('disabled', true);
-		if (offset === 0) {
+		if (isInitialLoad) {
+			setConvoLoading(true);
+			$turns.empty();
+		} else if (offset === 0) {
 			$turns.empty();
 		}
 		var limit = getChipHistoryLimit();
@@ -631,13 +683,18 @@
 			action: 'wf_sn_ai_advisor_chip_history_page',
 			nonce: nonce,
 			offset: offset,
-			limit: limit
+			limit: limit,
+			parent_report_id: getCurrentParentReportId()
 		})
 			.done(function (response) {
 				if (!response.success || !response.data) {
 					convoLoadInProgress = false;
 					$btnOlder.prop('disabled', false);
-					syncConvoEmptyState();
+					if (isInitialLoad) {
+						finishInitialConvoLoad();
+					} else {
+						syncConvoEmptyState();
+					}
 					return;
 				}
 				var items = Array.isArray(response.data.items) ? response.data.items : [];
@@ -669,12 +726,20 @@
 				$wrap.prop('hidden', !convoHasMore);
 				convoLoadInProgress = false;
 				$btnOlder.prop('disabled', false);
-				syncConvoEmptyState();
+				if (isInitialLoad) {
+					finishInitialConvoLoad();
+				} else {
+					syncConvoEmptyState();
+				}
 			})
 			.fail(function () {
 				convoLoadInProgress = false;
 				$btnOlder.prop('disabled', false);
-				syncConvoEmptyState();
+				if (isInitialLoad) {
+					finishInitialConvoLoad();
+				} else {
+					syncConvoEmptyState();
+				}
 			});
 	}
 
@@ -779,10 +844,12 @@
 					$btn.html($btn.data('original-label'));
 				}
 				if (response.success && response.data && response.data.report) {
-					var synced = syncLatestReportCard(response.data.report, response.data.usage);
+					var newReportId = response.data.report_id ? parseInt(response.data.report_id, 10) : 0;
+					var synced = syncLatestReportCard(response.data.report, response.data.usage, newReportId);
 					if (synced) {
 						$result.empty().hide();
 						$wrapper.hide();
+						resetConvoForNewReport();
 					} else {
 						var inner = renderReport(response.data.report);
 						var uline = renderUsageLine(response.data.usage);
@@ -794,8 +861,8 @@
 				} else if (response.success && response.data && response.data.raw_text) {
 					$result.html('<pre>' + escHtml(response.data.raw_text) + '</pre>').show();
 				} else {
-					var errMsg = (response.data && response.data.message) ? response.data.message : (base.strings.requestFailed || '');
-					$result.text(errMsg).show();
+					var errMsg = extractAjaxErrorMessage(response, base.strings.requestFailed || '');
+					$result.html('<p class="description">' + formatTextForHtml(errMsg) + '</p>').show();
 				}
 			})
 			.fail(function () {
@@ -860,7 +927,7 @@
 						$convo[0].scrollTop = $convo[0].scrollHeight;
 					}
 				} else {
-					var msg = (response.data && response.data.message) ? response.data.message : (base.strings.requestFailed || '');
+					var msg = extractAjaxErrorMessage(response, base.strings.requestFailed || '');
 					appendConvoErrorTurn(promptId, lbl, msg);
 				}
 			})

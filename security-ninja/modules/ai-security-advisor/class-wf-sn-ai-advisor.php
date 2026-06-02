@@ -27,22 +27,47 @@ class Wf_Sn_Ai_Advisor {
     public static function init() {
         $dir = __DIR__;
         require_once $dir . '/class-wf-sn-ai-advisor-aggregation.php';
+        require_once $dir . '/class-wf-sn-ai-advisor-attack-activity.php';
+        require_once $dir . '/class-wf-sn-ai-advisor-test-scores.php';
+        require_once $dir . '/class-wf-sn-ai-advisor-improvements.php';
         require_once $dir . '/class-wf-sn-ai-advisor-payload.php';
         require_once $dir . '/class-wf-sn-ai-advisor-feature-tiers.php';
         require_once $dir . '/class-wf-sn-ai-advisor-prompts.php';
+        require_once $dir . '/class-wf-sn-ai-advisor-schemas.php';
         require_once $dir . '/class-wf-sn-ai-advisor-provider-wp-connectors.php';
         require_once $dir . '/class-wf-sn-ai-advisor-reports.php';
+        require_once $dir . '/class-wf-sn-ai-advisor-abilities.php';
         require_once $dir . '/class-wf-sn-ai-advisor-chips.php';
         require_once $dir . '/class-wf-sn-ai-advisor-page.php';
         require_once $dir . '/class-wf-sn-ai-advisor-reevaluate-notice.php';
+        Wf_Sn_Ai_Advisor_Abilities::init();
         add_action( 'admin_enqueue_scripts', array(__CLASS__, 'enqueue_scripts') );
         add_action( 'admin_post_wf_sn_ai_advisor_save_settings', array(__CLASS__, 'handle_save_settings') );
         add_action( 'wp_ajax_' . self::AJAX_ACTION_PREFIX . 'request', array(__CLASS__, 'ajax_request') );
         add_action( 'wp_ajax_' . self::AJAX_ACTION_PREFIX . 'preview_data', array(__CLASS__, 'ajax_preview_data') );
         add_action( 'wp_ajax_' . self::AJAX_ACTION_PREFIX . 'delete_report', array(__CLASS__, 'ajax_delete_report') );
         add_action( 'wp_ajax_' . self::AJAX_ACTION_PREFIX . 'chip_history_page', array(__CLASS__, 'ajax_chip_history_page') );
+        add_action( 'wp_ajax_' . self::AJAX_ACTION_PREFIX . 'dismiss_reevaluate', array('WPSecurityNinja\\Plugin\\AiAdvisor\\Wf_Sn_Ai_Advisor_Reevaluate_Notice', 'ajax_dismiss') );
         add_action( 'admin_notices', array(__CLASS__, 'connectors_page_notice') );
         add_action( 'admin_notices', array(__CLASS__, 'advisor_settings_saved_notice'), 5 );
+        add_action( 'admin_notices', array('WPSecurityNinja\\Plugin\\AiAdvisor\\Wf_Sn_Ai_Advisor_Reevaluate_Notice', 'admin_notice_pending'), 6 );
+        add_action( 'admin_footer', array('WPSecurityNinja\\Plugin\\AiAdvisor\\Wf_Sn_Ai_Advisor_Reevaluate_Notice', 'print_dismiss_script') );
+        add_action( 'wf_sn_ai_advisor_should_reevaluate', array(__CLASS__, 'handle_should_reevaluate') );
+        add_action( 'security_ninja_done_testing', static function () {
+            do_action( 'wf_sn_ai_advisor_should_reevaluate', 'tests_completed' );
+        } );
+        add_action( 'security_ninja_core_scanner_done_scanning', static function () {
+            do_action( 'wf_sn_ai_advisor_should_reevaluate', 'core_scan_completed' );
+        } );
+        add_action( 'security_ninja_malware_scanner_done_scanning', static function () {
+            do_action( 'wf_sn_ai_advisor_should_reevaluate', 'malware_scan_completed' );
+        } );
+        add_action( 'security_ninja_vulnerability_scan_done', static function () {
+            do_action( 'wf_sn_ai_advisor_should_reevaluate', 'vuln_scan_completed' );
+        } );
+        add_action( 'security_ninja_firewall_settings_saved', static function () {
+            do_action( 'wf_sn_ai_advisor_should_reevaluate', 'firewall_settings_saved' );
+        } );
     }
 
     /**
@@ -50,6 +75,16 @@ class Wf_Sn_Ai_Advisor {
      */
     public static function advisor_settings_saved_notice() {
         Wf_Sn_Ai_Advisor_Reevaluate_Notice::admin_notice_settings_saved();
+    }
+
+    /**
+     * Schedule re-evaluate notice for plugin flows.
+     *
+     * @param string $context Context slug.
+     * @return void
+     */
+    public static function handle_should_reevaluate( $context ) {
+        Wf_Sn_Ai_Advisor_Reevaluate_Notice::set_pending( (string) $context );
     }
 
     /**
@@ -97,15 +132,16 @@ class Wf_Sn_Ai_Advisor {
         $chip_history_page_size = (int) apply_filters( 'wf_sn_ai_advisor_chip_history_page_size', 15 );
         $chip_history_page_size = max( 5, min( 25, $chip_history_page_size ) );
         wp_localize_script( 'wf-sn-ai-advisor', 'wfSnAiAdvisor', array(
-            'ajaxurl'             => admin_url( 'admin-ajax.php' ),
-            'nonce'               => wp_create_nonce( 'wf_sn_ai_advisor' ),
-            'connectors'          => $configured,
-            'uiLocale'            => $ui_locale,
-            'improvementLinks'    => self::get_improvement_links(),
-            'baseUrlPath'         => $base_url_path,
-            'chips'               => Wf_Sn_Ai_Advisor_Chips::get_chips_for_ui(),
-            'chipHistoryPageSize' => $chip_history_page_size,
-            'strings'             => array(
+            'ajaxurl'              => admin_url( 'admin-ajax.php' ),
+            'nonce'                => wp_create_nonce( 'wf_sn_ai_advisor' ),
+            'connectors'           => $configured,
+            'uiLocale'             => $ui_locale,
+            'improvementLinks'     => self::get_improvement_links(),
+            'baseUrlPath'          => $base_url_path,
+            'chips'                => Wf_Sn_Ai_Advisor_Chips::get_chips_for_ui(),
+            'chipHistoryPageSize'  => $chip_history_page_size,
+            'latestParentReportId' => Wf_Sn_Ai_Advisor_Reports::get_latest_full_report_id(),
+            'strings'              => array(
                 'requestFailed'            => __( 'Request failed.', 'security-ninja' ),
                 'riskLabel'                => __( 'Risk: %s', 'security-ninja' ),
                 'executiveSummary'         => __( 'Executive summary', 'security-ninja' ),
@@ -217,6 +253,9 @@ class Wf_Sn_Ai_Advisor {
                 Wf_Sn_Ai_Advisor_Page::set_option( 'last_connector_provider', $connector );
             }
         }
+        $abilities_raw = ( isset( $_POST['wf_sn_ai_advisor_abilities_exposed'] ) ? sanitize_text_field( wp_unslash( $_POST['wf_sn_ai_advisor_abilities_exposed'] ) ) : '0' );
+        $abilities_exposed = '1' === $abilities_raw;
+        Wf_Sn_Ai_Advisor_Page::set_option( Wf_Sn_Ai_Advisor_Abilities::OPTION_ABILITIES_EXPOSED, ( $abilities_exposed ? 1 : 0 ) );
         $redirect = add_query_arg( array(
             'page'             => self::SLUG,
             'settings-updated' => 1,
@@ -227,22 +266,17 @@ class Wf_Sn_Ai_Advisor {
 
     public static function ajax_request() {
         check_ajax_referer( 'wf_sn_ai_advisor', 'nonce' );
-        if ( !current_user_can( 'manage_options' ) ) {
-            wp_send_json_error( array(
-                'message' => __( 'Forbidden.', 'security-ninja' ),
-            ) );
-        }
         $request_type = ( isset( $_POST['request_type'] ) ? sanitize_text_field( wp_unslash( $_POST['request_type'] ) ) : '' );
+        $prompt_id = '';
+        if ( !current_user_can( 'manage_options' ) ) {
+            self::ajax_request_fail( __( 'Forbidden.', 'security-ninja' ), $request_type, $prompt_id );
+        }
         $allowed = array('full_report', Wf_Sn_Ai_Advisor_Chips::REQUEST_TYPE);
         if ( !in_array( $request_type, $allowed, true ) ) {
-            wp_send_json_error( array(
-                'message' => __( 'Invalid request type.', 'security-ninja' ),
-            ) );
+            self::ajax_request_fail( __( 'Invalid request type.', 'security-ninja' ), $request_type, $prompt_id );
         }
         if ( !self::passes_rate_limit() ) {
-            wp_send_json_error( array(
-                'message' => __( 'Too many AI requests in the last hour. Please wait and try again.', 'security-ninja' ),
-            ) );
+            self::ajax_request_fail( __( 'Too many AI requests in the last hour. Please wait and try again.', 'security-ninja' ), $request_type, $prompt_id );
         }
         $ui_locale = '';
         if ( isset( $_POST['ui_locale'] ) ) {
@@ -258,21 +292,26 @@ class Wf_Sn_Ai_Advisor {
         if ( '' !== $connector_id ) {
             Wf_Sn_Ai_Advisor_Page::set_option( 'last_connector_provider', $connector_id );
         }
-        $prompt_id = '';
         if ( Wf_Sn_Ai_Advisor_Chips::REQUEST_TYPE === $request_type ) {
             $prompt_id = ( isset( $_POST['prompt_id'] ) ? sanitize_key( wp_unslash( $_POST['prompt_id'] ) ) : '' );
             if ( !Wf_Sn_Ai_Advisor_Chips::is_valid_prompt_id( $prompt_id ) ) {
-                wp_send_json_error( array(
-                    'message' => __( 'Invalid request.', 'security-ninja' ),
-                ) );
+                self::ajax_request_fail(
+                    __( 'Invalid request.', 'security-ninja' ),
+                    $request_type,
+                    $prompt_id,
+                    $connector_id
+                );
             }
             if ( !Wf_Sn_Ai_Advisor_Chips::is_visible( $prompt_id ) ) {
-                wp_send_json_error( array(
-                    'message' => __( 'This prompt is not available for your current reports.', 'security-ninja' ),
-                ) );
+                self::ajax_request_fail(
+                    __( 'This prompt is not available for your current reports.', 'security-ninja' ),
+                    $request_type,
+                    $prompt_id,
+                    $connector_id
+                );
             }
         }
-        $context = Wf_Sn_Ai_Advisor_Payload::build( 'full_report', $ui_locale );
+        $context = Wf_Sn_Ai_Advisor_Payload::build( $ui_locale );
         if ( Wf_Sn_Ai_Advisor_Chips::REQUEST_TYPE === $request_type ) {
             $context['prompt_id'] = $prompt_id;
             $two = Wf_Sn_Ai_Advisor_Reports::get_latest_two_full_reports();
@@ -302,15 +341,27 @@ class Wf_Sn_Ai_Advisor {
         $chip_parsed = null;
         $error = '';
         $result = array();
+        $json_schema = Wf_Sn_Ai_Advisor_Schemas::get_for_request( $request_type, $prompt_id );
+        $default_max_tokens = ( Wf_Sn_Ai_Advisor_Chips::REQUEST_TYPE === $request_type ? 1536 : 8192 );
+        $max_out_tokens = max( 256, (int) apply_filters( 'wf_sn_ai_advisor_max_tokens', $default_max_tokens, $request_type ) );
         if ( '' !== $connector_id ) {
-            $result = Wf_Sn_Ai_Advisor_Provider_Wp_Connectors::generate_text( $connector_id, $prompts['system_instruction'], $prompt_text );
+            $gen_options = array(
+                'request_type' => $request_type,
+                'json_schema'  => $json_schema,
+            );
+            $result = Wf_Sn_Ai_Advisor_Provider_Wp_Connectors::generate_text(
+                $connector_id,
+                $prompts['system_instruction'],
+                $prompt_text,
+                $gen_options
+            );
             if ( !empty( $result['ok'] ) ) {
                 if ( isset( $result['text'] ) && is_string( $result['text'] ) ) {
                     $text = $result['text'];
                 }
             } else {
                 $error = ( isset( $result['error'] ) ? $result['error'] : __( 'Request failed.', 'security-ninja' ) );
-                $error = self::normalize_connector_error( $error );
+                $error = self::format_connector_error_for_display( $error );
             }
         } else {
             $error = __( 'No AI connector is configured. Add one under Settings → Connectors, then choose it on the Security Advisor page.', 'security-ninja' );
@@ -320,27 +371,45 @@ class Wf_Sn_Ai_Advisor {
             $model_used = $result['model'];
         }
         $usage = ( !empty( $result['usage'] ) && is_array( $result['usage'] ) ? $result['usage'] : array() );
+        if ( '' === $error && '' === $text ) {
+            if ( !empty( $result['error'] ) && is_string( $result['error'] ) ) {
+                $error = $result['error'];
+            } elseif ( !empty( $result['finish_reason'] ) && 'length' === $result['finish_reason'] ) {
+                $error = __( 'The AI response hit the output token limit before the report was finished. Try again or switch to another connector (e.g. OpenAI or DeepSeek Chat).', 'security-ninja' );
+            } elseif ( !empty( $usage['output_tokens'] ) && $max_out_tokens > 0 && (int) $usage['output_tokens'] >= (int) ($max_out_tokens * 0.95) ) {
+                $error = __( 'The AI response hit the output token limit before the report was finished. Try again or switch to another connector (e.g. OpenAI or DeepSeek Chat).', 'security-ninja' );
+            } else {
+                $error = __( 'The AI provider returned an empty response. Please try again later.', 'security-ninja' );
+            }
+        }
         $token_input = self::resolve_input_tokens_from_usage( $usage, $token_in_est );
         $token_output = null;
         if ( '' === $error && '' !== $text ) {
             if ( 'full_report' === $request_type ) {
                 $report = self::decode_report_json_string( $text );
-                if ( !is_array( $report ) ) {
+                if ( is_array( $report ) ) {
+                    $report_lang = ( isset( $context['ui_locale'] ) && is_string( $context['ui_locale'] ) ? $context['ui_locale'] : '' );
+                    Wf_Sn_Ai_Advisor_Schemas::normalize_full_report_response( $report, $model_used, $report_lang );
+                }
+                if ( !is_array( $report ) || !Wf_Sn_Ai_Advisor_Schemas::validate_full_report_response( $report ) ) {
                     $error = __( 'The AI response could not be parsed. Please try again later.', 'security-ninja' );
                     $report = null;
+                } else {
+                    Wf_Sn_Ai_Advisor_Improvements::prepare_report_improvements( $report );
                 }
             } else {
                 $chip_parsed = self::decode_report_json_string( $text );
-                if ( !is_array( $chip_parsed ) || !self::validate_chip_response( $prompt_id, $chip_parsed ) ) {
+                if ( !is_array( $chip_parsed ) || !Wf_Sn_Ai_Advisor_Schemas::validate_chip_response( $prompt_id, $chip_parsed ) ) {
                     $error = __( 'The AI response could not be parsed. Please try again later.', 'security-ninja' );
                     $chip_parsed = null;
                 }
             }
         }
+        $new_full_report_id = 0;
         if ( '' === $error && 'full_report' === $request_type && is_array( $report ) ) {
             $token_output = self::resolve_output_tokens_from_usage( $usage, wp_json_encode( $report ) );
             $stored_text = wp_json_encode( $report );
-            Wf_Sn_Ai_Advisor_Reports::insert_report(
+            $inserted = Wf_Sn_Ai_Advisor_Reports::insert_report(
                 $stored_text,
                 'wordpress_connectors',
                 $model_used,
@@ -348,16 +417,22 @@ class Wf_Sn_Ai_Advisor {
                 $token_output,
                 $request_type
             );
+            if ( false !== $inserted ) {
+                $new_full_report_id = (int) $inserted;
+                Wf_Sn_Ai_Advisor_Reports::prune_chip_reports_for_parent( $new_full_report_id );
+            }
             delete_transient( 'secnin_dashboard_ai_advisor' );
+            Wf_Sn_Ai_Advisor_Reevaluate_Notice::clear_pending();
         }
         $chip_report_id = 0;
         if ( '' === $error && Wf_Sn_Ai_Advisor_Chips::REQUEST_TYPE === $request_type && is_array( $chip_parsed ) ) {
             $token_output = self::resolve_output_tokens_from_usage( $usage, wp_json_encode( $chip_parsed ) );
+            $parent_id = ( isset( $context['parent_report_id'] ) ? (int) $context['parent_report_id'] : 0 );
             $store = array(
                 'prompt_id'        => $prompt_id,
                 'response'         => $chip_parsed,
                 'generated_at'     => gmdate( 'c' ),
-                'parent_report_id' => ( isset( $context['parent_report_id'] ) ? (int) $context['parent_report_id'] : 0 ),
+                'parent_report_id' => $parent_id,
             );
             $inserted = Wf_Sn_Ai_Advisor_Reports::insert_report(
                 wp_json_encode( $store ),
@@ -365,29 +440,35 @@ class Wf_Sn_Ai_Advisor {
                 $model_used,
                 $token_input,
                 $token_output,
-                Wf_Sn_Ai_Advisor_Chips::REQUEST_TYPE
+                Wf_Sn_Ai_Advisor_Chips::REQUEST_TYPE,
+                ( $parent_id > 0 ? $parent_id : null )
             );
             if ( false !== $inserted ) {
                 $chip_report_id = (int) $inserted;
+                if ( $parent_id > 0 ) {
+                    Wf_Sn_Ai_Advisor_Reports::prune_chip_reports_for_parent( $parent_id );
+                }
             }
         }
-        if ( class_exists( '\\WPSecurityNinja\\Plugin\\wf_sn_el_modules' ) ) {
-            \WPSecurityNinja\Plugin\wf_sn_el_modules::log_event(
-                'ai_advisor',
-                'ai_advisor_request',
-                __( 'AI Security Advisor request executed.', 'security-ninja' ),
-                array(
-                    'request_type' => $request_type,
-                    'prompt_id'    => $prompt_id,
-                    'provider'     => 'wordpress_connectors',
-                )
-            );
+        if ( '' === $error ) {
+            if ( 'full_report' === $request_type && !is_array( $report ) ) {
+                $error = __( 'The AI response could not be parsed. Please try again later.', 'security-ninja' );
+            } elseif ( Wf_Sn_Ai_Advisor_Chips::REQUEST_TYPE === $request_type && !is_array( $chip_parsed ) ) {
+                $error = __( 'The AI response could not be parsed. Please try again later.', 'security-ninja' );
+            }
         }
         if ( '' !== $error ) {
+            self::log_ai_advisor_request_event( 'error', $request_type, self::build_ai_advisor_event_context(
+                $prompt_id,
+                $connector_id,
+                $model_used,
+                $error
+            ) );
             wp_send_json_error( array(
                 'message' => $error,
             ) );
         }
+        self::log_ai_advisor_request_event( 'success', $request_type, self::build_ai_advisor_event_context( $prompt_id, $connector_id, $model_used ) );
         $usage_out = array(
             'token_input'  => (int) $token_input,
             'token_output' => ( null !== $token_output ? (int) $token_output : 0 ),
@@ -395,9 +476,10 @@ class Wf_Sn_Ai_Advisor {
         );
         if ( 'full_report' === $request_type ) {
             wp_send_json_success( array(
-                'report'   => $report,
-                'raw_text' => $text,
-                'usage'    => $usage_out,
+                'report'    => $report,
+                'raw_text'  => $text,
+                'usage'     => $usage_out,
+                'report_id' => $new_full_report_id,
             ) );
         }
         $chip_success = array(
@@ -431,18 +513,26 @@ class Wf_Sn_Ai_Advisor {
         $limit = ( isset( $_POST['limit'] ) ? (int) $_POST['limit'] : 15 );
         $limit = max( 5, min( 25, $limit ) );
         $offset = max( 0, $offset );
-        $rows = Wf_Sn_Ai_Advisor_Reports::get_reports( $limit, $offset, Wf_Sn_Ai_Advisor_Chips::REQUEST_TYPE );
+        $parent_report_id = Wf_Sn_Ai_Advisor_Reports::get_latest_full_report_id();
+        if ( $parent_report_id > 0 ) {
+            Wf_Sn_Ai_Advisor_Reports::prune_chip_reports_for_parent( $parent_report_id );
+        }
+        $rows = array();
         $items = array();
-        foreach ( $rows as $row ) {
-            if ( !is_array( $row ) ) {
-                continue;
-            }
-            $formatted = self::format_chip_row_for_client( $row );
-            if ( null !== $formatted ) {
-                $items[] = $formatted;
+        $total = 0;
+        if ( $parent_report_id > 0 ) {
+            $rows = Wf_Sn_Ai_Advisor_Reports::get_chip_reports_for_parent( $parent_report_id, $limit, $offset );
+            $total = Wf_Sn_Ai_Advisor_Reports::count_chip_reports_for_parent( $parent_report_id );
+            foreach ( $rows as $row ) {
+                if ( !is_array( $row ) ) {
+                    continue;
+                }
+                $formatted = self::format_chip_row_for_client( $row );
+                if ( null !== $formatted ) {
+                    $items[] = $formatted;
+                }
             }
         }
-        $total = Wf_Sn_Ai_Advisor_Reports::count_by_request_type( Wf_Sn_Ai_Advisor_Chips::REQUEST_TYPE );
         $next_off = $offset + count( $rows );
         $has_more = $next_off < $total;
         wp_send_json_success( array(
@@ -623,40 +713,6 @@ class Wf_Sn_Ai_Advisor {
     }
 
     /**
-     * Validate decoded JSON for a chip.
-     *
-     * @param string $prompt_id Chip id.
-     * @param array  $data      Decoded JSON.
-     * @return bool
-     */
-    private static function validate_chip_response( $prompt_id, array $data ) {
-        if ( in_array( $prompt_id, array('delta_since_last'), true ) ) {
-            if ( empty( $data['delta_summary'] ) || !is_string( $data['delta_summary'] ) ) {
-                return false;
-            }
-            foreach ( array('new_items', 'resolved_items') as $arr_key ) {
-                if ( isset( $data[$arr_key] ) && !is_array( $data[$arr_key] ) ) {
-                    return false;
-                }
-            }
-            if ( isset( $data['priority_shifts'] ) && !is_string( $data['priority_shifts'] ) ) {
-                return false;
-            }
-            if ( isset( $data['notes'] ) && !is_string( $data['notes'] ) ) {
-                return false;
-            }
-            return true;
-        }
-        if ( !empty( $data['answer'] ) && is_string( $data['answer'] ) ) {
-            if ( isset( $data['bullets'] ) && !is_array( $data['bullets'] ) ) {
-                return false;
-            }
-            return true;
-        }
-        return false;
-    }
-
-    /**
      * AJAX handler: return the context (payload) sent to the AI for preview. No prompt or system instruction.
      */
     public static function ajax_preview_data() {
@@ -675,31 +731,158 @@ class Wf_Sn_Ai_Advisor {
         }
         $ui_locale = ( isset( $_POST['ui_locale'] ) ? sanitize_text_field( wp_unslash( $_POST['ui_locale'] ) ) : '' );
         self::ensure_tables();
-        $context = Wf_Sn_Ai_Advisor_Payload::build( $request_type, $ui_locale );
+        $context = Wf_Sn_Ai_Advisor_Payload::build( $ui_locale );
         wp_send_json_success( array(
             'data' => $context,
         ) );
     }
 
     /**
-     * Normalize common connector error strings to a user-friendly message.
+     * Build optional fields for AI advisor Events Logger raw_data.
      *
-     * @param string $error Raw error from provider.
+     * @param string      $prompt_id    Chip prompt id (omit for full reports).
+     * @param string      $connector_id WordPress connector id (openai, deepseek, etc.).
+     * @param string|null $model        Model id returned by the provider API.
+     * @param string      $error_message Error detail when logging failures.
+     * @return array<string, string>
+     */
+    private static function build_ai_advisor_event_context(
+        $prompt_id = '',
+        $connector_id = '',
+        $model = null,
+        $error_message = ''
+    ) {
+        $context = array();
+        if ( '' !== $prompt_id ) {
+            $context['prompt_id'] = sanitize_key( (string) $prompt_id );
+        }
+        if ( '' !== $connector_id ) {
+            $context['connector'] = sanitize_key( (string) $connector_id );
+        }
+        if ( is_string( $model ) && '' !== trim( $model ) ) {
+            $context['model'] = sanitize_text_field( $model );
+        }
+        if ( '' !== $error_message ) {
+            $context['error_message'] = sanitize_text_field( $error_message );
+        }
+        return $context;
+    }
+
+    /**
+     * Log an AI Security Advisor request outcome to the Events Logger.
+     *
+     * @param string               $status       success|error.
+     * @param string               $request_type Request type slug.
+     * @param array<string,string> $context      Optional: prompt_id, connector, model, error_message.
+     * @return void
+     */
+    private static function log_ai_advisor_request_event( $status, $request_type, array $context = array() ) {
+        if ( !class_exists( '\\WPSecurityNinja\\Plugin\\wf_sn_el_modules' ) ) {
+            return;
+        }
+        $raw_data = array(
+            'status'       => $status,
+            'request_type' => $request_type,
+            'provider'     => 'wordpress_connectors',
+        );
+        if ( !empty( $context['prompt_id'] ) ) {
+            $raw_data['prompt_id'] = $context['prompt_id'];
+        }
+        if ( !empty( $context['connector'] ) ) {
+            $raw_data['connector'] = $context['connector'];
+        }
+        if ( !empty( $context['model'] ) ) {
+            $raw_data['model'] = $context['model'];
+        }
+        if ( 'error' === $status && !empty( $context['error_message'] ) ) {
+            $raw_data['error_message'] = $context['error_message'];
+        }
+        $error_message = ( isset( $context['error_message'] ) ? $context['error_message'] : '' );
+        if ( 'success' === $status ) {
+            $model_label = ( !empty( $context['model'] ) ? $context['model'] : '' );
+            if ( 'full_report' === $request_type ) {
+                if ( '' !== $model_label ) {
+                    $description = sprintf( 
+                        /* translators: %s: AI model id (e.g. deepseek-chat, gpt-4o). */
+                        __( 'AI Security Advisor report generated successfully (%s).', 'security-ninja' ),
+                        $model_label
+                     );
+                } else {
+                    $description = __( 'AI Security Advisor report generated successfully.', 'security-ninja' );
+                }
+            } elseif ( '' !== $model_label ) {
+                $description = sprintf( 
+                    /* translators: %s: AI model id. */
+                    __( 'AI Security Advisor follow-up request completed successfully (%s).', 'security-ninja' ),
+                    $model_label
+                 );
+            } else {
+                $description = __( 'AI Security Advisor follow-up request completed successfully.', 'security-ninja' );
+            }
+        } else {
+            $description = sprintf( 
+                /* translators: %s: error message */
+                __( 'AI Security Advisor request failed: %s', 'security-ninja' ),
+                ( '' !== $error_message ? $error_message : __( 'Unknown error.', 'security-ninja' ) )
+             );
+        }
+        \WPSecurityNinja\Plugin\wf_sn_el_modules::log_event(
+            'ai_advisor',
+            'ai_advisor_request',
+            $description,
+            $raw_data
+        );
+    }
+
+    /**
+     * Log and return a JSON error for AI advisor AJAX requests.
+     *
+     * @param string $message      User-facing error message.
+     * @param string $request_type Request type slug.
+     * @param string $prompt_id    Chip prompt id when applicable.
+     * @return void
+     */
+    private static function ajax_request_fail(
+        $message,
+        $request_type = '',
+        $prompt_id = '',
+        $connector_id = ''
+    ) {
+        self::log_ai_advisor_request_event( 'error', $request_type, self::build_ai_advisor_event_context(
+            $prompt_id,
+            $connector_id,
+            null,
+            $message
+        ) );
+        wp_send_json_error( array(
+            'message' => $message,
+        ) );
+    }
+
+    /**
+     * Sanitize a connector error for display (pass-through with redaction).
+     *
+     * @param mixed $error Raw error from provider.
      * @return string
      */
-    private static function normalize_connector_error( $error ) {
-        $lower = ( is_string( $error ) ? strtolower( $error ) : '' );
-        if ( strpos( $lower, 'rate limit' ) !== false || strpos( $lower, 'quota' ) !== false ) {
-            return __( 'The AI service is temporarily unavailable. Try again in a few minutes.', 'security-ninja' );
+    private static function format_connector_error_for_display( $error ) {
+        $fallback = __( 'The AI request could not be completed. Try again or check your connector under Settings → Connectors.', 'security-ninja' );
+        if ( !is_string( $error ) || '' === trim( $error ) ) {
+            return $fallback;
         }
-        if ( strpos( $lower, 'not configured' ) !== false || strpos( $lower, 'configuration' ) !== false ) {
-            return __( 'The selected connector is not configured. Check Settings → Connectors.', 'security-ninja' );
+        $clean = wp_strip_all_tags( $error );
+        $clean = preg_replace( '/\\s+/', ' ', $clean );
+        $clean = ( is_string( $clean ) ? trim( $clean ) : '' );
+        // Redact obvious secret patterns if a provider ever echoes them.
+        $clean = preg_replace( '/\\bsk-[A-Za-z0-9_-]{8,}\\b/', '[redacted]', $clean );
+        $clean = preg_replace( '/Bearer\\s+[A-Za-z0-9._-]+/i', 'Bearer [redacted]', $clean );
+        if ( '' === $clean ) {
+            return $fallback;
         }
-        if ( is_string( $error ) && '' !== $error && defined( 'WP_DEBUG' ) && WP_DEBUG ) {
-            // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- debug-only diagnostic.
-            error_log( 'Security Ninja AI Advisor connector error: ' . substr( $error, 0, 500 ) );
+        if ( strlen( $clean ) > 500 ) {
+            $clean = substr( $clean, 0, 500 ) . '…';
         }
-        return __( 'The AI request could not be completed. Try again or check your connector under Settings → Connectors.', 'security-ninja' );
+        return $clean;
     }
 
     /**
@@ -713,20 +896,26 @@ class Wf_Sn_Ai_Advisor {
             return null;
         }
         $trimmed = trim( $text );
-        // First try full string.
-        $data = json_decode( $trimmed, true );
-        if ( is_array( $data ) ) {
-            return $data;
+        // Strip common markdown code fences.
+        if ( preg_match( '/^```(?:json)?\\s*(.*?)```\\s*$/is', $trimmed, $fence_match ) ) {
+            $trimmed = trim( $fence_match[1] );
         }
-        // If wrapped in fences or extra text, try to extract the first JSON object.
+        $candidates = array($trimmed);
         $start = strpos( $trimmed, '{' );
         $end = strrpos( $trimmed, '}' );
-        if ( false === $start || false === $end || $end <= $start ) {
-            return null;
+        if ( false !== $start && false !== $end && $end > $start ) {
+            $candidates[] = substr( $trimmed, $start, $end - $start + 1 );
         }
-        $json = substr( $trimmed, $start, $end - $start + 1 );
-        $data = json_decode( $json, true );
-        return ( is_array( $data ) ? $data : null );
+        foreach ( array_unique( $candidates ) as $candidate ) {
+            if ( !is_string( $candidate ) || '' === $candidate ) {
+                continue;
+            }
+            $data = json_decode( $candidate, true );
+            if ( is_array( $data ) ) {
+                return $data;
+            }
+        }
+        return null;
     }
 
     /**

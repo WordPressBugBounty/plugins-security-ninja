@@ -942,6 +942,98 @@
 	margin-top: 8px;
 }
 
+.wf-sn-ai-settings-card.sncard.settings-card .wf-sn-ai-card-inner {
+	padding-bottom: 20px;
+	overflow: visible;
+}
+
+.wf-sn-ai-settings-card.sncard.settings-card .form-table th {
+	padding-left: 0;
+}
+
+.wf-sn-ai-settings-card.sncard.settings-card .form-table th h3 {
+	margin: 0 0 4px;
+	font-size: 14px;
+	font-weight: 600;
+}
+
+.wf-sn-ai-settings-card.sncard.settings-card .form-table th .description {
+	margin: 0;
+}
+
+.wf-sn-ai-settings-card.sncard.settings-card .form-table td.sn-cf-options {
+	vertical-align: top;
+	padding-top: 12px;
+}
+
+.wf-sn-ai-settings-card.sncard.settings-card .form-table select {
+	min-width: 200px;
+}
+
+.wf-sn-ai-settings-form .submit.wf-sn-ai-settings-submit {
+	clear: both;
+	margin: 8px 0 0;
+	padding: 0;
+	float: none;
+	overflow: hidden;
+}
+
+.wf-sn-ai-settings-card.sncard.settings-card .wf-sn-ai-settings-submit .button-primary {
+	float: none;
+}
+
+.wf-sn-ai-abilities-list {
+	margin: 20px 0 0;
+	padding-top: 16px;
+	border-top: 1px solid var(--wf-sn-ai-border, #dcdcde);
+}
+
+.wf-sn-ai-abilities-list__title {
+	margin: 0 0 6px;
+	font-size: 14px;
+	font-weight: 600;
+}
+
+.wf-sn-ai-abilities-list__intro {
+	margin: 0 0 12px;
+}
+
+.wf-sn-ai-abilities-notice {
+	margin: 0 0 14px;
+	padding: 8px 12px;
+}
+
+.wf-sn-ai-abilities-notice p {
+	margin: 0;
+}
+
+.wf-sn-ai-abilities-list__items {
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.wf-sn-ai-abilities-list__item {
+	margin: 0 0 12px;
+	padding: 0;
+}
+
+.wf-sn-ai-abilities-list__item:last-child {
+	margin-bottom: 0;
+}
+
+.wf-sn-ai-abilities-list__label {
+	display: block;
+	font-size: 13px;
+}
+
+.wf-sn-ai-abilities-list__summary {
+	display: block;
+	margin-top: 2px;
+	font-size: 13px;
+	color: #646970;
+}
+
 .wf-sn-ai-report-usage-meta {
 	margin-top: 12px;
 	font-size: 12px;
@@ -1364,6 +1456,34 @@
 .wf-sn-ai-advisor-page .wf-sn-ai-convo-intro {
 	margin-top: 0;
 	margin-bottom: 10px;
+}
+
+.wf-sn-ai-advisor-page .wf-sn-ai-convo-loading {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	gap: 10px;
+	min-height: 160px;
+	padding: 24px 12px;
+	background: var(--wf-sn-ai-surface);
+	border: 1px solid var(--wf-sn-ai-border);
+	border-radius: var(--wf-sn-ai-radius-sm);
+	box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+.wf-sn-ai-advisor-page .wf-sn-ai-convo-loading[hidden] {
+	display: none !important;
+}
+.wf-sn-ai-advisor-page .wf-sn-ai-convo-loading .spinner {
+	float: none;
+	margin: 0;
+	vertical-align: middle;
+}
+.wf-sn-ai-advisor-page .wf-sn-ai-convo-loading__text {
+	font-size: 14px;
+	color: var(--wf-sn-ai-text-muted);
+}
+.wf-sn-ai-advisor-page .wf-sn-ai-convo[hidden] {
+	display: none !important;
 }
 
 /* Collapsed archive: chip history table (secondary to convo) */

@@ -3,9 +3,8 @@
 /**
  * AI Security Advisor – payload for AI context.
  *
- * Single source of truth: feature flags, test results (testid, status, summary/details when present),
- * and aggregated counts. Plain text sent to the model is stripped of HTML and passed through
- * redact_sensitive_for_ai() to reduce filesystem paths and known username patterns from test output.
+ * Single source of truth: feature flags, tests_with_guidance for non-passing tests,
+ * aggregate test counts, and other module summaries.
  *
  * @package Security_Ninja
  */
@@ -23,23 +22,19 @@ class Wf_Sn_Ai_Advisor_Payload {
     /**
      * Build the payload array used for WordPress Connectors (as prompt context).
      *
-     * @param string $request_type       Request type; only full_report is used. Kept for API consistency.
      * @param string $ui_locale_override Optional UI locale override for this request.
      * @return array Context array safe for JSON (paths/usernames in test copy redacted for AI).
      */
-    public static function build( $request_type = 'full_report', $ui_locale_override = '' ) {
-        $count_data = self::get_test_counts();
+    public static function build( $ui_locale_override = '' ) {
+        $count_data = Wf_Sn_Ai_Advisor_Test_Scores::get_counts();
         $flags = self::get_feature_flags();
-        $tests = self::get_test_results_safe();
         $counts = Wf_Sn_Ai_Advisor_Aggregation::get_counts_7d();
         $prev_counts = Wf_Sn_Ai_Advisor_Aggregation::get_counts_prev_7d();
-        $attack_state = self::build_attack_activity_summary( $counts, $prev_counts );
+        $attack_state = Wf_Sn_Ai_Advisor_Attack_Activity::build_summary( $counts, $prev_counts );
         $ui_locale = ( function_exists( 'get_user_locale' ) ? get_user_locale() : get_locale() );
-        if ( class_exists( __NAMESPACE__ . '\\Wf_Sn_Ai_Advisor_Page' ) ) {
-            $options = Wf_Sn_Ai_Advisor_Page::get_options();
-            if ( isset( $options['ui_locale'] ) && '' !== $options['ui_locale'] ) {
-                $ui_locale = $options['ui_locale'];
-            }
+        $options = Wf_Sn_Ai_Advisor_Page::get_options();
+        if ( isset( $options['ui_locale'] ) && '' !== $options['ui_locale'] ) {
+            $ui_locale = $options['ui_locale'];
         }
         if ( '' !== $ui_locale_override ) {
             $ui_locale = $ui_locale_override;
@@ -53,13 +48,15 @@ class Wf_Sn_Ai_Advisor_Payload {
             'firewall_enabled'         => $flags['firewall_enabled'],
             'login_protection_enabled' => $flags['login_protection_enabled'],
             'two_factor_enabled'       => $flags['two_factor_enabled'],
-            'tests'                    => $tests,
             'tests_passed'             => ( isset( $count_data['good'] ) ? (int) $count_data['good'] : 0 ),
             'tests_warning'            => ( isset( $count_data['warning'] ) ? (int) $count_data['warning'] : 0 ),
             'tests_failed'             => ( isset( $count_data['bad'] ) ? (int) $count_data['bad'] : 0 ),
-            'tests_with_guidance'      => self::build_tests_with_guidance( $tests ),
+            'tests_with_guidance'      => self::build_tests_with_guidance(),
             'plan_tier'                => $plan_tier,
             'attack_activity'          => $attack_state,
+            'vulnerabilities'          => self::build_vulnerabilities_summary(),
+            'core_scanner'             => self::build_core_scanner_summary(),
+            'recent_events'            => self::build_recent_events_summary(),
             'ui_locale'                => $ui_locale,
             'ui_language_name'         => $ui_locale,
         );
@@ -67,74 +64,246 @@ class Wf_Sn_Ai_Advisor_Payload {
     }
 
     /**
-     * Failing/warning tests with product guidance text for AI (no HTML).
+     * Build privacy-safe vulnerability summary.
      *
-     * @param array $tests From get_test_results_safe().
-     * @return array<int, array<string, mixed>>
+     * @return array<string,mixed>
      */
-    private static function build_tests_with_guidance( array $tests ) {
-        if ( !class_exists( '\\WPSecurityNinja\\Plugin\\Wf_Sn_Test_Descriptions' ) ) {
-            return array();
+    private static function build_vulnerabilities_summary() {
+        $out = array(
+            'total' => 0,
+            'items' => array(),
+        );
+        if ( !class_exists( '\\WPSecurityNinja\\Plugin\\Wf_Sn_Vu' ) ) {
+            return $out;
         }
-        $out = array();
-        foreach ( $tests as $t ) {
-            if ( !is_array( $t ) || empty( $t['testid'] ) ) {
+        $data = \WPSecurityNinja\Plugin\Wf_Sn_Vu::return_vulnerabilities();
+        if ( !is_array( $data ) ) {
+            return $out;
+        }
+        $items = array();
+        foreach ( array('plugins', 'themes', 'wordpress') as $type ) {
+            if ( empty( $data[$type] ) || !is_array( $data[$type] ) ) {
                 continue;
             }
-            $status = ( isset( $t['status'] ) ? (int) $t['status'] : 10 );
-            // 10 = pass; 0 = fail; 5 = warning (Security Ninja test convention).
-            if ( 10 === $status ) {
-                continue;
-            }
-            $guidance = Wf_Sn_Test_Descriptions::get_guidance_for_ai( (string) $t['testid'] );
-            if ( '' === $guidance['guidance'] && '' === $guidance['title'] ) {
-                continue;
-            }
-            $tid = sanitize_key( (string) $t['testid'] );
-            foreach ( array(
-                'title',
-                'short',
-                'guidance',
-                'caveats',
-                'fix_hints'
-            ) as $gk ) {
-                if ( isset( $guidance[$gk] ) && is_string( $guidance[$gk] ) && '' !== $guidance[$gk] ) {
-                    $guidance[$gk] = self::redact_sensitive_for_ai( $guidance[$gk], $tid );
+            foreach ( $data[$type] as $slug => $row ) {
+                if ( !is_array( $row ) ) {
+                    continue;
                 }
+                $entry = array(
+                    'type'              => $type,
+                    'name'              => ( isset( $row['name'] ) ? self::redact_sensitive_for_ai( (string) $row['name'] ) : '' ),
+                    'slug'              => sanitize_key( ( is_string( $slug ) ? $slug : '' ) ),
+                    'installed_version' => ( isset( $row['installedVersion'] ) ? (string) $row['installedVersion'] : '' ),
+                    'cve_id'            => ( isset( $row['CVE_ID'] ) ? (string) $row['CVE_ID'] : '' ),
+                    'short_description' => ( isset( $row['desc'] ) ? self::redact_sensitive_for_ai( (string) $row['desc'] ) : '' ),
+                );
+                $items[] = $entry;
             }
-            $row = $t;
-            $row['guidance'] = $guidance;
-            $out[] = $row;
+        }
+        $out['total'] = count( $items );
+        $out['items'] = array_slice( $items, 0, 25 );
+        return $out;
+    }
+
+    /**
+     * Build summarized core scanner findings.
+     *
+     * @return array<string,mixed>
+     */
+    private static function build_core_scanner_summary() {
+        $results = get_option( 'wf_sn_cs_results', array() );
+        if ( !is_array( $results ) ) {
+            $results = array();
+        }
+        return array(
+            'last_run'          => ( isset( $results['last_run'] ) ? (int) $results['last_run'] : 0 ),
+            'changed_bad_count' => ( isset( $results['changed_bad'] ) && is_array( $results['changed_bad'] ) ? count( $results['changed_bad'] ) : 0 ),
+            'missing_bad_count' => ( isset( $results['missing_bad'] ) && is_array( $results['missing_bad'] ) ? count( $results['missing_bad'] ) : 0 ),
+            'unknown_bad_count' => ( isset( $results['unknown_bad'] ) && is_array( $results['unknown_bad'] ) ? count( $results['unknown_bad'] ) : 0 ),
+            'ok_count'          => ( isset( $results['ok'] ) && is_array( $results['ok'] ) ? count( $results['ok'] ) : 0 ),
+            'changed_bad_files' => self::basename_list( ( isset( $results['changed_bad'] ) && is_array( $results['changed_bad'] ) ? $results['changed_bad'] : array() ), 20 ),
+            'missing_bad_files' => self::basename_list( ( isset( $results['missing_bad'] ) && is_array( $results['missing_bad'] ) ? $results['missing_bad'] : array() ), 20 ),
+            'unknown_bad_files' => self::basename_list( ( isset( $results['unknown_bad'] ) && is_array( $results['unknown_bad'] ) ? $results['unknown_bad'] : array() ), 20 ),
+        );
+    }
+
+    /**
+     * Build short list of recent event logger entries.
+     *
+     * @return array<int,array<string,string>>
+     */
+    private static function build_recent_events_summary() {
+        $out = array();
+        if ( !class_exists( '\\WPSecurityNinja\\Plugin\\Wf_Sn_El' ) || !\WPSecurityNinja\Plugin\Wf_Sn_El::is_active() ) {
+            return $out;
+        }
+        global $wpdb;
+        $table = $wpdb->prefix . 'wf_sn_el';
+        $mods = array(
+            'security_ninja',
+            'installer',
+            'users',
+            'file_editor',
+            'settings'
+        );
+        $in = implode( ',', array_fill( 0, count( $mods ), '%s' ) );
+        $query = $wpdb->prepare( "SELECT module, action, description FROM {$table} WHERE timestamp >= DATE_SUB( NOW(), INTERVAL 7 DAY ) AND module IN ({$in}) ORDER BY timestamp DESC LIMIT 8", $mods );
+        $rows = $wpdb->get_results( $query, ARRAY_A );
+        if ( !is_array( $rows ) ) {
+            return $out;
+        }
+        foreach ( $rows as $row ) {
+            if ( !is_array( $row ) ) {
+                continue;
+            }
+            $desc = ( isset( $row['description'] ) ? self::redact_sensitive_for_ai( (string) $row['description'] ) : '' );
+            $desc = preg_replace( '/[A-Z0-9._%+\\-]+@[A-Z0-9.\\-]+\\.[A-Z]{2,}/i', '[redacted-email]', $desc );
+            if ( !is_string( $desc ) ) {
+                $desc = '';
+            }
+            $out[] = array(
+                'module'      => ( isset( $row['module'] ) ? sanitize_key( (string) $row['module'] ) : '' ),
+                'action'      => ( isset( $row['action'] ) ? sanitize_key( (string) $row['action'] ) : '' ),
+                'description' => $desc,
+            );
         }
         return $out;
     }
 
     /**
-     * Get test result counts from existing API (no overall score).
+     * Convert paths to basename list.
      *
-     * @return array{good: int, bad: int, warning: int}
+     * @param array<int,mixed> $items Input list.
+     * @param int              $limit Maximum output.
+     * @return array<int,string>
      */
-    private static function get_test_counts() {
+    private static function basename_list( array $items, $limit ) {
+        $out = array();
+        foreach ( $items as $value ) {
+            if ( !is_string( $value ) || '' === $value ) {
+                continue;
+            }
+            $out[] = wp_basename( $value );
+        }
+        return array_slice( array_values( array_unique( $out ) ), 0, (int) $limit );
+    }
+
+    /**
+     * Non-passing tests with live findings and product guidance (no HTML).
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    private static function build_tests_with_guidance() {
+        if ( !class_exists( '\\WPSecurityNinja\\Plugin\\Wf_Sn_Test_Descriptions' ) ) {
+            return array();
+        }
+        $max_items = (int) apply_filters( 'wf_sn_ai_advisor_guidance_max_items', 30 );
+        $max_items = max( 5, min( 50, $max_items ) );
+        $rows = self::get_raw_test_results();
+        $out = array();
+        foreach ( $rows as $testid => $row ) {
+            if ( !is_array( $row ) ) {
+                continue;
+            }
+            $status = ( isset( $row['status'] ) ? (int) $row['status'] : 10 );
+            // 10 = pass; 0 = fail; 5 = warning; 7 = info (Security Ninja test convention).
+            if ( 10 === $status ) {
+                continue;
+            }
+            $tid = sanitize_key( (string) $testid );
+            if ( '' === $tid ) {
+                continue;
+            }
+            $guidance = Wf_Sn_Test_Descriptions::get_guidance_for_ai( $tid );
+            $title = ( isset( $guidance['title'] ) && is_string( $guidance['title'] ) ? self::redact_sensitive_for_ai( $guidance['title'], $tid ) : '' );
+            $summary = ( isset( $guidance['short'] ) && is_string( $guidance['short'] ) && '' !== $guidance['short'] ? self::redact_sensitive_for_ai( $guidance['short'], $tid ) : '' );
+            if ( '' === $summary && !empty( $guidance['guidance'] ) && is_string( $guidance['guidance'] ) ) {
+                $summary = self::truncate_text_for_ai( self::redact_sensitive_for_ai( $guidance['guidance'], $tid ) );
+            }
+            $entry = array(
+                'testid' => (string) $testid,
+                'status' => $status,
+            );
+            if ( '' !== $title ) {
+                $entry['title'] = $title;
+            }
+            $msg = ( isset( $row['msg'] ) ? (string) $row['msg'] : '' );
+            $details = ( isset( $row['details'] ) ? (string) $row['details'] : '' );
+            if ( '' !== $msg ) {
+                $entry['finding'] = self::truncate_text_for_ai( self::strip_html_for_context( $msg, $tid ), 220 );
+            }
+            if ( '' !== $details ) {
+                $entry['details'] = self::truncate_text_for_ai( self::strip_html_for_context( $details, $tid ), 180 );
+            }
+            if ( '' !== $summary ) {
+                $entry['guidance'] = $summary;
+            }
+            if ( empty( $entry['finding'] ) && empty( $entry['guidance'] ) && empty( $entry['title'] ) ) {
+                continue;
+            }
+            $out[] = $entry;
+            if ( count( $out ) >= $max_items ) {
+                break;
+            }
+        }
+        return $out;
+    }
+
+    /**
+     * Raw Security Ninja test rows keyed by test id.
+     *
+     * @return array<string, array<string, mixed>>
+     */
+    private static function get_raw_test_results() {
         if ( !class_exists( '\\WPSecurityNinja\\Plugin\\Wf_Sn' ) ) {
-            return array(
-                'good'    => 0,
-                'bad'     => 0,
-                'warning' => 0,
-            );
+            return array();
         }
-        $response = \WPSecurityNinja\Plugin\Wf_Sn::return_test_scores();
-        if ( !is_array( $response ) ) {
-            return array(
-                'good'    => 0,
-                'bad'     => 0,
-                'warning' => 0,
-            );
+        $response = \WPSecurityNinja\Plugin\Wf_Sn::get_test_results();
+        if ( !is_array( $response ) || empty( $response['test'] ) || !is_array( $response['test'] ) ) {
+            $results = get_option( 'wf_sn_results', array() );
+            if ( !is_array( $results ) || empty( $results['test'] ) || !is_array( $results['test'] ) ) {
+                return array();
+            }
+            return $results['test'];
         }
-        return array(
-            'good'    => ( isset( $response['good'] ) ? (int) $response['good'] : 0 ),
-            'bad'     => ( isset( $response['bad'] ) ? (int) $response['bad'] : 0 ),
-            'warning' => ( isset( $response['warning'] ) ? (int) $response['warning'] : 0 ),
-        );
+        return $response['test'];
+    }
+
+    /**
+     * Truncate plain text for AI payload lines.
+     *
+     * @param string $text    Input text.
+     * @param int    $max_len Max characters (UTF-8 when mbstring available).
+     * @return string
+     */
+    private static function truncate_text_for_ai( $text, $max_len = 0 ) {
+        if ( !is_string( $text ) || '' === $text ) {
+            return '';
+        }
+        if ( $max_len <= 0 ) {
+            /**
+             * Max characters for compact test guidance sent to AI.
+             *
+             * @param int $default Default limit.
+             */
+            $max_len = (int) apply_filters( 'wf_sn_ai_advisor_guidance_summary_max_chars', 400 );
+            $max_len = max( 120, min( 1200, $max_len ) );
+        }
+        if ( function_exists( 'mb_strlen' ) && mb_strlen( $text, 'UTF-8' ) <= $max_len ) {
+            return $text;
+        }
+        if ( !function_exists( 'mb_strlen' ) && strlen( $text ) <= $max_len ) {
+            return $text;
+        }
+        if ( function_exists( 'mb_substr' ) ) {
+            return mb_substr(
+                $text,
+                0,
+                $max_len,
+                'UTF-8'
+            ) . '…';
+        }
+        return substr( $text, 0, $max_len ) . '…';
     }
 
     /**
@@ -243,6 +412,14 @@ class Wf_Sn_Ai_Advisor_Payload {
                 $text = $next;
             }
         }
+        $next = preg_replace( '/\\[WP_ROOT\\](?=[^\\/\\s])/', '[WP_ROOT]/', $text );
+        if ( is_string( $next ) ) {
+            $text = $next;
+        }
+        $next = preg_replace( '/\\[WP_PARENT\\](?=[^\\/\\s])/', '[WP_PARENT]/', $text );
+        if ( is_string( $next ) ) {
+            $text = $next;
+        }
         /**
          * Filter plain text after AI advisor path/username redaction.
          *
@@ -255,89 +432,6 @@ class Wf_Sn_Ai_Advisor_Payload {
             $text,
             $original,
             $testid
-        );
-    }
-
-    /**
-     * Test results: testid, status, and when failing/warning a plain-text summary (and details) for the AI.
-     *
-     * @return array List of arrays with testid, status, and optionally summary, details.
-     */
-    private static function get_test_results_safe() {
-        if ( !class_exists( '\\WPSecurityNinja\\Plugin\\Wf_Sn' ) ) {
-            return array();
-        }
-        $response = \WPSecurityNinja\Plugin\Wf_Sn::get_test_results();
-        if ( !is_array( $response ) || empty( $response['test'] ) ) {
-            // Fallback to last run from option so AI gets findings after a full test run before table was synced.
-            $results = get_option( 'wf_sn_results', array() );
-            if ( !is_array( $results ) || empty( $results['test'] ) ) {
-                return array();
-            }
-            $response = array(
-                'test' => $results['test'],
-            );
-        }
-        $out = array();
-        foreach ( $response['test'] as $testid => $row ) {
-            $status = ( isset( $row['status'] ) ? (int) $row['status'] : 0 );
-            $entry = array(
-                'testid' => $testid,
-                'status' => $status,
-            );
-            $msg = ( isset( $row['msg'] ) ? $row['msg'] : '' );
-            $details = ( isset( $row['details'] ) ? $row['details'] : '' );
-            if ( '' !== $msg ) {
-                $entry['summary'] = self::strip_html_for_context( $msg, $testid );
-            }
-            if ( '' !== $details ) {
-                $entry['details'] = self::strip_html_for_context( $details, $testid );
-            }
-            $out[] = $entry;
-        }
-        return $out;
-    }
-
-    /**
-     * Build an aggregated attack-activity summary for the last 7 days versus the previous 7 days.
-     *
-     * @param array $counts      Current 7-day counts from Aggregation::get_counts_7d().
-     * @param array $prev_counts Previous 7-day counts from Aggregation::get_counts_prev_7d().
-     * @return array{current_total:int, previous_total:int, trend:string, reason:string}
-     */
-    private static function build_attack_activity_summary( array $counts, array $prev_counts ) {
-        $current_total = (int) $counts['blocked_logins_7d'] + (int) $counts['xmlrpc_blocks_7d'] + (int) $counts['firewall_events_7d'] + (int) $counts['failed_logins_7d'];
-        $previous_total = (int) $prev_counts['blocked_logins_prev_7d'] + (int) $prev_counts['xmlrpc_blocks_prev_7d'] + (int) $prev_counts['firewall_events_prev_7d'] + (int) $prev_counts['failed_logins_prev_7d'];
-        $trend = 'unknown';
-        $reason = '';
-        if ( 0 === $current_total && 0 === $previous_total ) {
-            $trend = 'stable';
-            $reason = 'No recorded blocked or failed events in the last 14 days.';
-        } elseif ( 0 === $previous_total && $current_total > 0 ) {
-            $trend = 'up';
-            $reason = sprintf( 
-                /* translators: %d: number of blocked or failed events in the last 7 days */
-                __( 'Detected %d blocked or failed events in the last 7 days, compared to none in the previous 7 days.', 'security-ninja' ),
-                $current_total
-             );
-        } else {
-            $delta = $current_total - $previous_total;
-            $ratio = $delta / max( 1, $previous_total );
-            if ( $ratio > 0.25 ) {
-                $trend = 'up';
-            } elseif ( $ratio < -0.25 ) {
-                $trend = 'down';
-            } else {
-                $trend = 'stable';
-            }
-            /* translators: 1: current 7-day event count, 2: previous 7-day event count */
-            $reason = sprintf( __( 'Current 7-day total is %1$d events versus %2$d in the previous 7 days.', 'security-ninja' ), $current_total, $previous_total );
-        }
-        return array(
-            'current_total'  => $current_total,
-            'previous_total' => $previous_total,
-            'trend'          => $trend,
-            'reason'         => $reason,
         );
     }
 

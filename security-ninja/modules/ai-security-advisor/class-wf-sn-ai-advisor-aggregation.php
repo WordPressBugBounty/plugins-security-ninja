@@ -23,6 +23,28 @@ class Wf_Sn_Ai_Advisor_Aggregation {
 	const CACHE_TTL        = 600; // 10 minutes.
 
 	/**
+	 * Event logger actions counted as blocked login activity.
+	 */
+	const BLOCKED_LOGINS_ACTIONS = array(
+		'login_form_blocked_ip',
+		'login_denied_banned_IP',
+		'firewall_ip_banned',
+		'firewall_ip_banned_lost_password',
+		'login_error',
+	);
+
+	/**
+	 * Event logger actions counted as firewall events.
+	 */
+	const FIREWALL_ACTIONS = array(
+		'do_init_action',
+		'blocked_ip_banned',
+		'blocked_ip_country_ban',
+		'blocked_ip_suspicious_request',
+		'blacklisted_IP',
+	);
+
+	/**
 	 * Get counts for the last 7 days. Uses transient cache.
 	 *
 	 * @return array{blocked_logins_7d: int, xmlrpc_blocks_7d: int, firewall_events_7d: int, failed_logins_7d: int}
@@ -34,73 +56,13 @@ class Wf_Sn_Ai_Advisor_Aggregation {
 			return $cached;
 		}
 
-		global $wpdb;
-		$table = $wpdb->prefix . 'wf_sn_el';
-		$since = gmdate( 'Y-m-d H:i:s', strtotime( '-7 days' ) );
-
-		// Table may not exist on fresh installs.
-		if ( $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $table ) ) !== $table ) {
-			$result = array(
-				'blocked_logins_7d'  => 0,
-				'xmlrpc_blocks_7d'   => 0,
-				'firewall_events_7d' => 0,
-				'failed_logins_7d'   => 0,
-			);
-			set_transient( $key, $result, self::CACHE_TTL );
-			return $result;
-		}
-
-		$blocked_logins_actions = array(
-			'login_form_blocked_ip',
-			'login_denied_banned_IP',
-			'firewall_ip_banned',
-			'firewall_ip_banned_lost_password',
-			'login_error',
-		);
-		$placeholders_blocked   = implode( ', ', array_fill( 0, count( $blocked_logins_actions ), '%s' ) );
-
-		$firewall_actions      = array(
-			'do_init_action',
-			'blocked_ip_banned',
-			'blocked_ip_country_ban',
-			'blocked_ip_suspicious_request',
-			'blacklisted_IP',
-		);
-		$placeholders_firewall = implode( ', ', array_fill( 0, count( $firewall_actions ), '%s' ) );
-
-		$blocked_logins_7d = (int) $wpdb->get_var(
-			$wpdb->prepare(
-				"SELECT COUNT(*) FROM {$table} WHERE module = 'security_ninja' AND action IN ($placeholders_blocked) AND timestamp >= %s",
-				array_merge( $blocked_logins_actions, array( $since ) )
-			)
-		);
-
-		$xmlrpc_blocks_7d = (int) $wpdb->get_var(
-			$wpdb->prepare(
-				"SELECT COUNT(*) FROM {$table} WHERE module = 'security_ninja' AND action = 'xmlrpc_pingback_blocked' AND timestamp >= %s",
-				$since
-			)
-		);
-
-		$firewall_events_7d = (int) $wpdb->get_var(
-			$wpdb->prepare(
-				"SELECT COUNT(*) FROM {$table} WHERE module = 'security_ninja' AND action IN ($placeholders_firewall) AND timestamp >= %s",
-				array_merge( $firewall_actions, array( $since ) )
-			)
-		);
-
-		$failed_logins_7d = (int) $wpdb->get_var(
-			$wpdb->prepare(
-				"SELECT COUNT(*) FROM {$table} WHERE module = 'security_ninja' AND action = 'wp_login_failed' AND timestamp >= %s",
-				$since
-			)
-		);
-
+		$since  = gmdate( 'Y-m-d H:i:s', strtotime( '-7 days' ) );
+		$raw    = self::query_counts_for_window( $since, null );
 		$result = array(
-			'blocked_logins_7d'  => $blocked_logins_7d,
-			'xmlrpc_blocks_7d'   => $xmlrpc_blocks_7d,
-			'firewall_events_7d' => $firewall_events_7d,
-			'failed_logins_7d'   => $failed_logins_7d,
+			'blocked_logins_7d'  => $raw['blocked_logins'],
+			'xmlrpc_blocks_7d'   => $raw['xmlrpc_blocks'],
+			'firewall_events_7d' => $raw['firewall_events'],
+			'failed_logins_7d'   => $raw['failed_logins'],
 		);
 		set_transient( $key, $result, self::CACHE_TTL );
 		return $result;
@@ -118,78 +80,92 @@ class Wf_Sn_Ai_Advisor_Aggregation {
 			return $cached;
 		}
 
-		global $wpdb;
-		$table = $wpdb->prefix . 'wf_sn_el';
-		$end   = gmdate( 'Y-m-d H:i:s', strtotime( '-7 days' ) );
-		$start = gmdate( 'Y-m-d H:i:s', strtotime( '-14 days' ) );
-
-		// Table may not exist on fresh installs.
-		if ( $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $table ) ) !== $table ) {
-			$result = array(
-				'blocked_logins_prev_7d'  => 0,
-				'xmlrpc_blocks_prev_7d'   => 0,
-				'firewall_events_prev_7d' => 0,
-				'failed_logins_prev_7d'   => 0,
-			);
-			set_transient( $key, $result, self::CACHE_TTL );
-			return $result;
-		}
-
-		$blocked_logins_actions = array(
-			'login_form_blocked_ip',
-			'login_denied_banned_IP',
-			'firewall_ip_banned',
-			'firewall_ip_banned_lost_password',
-			'login_error',
-		);
-		$placeholders_blocked   = implode( ', ', array_fill( 0, count( $blocked_logins_actions ), '%s' ) );
-
-		$firewall_actions      = array(
-			'do_init_action',
-			'blocked_ip_banned',
-			'blocked_ip_country_ban',
-			'blocked_ip_suspicious_request',
-			'blacklisted_IP',
-		);
-		$placeholders_firewall = implode( ', ', array_fill( 0, count( $firewall_actions ), '%s' ) );
-
-		$blocked_logins_prev_7d = (int) $wpdb->get_var(
-			$wpdb->prepare(
-				"SELECT COUNT(*) FROM {$table} WHERE module = 'security_ninja' AND action IN ($placeholders_blocked) AND timestamp >= %s AND timestamp < %s",
-				array_merge( $blocked_logins_actions, array( $start, $end ) )
-			)
-		);
-
-		$xmlrpc_blocks_prev_7d = (int) $wpdb->get_var(
-			$wpdb->prepare(
-				"SELECT COUNT(*) FROM {$table} WHERE module = 'security_ninja' AND action = 'xmlrpc_pingback_blocked' AND timestamp >= %s AND timestamp < %s",
-				$start,
-				$end
-			)
-		);
-
-		$firewall_events_prev_7d = (int) $wpdb->get_var(
-			$wpdb->prepare(
-				"SELECT COUNT(*) FROM {$table} WHERE module = 'security_ninja' AND action IN ($placeholders_firewall) AND timestamp >= %s AND timestamp < %s",
-				array_merge( $firewall_actions, array( $start, $end ) )
-			)
-		);
-
-		$failed_logins_prev_7d = (int) $wpdb->get_var(
-			$wpdb->prepare(
-				"SELECT COUNT(*) FROM {$table} WHERE module = 'security_ninja' AND action = 'wp_login_failed' AND timestamp >= %s AND timestamp < %s",
-				$start,
-				$end
-			)
-		);
-
+		$end    = gmdate( 'Y-m-d H:i:s', strtotime( '-7 days' ) );
+		$start  = gmdate( 'Y-m-d H:i:s', strtotime( '-14 days' ) );
+		$raw    = self::query_counts_for_window( $start, $end );
 		$result = array(
-			'blocked_logins_prev_7d'  => $blocked_logins_prev_7d,
-			'xmlrpc_blocks_prev_7d'   => $xmlrpc_blocks_prev_7d,
-			'firewall_events_prev_7d' => $firewall_events_prev_7d,
-			'failed_logins_prev_7d'   => $failed_logins_prev_7d,
+			'blocked_logins_prev_7d'  => $raw['blocked_logins'],
+			'xmlrpc_blocks_prev_7d'   => $raw['xmlrpc_blocks'],
+			'firewall_events_prev_7d' => $raw['firewall_events'],
+			'failed_logins_prev_7d'   => $raw['failed_logins'],
 		);
 		set_transient( $key, $result, self::CACHE_TTL );
 		return $result;
+	}
+
+	/**
+	 * Query the four count buckets for a time window.
+	 *
+	 * @param string      $start Inclusive start (Y-m-d H:i:s).
+	 * @param string|null $end   Exclusive end, or null for open-ended (>= start only).
+	 * @return array{blocked_logins: int, xmlrpc_blocks: int, firewall_events: int, failed_logins: int}
+	 */
+	private static function query_counts_for_window( $start, $end ) {
+		$empty = array(
+			'blocked_logins'  => 0,
+			'xmlrpc_blocks'   => 0,
+			'firewall_events' => 0,
+			'failed_logins'   => 0,
+		);
+
+		global $wpdb;
+		$table = $wpdb->prefix . 'wf_sn_el';
+		if ( $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $table ) ) !== $table ) {
+			return $empty;
+		}
+
+		$blocked_placeholders = implode( ', ', array_fill( 0, count( self::BLOCKED_LOGINS_ACTIONS ), '%s' ) );
+		$firewall_placeholders = implode( ', ', array_fill( 0, count( self::FIREWALL_ACTIONS ), '%s' ) );
+
+		$blocked_logins = (int) $wpdb->get_var(
+			$wpdb->prepare(
+				"SELECT COUNT(*) FROM {$table} WHERE module = 'security_ninja' AND action IN ($blocked_placeholders) AND timestamp >= %s" . ( null !== $end ? ' AND timestamp < %s' : '' ),
+				self::merge_window_args( self::BLOCKED_LOGINS_ACTIONS, $start, $end )
+			)
+		);
+
+		$xmlrpc_blocks = (int) $wpdb->get_var(
+			$wpdb->prepare(
+				"SELECT COUNT(*) FROM {$table} WHERE module = 'security_ninja' AND action = 'xmlrpc_pingback_blocked' AND timestamp >= %s" . ( null !== $end ? ' AND timestamp < %s' : '' ),
+				self::merge_window_args( array(), $start, $end )
+			)
+		);
+
+		$firewall_events = (int) $wpdb->get_var(
+			$wpdb->prepare(
+				"SELECT COUNT(*) FROM {$table} WHERE module = 'security_ninja' AND action IN ($firewall_placeholders) AND timestamp >= %s" . ( null !== $end ? ' AND timestamp < %s' : '' ),
+				self::merge_window_args( self::FIREWALL_ACTIONS, $start, $end )
+			)
+		);
+
+		$failed_logins = (int) $wpdb->get_var(
+			$wpdb->prepare(
+				"SELECT COUNT(*) FROM {$table} WHERE module = 'security_ninja' AND action = 'wp_login_failed' AND timestamp >= %s" . ( null !== $end ? ' AND timestamp < %s' : '' ),
+				self::merge_window_args( array(), $start, $end )
+			)
+		);
+
+		return array(
+			'blocked_logins'  => $blocked_logins,
+			'xmlrpc_blocks'   => $xmlrpc_blocks,
+			'firewall_events' => $firewall_events,
+			'failed_logins'   => $failed_logins,
+		);
+	}
+
+	/**
+	 * Build $wpdb->prepare argument list: actions (if any), start, optional end.
+	 *
+	 * @param array       $actions Action slugs for IN clause.
+	 * @param string      $start   Window start.
+	 * @param string|null $end     Window end or null.
+	 * @return array<int|string>
+	 */
+	private static function merge_window_args( array $actions, $start, $end ) {
+		$args = array_merge( $actions, array( $start ) );
+		if ( null !== $end ) {
+			$args[] = $end;
+		}
+		return $args;
 	}
 }

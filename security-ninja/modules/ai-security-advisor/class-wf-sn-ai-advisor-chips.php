@@ -85,7 +85,7 @@ class Wf_Sn_Ai_Advisor_Chips {
 			return false;
 		}
 		$n_full = self::count_full_reports();
-		$scores = self::get_test_score_counts();
+		$scores = Wf_Sn_Ai_Advisor_Test_Scores::get_counts();
 
 		switch ( $prompt_id ) {
 			case 'delta_since_last':
@@ -119,29 +119,4 @@ class Wf_Sn_Ai_Advisor_Chips {
 		return $out;
 	}
 
-	/**
-	 * @return array{bad: int, warning: int, good: int}
-	 */
-	private static function get_test_score_counts() {
-		if ( ! class_exists( '\WPSecurityNinja\Plugin\Wf_Sn' ) ) {
-			return array(
-				'bad'     => 0,
-				'warning' => 0,
-				'good'    => 0,
-			);
-		}
-		$r = \WPSecurityNinja\Plugin\Wf_Sn::return_test_scores();
-		if ( ! is_array( $r ) ) {
-			return array(
-				'bad'     => 0,
-				'warning' => 0,
-				'good'    => 0,
-			);
-		}
-		return array(
-			'bad'     => isset( $r['bad'] ) ? (int) $r['bad'] : 0,
-			'warning' => isset( $r['warning'] ) ? (int) $r['warning'] : 0,
-			'good'    => isset( $r['good'] ) ? (int) $r['good'] : 0,
-		);
-	}
 }

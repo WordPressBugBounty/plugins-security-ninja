@@ -378,9 +378,8 @@ class Utils {
                 // *** Start malware scan
                 case 'run_malware_scan':
                     break;
-                // *** Update settings
+                // *** Update settings (patch from MainWP Dashboard).
                 case 'update_settings':
-                    // @todo - sanitity checks and then update values
                     break;
                 // *** Update vulnerabilities
                 case 'update_vulnerabilities':
@@ -392,11 +391,312 @@ class Utils {
                 // *** Force create database tables (for incomplete installations)
                 case 'force_create_tables':
                     break;
+                case 'manage_ip':
+                    break;
                 default:
                     break;
             }
         }
         return $info;
+    }
+
+    /**
+     * Apply allowlisted Security Ninja settings from MainWP (changed keys only).
+     *
+     * @param array $post_data Request payload from MainWP.
+     * @return array
+     */
+    public static function handle_mainwp_update_settings_request( $post_data ) {
+        $response = array(
+            'success' => false,
+            'applied' => array(),
+            'skipped' => array(),
+            'errors'  => array(),
+            'message' => '',
+            'options' => array(),
+        );
+        $patch = array();
+        if ( isset( $post_data['settings_patch'] ) && is_array( $post_data['settings_patch'] ) ) {
+            $patch = $post_data['settings_patch'];
+        }
+        if ( empty( $patch ) ) {
+            $response['message'] = __( 'No settings changes to apply.', 'security-ninja' );
+            $response['success'] = true;
+            return $response;
+        }
+        $allow = self::get_mainwp_settings_allowlist();
+        $map = self::get_mainwp_settings_option_map();
+        foreach ( $patch as $module => $keys ) {
+            $module = sanitize_key( $module );
+            if ( !is_array( $keys ) || !isset( $map[$module] ) ) {
+                $response['skipped'][] = $module;
+                continue;
+            }
+            $option_key = $map[$module];
+            $existing = get_option( $option_key, array() );
+            if ( !is_array( $existing ) ) {
+                $existing = array();
+            }
+            $module_allow = ( isset( $allow[$module] ) ? $allow[$module] : array() );
+            foreach ( $keys as $key => $raw_value ) {
+                $key = sanitize_key( $key );
+                if ( !isset( $module_allow[$key] ) ) {
+                    $response['skipped'][] = $module . '.' . $key;
+                    continue;
+                }
+                $type = $module_allow[$key];
+                $value = self::sanitize_mainwp_setting_value(
+                    $type,
+                    $raw_value,
+                    $module,
+                    $key
+                );
+                if ( 'firewall' === $module && in_array( $key, array('unblock_url', 'unblock_url_hash'), true ) ) {
+                    $response['skipped'][] = $module . '.' . $key;
+                    continue;
+                }
+                $existing[$key] = $value;
+                $response['applied'][] = $module . '.' . $key;
+            }
+            if ( 'firewall' === $module && class_exists( __NAMESPACE__ . '\\wf_sn_cf' ) ) {
+                $opts = \WPSecurityNinja\Plugin\wf_sn_cf::get_options();
+                if ( isset( $opts['unblock_url'] ) ) {
+                    $existing['unblock_url'] = $opts['unblock_url'];
+                }
+            }
+            update_option( $option_key, $existing, false );
+        }
+        if ( class_exists( __NAMESPACE__ . '\\wf_sn' ) && method_exists( __NAMESPACE__ . '\\wf_sn', 'return_global_options__premium_only' ) ) {
+            $response['options'] = \WPSecurityNinja\Plugin\wf_sn::return_global_options__premium_only();
+        }
+        $applied_count = count( $response['applied'] );
+        $response['success'] = $applied_count > 0;
+        if ( $applied_count > 0 ) {
+            $response['message'] = sprintf( 
+                /* translators: %d: number of settings */
+                _n(
+                    '%d setting updated.',
+                    '%d settings updated.',
+                    $applied_count,
+                    'security-ninja'
+                ),
+                $applied_count
+             );
+            $applied_keys = $response['applied'];
+            \WPSecurityNinja\Plugin\wf_sn_el_modules::log_event(
+                'security_ninja',
+                'mainwp_settings_change',
+                sprintf( 
+                    /* translators: %d: number of settings changed */
+                    _n(
+                        'MainWP updated %d setting.',
+                        'MainWP updated %d settings.',
+                        $applied_count,
+                        'security-ninja'
+                    ),
+                    $applied_count
+                 ),
+                array(
+                    'source'        => 'mainwp',
+                    'changed_count' => $applied_count,
+                    'applied_keys'  => $applied_keys,
+                )
+            );
+        } else {
+            $response['message'] = __( 'No settings were updated.', 'security-ninja' );
+        }
+        return $response;
+    }
+
+    /**
+     * Allowlist: module => key => type (bool|text|email|url|int).
+     *
+     * @return array<string, array<string, string>>
+     */
+    public static function get_mainwp_settings_allowlist() {
+        $bools = array();
+        foreach ( array(
+            'active',
+            'trackvisits',
+            'globalbannetwork',
+            'global',
+            'usecloud',
+            'protect_login_form',
+            'hide_login_errors',
+            'blockadminlogin',
+            'change_login_url',
+            '2fa_enabled',
+            '2fa_backup_codes_enabled',
+            '404guard_enabled',
+            'whitelist_managewp',
+            'filterqueries',
+            'countryblock_loginonly',
+            'failed_login_email_warning',
+            'whitelist_wprocket',
+            'whitelist_uptimia',
+            'whitelist_uptimerobot',
+            'woo_rate_limiting_enabled',
+            'woo_coupon_protection_enabled',
+            'satellite_soft_enabled'
+        ) as $k ) {
+            $bools[$k] = 'bool';
+        }
+        $firewall = $bools;
+        $firewall['trackvisits_howlong'] = 'int';
+        $firewall['max_login_attempts'] = 'int';
+        $firewall['max_login_attempts_time'] = 'int';
+        $firewall['bruteforce_ban_time'] = 'int';
+        $firewall['login_msg'] = 'text';
+        $firewall['login_error_msg'] = 'text';
+        $firewall['message'] = 'text';
+        $firewall['redirect_url'] = 'url';
+        $firewall['new_login_url'] = 'text';
+        $firewall['404guard_threshold'] = 'int';
+        $firewall['404guard_window'] = 'int';
+        $firewall['404guard_block_time'] = 'int';
+        $vulns = array(
+            'enable_vulns'              => 'bool',
+            'enable_admin_notification' => 'bool',
+            'enable_outdated'           => 'bool',
+            'enable_email_notice'       => 'bool',
+            'email_notice_recipient'    => 'email',
+            'ignored_plugin_slugs'      => 'text',
+        );
+        $eventslogger = array(
+            'active'                       => 'bool',
+            'email_reports'                => 'text',
+            'webhook_active'               => 'bool',
+            'webhook_firewall_events'      => 'bool',
+            'webhook_user_logins'          => 'bool',
+            'webhook_updates'              => 'bool',
+            'notify_new_admin'             => 'bool',
+            'retention'                    => 'text',
+            'email_to'                     => 'email',
+            'webhook_url'                  => 'url',
+            'new_admin_notification_email' => 'email',
+        );
+        $scheduledscanner = array(
+            'main_setting'  => 'text',
+            'scan_schedule' => 'text',
+            'email_report'  => 'int',
+            'email_to'      => 'email',
+        );
+        $whitelabel = array(
+            'wl_active'         => 'bool',
+            'wl_newname'        => 'text',
+            'wl_newdesc'        => 'text',
+            'wl_newauthor'      => 'text',
+            'wl_newurl'         => 'url',
+            'wl_newiconurl'     => 'url',
+            'wl_newmenuiconurl' => 'url',
+        );
+        $fixes = array(
+            'hide_wp'                      => 'bool',
+            'hide_wlw'                     => 'bool',
+            'hide_php_ver'                 => 'bool',
+            'hide_server'                  => 'bool',
+            'disable_editors'              => 'bool',
+            'disable_wp_debug'             => 'bool',
+            'enable_xcto'                  => 'bool',
+            'enable_xfo'                   => 'bool',
+            'enable_xxp'                   => 'bool',
+            'enable_sts'                   => 'bool',
+            'enable_rp'                    => 'bool',
+            'enable_fp'                    => 'bool',
+            'enable_csp'                   => 'bool',
+            'disable_wp_sitemaps'          => 'bool',
+            'disable_username_enumeration' => 'bool',
+            'hide_wp_debug'                => 'bool',
+            'application_passwords'        => 'bool',
+            'remove_unwanted_files'        => 'bool',
+            'secure_cookies'               => 'bool',
+            'disable_xmlrpc'               => 'bool',
+            'sechead_xcto'                 => 'text',
+            'sechead_xfo'                  => 'text',
+            'sechead_sts'                  => 'text',
+            'sechead_rp'                   => 'text',
+            'sechead_fp'                   => 'text',
+            'sechead_csp'                  => 'text',
+        );
+        return array(
+            'firewall'         => $firewall,
+            'vulns'            => $vulns,
+            'eventslogger'     => $eventslogger,
+            'scheduledscanner' => $scheduledscanner,
+            'whitelabel'       => $whitelabel,
+            'fixes'            => $fixes,
+            'malware_scanner'  => array(),
+        );
+    }
+
+    /**
+     * Map synced module slug to WordPress option name.
+     *
+     * @return array<string, string>
+     */
+    public static function get_mainwp_settings_option_map() {
+        $fixes_key = ( defined( 'WF_SN_FIXES_OPTIONS_KEY' ) ? WF_SN_FIXES_OPTIONS_KEY : 'wf_sn_fixes' );
+        $ss_key = ( defined( 'WF_SN_SS_OPTIONS_KEY' ) ? WF_SN_SS_OPTIONS_KEY : 'wf_sn_ss' );
+        return array(
+            'firewall'         => 'wf_sn_cf',
+            'vulns'            => 'wf_sn_vu_settings_group',
+            'eventslogger'     => 'wf_sn_el',
+            'scheduledscanner' => $ss_key,
+            'whitelabel'       => 'wf_sn_wl',
+            'fixes'            => $fixes_key,
+            'malware_scanner'  => 'wf_sn_ms_whitelist',
+        );
+    }
+
+    /**
+     * Sanitize one setting value for MainWP remote apply.
+     *
+     * @param string $type   Value type.
+     * @param mixed  $value  Raw value.
+     * @param string $module Module slug.
+     * @param string $key    Setting key.
+     * @return mixed
+     */
+    public static function sanitize_mainwp_setting_value(
+        $type,
+        $value,
+        $module,
+        $key
+    ) {
+        switch ( $type ) {
+            case 'bool':
+                return self::normalize_flag( $value );
+            case 'int':
+                return max( 0, (int) $value );
+            case 'email':
+                return sanitize_email( (string) $value );
+            case 'url':
+                return esc_url_raw( (string) $value );
+            default:
+                return sanitize_text_field( (string) $value );
+        }
+    }
+
+    /**
+     * Build a stable lookup key for MainWP event sync rows.
+     *
+     * @param array $row Event row.
+     * @return string
+     */
+    public static function mainwp_event_sync_key( $row ) {
+        if ( !is_array( $row ) ) {
+            return '';
+        }
+        $parts = array(
+            ( isset( $row['timestamp'] ) ? (string) $row['timestamp'] : '' ),
+            ( isset( $row['ip'] ) ? (string) $row['ip'] : '' ),
+            ( isset( $row['module'] ) ? (string) $row['module'] : '' ),
+            ( isset( $row['action'] ) ? (string) $row['action'] : '' ),
+            ( isset( $row['user_agent'] ) ? (string) $row['user_agent'] : '' ),
+            ( isset( $row['user_id'] ) ? (string) $row['user_id'] : '' ),
+            ( isset( $row['description'] ) ? (string) $row['description'] : '' )
+        );
+        return implode( '|', $parts );
     }
 
     /**

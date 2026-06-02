@@ -37,13 +37,10 @@ class Wf_Sn_Ai_Advisor_Reports {
 	 */
 	public static function ensure_table() {
 		global $wpdb;
-		$table = self::get_table_name();
-		if ( $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $table ) ) === $table ) {
-			return true;
-		}
 		if ( ! function_exists( 'dbDelta' ) ) {
 			require_once ABSPATH . 'wp-admin/includes/upgrade.php';
 		}
+		$table   = self::get_table_name();
 		$charset = $wpdb->get_charset_collate();
 		$sql     = "CREATE TABLE {$table} (
 			id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
@@ -54,11 +51,14 @@ class Wf_Sn_Ai_Advisor_Reports {
 			token_input int unsigned NOT NULL DEFAULT 0,
 			token_output int unsigned DEFAULT NULL,
 			request_type varchar(32) DEFAULT 'full_report',
+			parent_report_id bigint(20) unsigned DEFAULT NULL,
 			PRIMARY KEY  (id),
-			KEY  created (created)
+			KEY created (created),
+			KEY parent_report_id (parent_report_id),
+			KEY request_type_parent (request_type, parent_report_id)
 		) {$charset};";
 		dbDelta( $sql );
-		return true;
+		return $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $table ) ) === $table;
 	}
 
 	/**
@@ -94,26 +94,29 @@ class Wf_Sn_Ai_Advisor_Reports {
 	 * @param string|null $model        Model name if applicable.
 	 * @param int        $token_input   Input token count (estimated or from API).
 	 * @param int|null   $token_output  Output token count (estimated or from API).
-	 * @param string     $request_type  Request type (e.g. full_report).
+	 * @param string     $request_type      Request type (e.g. full_report).
+	 * @param int|null   $parent_report_id  Parent full_report row id for prompt_chip rows.
 	 * @return int|false Insert id or false on failure.
 	 */
-	public static function insert_report( $report_text, $provider = '', $model = null, $token_input = 0, $token_output = null, $request_type = 'full_report' ) {
+	public static function insert_report( $report_text, $provider = '', $model = null, $token_input = 0, $token_output = null, $request_type = 'full_report', $parent_report_id = null ) {
 		global $wpdb;
 		self::ensure_table();
 		$table = self::get_table_name();
-		$ok    = $wpdb->insert(
-			$table,
-			array(
-				'created'      => current_time( 'mysql' ),
-				'report_text'  => $report_text,
-				'provider'     => $provider,
-				'model'        => $model,
-				'token_input'  => max( 0, (int) $token_input ),
-				'token_output' => null !== $token_output ? max( 0, (int) $token_output ) : null,
-				'request_type' => $request_type,
-			),
-			array( '%s', '%s', '%s', '%s', '%d', '%d', '%s' )
+		$row   = array(
+			'created'      => current_time( 'mysql' ),
+			'report_text'  => $report_text,
+			'provider'     => $provider,
+			'model'        => $model,
+			'token_input'  => max( 0, (int) $token_input ),
+			'token_output' => null !== $token_output ? max( 0, (int) $token_output ) : null,
+			'request_type' => $request_type,
 		);
+		$formats = array( '%s', '%s', '%s', '%s', '%d', '%d', '%s' );
+		if ( null !== $parent_report_id && (int) $parent_report_id > 0 ) {
+			$row['parent_report_id'] = (int) $parent_report_id;
+			$formats[]               = '%d';
+		}
+		$ok = $wpdb->insert( $table, $row, $formats );
 		return $ok ? (int) $wpdb->insert_id : false;
 	}
 
@@ -230,5 +233,119 @@ class Wf_Sn_Ai_Advisor_Reports {
 	 */
 	public static function get_latest_two_full_reports() {
 		return self::get_reports( 2, 0, 'full_report' );
+	}
+
+	/**
+	 * Latest full_report row id, or 0 when none exists.
+	 *
+	 * @return int
+	 */
+	public static function get_latest_full_report_id() {
+		$rows = self::get_reports( 1, 0, 'full_report' );
+		if ( empty( $rows[0]['id'] ) ) {
+			return 0;
+		}
+		return (int) $rows[0]['id'];
+	}
+
+	/**
+	 * Paginated prompt_chip rows for one parent full report.
+	 *
+	 * @param int $parent_report_id Parent full_report id.
+	 * @param int $limit            Max rows.
+	 * @param int $offset           Offset.
+	 * @return array<int, array<string, mixed>>
+	 */
+	public static function get_chip_reports_for_parent( $parent_report_id, $limit = 20, $offset = 0 ) {
+		global $wpdb;
+		self::ensure_table();
+		$table = self::get_table_name();
+		if ( $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $table ) ) !== $table ) {
+			return array();
+		}
+		$parent_report_id = (int) $parent_report_id;
+		if ( $parent_report_id <= 0 ) {
+			return array();
+		}
+		$limit  = max( 1, min( 100, (int) $limit ) );
+		$offset = max( 0, (int) $offset );
+		$type   = 'prompt_chip';
+		$rows   = $wpdb->get_results(
+			$wpdb->prepare(
+				"SELECT id, created, report_text, provider, model, token_input, token_output, request_type, parent_report_id FROM {$table} WHERE request_type = %s AND parent_report_id = %d ORDER BY created DESC LIMIT %d OFFSET %d", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+				$type,
+				$parent_report_id,
+				$limit,
+				$offset
+			),
+			ARRAY_A
+		);
+		return is_array( $rows ) ? $rows : array();
+	}
+
+	/**
+	 * Count prompt_chip rows for one parent full report.
+	 *
+	 * @param int $parent_report_id Parent full_report id.
+	 * @return int
+	 */
+	public static function count_chip_reports_for_parent( $parent_report_id ) {
+		global $wpdb;
+		self::ensure_table();
+		$table = self::get_table_name();
+		if ( $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $table ) ) !== $table ) {
+			return 0;
+		}
+		$parent_report_id = (int) $parent_report_id;
+		if ( $parent_report_id <= 0 ) {
+			return 0;
+		}
+		$type = 'prompt_chip';
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name internal
+		$n = $wpdb->get_var(
+			$wpdb->prepare(
+				"SELECT COUNT(*) FROM {$table} WHERE request_type = %s AND parent_report_id = %d",
+				$type,
+				$parent_report_id
+			)
+		);
+		return (int) $n;
+	}
+
+	/**
+	 * Remove prompt_chip rows not linked to the current parent report (includes legacy rows with empty parent).
+	 *
+	 * @param int $parent_report_id Latest full_report id to keep.
+	 * @return void
+	 */
+	public static function prune_chip_reports_for_parent( $parent_report_id ) {
+		global $wpdb;
+		self::ensure_table();
+		$table = self::get_table_name();
+		if ( $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $table ) ) !== $table ) {
+			return;
+		}
+		$parent_report_id = (int) $parent_report_id;
+		$type             = 'prompt_chip';
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name internal
+		$wpdb->query(
+			$wpdb->prepare(
+				"DELETE FROM {$table} WHERE request_type = %s AND (parent_report_id IS NULL OR parent_report_id = 0)",
+				$type
+			)
+		);
+		if ( $parent_report_id > 0 ) {
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name internal
+			$wpdb->query(
+				$wpdb->prepare(
+					"DELETE FROM {$table} WHERE request_type = %s AND parent_report_id IS NOT NULL AND parent_report_id > 0 AND parent_report_id <> %d",
+					$type,
+					$parent_report_id
+				)
+			);
+			return;
+		}
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name internal
+		$wpdb->query( $wpdb->prepare( "DELETE FROM {$table} WHERE request_type = %s", $type ) );
 	}
 }
