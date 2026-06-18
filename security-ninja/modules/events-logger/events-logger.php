@@ -683,16 +683,13 @@ class Wf_Sn_El {
     }
 
     /**
-     * set default options
+     * Baseline Events Logger options (wizard and first-time defaults).
      *
-     * @author  Lars Koudal
-     * @since   v0.0.1
-     * @version v1.0.0  Friday, January 1st, 2021.
-     * @access  public static
-     * @param   boolean $force  Default: false
-     * @return  void
+     * @since  5.289
+     * @access public static
+     * @return array<string, mixed>
      */
-    public static function default_settings( $force = true ) {
+    public static function get_baseline_options() {
         $options = array(
             'active'                       => 1,
             'email_reports'                => '',
@@ -718,6 +715,21 @@ class Wf_Sn_El {
         );
         if ( function_exists( 'secnin_fs' ) && is_object( secnin_fs() ) ) {
         }
+        return $options;
+    }
+
+    /**
+     * Set default options.
+     *
+     * @author  Lars Koudal
+     * @since   v0.0.1
+     * @version v1.0.0  Friday, January 1st, 2021.
+     * @access  public static
+     * @param   boolean $force  Default: false
+     * @return  void
+     */
+    public static function default_settings( $force = true ) {
+        $options = self::get_baseline_options();
         if ( $force ) {
             update_option( 'wf_sn_el', $options );
         } else {

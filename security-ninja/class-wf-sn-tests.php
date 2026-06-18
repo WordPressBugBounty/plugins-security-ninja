@@ -15,7 +15,12 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 class Wf_Sn_Tests extends WF_SN {
 
-	public static $security_tests;
+	/**
+	 * Security test definitions keyed by test id.
+	 *
+	 * @var array<string, array{title: string, score: int}>|null
+	 */
+	public static $security_tests = null;
 
 
 	private static function is_local_request() {
@@ -338,9 +343,10 @@ class Wf_Sn_Tests extends WF_SN {
 
 		// Check if the request was successful
 		if ( is_wp_error( $response ) ) {
+			// Could not reach the endpoint (e.g. timeout). Treat as inconclusive (Warning) rather than assuming it is not accessible.
 			return array(
-				'status' => 10,
-				'msg'    => esc_html( $response->get_error_message() ),
+				'status' => 5,
+				'msg'    => sprintf( esc_html__( 'Could not determine REST API accessibility. Error: %s', 'security-ninja' ), esc_html( $response->get_error_message() ) ),
 			);
 		}
 
@@ -523,7 +529,7 @@ class Wf_Sn_Tests extends WF_SN {
 	 * @version v1.0.1  Saturday, November 18th, 2023.
 	 * @access  public static
 	 * @param   mixed $path
-	 * @return  integer
+	 * @return  array
 	 */
 	public static function tim_thumb_scan( $path ) {
 		global $wp_filesystem;
@@ -1277,10 +1283,10 @@ class Wf_Sn_Tests extends WF_SN {
 
 		// Check if automatic updates are explicitly enabled or disabled
 		if ( defined( 'WP_AUTO_UPDATE_CORE' ) ) {
-			if ( WP_AUTO_UPDATE_CORE === false ) {
+			if ( \WP_AUTO_UPDATE_CORE === false ) {
 				$return['status'] = 0;
 				$return['msg']    = __( 'Automatic core updates are explicitly disabled.', 'security-ninja' );
-			} elseif ( WP_AUTO_UPDATE_CORE === true || WP_AUTO_UPDATE_CORE === 'minor' ) {
+			} elseif ( \WP_AUTO_UPDATE_CORE === true || \WP_AUTO_UPDATE_CORE === 'minor' ) {
 				$return['status'] = 10;
 				$return['msg']    = __( 'Automatic core updates are enabled.', 'security-ninja' );
 			} else {
@@ -1730,7 +1736,8 @@ class Wf_Sn_Tests extends WF_SN {
 		);
 
 		if ( is_wp_error( $response ) ) {
-			$return['status'] = 0;
+			// Could not reach the login page (e.g. timeout). Treat as inconclusive (Warning), not a confirmed failure.
+			$return['status'] = 5;
 			$return['msg']    = __( 'Failed to make a request to the login page.', 'security-ninja' );
 		} elseif ( isset( $response['body'] ) && stripos( $response['body'], 'invalid username' ) !== false ) {
 			$return['status'] = 0;
@@ -1870,7 +1877,8 @@ class Wf_Sn_Tests extends WF_SN {
 		// Check for errors in the response
 		if ( is_wp_error( $response ) ) {
 			$error_message    = $response->get_error_message();
-			$return['status'] = 0;
+			// Could not reach the site (e.g. timeout). Treat as inconclusive (Warning), not a confirmed failure.
+			$return['status'] = 5;
 			$return['msg']    = sprintf( esc_html__( 'Failed to retrieve the site headers. Error: %s', 'security-ninja' ), esc_html( $error_message ) );
 			return $return;
 		}
@@ -1936,7 +1944,8 @@ class Wf_Sn_Tests extends WF_SN {
 
 		if ( is_wp_error( $response ) ) {
 			$error_message    = $response->get_error_message();
-			$return['status'] = 0;
+			// Could not reach the site (e.g. timeout). Treat as inconclusive (Warning), not a confirmed failure.
+			$return['status'] = 5;
 			$return['msg']    = sprintf( esc_html__( 'Failed to retrieve the site headers. Error: %s', 'security-ninja' ), esc_html( $error_message ) );
 			return $return;
 		}
@@ -2000,7 +2009,8 @@ class Wf_Sn_Tests extends WF_SN {
 
 		if ( is_wp_error( $response ) ) {
 			$error_message    = $response->get_error_message();
-			$return['status'] = 0;
+			// Could not reach the site (e.g. timeout). Treat as inconclusive (Warning), not a confirmed failure.
+			$return['status'] = 5;
 			$return['msg']    = sprintf( esc_html__( 'Failed to retrieve the site headers. Error: %s', 'security-ninja' ), esc_html( $error_message ) );
 			return $return;
 		}
@@ -2061,7 +2071,8 @@ class Wf_Sn_Tests extends WF_SN {
 		);
 
 		if ( is_wp_error( $response ) ) {
-			$return['status'] = 0;
+			// Could not reach the site (e.g. timeout). Treat as inconclusive (Warning), not a confirmed failure.
+			$return['status'] = 5;
 			$return['msg']    = __( 'Failed to retrieve the home page headers.', 'security-ninja' );
 			return $return;
 		}
@@ -2137,7 +2148,8 @@ class Wf_Sn_Tests extends WF_SN {
 
 		if ( is_wp_error( $response ) ) {
 			$error_message          = $response->get_error_message();
-			$return_array['status'] = 0;
+			// Could not reach the site (e.g. timeout). Treat as inconclusive (Warning), not a confirmed failure.
+			$return_array['status'] = 5;
 			$return_array['msg']    = sprintf( esc_html__( 'Failed to retrieve the site headers. Error: %s', 'security-ninja' ), esc_html( $error_message ) );
 			return $return_array;
 		}
@@ -2205,7 +2217,8 @@ class Wf_Sn_Tests extends WF_SN {
 
 		if ( is_wp_error( $response ) ) {
 			$error_message    = $response->get_error_message();
-			$return['status'] = 0;
+			// Could not reach the site (e.g. timeout). Treat as inconclusive (Warning), not a confirmed failure.
+			$return['status'] = 5;
 			$return['msg']    = sprintf( esc_html__( 'Failed to retrieve the site headers. Error: %s', 'security-ninja' ), esc_html( $error_message ) );
 			return $return;
 		}
@@ -2270,7 +2283,8 @@ class Wf_Sn_Tests extends WF_SN {
 		);
 
 		if ( is_wp_error( $response ) ) {
-			$return['status'] = 0;
+			// Could not reach the site (e.g. timeout). Treat as inconclusive (Warning), not a confirmed failure.
+			$return['status'] = 5;
 			/* translators: %s: error message from HTTP request */
 			$return['msg'] = sprintf( __( 'Error: Unable to get the response. %s', 'security-ninja' ), $response->get_error_message() );
 			return $return;
@@ -2351,7 +2365,8 @@ class Wf_Sn_Tests extends WF_SN {
 		);
 		if ( is_wp_error( $response ) ) {
 			$error_message    = $response->get_error_message();
-			$return['status'] = 0;
+			// Could not reach the site (e.g. timeout). Treat as inconclusive (Warning), not a confirmed failure.
+			$return['status'] = 5;
 			$return['msg']    = sprintf( esc_html__( 'Failed to retrieve the site headers. Error: %s', 'security-ninja' ), esc_html( $error_message ) );
 			return $return;
 		}
@@ -3044,8 +3059,13 @@ class Wf_Sn_Tests extends WF_SN {
 
 		}
 
+		$request_failed = false;
 		foreach ( $users as $user ) {
-			$response      = wp_remote_get( $url . $user->ID, $args );
+			$response = wp_remote_get( $url . $user->ID, $args );
+			if ( is_wp_error( $response ) ) {
+				$request_failed = true;
+				continue;
+			}
 			$response_code = wp_remote_retrieve_response_code( $response );
 			if ( 301 === $response_code ) {
 				$success = true;
@@ -3056,6 +3076,10 @@ class Wf_Sn_Tests extends WF_SN {
 		if ( $success ) {
 			$return['status'] = 0;
 			$return['msg']    = __( 'Username enumeration test passed.', 'security-ninja' );
+		} elseif ( $request_failed ) {
+			// Could not reach the site (e.g. timeout). Treat as inconclusive (Warning) rather than assuming enumeration is blocked.
+			$return['status'] = 5;
+			$return['msg']    = __( 'Could not determine username enumeration status - the site could not be reached.', 'security-ninja' );
 		} else {
 			$return['status'] = 10;
 			$return['msg']    = __( 'Username enumeration test failed.', 'security-ninja' );

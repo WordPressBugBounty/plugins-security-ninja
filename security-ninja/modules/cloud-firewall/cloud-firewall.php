@@ -44,6 +44,13 @@ class Wf_sn_cf {
      */
     private static $satellite_soften_logged = array();
 
+    /**
+     * Per-request cache for get_visitor_hostname() keyed by IP.
+     *
+     * @var array<string, string>
+     */
+    private static $visitor_hostname_cache = array();
+
     public static $central_api_url = 'https://api.securityninjawp.com/wp-json/secnin/v1/';
 
     public static function init() {
@@ -128,6 +135,9 @@ class Wf_sn_cf {
         if ( wp_is_json_request() || defined( 'REST_REQUEST' ) && REST_REQUEST || isset( $_GET['rest_route'] ) ) {
             return;
         }
+        if ( wp_doing_cron() || defined( 'WP_CLI' ) && WP_CLI ) {
+            return;
+        }
         $current_user_ip = self::get_user_ip();
         $reason = self::is_banned_ip( $current_user_ip );
         if ( $reason ) {
@@ -136,15 +146,6 @@ class Wf_sn_cf {
             // or by other firewall features (e.g. 404 Guard, brute-force protection)
             if ( (is_admin() || wp_doing_ajax()) && current_user_can( 'manage_options' ) ) {
                 return;
-            }
-            // Check if this is a country-based ban
-            $is_country_ban = strpos( $reason, 'Country is blocked' ) !== false;
-            // For country bans, check countryblock_loginonly setting
-            if ( $is_country_ban && isset( self::$options['countryblock_loginonly'] ) && self::$options['countryblock_loginonly'] ) {
-            } else {
-                // For other ban types, check if 'global' setting is enabled - if not, only block from login pages
-                if ( !self::$options['global'] ) {
-                }
             }
             self::update_blocked_count( $current_user_ip );
             $ua_string = '';
@@ -185,6 +186,13 @@ class Wf_sn_cf {
                 $local_whitelist = array();
             }
             if ( Wf_sn_cf_Utils::is_whitelisted( $current_user_ip, $local_whitelist ) ) {
+                $whitelisted_user = true;
+            }
+            if ( self::is_whitelisted_service( $current_user_ip ) ) {
+                $whitelisted_user = true;
+            }
+            $validated_crawlers = get_option( WF_SN_CF_VALIDATED_CRAWLERS );
+            if ( is_array( $validated_crawlers ) && in_array( $current_user_ip, $validated_crawlers, true ) ) {
                 $whitelisted_user = true;
             }
             // Always check for bad queries (even for whitelisted users), but skip AJAX, cron, and admin requests
@@ -351,6 +359,37 @@ class Wf_sn_cf {
     }
 
     /**
+     * Reverse DNS hostname for an IP with per-request and transient caching.
+     *
+     * @author  Lars Koudal
+     * @since   5.289
+     * @param   string $ip IP address.
+     * @return  string Lowercase hostname, or the IP on lookup failure (matches gethostbyaddr behavior).
+     */
+    private static function get_visitor_hostname( $ip ) {
+        if ( !is_string( $ip ) || '' === $ip ) {
+            return '';
+        }
+        if ( isset( self::$visitor_hostname_cache[$ip] ) ) {
+            return self::$visitor_hostname_cache[$ip];
+        }
+        $transient_key = 'wf_sn_cf_rdns_' . md5( $ip );
+        $cached = get_transient( $transient_key );
+        if ( false !== $cached && is_string( $cached ) ) {
+            self::$visitor_hostname_cache[$ip] = $cached;
+            return $cached;
+        }
+        $hostname = gethostbyaddr( $ip );
+        if ( !is_string( $hostname ) || '' === $hostname ) {
+            $hostname = $ip;
+        }
+        $hostname = strtolower( $hostname );
+        set_transient( $transient_key, $hostname, WEEK_IN_SECONDS );
+        self::$visitor_hostname_cache[$ip] = $hostname;
+        return $hostname;
+    }
+
+    /**
      * Validate a crawlers IP against the hostname
      *
      * Also validates known AI crawlers (OpenAI, Perplexity) when User-Agent matches and the IP is in
@@ -376,7 +415,7 @@ class Wf_sn_cf {
         } else {
             $validated_crawlers = array();
         }
-        $hostname = strtolower( gethostbyaddr( $testip ) );
+        $hostname = self::get_visitor_hostname( $testip );
         //"crawl-66-249-66-1.googlebot.com"
         $valid_host_names = array(
             '.crawl.baidu.com',
@@ -556,34 +595,15 @@ class Wf_sn_cf {
         );
         $whitelist_managewp = array();
         if ( isset( self::$options['whitelist_managewp'] ) && self::$options['whitelist_managewp'] ) {
-            $whitelist_managewp_path = WF_SN_PLUGIN_DIR . 'modules/cloud-firewall/whitelist-managewp.php';
-            if ( file_exists( $whitelist_managewp_path ) ) {
-                // Files assign $whitelist_managewp in this scope (include returns 1, not the array).
-                include $whitelist_managewp_path;
-            }
-        }
-        if ( !is_array( $whitelist_managewp ) ) {
-            $whitelist_managewp = array();
+            $whitelist_managewp = self::load_ip_whitelist( 'whitelist-managewp.json' );
         }
         $whitelist_uptimia = array();
         if ( isset( self::$options['whitelist_uptimia'] ) && self::$options['whitelist_uptimia'] ) {
-            $whitelist_uptimia_path = WF_SN_PLUGIN_DIR . 'modules/cloud-firewall/whitelist-uptimia.php';
-            if ( file_exists( $whitelist_uptimia_path ) ) {
-                include $whitelist_uptimia_path;
-            }
-        }
-        if ( !is_array( $whitelist_uptimia ) ) {
-            $whitelist_uptimia = array();
+            $whitelist_uptimia = self::load_ip_whitelist( 'whitelist-uptimia.json' );
         }
         $whitelist_uptimerobot = array();
         if ( isset( self::$options['whitelist_uptimerobot'] ) && self::$options['whitelist_uptimerobot'] ) {
-            $whitelist_uptimerobot_path = WF_SN_PLUGIN_DIR . 'modules/cloud-firewall/whitelist-uptimerobot.php';
-            if ( file_exists( $whitelist_uptimerobot_path ) ) {
-                include $whitelist_uptimerobot_path;
-            }
-        }
-        if ( !is_array( $whitelist_uptimerobot ) ) {
-            $whitelist_uptimerobot = array();
+            $whitelist_uptimerobot = self::load_ip_whitelist( 'whitelist-uptimerobot.json' );
         }
         $whitelist = array_merge(
             $whitelist_brokenlink,
@@ -610,6 +630,46 @@ class Wf_sn_cf {
         }
         return false;
         // IP is not whitelisted
+    }
+
+    /**
+     * Loads an IP whitelist from a bundled JSON data file.
+     *
+     * The service whitelist data files (ManageWP, UptimeRobot, Uptimia) contain a
+     * plain JSON array of IP addresses and CIDR ranges. They are shipped as JSON
+     * data rather than executable PHP so that security scanners do not mistake a
+     * static list of IPs for obfuscated/concealed code.
+     *
+     * @author  Lars Koudal
+     * @since   v5.290
+     * @access  private static
+     * @param   string $filename  Filename of the JSON file inside modules/cloud-firewall/.
+     * @return  array             Array of IP/CIDR strings, or empty array on failure.
+     */
+    private static function load_ip_whitelist( $filename ) {
+        $path = WF_SN_PLUGIN_DIR . 'modules/cloud-firewall/' . basename( $filename );
+        if ( !is_readable( $path ) ) {
+            return array();
+        }
+        $contents = file_get_contents( $path );
+        if ( false === $contents || '' === $contents ) {
+            return array();
+        }
+        $decoded = json_decode( $contents, true );
+        if ( !is_array( $decoded ) ) {
+            return array();
+        }
+        $ips = array();
+        foreach ( $decoded as $entry ) {
+            if ( !is_string( $entry ) ) {
+                continue;
+            }
+            $entry = trim( $entry );
+            if ( '' !== $entry ) {
+                $ips[] = $entry;
+            }
+        }
+        return $ips;
     }
 
     /**
@@ -665,8 +725,11 @@ class Wf_sn_cf {
             $whitelisted_user = true;
         }
         if ( in_array( $current_user_ip, array('::1', '127.0.0.1'), true ) ) {
-            $whitelisted_user = false;
-            $administrator = false;
+            // Do not auto-trust localhost for WAF/logging unless explicitly whitelisted.
+            if ( !Wf_sn_cf_Utils::is_whitelisted( $current_user_ip, $local_whitelist ) ) {
+                $whitelisted_user = false;
+                $administrator = false;
+            }
         }
         $ua_string = '';
         if ( isset( $_SERVER['HTTP_USER_AGENT'] ) ) {
@@ -684,22 +747,25 @@ class Wf_sn_cf {
         if ( !$whitelisted_user && 1 === (int) self::$options['active'] ) {
             $ban_reason = self::is_banned_ip( $current_user_ip );
             if ( $ban_reason ) {
-                // Check if 'global' setting is enabled - if not, only block from login pages
+                // Login-only bypass for IP/cloud bans when global is OFF; country bans use countryblock_loginonly.
                 if ( !self::$options['global'] ) {
                     $handled_by_premium = false;
                     if ( !$handled_by_premium ) {
-                        wf_sn_el_modules::log_event(
-                            'security_ninja',
-                            'blocked_ip_banned',
-                            __( 'IP is blocked.', 'security-ninja' ),
-                            array(
-                                'ip'         => $current_user_ip,
-                                'ban_reason' => $ban_reason,
-                            )
-                        );
-                        self::update_blocked_count( $current_user_ip );
-                        self::kill_request();
-                        return;
+                        $is_premium_build = false;
+                        if ( !$is_premium_build ) {
+                            wf_sn_el_modules::log_event(
+                                'security_ninja',
+                                'blocked_ip_banned',
+                                __( 'IP is blocked.', 'security-ninja' ),
+                                array(
+                                    'ip'         => $current_user_ip,
+                                    'ban_reason' => $ban_reason,
+                                )
+                            );
+                            self::update_blocked_count( $current_user_ip );
+                            self::kill_request();
+                            return;
+                        }
                     }
                 }
                 // This is a login page or global is ON, proceed with blocking
@@ -717,90 +783,6 @@ class Wf_sn_cf {
                 }
                 self::update_blocked_count( $current_user_ip );
                 self::kill_request();
-            }
-        }
-        // Check bad queries only if filterqueries is enabled
-        if ( 1 === (int) self::$options['active'] && 1 === (int) self::$options['filterqueries'] ) {
-            // Skip security checks for temporary login links
-            if ( self::is_temporary_login_link() ) {
-                return;
-                // Allow temporary login links through
-            }
-            $bad_query = self::check_bad_queries();
-            // Always check for bad queries (even for whitelisted users), but only block non-whitelisted users
-            if ( $bad_query !== false ) {
-                // Detects if we are importing
-                if ( defined( 'WP_IMPORTING' ) && $bad_query ) {
-                    // set the query to false, not going to block but we left a notice
-                    $bad_query = false;
-                }
-                if ( $bad_query ) {
-                    $extramessage = '';
-                    $extraarr = array(
-                        'ban_type' => '',
-                    );
-                    if ( isset( $bad_query['request_uri'] ) ) {
-                        $extraarr['ban_reason'] = $bad_query['request_uri'];
-                        $extraarr['ban_type'] = 'request_uri';
-                        $extramessage = 'request_uri';
-                    }
-                    if ( isset( $bad_query['query_string'] ) ) {
-                        $extraarr['ban_type'] = 'query_string';
-                        $extraarr['ban_reason'] = $bad_query['query_string'];
-                    }
-                    if ( isset( $bad_query['http_user_agent'] ) ) {
-                        $extraarr['ban_type'] = 'http_user_agent';
-                        $extraarr['ban_reason'] = $bad_query['http_user_agent'];
-                    }
-                    if ( isset( $bad_query['referrer'] ) ) {
-                        $extraarr['ban_type'] = 'referrer';
-                        $extraarr['ban_reason'] = $bad_query['referrer'];
-                    }
-                    if ( isset( $bad_query['blocked_host'] ) ) {
-                        $extraarr['ban_type'] = 'blocked_host';
-                        $extraarr['ban_reason'] = $bad_query['visitor_host'];
-                    }
-                    $extraarr = array_merge( $extraarr, $bad_query );
-                    $extraarr['ip'] = $current_user_ip;
-                    $extraarr['user_agent'] = $ua_string;
-                    $request_uri = ( isset( $_SERVER['REQUEST_URI'] ) ? esc_url( $_SERVER['REQUEST_URI'] ) : '' );
-                    if ( !empty( $request_uri ) ) {
-                        $extraarr['request_uri'] = $request_uri;
-                    }
-                    $query_string = ( isset( $_SERVER['QUERY_STRING'] ) ? esc_url( $_SERVER['QUERY_STRING'] ) : '' );
-                    if ( !empty( $query_string ) ) {
-                        $extraarr['query_string'] = $query_string;
-                    }
-                    $http_referer = ( isset( $_SERVER['HTTP_REFERER'] ) ? esc_url( $_SERVER['HTTP_REFERER'] ) : '' );
-                    if ( !empty( $http_referer ) ) {
-                        $extraarr['http_referer'] = $http_referer;
-                    }
-                    $blockedmessage = __( 'Suspicious Request', 'security-ninja' );
-                    if ( isset( $extramessage ) ) {
-                        $blockedmessage .= ' ' . $extramessage;
-                    }
-                    // Always log suspicious requests, even for whitelisted users
-                    $log_action = ( $whitelisted_user ? 'suspicious_request_whitelisted' : 'blocked_ip_suspicious_request' );
-                    $log_message = ( $whitelisted_user ? __( 'Suspicious Request (Whitelisted - Not Blocked)', 'security-ninja' ) . (( $extramessage ? ' ' . $extramessage : '' )) : $blockedmessage );
-                    wf_sn_el_modules::log_event(
-                        'security_ninja',
-                        $log_action,
-                        $log_message,
-                        $extraarr
-                    );
-                    $extraarr = array_merge( $extraarr, $bad_query );
-                    // Only block non-whitelisted users
-                    if ( !$whitelisted_user ) {
-                        self::update_blocked_count( $current_user_ip );
-                        self::kill_request(
-                            $current_user_ip,
-                            $extraarr['ban_reason'],
-                            1 * HOUR_IN_SECONDS,
-                            true
-                        );
-                    }
-                    // For whitelisted users, log but allow the request to continue
-                }
             }
         }
     }
@@ -1005,7 +987,6 @@ class Wf_sn_cf {
         $query_string_string = false;
         $user_agent_string = false;
         $referrer_string = false;
-        $visitor_host = false;
         if ( isset( $_SERVER['REQUEST_URI'] ) && !empty( $_SERVER['REQUEST_URI'] ) ) {
             $request_uri_string = $_SERVER['REQUEST_URI'];
         }
@@ -1018,22 +999,12 @@ class Wf_sn_cf {
         if ( isset( $_SERVER['HTTP_REFERER'] ) && !empty( $_SERVER['HTTP_REFERER'] ) ) {
             $referrer_string = $_SERVER['HTTP_REFERER'];
         }
-        if ( isset( $_SERVER['REMOTE_ADDR'] ) && !empty( $_SERVER['REMOTE_ADDR'] ) ) {
-            $visitor_host = gethostbyaddr( $_SERVER['REMOTE_ADDR'] );
+        $has_remote_addr = isset( $_SERVER['REMOTE_ADDR'] ) && !empty( $_SERVER['REMOTE_ADDR'] );
+        if ( !$request_uri_string && !$query_string_string && !$user_agent_string && !$referrer_string && !$has_remote_addr ) {
+            return false;
         }
-        if ( $request_uri_string || $query_string_string || $user_agent_string || $referrer_string || $visitor_host ) {
-            $response = array();
-            foreach ( $blocked_hosts_array as $key => $item ) {
-                if ( preg_match( '#\\b' . preg_quote( $item, '#' ) . '\\b#i', $visitor_host, $matches ) ) {
-                    $response = array(
-                        'blocked_host' => esc_html( $matches[0] ),
-                        'visitor_host' => esc_html( $visitor_host ),
-                        'matched_rule' => esc_html( $key ),
-                        'message'      => 'A match was found in the blocked hosts.',
-                    );
-                    break;
-                }
-            }
+        $response = array();
+        if ( $request_uri_string ) {
             foreach ( $request_uri_array as $key => $pattern ) {
                 // Direct use of pattern in preg_match, without preg_quote
                 if ( preg_match( '#' . $pattern . '#i', $request_uri_string, $req_matches ) ) {
@@ -1045,52 +1016,64 @@ class Wf_sn_cf {
                     break;
                 }
             }
-            if ( empty( $response ) ) {
-                // Proceed only if no match was found previously
-                foreach ( $query_string_array as $key => $item ) {
-                    // Directly use the pattern without preg_quote() for regex matching
-                    if ( preg_match( '#' . $item . '#i', $query_string_string, $query_matches ) ) {
-                        $response = array(
-                            'query_string'        => esc_html( $query_matches[0] ),
-                            'query_string_string' => esc_html( $query_string_string ),
-                            'matched_rule'        => esc_html( $key ),
-                            'message'             => 'A match was found in the query string.',
-                        );
-                        break;
-                    }
+        }
+        if ( empty( $response ) && $query_string_string ) {
+            foreach ( $query_string_array as $key => $item ) {
+                // Directly use the pattern without preg_quote() for regex matching
+                if ( preg_match( '#' . $item . '#i', $query_string_string, $query_matches ) ) {
+                    $response = array(
+                        'query_string'        => esc_html( $query_matches[0] ),
+                        'query_string_string' => esc_html( $query_string_string ),
+                        'matched_rule'        => esc_html( $key ),
+                        'message'             => 'A match was found in the query string.',
+                    );
+                    break;
                 }
             }
-            if ( empty( $response ) ) {
-                // Proceed only if no match was found previously
-                foreach ( $user_agent_array as $key => $item ) {
-                    // Using '#' as delimiter to avoid conflicts with common characters in user agents
-                    if ( preg_match( '#' . $item . '#i', $user_agent_string, $ua_matches ) ) {
-                        $response = array(
-                            'http_user_agent'   => esc_html( $ua_matches[0] ),
-                            'user_agent_string' => esc_html( $user_agent_string ),
-                            'matched_rule'      => esc_html( $key ),
-                            'message'           => 'A match was found in the user agent.',
-                        );
-                        break;
-                    }
+        }
+        if ( empty( $response ) && $user_agent_string ) {
+            foreach ( $user_agent_array as $key => $item ) {
+                // Using '#' as delimiter to avoid conflicts with common characters in user agents
+                if ( preg_match( '#' . $item . '#i', $user_agent_string, $ua_matches ) ) {
+                    $response = array(
+                        'http_user_agent'   => esc_html( $ua_matches[0] ),
+                        'user_agent_string' => esc_html( $user_agent_string ),
+                        'matched_rule'      => esc_html( $key ),
+                        'message'           => 'A match was found in the user agent.',
+                    );
+                    break;
                 }
             }
-            if ( empty( $response ) ) {
-                foreach ( $referrer_array as $key => $item ) {
-                    if ( preg_match( '/' . preg_quote( $item, '/' ) . '/i', $referrer_string, $rf_matches ) ) {
-                        $response = array(
-                            'referrer'        => esc_html( $rf_matches[0] ),
-                            'referrer_string' => esc_html( $referrer_string ),
-                            'matched_rule'    => esc_html( $key ),
-                            'message'         => 'A match was found in the referrer.',
-                        );
-                        break;
-                    }
+        }
+        if ( empty( $response ) && $referrer_string ) {
+            foreach ( $referrer_array as $key => $item ) {
+                if ( preg_match( '/' . preg_quote( $item, '/' ) . '/i', $referrer_string, $rf_matches ) ) {
+                    $response = array(
+                        'referrer'        => esc_html( $rf_matches[0] ),
+                        'referrer_string' => esc_html( $referrer_string ),
+                        'matched_rule'    => esc_html( $key ),
+                        'message'         => 'A match was found in the referrer.',
+                    );
+                    break;
                 }
             }
-            if ( !empty( $response ) ) {
-                return $response;
+        }
+        if ( empty( $response ) && $has_remote_addr ) {
+            $visitor_host = self::get_visitor_hostname( sanitize_text_field( wp_unslash( $_SERVER['REMOTE_ADDR'] ) ) );
+            foreach ( $blocked_hosts_array as $key => $item ) {
+                if ( preg_match( '#\\b' . preg_quote( $item, '#' ) . '\\b#i', $visitor_host, $matches ) ) {
+                    $response = array(
+                        'blocked_host' => esc_html( $matches[0] ),
+                        'visitor_host' => esc_html( $visitor_host ),
+                        'matched_rule' => esc_html( $key ),
+                        'message'      => 'A match was found in the blocked hosts.',
+                    );
+                    break;
+                }
             }
+        }
+        if ( !empty( $response ) ) {
+            return $response;
         }
         return false;
     }
@@ -1562,6 +1545,29 @@ class Wf_sn_cf {
                     ''
                 );
             }
+        }
+        return true;
+    }
+
+    /**
+     * Delete all firewall visitor log entries.
+     *
+     * @return bool
+     */
+    public static function clear_visitor_log() {
+        global $wpdb;
+        $table_name = $wpdb->prefix . 'wf_sn_cf_vl';
+        if ( $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $table_name ) ) !== $table_name ) {
+            return false;
+        }
+        $wpdb->query( 'TRUNCATE TABLE ' . $table_name );
+        if ( class_exists( __NAMESPACE__ . '\\wf_sn_el_modules' ) ) {
+            wf_sn_el_modules::log_event(
+                'security_ninja',
+                'cleared_visitor_log',
+                esc_html__( 'Manually cleared firewall visitor log.', 'security-ninja' ),
+                ''
+            );
         }
         return true;
     }
@@ -2473,7 +2479,7 @@ class Wf_sn_cf {
         self::check_visitor();
         $current_user_ip = self::get_user_ip();
         // Check if country blocking is enabled and restricted to login only
-        if ( isset( self::$options['countryblock_loginonly'] ) && self::$options['countryblock_loginonly'] ) {
+        if ( self::is_active() && isset( self::$options['countryblock_loginonly'] ) && self::$options['countryblock_loginonly'] ) {
         }
         if ( $reason = self::is_banned_ip( $current_user_ip ) ) {
             self::update_blocked_count( $current_user_ip );
@@ -2850,6 +2856,10 @@ class Wf_sn_cf {
         if ( '1' !== (string) (self::$options['usecloud'] ?? '') ) {
             return '';
         }
+        // Cloud reputation applies to public routable IPs only.
+        if ( Wf_sn_cf_Utils::is_non_public_ip( $ip ) ) {
+            return '';
+        }
         $ips = get_option( 'wf_sn_cf_ips' );
         if ( !is_array( $ips ) ) {
             return '';
@@ -2891,6 +2901,9 @@ class Wf_sn_cf {
         if ( !$ip ) {
             return false;
         }
+        if ( is_null( self::$options ) ) {
+            self::$options = self::get_options();
+        }
         // Checks if IP is set or try to get it - always use $current_user_ip from here
         if ( $ip ) {
             $current_user_ip = $ip;
@@ -2913,40 +2926,31 @@ class Wf_sn_cf {
         if ( Wf_sn_cf_Utils::is_whitelisted( $current_user_ip, $local_whitelist ) ) {
             return false;
         }
-        // Check if IP is in blacklist. P.s. could use in_array() but had trouble with spaces ... perhaps trim first.. hmm...
-        $blacklist = self::$options['blacklist'];
-        if ( is_array( $blacklist ) ) {
-            foreach ( $blacklist as $bl ) {
-                if ( trim( $bl ) === $ip ) {
-                    return 'IP is in local blacklist.';
-                }
-                if ( Wf_sn_cf_Utils::ipCIDRMatch( $ip, $bl ) ) {
-                    return 'IP is in local blacklist mask - ' . $bl;
+        if ( self::is_active() ) {
+            $blacklist = self::$options['blacklist'];
+            if ( is_array( $blacklist ) ) {
+                foreach ( $blacklist as $bl ) {
+                    if ( trim( $bl ) === $ip ) {
+                        return 'IP is in local blacklist.';
+                    }
+                    if ( Wf_sn_cf_Utils::ipCIDRMatch( $ip, $bl ) ) {
+                        return 'IP is in local blacklist mask - ' . $bl;
+                    }
                 }
             }
         }
-        $my_banned_list = self::get_banned_ips();
-        // IPs are currently stored in the options table
-        $ips = get_option( 'wf_sn_cf_ips' );
-        if ( !is_array( $ips ) ) {
-            $ips = array(
-                'ips'     => array(),
-                'subnets' => array(),
-            );
-        }
         $banned_ips = self::get_banned_ips();
-        if ( is_array( self::$options['whitelist'] ) && Wf_sn_cf_Utils::is_whitelisted( $current_user_ip, self::$options['whitelist'] ) ) {
-            return false;
-        } elseif ( array_key_exists( $current_user_ip, $banned_ips ) ) {
+        if ( array_key_exists( $current_user_ip, $banned_ips ) ) {
             $expiry = $banned_ips[$current_user_ip];
             if ( $expiry > current_time( 'timestamp' ) ) {
                 return 'Local blacklist.';
             }
-            // Expired: remove from list and treat as not banned.
             $updated = $banned_ips;
             unset($updated[$current_user_ip]);
             self::update_banned_ips( $updated );
             self::$banned_ips = $updated;
+        }
+        if ( !self::is_active() ) {
             return false;
         }
         $cloud_block_reason = '';
@@ -3113,7 +3117,7 @@ class Wf_sn_cf {
      * @return  string Modified message content.
      */
     public static function login_message( $msg ) {
-        if ( !self::is_active() || empty( self::$options['protect_login_form'] ) || empty( self::$options['login_msg'] ) ) {
+        if ( empty( self::$options['protect_login_form'] ) || empty( self::$options['login_msg'] ) ) {
             return $msg;
         }
         $action = ( isset( $_GET['action'] ) ? sanitize_key( wp_unslash( $_GET['action'] ) ) : '' );
@@ -3798,10 +3802,13 @@ class Wf_sn_cf {
      * @since   v0.0.1
      * @version v1.0.0  Monday, December 21st, 2020.
      * @access  public static
-     * @return  mixed
+     * @return  int 1 when the firewall is active, 0 otherwise.
      */
     public static function is_active() {
-        return (int) self::$options['active'];
+        if ( is_null( self::$options ) ) {
+            self::get_options();
+        }
+        return (int) (1 === (int) self::$options['active']);
     }
 
     /**
@@ -3968,7 +3975,7 @@ class Wf_sn_cf {
 				</div>
 				<div class="col right">
 				<?php 
-        if ( (int) self::$options['active'] === 1 ) {
+        if ( 1 === self::is_active() ) {
             echo '<h3>' . esc_html__( 'Secret Access URL', 'security-ninja' ) . '</h3>';
             ?>
 						<input type="text" id="sn-unblock-url" value="<?php 
@@ -3987,31 +3994,7 @@ class Wf_sn_cf {
 
 			<?php 
         global $secnin_fs;
-        if ( 1 !== self::is_active() ) {
-            ?>
-				<div class="sncard infobox">
-					<div class="inner">
-						<h3>Upgrade to Pro for Advanced Firewall Features</h3>
-						<p>The free version provides basic firewall protection with 8G rules. Upgrade to Security Ninja Pro to unlock powerful advanced features:</p>
-						<ul style="list-style: disc; margin-left: 20px; margin-top: 10px;">
-							<li>Control how banned IPs are handled - block completely or only from login</li>
-							<li>Cloud Firewall with 600+ million known bad IPs, automatically updated</li>
-							<li>Participate in global IP threat network and share threat intelligence</li>
-							<li>Block entire countries from accessing your website</li>
-							<li>Customize messages shown to blocked visitors</li>
-							<li>Redirect blocked visitors to any URL using 301 redirects</li>
-						</ul>
-						<p style="margin-top: 15px;">
-							<a href="<?php 
-            echo esc_url( \WPSecurityNinja\Plugin\Utils::generate_sn_web_link( 'upgrade_tab_firewall', '/pricing/' ) );
-            ?>" class="button button-primary button-small" target="_blank" rel="noopener">Upgrade to Pro</a>
-						</p>
-					</div>
-				</div>
-		</div>
-				<?php 
-        }
-        if ( (int) self::$options['active'] === 1 ) {
+        if ( 1 === self::is_active() ) {
             echo '</div>';
             echo '<div class="sncard settings-card">';
             echo '<form action="options.php" id="sn-firewall-settings-form" method="post">';
@@ -4200,6 +4183,29 @@ class Wf_sn_cf {
             echo esc_html__( 'Save Changes', 'security-ninja' );
             ?>" class="input-button button-primary" name="Submit" /></p>
 		</form>
+		</div>
+				<?php 
+        } else {
+            ?>
+				<div class="sncard infobox">
+					<div class="inner">
+						<h3>Upgrade to Pro for Advanced Firewall Features</h3>
+						<p>The free version provides basic firewall protection with 8G rules. Upgrade to Security Ninja Pro to unlock powerful advanced features:</p>
+						<ul style="list-style: disc; margin-left: 20px; margin-top: 10px;">
+							<li>Control how banned IPs are handled - block completely or only from login</li>
+							<li>Cloud Firewall with 600+ million known bad IPs, automatically updated</li>
+							<li>Participate in global IP threat network and share threat intelligence</li>
+							<li>Block entire countries from accessing your website</li>
+							<li>Customize messages shown to blocked visitors</li>
+							<li>Redirect blocked visitors to any URL using 301 redirects</li>
+						</ul>
+						<p style="margin-top: 15px;">
+							<a href="<?php 
+            echo esc_url( \WPSecurityNinja\Plugin\Utils::generate_sn_web_link( 'upgrade_tab_firewall', '/pricing/' ) );
+            ?>" class="button button-primary button-small" target="_blank" rel="noopener">Upgrade to Pro</a>
+						</p>
+					</div>
+				</div>
 		</div>
 				<?php 
         }

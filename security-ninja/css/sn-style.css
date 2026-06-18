@@ -577,7 +577,12 @@ a.extlink::after {
 }
 
 #sn_tabscont {
-  margin-right: 30px;
+  margin-right: 0;
+}
+
+.sn-overview-container {
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 .sn-overview-container .score-container {
@@ -1366,14 +1371,16 @@ background: #f5f5f5;
 }
 
 .sidebarsection.feature {
-  min-width: 360px;
-  max-width: 520px;
+  min-width: 0;
+  max-width: 100%;
+  width: 100%;
   border: 1px solid #e3e8f1;
   background-color: #ffffff;
   border-radius: 8px;
   padding: 20px;
   box-shadow: rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0.05) 0px 1px 2px 0px;
   color: #282828;
+  box-sizing: border-box;
 }
 
 .sidebarsection.feature h3,
@@ -1413,10 +1420,29 @@ background: #f5f5f5;
 }
 
 .secnin_content_wrapper {
-  display: table;
+  display: block;
   width: 100%;
-  table-layout: fixed;
   max-width: 1370px;
+  box-sizing: border-box;
+  padding: 0 12px 0 4px;
+}
+
+#secnin_content_top.secnin_content_cell {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 20px;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  padding: 0;
+}
+
+#secnin_content_top > .nav-tab-wrapper {
+  flex: 0 0 100%;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 .secnin_content_wrapper .button-hero {
@@ -1441,10 +1467,22 @@ Hide "see details" from tables in responsive mode
     height: auto;
   }
   #secnin_content_top {
+    display: block;
     width: auto;
+    gap: 0;
+  }
+  .secnin_content_wrapper {
+    padding: 0;
+  }
+  #sn_tabscont {
+    display: block;
+    flex: none;
+    width: auto;
+    padding-right: 0;
   }
   .wrap #sidebar-container {
     width: auto;
+    flex: none;
     padding: 0;
     margin-top: 20px;
     display: block;
@@ -1524,11 +1562,12 @@ Hide "see details" from tables in responsive mode
 }
 
 .secnin_content_cell {
-  display: table-cell;
+  display: block;
   minheight: 500px;
   margin: 0;
-  padding: 0px 10px 0px 0px;
+  padding: 0;
   vertical-align: top;
+  box-sizing: border-box;
 }
 
 .secnin_content_wrapper .secnin_content_cell .nav-tab-active {
@@ -1542,8 +1581,35 @@ Hide "see details" from tables in responsive mode
   background: #f8fafc;
 }
 
+#sidebar-container.secnin_content_cell {
+  width: 260px;
+  flex: 0 0 260px;
+  max-width: 260px;
+  min-width: 0;
+  display: block;
+  box-sizing: border-box;
+  overflow: hidden;
+  padding-right: 4px;
+}
+
 #sidebar-container {
   width: 260px;
+  flex: 0 0 260px;
+  max-width: 260px;
+  min-width: 0;
+  display: block;
+  box-sizing: border-box;
+  overflow: hidden;
+  padding-right: 4px;
+}
+
+#sidebar-container .sidebarsection,
+#sidebar-container .sidebarsection.feature,
+#sidebar-container .snupgradebox {
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  overflow-wrap: anywhere;
 }
 
 .toplevel_page_wf-sn h2.warning {
@@ -1606,11 +1672,15 @@ border-top-left-radius: 10px;
 }
 */
 #sn_tabscont {
-  margin: 0px;
-  padding: 0px 40px 0px 0px;
+  margin: 0;
+  padding: 0 4px 0 0;
   vertical-align: top;
-  display: table-cell;
-  width: 100%;
+  flex: 1 1 0;
+  min-width: 0;
+  max-width: 100%;
+  display: block;
+  width: auto;
+  box-sizing: border-box;
 }
 
 .wf-sn-tab {
@@ -1891,7 +1961,9 @@ max-width: 200px;
 }
 
 .toplevel_page_wf-sn .wrap {
-  margin: 10px 2px 0 2px;
+  margin: 10px 20px 0 12px;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 /* Security Advisor submenu — same horizontal/top spacing as main Security Ninja screen */
@@ -2231,19 +2303,26 @@ html.sn-overlay-active {
   color: #135e96;
 }
 .whizzie-wrap .button.button-primary {
-  float: left;
-  background-color: #fab41d;
-  font-size: 14px;
-  border-radius: 3px;
-  color: #000000;
-  font-weight: 500;
-  border: 1px solid #2472b1;
+  float: none;
+  background-color: #ffb82e;
+  font-size: 15px;
+  border-radius: 8px;
+  color: #1d2327;
+  font-weight: 600;
+  border: none;
+  box-shadow: none;
   cursor: pointer;
+  padding: 12px 28px;
+  height: auto;
+  line-height: 1.4;
 }
 
-.whizzie-wrap .button.button-primary:hover {
-  background-color: #f6c251;
-  color:#282828;
+.whizzie-wrap .button.button-primary:hover,
+.whizzie-wrap .button.button-primary:focus {
+  background-color: #f6ad1a;
+  color: #1d2327;
+  border: none;
+  box-shadow: none;
 }
 
 .whizzie-menu .summary a {
@@ -2277,8 +2356,12 @@ html.sn-overlay-active {
 }
 
 .whizzie-wrap li h2 {
-  font-size: 1.5em;
+  font-size: 2em;
   color: #149658;
+  font-weight: 700;
+  line-height: 1.3;
+  margin: 0 0 20px;
+  text-align: left;
 }
 
 .testtimedetails {
@@ -2305,7 +2388,7 @@ html.sn-overlay-active {
 
 .whizzie-wrap .step-intro h2 {
   color: #149658;
-  font-size: 2.5em !important;
+  font-size: 2em;
 }
 
 .whizzie-wrap {
@@ -2323,12 +2406,22 @@ html.sn-overlay-active {
 }
 
 .whizzie-menu .step .summary {
-  font-size: 1.2em;
-  line-height: 1.4em;
+  font-size: 1.05em;
+  line-height: 1.6em;
+  text-align: left;
+  max-width: none;
+  margin: 0 0 8px;
 }
 
 .whizzie-menu .step .summary p {
-  font-size: 1.2em;
+  font-size: 1.05em;
+  color: #50575e;
+  margin: 0 0 12px;
+}
+
+.whizzie-menu .step .summary .secnin-wizard-lead {
+  font-size: 1.1em;
+  color: #50575e;
 }
 
 .whizzie-menu .step .summary .attbox {
@@ -2342,7 +2435,13 @@ html.sn-overlay-active {
 }
 
 .whizzie-wrap.card {
-  max-width: 100%;
+  max-width: 900px;
+  margin: 0 auto 24px;
+  border-radius: 12px;
+  box-shadow: 0 1px 9px 3px rgba(0, 0, 0, 0.07);
+  overflow: hidden;
+  padding: 0;
+  border: 1px solid #e2e8f0;
 }
 
 .whizzie-wrap.spinning .step-loading {
@@ -2398,8 +2497,13 @@ html.sn-overlay-active {
 }
 
 .button-wrap {
-  margin: 1em 0;
-  display: inline-block;
+  margin: 32px 0 0;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  flex-wrap: wrap;
+  gap: 24px;
+  width: 100%;
 }
 
 .detail {
@@ -2450,39 +2554,72 @@ ul.whizzie-do-plugins li span {
   float: right;
 }
 
+.wrap ol.whizzie-nav,
 .wrap ul.whizzie-nav {
   text-align: center;
   justify-content: space-around;
   list-style: none;
   display: flex;
+  margin: 0;
+  padding: 0;
 }
 
+.wrap ol.whizzie-nav li,
 .wrap ul.whizzie-nav li {
   opacity: 1;
-  color: #bebebe;
-  min-width: 120px;
+  color: #a7aaad;
+  min-width: 100px;
   transition: all 0.25s;
   position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
 }
 
+.wrap ol.whizzie-nav li .titleshort,
 .wrap ul.whizzie-nav li .titleshort {
   text-align: center;
   width: 100%;
-  margin-top: 30px;
-  font-size: 1.2em;
+  margin-top: 0;
+  font-size: 0.7em;
   display: block;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-weight: 600;
 }
 
+.wrap ol.whizzie-nav li.profeature:after,
+.wrap ul.whizzie-nav li.profeature:after {
+  content: "Pro";
+  position: absolute;
+  top: -2px;
+  right: 0;
+  font-size: 0.65em;
+  background: #edfef7;
+  padding: 2px 5px;
+  z-index: 10;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-weight: 600;
+}
+
+.wrap ol.whizzie-nav li.active-step,
 .wrap ul.whizzie-nav li.active-step {
   color: #149658;
 }
 
+.wrap ol.whizzie-nav li.done-step,
 .wrap ul.whizzie-nav li.done-step {
-  opacity: 0.5;
+  opacity: 0.55;
 }
 
+.wrap ol.whizzie-nav .dashicons,
 .wrap ul.whizzie-nav .dashicons {
-  font-size: 3em;
+  font-size: 2.25em;
+  width: auto;
+  height: auto;
 }
 
 #secnin-live-visitor-log-notice {
@@ -2490,8 +2627,152 @@ ul.whizzie-do-plugins li span {
 }
 
 .whizzie-nav li .dashicons:before {
-  position: absolute;
-  left: 40px;
+  position: static;
+}
+
+body.wf-sn_page_security-ninja-wizard #wpbody,
+body.wf-sn_page_security-ninja-wizard #wpbody-content {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  flex: 1;
+  min-height: calc(100vh - 32px);
+  padding-top: 0;
+}
+
+body.wf-sn_page_security-ninja-wizard .wrap {
+  margin-top: 0;
+}
+
+body.wf-sn_page_security-ninja-wizard #wpfooter {
+  position: relative;
+}
+
+.secnin-wizard-page.wrap {
+  max-width: 960px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 24px 0 40px;
+}
+
+.secnin-wizard-page #sntopbar {
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  margin: 0;
+  padding: 40px 64px 28px;
+  justify-content: center;
+}
+
+.secnin-wizard-page #sntopbar .links {
+  display: none;
+}
+
+.secnin-wizard-page #sntopbar .name span {
+  display: none;
+}
+
+.secnin-wizard-page #sntopbar .plugname {
+  justify-content: center;
+}
+
+.secnin-wizard-page #sntopbar .logoleft {
+  float: none;
+  width: 32px;
+  height: 32px;
+}
+
+.secnin-wizard-page #sntopbar .name {
+  font-size: 1.4em;
+}
+
+.whizzie-wrap .secnin-wizard-heart {
+  color: #d63638;
+}
+
+.secnin-wizard-body {
+  padding: 0 64px 48px;
+}
+
+.secnin-wizard-body .whizzie-menu {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.secnin-wizard-footer {
+  background: #f0f0f1;
+  border-top: 1px solid #e2e8f0;
+  padding: 24px 16px 28px;
+}
+
+.secnin-wizard-skip-link {
+  color: #646970;
+  font-size: 14px;
+  text-decoration: underline;
+  background: none;
+  border: none;
+  padding: 0;
+  box-shadow: none;
+}
+
+.secnin-wizard-skip-link:hover,
+.secnin-wizard-skip-link:focus {
+  color: #1d2327;
+  text-decoration: underline;
+}
+
+.secnin-wizard-page .secnin-wizard-rerun-warning {
+  max-width: 900px;
+  margin: 0 auto 20px;
+}
+
+.secnin-wizard-page .secnin-wizard-activate-reminder {
+  margin: 0 0 1em;
+  color: #646970;
+}
+
+.whizzie-wrap .summarylist {
+  text-align: left;
+  display: block;
+  padding-left: 1.2em;
+}
+
+.whizzie-wrap .wizard-pro-overview {
+  margin-top: 1.25em;
+  padding-top: 1em;
+  border-top: 1px solid #e0e0e0;
+  font-size: 0.95em;
+  color: #646970;
+  line-height: 1.5;
+}
+
+.whizzie-wrap .wizard-pro-overview a {
+  color: #2271b1;
+  text-decoration: none;
+}
+
+.whizzie-wrap .wizard-pro-overview a:hover,
+.whizzie-wrap .wizard-pro-overview a:focus {
+  text-decoration: underline;
+}
+
+.whizzie-wrap .button-secondary.secnin-wizard-step-skip {
+  border-radius: 8px;
+  padding: 12px 24px;
+  font-size: 14px;
+  height: auto;
+  line-height: 1.4;
+  background: #fff;
+  border-color: #c3c4c7;
+  color: #50575e;
+}
+
+.whizzie-wrap .button-secondary.secnin-wizard-step-skip:hover,
+.whizzie-wrap .button-secondary.secnin-wizard-step-skip:focus {
+  background: #f6f7f7;
+  border-color: #8c8f94;
+  color: #1d2327;
 }
 
 .sn-expandable-content {

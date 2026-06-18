@@ -235,6 +235,13 @@ if ( secnin_fs()->is_not_paying() ) {
     }
 }
 ?>
+			<li><a href="<?php 
+echo esc_url( admin_url( 'admin.php?page=security-ninja-wizard' ) );
+?>" rel="noopener"><?php 
+esc_html_e( 'Restart the setup wizard', 'security-ninja' );
+?></a></li>
+			<?php 
+?>
 		</ul>
 	</div><!-- .sidebarsection -->
 	<?php 

@@ -44,6 +44,9 @@ jQuery(document).ready(function () {
 	 * @returns {jQuery.Promise}
 	 */
 	function ensureTestDescriptions() {
+		if (typeof wf_sn === 'undefined' || !wf_sn.nonce_run_tests) {
+			return jQuery.Deferred().resolve({}).promise();
+		}
 		if (snTestDescriptions) {
 			return jQuery.Deferred().resolve(snTestDescriptions).promise();
 		}
@@ -89,7 +92,7 @@ jQuery(document).ready(function () {
 			success: function(response) {
 				if (response.success) {
 					jQuery.post(ajaxurl, {
-						'_ajax_nonce': wf_sn.nonce_dismiss_pointer,
+						'_ajax_nonce': wf_sn.nonce_dismiss_review,
 						'action': 'wf_sn_dismiss_review',
 						'signed_up': true
 					});
@@ -137,7 +140,7 @@ jQuery(document).ready(function () {
 			url: ajaxurl,
 			data: {
 				action: 'sn_reset_secret_url',
-				_wpnonce: wf_sn.nonce_install_routines
+				_wpnonce: wf_sn.nonce_reset_secret_url
 			},
 			success: function(response) {
 				if (response.success) {
@@ -162,6 +165,9 @@ jQuery(document).ready(function () {
 	// RUN SELECTED TESTS
 	jQuery(document).on('click', '#run-selected-tests', function (e) {
 		e.preventDefault();
+		if (typeof wf_sn === 'undefined' || !wf_sn.nonce_run_tests) {
+			return;
+		}
 		jQuery('#run-selected-tests').attr('disabled', true);
 		jQuery('.runtestsbn.spinner').addClass('is-active');
 		
@@ -258,6 +264,69 @@ jQuery(document).ready(function () {
 		
 	});
 	
+	// QUICK FILTER - FIXABLE
+	jQuery(document).on('click', '#sn-quickselect-fixable', function (e) {
+		e.preventDefault();
+		jQuery('#security-ninja :checkbox').prop("checked", false);
+		jQuery('#security-ninja .wf-sn-test-row-fixable :checkbox').prop("checked", true);
+		jQuery('#security-ninja tr.test').hide();
+		jQuery('#security-ninja .wf-sn-test-row-fixable').fadeIn('fast');
+	});
+
+
+	// Shared: clear spinners for a test row (used after Apply Fix and test runs).
+	window.wfSnClearTestSpinners = function (testid) {
+		jQuery('.test_' + testid + ' .spinner').removeClass('is-active');
+		jQuery('.tdesc-test-id-' + testid + ' .spinner').remove();
+		jQuery('.' + testid + '.testtimedetails .spinner').remove();
+		jQuery('.test_' + testid).removeClass('testing');
+	};
+
+	// Shared: update a test row from sn_run_single_test response data.
+	window.wfSnUpdateTestRow = function (testid, data) {
+		if (!data) {
+			return;
+		}
+		window.wfSnClearTestSpinners(testid);
+
+		if (data.status_icon) {
+			jQuery('.test_' + testid + ' td:nth-child(2)').html(data.status_icon);
+		}
+
+		var outputmsg = data.msg || '';
+		if (data.details) {
+			outputmsg = outputmsg + ' ' + data.details;
+		}
+
+		jQuery('.test_' + testid + ' .sn-result-details').replaceWith('<span class="sn-result-details">' + outputmsg + '</span>').fadeIn('slow');
+
+		jQuery('.test_' + testid).removeClass(
+			'wf-sn-test-row-status-0 wf-sn-test-row-status-5 wf-sn-test-row-status-10 wf-sn-test-row-status-null'
+		).addClass('wf-sn-test-row-status-' + data.status);
+
+		jQuery('.test_' + testid).addClass('test-completed');
+		setTimeout(function () {
+			jQuery('.test_' + testid).removeClass('test-completed');
+		}, 4000);
+
+		if (data.status_changed) {
+			jQuery('.test_' + testid).removeClass('status-improved status-declined status-changed');
+			if (data.change_direction === 'improved') {
+				jQuery('.test_' + testid).addClass('status-improved');
+			} else if (data.change_direction === 'declined') {
+				jQuery('.test_' + testid).addClass('status-declined');
+			} else {
+				jQuery('.test_' + testid).addClass('status-changed');
+			}
+		}
+
+		jQuery('.test_' + testid + ' input[type="checkbox"]').prop('checked', false);
+
+		if (data.scores) {
+			updateStatisticsWithAnimation(data.scores);
+		}
+	};
+
 	// stepid = integer
 	// data = array of tests
 	function do_test(stepid, data, self) {
@@ -282,51 +351,12 @@ jQuery(document).ready(function () {
 				},
 				dataType: "json",
 				success: function (response) {
-					
-					// Remove testing state
-					jQuery('.test_' + testid + ' .spinner').removeClass('is-active');
-					jQuery('.test_' + testid).removeClass('testing');
-					
-					// Update the status icon in the second column
-					if (response.data.status_icon) {
-						jQuery('.test_' + testid + ' td:nth-child(2)').html(response.data.status_icon);
+					if (response && response.data) {
+						window.wfSnUpdateTestRow(testid, response.data);
 					}
-					
-					var outputmsg = response.data.msg;
-					
-					if (response.data.details) {
-						outputmsg = outputmsg + ' ' + response.data.details;
-					}
-					
-					jQuery('.test_' + testid + ' .sn-result-details').replaceWith('<span class="sn-result-details">' + outputmsg + '</span>').fadeIn('slow');
-					
-					// Remove old status classes and add new one
-					jQuery('.test_' + testid).removeClass(
-						'wf-sn-test-row-status-0').removeClass('wf-sn-test-row-status-5').removeClass('wf-sn-test-row-status-10').removeClass('wf-sn-test-row-status-null').addClass('wf-sn-test-row-status-' + response.data.status);
-					
-					// Enhanced completion animation for ALL tests (not just untested ones)
-					jQuery('.test_' + testid).addClass('test-completed');
-					setTimeout(function() {
-						jQuery('.test_' + testid).removeClass('test-completed');
-					}, 4000); // Increased duration for better visibility
-					
-					// Add persistent highlight for tests that changed status
-					if (response.data.status_changed) {
-						if (response.data.change_direction === 'improved') {
-							jQuery('.test_' + testid).addClass('status-improved');
-						} else if (response.data.change_direction === 'declined') {
-							jQuery('.test_' + testid).addClass('status-declined');
-						} else {
-							jQuery('.test_' + testid).addClass('status-changed');
-						}
-						// Keep the highlight until page reload
-					}
-						
-					jQuery('.test_' + testid + ' input[type="checkbox"]').prop('checked', false);
-					
-					// Enhanced statistics update with animations
-					if (response.data.scores) {
-						updateStatisticsWithAnimation(response.data.scores);
+
+					if (!response || !response.data) {
+						return;
 					}
 					
 					if ('-1' == response.data.nexttest) {
@@ -344,8 +374,7 @@ jQuery(document).ready(function () {
 				}
 			}).fail(function (response) {
 				// Error handling - remove testing state on error
-				jQuery('.test_' + testid + ' .spinner').removeClass('is-active');
-				jQuery('.test_' + testid).removeClass('testing');
+				window.wfSnClearTestSpinners(testid);
 				// Test failed silently
 			});
 		}, 200); // Small delay to show testing animation
@@ -406,7 +435,7 @@ jQuery(document).ready(function () {
 				event.preventDefault();
 			}
 			jQuery.post(ajaxurl, {
-				'_ajax_nonce': wf_sn.nonce_dismiss_pointer,
+				'_ajax_nonce': wf_sn.nonce_dismiss_review,
 				'action': 'wf_sn_dismiss_review'
 			});
 			jQuery('.wfsn-review-notice').slideUp().remove();

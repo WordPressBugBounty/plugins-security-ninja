@@ -375,21 +375,11 @@ class Utils {
                         'modules' => array('tests', 'core'),
                     );
                     break;
-                // *** Start malware scan
-                case 'run_malware_scan':
-                    break;
                 // *** Update settings (patch from MainWP Dashboard).
                 case 'update_settings':
                     break;
-                // *** Update vulnerabilities
-                case 'update_vulnerabilities':
-                    \WPSecurityNinja\Plugin\Wf_Sn_Vu::update_vuln_list();
-                    break;
                 // ***  Update white label settings
                 case 'update_white_label':
-                    break;
-                // *** Force create database tables (for incomplete installations)
-                case 'force_create_tables':
                     break;
                 case 'manage_ip':
                     break;
@@ -804,6 +794,10 @@ class Utils {
      */
     public static function admin_footer() {
         if ( \WPSecurityNinja\Plugin\Wf_Sn::is_plugin_page() ) {
+            $current_screen = ( function_exists( 'get_current_screen' ) ? get_current_screen() : null );
+            if ( $current_screen && false !== strpos( $current_screen->id, 'page_security-ninja-wizard' ) ) {
+                return;
+            }
             echo '<div id="sn_overlay"><div class="sn-overlay-wrapper">';
             echo '<div class="inner">';
             // Outer
@@ -904,6 +898,45 @@ class Utils {
         $parameters['show_reviews'] = true;
         $parameters['billing_cycle_selector'] = 'dropdown';
         return $parameters;
+    }
+
+    /**
+     * Custom Freemius opt-in (connect) message.
+     *
+     * Keeps the Skip option (enable_anonymous) but gives users a clear,
+     * security-focused reason to opt in, which lifts the opt-in rate without
+     * forcing the connection.
+     *
+     * @since   v5.290
+     * @access  public static
+     * @param   string $message         Default opt-in message (replaced).
+     * @param   string $user_first_name Current user's first name.
+     * @param   string $product_title   Plugin title.
+     * @param   string $user_login      Current user's login.
+     * @param   string $site_link       HTML link to the current site.
+     * @param   string $freemius_link   HTML link to Freemius.
+     * @return  string
+     */
+    public static function freemius_connect_message(
+        $message,
+        $user_first_name,
+        $product_title,
+        $user_login,
+        $site_link,
+        $freemius_link
+    ) {
+        if ( empty( $user_first_name ) ) {
+            $greeting = esc_html__( 'Hi there!', 'security-ninja' );
+        } else {
+            /* translators: %s: current user's first name. */
+            $greeting = sprintf( esc_html__( 'Hi %s!', 'security-ninja' ), esc_html( $user_first_name ) );
+        }
+        return sprintf( 
+            /* translators: 1: greeting, 2: plugin title (bold). */
+            esc_html__( '%1$s Opt in to keep %2$s working at its best — get critical security alerts, fresh vulnerability data, and important update notices, plus non-sensitive diagnostics that help us fix issues faster. We never collect sensitive data, never share your email, and you can opt out anytime. Not ready? Just click Skip.', 'security-ninja' ),
+            $greeting,
+            '<strong>' . esc_html( $product_title ) . '</strong>'
+         );
     }
 
     /**
@@ -1103,6 +1136,37 @@ class Utils {
         } else {
             return $html;
         }
+    }
+
+    /**
+     * Returns the ISO country-code => country-name map.
+     *
+     * The data is stored as a JSON data file (rather than an executable PHP
+     * array) so security scanners do not mistake a large static list for
+     * obfuscated/concealed code. The result is cached for the request.
+     *
+     * @author  Lars Koudal
+     * @since   v5.290
+     * @access  public static
+     * @return  array  Associative array of country code => country name (empty on failure).
+     */
+    public static function get_country_list() {
+        static $country_list = null;
+        if ( null !== $country_list ) {
+            return $country_list;
+        }
+        $country_list = array();
+        $path = WF_SN_PLUGIN_DIR . 'modules/cloud-firewall/geoip-countrylist.json';
+        if ( is_readable( $path ) ) {
+            $contents = file_get_contents( $path );
+            if ( false !== $contents && '' !== $contents ) {
+                $decoded = json_decode( $contents, true );
+                if ( is_array( $decoded ) ) {
+                    $country_list = $decoded;
+                }
+            }
+        }
+        return $country_list;
     }
 
     /**

@@ -73,6 +73,19 @@ class Wf_sn_cf_Utils {
 	}
 
 	/**
+	 * Whether an IP is private, loopback, or otherwise non-public (not routable on the internet).
+	 *
+	 * @since 5.288
+	 * @param mixed $ip IP address string.
+	 * @return bool
+	 */
+	public static function is_non_public_ip( $ip ) {
+		return is_string( $ip ) && '' !== $ip
+			&& filter_var( $ip, FILTER_VALIDATE_IP )
+			&& ! filter_var( $ip, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE );
+	}
+
+	/**
 	 * Checks if an IP is whitelisted (exact IP or CIDR).
 	 *
 	 * @author  Lars Koudal
@@ -82,15 +95,35 @@ class Wf_sn_cf_Utils {
 	 * @return  bool
 	 */
 	public static function is_whitelisted( $ip, $whitelist ) {
+		if ( ! is_array( $whitelist ) ) {
+			return false;
+		}
+
 		foreach ( $whitelist as $key => $wip ) {
+			$wip = trim( (string) $wip );
+			if ( '' === $wip ) {
+				continue;
+			}
 			if ( strpos( $wip, '/' ) !== false ) {
 				if ( self::ipCIDRMatch( $ip, $wip ) ) {
 					return true;
 				}
 			} elseif ( $ip === $wip ) {
-					return true;
+				return true;
 			}
 		}
+
+		// Loopback equivalence: whitelisting either 127.0.0.1 or ::1 covers both forms.
+		if ( in_array( $ip, array( '127.0.0.1', '::1' ), true ) ) {
+			$alternate = ( '127.0.0.1' === $ip ) ? '::1' : '127.0.0.1';
+			foreach ( $whitelist as $wip ) {
+				$wip = trim( (string) $wip );
+				if ( $alternate === $wip ) {
+					return true;
+				}
+			}
+		}
+
 		return false;
 	}
 

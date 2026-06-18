@@ -196,8 +196,7 @@ function wf_sn_cf_render_settings_content(  $options, $ips = array()  ) {
 							<?php 
         echo '</th><td></td></tr>';
         echo '<tr><td class="fullwidth" colspan="2">';
-        $countrylist_uri = WF_SN_PLUGIN_DIR . 'modules/cloud-firewall/class-sn-geoip-countrylist.php';
-        require_once $countrylist_uri;
+        $geoip_countrylist = \WPSecurityNinja\Plugin\Utils::get_country_list();
         // Sentinel: HTML multi-select with zero selections sends no blocked_countries keys; sanitize_settings uses this to persist [].
         ?>
 						<input type="hidden" name="wf_sn_cf[blocked_countries_present]" value="1" />
@@ -236,6 +235,9 @@ function wf_sn_cf_render_settings_content(  $options, $ips = array()  ) {
         ?></h3>
 									<p class="description"><?php 
         esc_html_e( 'For example, if you block a particular country, users from that country will not be able to log in, but will be able to view the site.', 'security-ninja' );
+        ?></p>
+									<p class="description"><?php 
+        esc_html_e( 'Full-site country blocking is controlled by this toggle. The "Prevent Banned IPs from Accessing the Site" setting above applies to IP and cloud bans, not country rules.', 'security-ninja' );
         ?></p>
 									<p class="description"><?php 
         esc_html_e( 'For more login protection, check out the tab "Login Protection".', 'security-ninja' );

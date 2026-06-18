@@ -677,17 +677,17 @@
         },
         {
             "name": "freemius/wordpress-sdk",
-            "version": "2.13.1",
-            "version_normalized": "2.13.1.0",
+            "version": "2.13.2",
+            "version_normalized": "2.13.2.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/Freemius/wordpress-sdk.git",
-                "reference": "7376c0eca1ae7f92aaba9d3b550bd10affe797ff"
+                "reference": "20358d1ef8e11ef17038fc9cb8fca6c6a544c519"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/Freemius/wordpress-sdk/zipball/7376c0eca1ae7f92aaba9d3b550bd10affe797ff",
-                "reference": "7376c0eca1ae7f92aaba9d3b550bd10affe797ff",
+                "url": "https://api.github.com/repos/Freemius/wordpress-sdk/zipball/20358d1ef8e11ef17038fc9cb8fca6c6a544c519",
+                "reference": "20358d1ef8e11ef17038fc9cb8fca6c6a544c519",
                 "shasum": ""
             },
             "require": {
@@ -702,7 +702,7 @@
                 "szepeviktor/phpstan-wordpress": "^1.3",
                 "wp-coding-standards/wpcs": "^2.3"
             },
-            "time": "2026-03-25T15:26:13+00:00",
+            "time": "2026-06-16T08:33:57+00:00",
             "type": "library",
             "installation-source": "dist",
             "autoload": {
@@ -727,7 +727,7 @@
             ],
             "support": {
                 "issues": "https://github.com/Freemius/wordpress-sdk/issues",
-                "source": "https://github.com/Freemius/wordpress-sdk/tree/2.13.1"
+                "source": "https://github.com/Freemius/wordpress-sdk/tree/2.13.2"
             },
             "install-path": "../freemius/wordpress-sdk"
         },
@@ -1125,17 +1125,17 @@
         },
         {
             "name": "phpseclib/phpseclib",
-            "version": "2.0.54",
-            "version_normalized": "2.0.54.0",
+            "version": "2.0.55",
+            "version_normalized": "2.0.55.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/phpseclib/phpseclib.git",
-                "reference": "a96a835067c39ee7a709329fe70869817da18081"
+                "reference": "d73c9e019a895be83b18a2ccccfa7e2b0a648743"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/phpseclib/phpseclib/zipball/a96a835067c39ee7a709329fe70869817da18081",
-                "reference": "a96a835067c39ee7a709329fe70869817da18081",
+                "url": "https://api.github.com/repos/phpseclib/phpseclib/zipball/d73c9e019a895be83b18a2ccccfa7e2b0a648743",
+                "reference": "d73c9e019a895be83b18a2ccccfa7e2b0a648743",
                 "shasum": ""
             },
             "require": {
@@ -1153,7 +1153,7 @@
                 "ext-openssl": "Install the OpenSSL extension in order to speed up a wide variety of cryptographic operations.",
                 "ext-xml": "Install the XML extension to load XML formatted public keys."
             },
-            "time": "2026-04-27T06:59:24+00:00",
+            "time": "2026-06-14T19:53:12+00:00",
             "type": "library",
             "installation-source": "dist",
             "autoload": {
@@ -1218,7 +1218,7 @@
             ],
             "support": {
                 "issues": "https://github.com/phpseclib/phpseclib/issues",
-                "source": "https://github.com/phpseclib/phpseclib/tree/2.0.54"
+                "source": "https://github.com/phpseclib/phpseclib/tree/2.0.55"
             },
             "funding": [
                 {
@@ -1238,23 +1238,23 @@
         },
         {
             "name": "scr34m/php-malware-scanner",
-            "version": "1.0.30",
-            "version_normalized": "1.0.30.0",
+            "version": "1.0.31",
+            "version_normalized": "1.0.31.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/scr34m/php-malware-scanner.git",
-                "reference": "ba466dc1ff644320452ee5a6c51affb2389f2946"
+                "reference": "55e75079dfb21156fc5e00c85a2c2f6d4fcc5ba9"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/scr34m/php-malware-scanner/zipball/ba466dc1ff644320452ee5a6c51affb2389f2946",
-                "reference": "ba466dc1ff644320452ee5a6c51affb2389f2946",
+                "url": "https://api.github.com/repos/scr34m/php-malware-scanner/zipball/55e75079dfb21156fc5e00c85a2c2f6d4fcc5ba9",
+                "reference": "55e75079dfb21156fc5e00c85a2c2f6d4fcc5ba9",
                 "shasum": ""
             },
             "require": {
-                "php": ">=5.2.0"
+                "php": ">=5.3.0"
             },
-            "time": "2026-02-24T05:58:29+00:00",
+            "time": "2026-06-02T04:46:11+00:00",
             "bin": [
                 "scan"
             ],
@@ -1278,7 +1278,7 @@
             ],
             "support": {
                 "issues": "https://github.com/scr34m/php-malware-scanner/issues",
-                "source": "https://github.com/scr34m/php-malware-scanner/tree/1.0.30"
+                "source": "https://github.com/scr34m/php-malware-scanner/tree/1.0.31"
             },
             "install-path": "../scr34m/php-malware-scanner"
         },
