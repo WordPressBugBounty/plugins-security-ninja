@@ -66,7 +66,7 @@ function wf_sn_cf_render_settings_content(  $options, $ips = array()  ) {
 										</ul>
 										<p style="margin-top: 15px;">
 											<a href="<?php 
-        echo esc_url( \WPSecurityNinja\Plugin\Utils::generate_sn_web_link( 'upgrade_tab_firewall_settings', '/pricing/' ) );
+        echo esc_url( \WPSecurityNinja\Plugin\Utils::generate_sn_web_link( 'upgrade_tab_firewall_settings', '/upgrade/' ) );
         ?>" class="button button-primary button-small" target="_blank" rel="noopener">Upgrade to Pro</a>
 										</p>
 									</div>
@@ -264,7 +264,7 @@ function wf_sn_cf_render_settings_content(  $options, $ips = array()  ) {
         esc_html_e( 'Satellite ISP softening (ASN)', 'security-ninja' );
         ?></h3>
 									<p class="description"><?php 
-        esc_html_e( 'Reduce false blocks on satellite connections (e.g. Starlink) by detecting the ISP autonomous system number (ASN). When matched, country blocking and cloud reputation lists may be softened—not manual blocks, login/brute-force limits, or suspicious-request filtering.', 'security-ninja' );
+        esc_html_e( 'Reduce false blocks on satellite connections (e.g. Starlink) by detecting the ISP autonomous system number (ASN). When matched, country blocking and cloud reputation lists may be softened, not manual blocks, login/brute-force limits, or suspicious-request filtering.', 'security-ninja' );
         ?></p>
 								</label>
 							</th>

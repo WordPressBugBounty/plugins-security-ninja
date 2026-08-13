@@ -6,18 +6,13 @@ $vendorDir = dirname(__DIR__);
 $baseDir = dirname($vendorDir);
 
 return array(
-    'phpseclib\\' => array($vendorDir . '/phpseclib/phpseclib/phpseclib'),
     'cweagans\\Composer\\' => array($vendorDir . '/cweagans/composer-patches/src'),
-    'chillerlan\\Settings\\' => array($vendorDir . '/chillerlan/php-settings-container/src'),
-    'chillerlan\\QRCode\\' => array($vendorDir . '/chillerlan/php-qrcode/src'),
-    'bcmath_compat\\' => array($vendorDir . '/phpseclib/bcmath_compat/src'),
     'Zxing\\' => array($vendorDir . '/khanamiryan/qrcode-detector-decoder/lib'),
     'WPSecurityNinja\\Plugin\\' => array($baseDir . '/src'),
     'TypistTech\\Imposter\\Plugin\\' => array($vendorDir . '/typisttech/imposter-plugin/src'),
     'TypistTech\\Imposter\\' => array($vendorDir . '/typisttech/imposter/src'),
     'ParagonIE\\ConstantTime\\' => array($vendorDir . '/paragonie/constant_time_encoding/src'),
     'MabeEnum\\' => array($vendorDir . '/marc-mabe/php-enum/src'),
-    'IP2Location\\' => array($vendorDir . '/ip2location/ip2location-php/src'),
     'Da\\TwoFA\\' => array($vendorDir . '/2amigos/2fa-library/src'),
     'Da\\QrCode\\' => array($vendorDir . '/2amigos/qrcode-library/src'),
     'DASPRiD\\Enum\\' => array($vendorDir . '/dasprid/enum/src'),

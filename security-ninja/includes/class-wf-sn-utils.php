@@ -25,6 +25,16 @@ class Utils {
     }
 
     /**
+     * Plugin display name for UI and AI prompts (white label name when active).
+     *
+     * @return string
+     */
+    public static function get_branded_plugin_name() {
+        $name = 'Security Ninja';
+        return $name;
+    }
+
+    /**
      * Do admin notices
      *
      * @author  Lars Koudal
@@ -293,11 +303,21 @@ class Utils {
                 }
             }
         }
+        // No legacy license key to migrate — stop so we never retry activate_migrated_license().
+        if ( empty( $license_key ) ) {
+            update_option( 'secnin_fs_migrated2fs', 'no_license_key', false );
+            return;
+        }
         try {
             $next_page = secnin_fs()->activate_migrated_license( $license_key );
         } catch ( \Exception $e ) {
             update_option( 'secnin_fs_migrated2fs', 'unexpected_error', false );
             return;
+        }
+        // Freemius-safe: no else/negation on can_use_premium_code__premium_only().
+        $migration_failed = true;
+        if ( $migration_failed ) {
+            update_option( 'secnin_fs_migrated2fs', 'failed', false );
         }
     }
 
@@ -865,7 +885,7 @@ class Utils {
 					</ul>
 					<p style="margin-top: 15px;">
 						<a href="<?php 
-        echo esc_url( self::generate_sn_web_link( 'upgrade_tab_whitelabel', '/pricing/' ) );
+        echo esc_url( self::generate_sn_web_link( 'upgrade_tab_whitelabel', '/upgrade/' ) );
         ?>" class="button button-primary button-small" target="_blank" rel="noopener">Upgrade to Pro</a>
 					</p>
 				</div>
@@ -933,7 +953,7 @@ class Utils {
         }
         return sprintf( 
             /* translators: 1: greeting, 2: plugin title (bold). */
-            esc_html__( '%1$s Opt in to keep %2$s working at its best — get critical security alerts, fresh vulnerability data, and important update notices, plus non-sensitive diagnostics that help us fix issues faster. We never collect sensitive data, never share your email, and you can opt out anytime. Not ready? Just click Skip.', 'security-ninja' ),
+            esc_html__( '%1$s Opt in to keep %2$s working at its best: get critical security alerts, fresh vulnerability data, and important update notices, plus non-sensitive diagnostics that help us fix issues faster. We never collect sensitive data, never share your email, and you can opt out anytime. Not ready? Just click Skip.', 'security-ninja' ),
             $greeting,
             '<strong>' . esc_html( $product_title ) . '</strong>'
          );

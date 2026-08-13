@@ -19,6 +19,56 @@
 		return 'wf_sn_ai_expand_' + chipExpandIdSeq;
 	}
 
+	function getSelectedConnectorId() {
+		var $select = $('#wf_sn_ai_advisor_connector');
+		if (!$select.length) {
+			return '';
+		}
+		return String($select.val() || '').trim();
+	}
+
+	function connectorPostField() {
+		var id = getSelectedConnectorId();
+		return id ? { connector_id: id } : {};
+	}
+
+	function getConnectorLabel(connectorId) {
+		var id = connectorId || getSelectedConnectorId();
+		if (!id) {
+			return '';
+		}
+		if (base.connectorsMeta && Array.isArray(base.connectorsMeta)) {
+			for (var i = 0; i < base.connectorsMeta.length; i++) {
+				if (base.connectorsMeta[i].id === id) {
+					return base.connectorsMeta[i].label || id;
+				}
+			}
+		}
+		return id;
+	}
+
+	function formatLocalized(str, args) {
+		var out = String(str || '');
+		var list = Array.isArray(args) ? args : [];
+		for (var i = 0; i < list.length; i++) {
+			out = out.replace(new RegExp('%' + (i + 1) + '\\$s', 'g'), list[i]);
+		}
+		if (list.length) {
+			out = out.replace(/%s/g, list[0]);
+		}
+		return out;
+	}
+
+	function formatPrepareStatsLine(stats) {
+		if (!stats || typeof stats !== 'object') {
+			return '';
+		}
+		var kb = stats.payload_chars ? (stats.payload_chars / 1024).toFixed(1) : '0';
+		var tokens = stats.estimated_input_tokens ? String(stats.estimated_input_tokens) : '0';
+		var guidance = stats.guidance_item_count !== undefined ? String(stats.guidance_item_count) : '0';
+		return formatLocalized(base.strings.prepareStatsLine || '', [kb, tokens, guidance]);
+	}
+
 	function escHtml(str) {
 		return String(str)
 			.replace(/&/g, '&amp;')
@@ -42,6 +92,80 @@
 			}
 		}
 		return fallback || '';
+	}
+
+	function renderStructuredErrorHtml(data, fallbackMsg) {
+		var msg = fallbackMsg || '';
+		var technical = null;
+		var actions = [];
+		if (data && typeof data === 'object') {
+			if (data.message) {
+				msg = data.message;
+			}
+			if (data.technical) {
+				technical = data.technical;
+			}
+			if (Array.isArray(data.actions)) {
+				actions = data.actions;
+			}
+		}
+		var html = '<div class="wf-sn-ai-error-panel">';
+		html += '<h3 class="wf-sn-ai-error-title">' + escHtml(base.strings.errorTitle || 'The AI provider did not respond') + '</h3>';
+		html += '<p>' + formatTextForHtml(msg) + '</p>';
+		html += '<p class="description">' + escHtml(base.strings.nothingChangedOnSite || 'Nothing was changed on your site.') + '</p>';
+		html += '<p class="wf-sn-ai-error-actions">';
+		if (actions.indexOf('retry') !== -1) {
+			html += '<button type="button" class="button button-primary wf-sn-ai-error-retry">' + escHtml(base.strings.tryAgain || 'Try again') + '</button> ';
+		}
+		if (actions.indexOf('switch_connector') !== -1) {
+			html += '<button type="button" class="button wf-sn-ai-error-switch">' + escHtml(base.strings.switchConnector || 'Use another AI connector') + '</button> ';
+		}
+		if (actions.indexOf('view_results') !== -1 && base.mainSnUrl) {
+			html += '<a href="' + escAttr(base.mainSnUrl) + '#sn_tests" class="button button-link">' + escHtml(base.strings.viewResults || 'View scan results without AI') + '</a>';
+		}
+		html += '</p>';
+		if (technical && (technical.error || technical.provider || technical.time)) {
+			html += '<details class="wf-sn-ai-error-technical"><summary>' + escHtml(base.strings.technicalDetails || 'Technical details') + '</summary><ul>';
+			if (technical.provider) {
+				html += '<li><strong>Provider:</strong> ' + escHtml(String(technical.provider)) + '</li>';
+			}
+			if (technical.time) {
+				html += '<li><strong>Time:</strong> ' + escHtml(String(technical.time)) + '</li>';
+			}
+			if (technical.error) {
+				html += '<li><strong>Error:</strong> ' + escHtml(String(technical.error)) + '</li>';
+			}
+			if (technical.model) {
+				html += '<li><strong>Model:</strong> ' + escHtml(String(technical.model)) + '</li>';
+			}
+			if (technical.generation_mode) {
+				html += '<li><strong>Mode:</strong> ' + escHtml(String(technical.generation_mode)) + '</li>';
+			}
+			if (technical.finish_reason) {
+				html += '<li><strong>Finish reason:</strong> ' + escHtml(String(technical.finish_reason)) + '</li>';
+			}
+			if (technical.max_tokens !== undefined && technical.max_tokens !== null && technical.max_tokens !== '') {
+				html += '<li><strong>Max tokens:</strong> ' + escHtml(String(technical.max_tokens)) + '</li>';
+			}
+			if (technical.output_tokens !== undefined && technical.output_tokens !== null && technical.output_tokens !== '') {
+				html += '<li><strong>Output tokens:</strong> ' + escHtml(String(technical.output_tokens)) + '</li>';
+			}
+			if (technical.input_tokens !== undefined && technical.input_tokens !== null && technical.input_tokens !== '') {
+				html += '<li><strong>Input tokens:</strong> ' + escHtml(String(technical.input_tokens)) + '</li>';
+			}
+			if (technical.response_chars !== undefined && technical.response_chars !== null && technical.response_chars !== '') {
+				html += '<li><strong>Response length:</strong> ' + escHtml(String(technical.response_chars)) + ' chars</li>';
+			}
+			if (technical.request_id) {
+				html += '<li><strong>Request ID:</strong> ' + escHtml(String(technical.request_id)) + '</li>';
+			}
+			html += '</ul></details>';
+		}
+		if (data && data.snapshot_saved) {
+			html += '<p class="description">' + escHtml(base.strings.snapshotSaved || 'We saved the scan snapshot. Retrying will reuse the same scan data unless you refresh scans.') + '</p>';
+		}
+		html += '</div>';
+		return html;
 	}
 
 	function escAttr(str) {
@@ -209,22 +333,111 @@
 	}
 
 	function restoreChipStates() {
-		$('.wf-sn-ai-chip').each(function () {
-			var $c = $(this);
+		$('.wf-sn-ai-chip-wrap').each(function () {
+			var $wrap = $(this);
+			var $c = $wrap.find('.wf-sn-ai-chip');
 			var id = $c.attr('data-prompt-id');
 			if (!id || !base.chips) {
-				$c.prop('disabled', false);
+				$c.prop('disabled', false).removeClass('wf-sn-ai-chip--disabled');
 				return;
 			}
-			var en = false;
+			var chipMeta = null;
 			for (var i = 0; i < base.chips.length; i++) {
 				if (base.chips[i].id === id) {
-					en = !!base.chips[i].enabled;
+					chipMeta = base.chips[i];
 					break;
 				}
 			}
+			var en = chipMeta ? !!chipMeta.enabled : true;
 			$c.prop('disabled', !en);
+			if (en) {
+				$c.removeClass('wf-sn-ai-chip--disabled');
+			} else {
+				$c.addClass('wf-sn-ai-chip--disabled');
+			}
 		});
+	}
+
+	var COMPARISON_CHIP_IDS = ['delta_since_last', 'what_improved'];
+
+	function enabledChipsFromList(chips) {
+		if (!Array.isArray(chips)) {
+			return [];
+		}
+		return chips.filter(function (chip) {
+			return chip && chip.enabled;
+		});
+	}
+
+	function hasLockedComparisonChips(chips) {
+		if (!Array.isArray(chips)) {
+			return false;
+		}
+		return chips.some(function (chip) {
+			return chip && COMPARISON_CHIP_IDS.indexOf(chip.id) !== -1 && !chip.enabled;
+		});
+	}
+
+	function rebuildChipRow(chips) {
+		var $row = $('#wf_sn_ai_chip_row');
+		if (!$row.length) {
+			return;
+		}
+		var enabled = enabledChipsFromList(chips);
+		var html = '';
+		enabled.forEach(function (chip) {
+			html +=
+				'<div class="wf-sn-ai-chip-wrap">' +
+				'<button type="button" class="button wf-sn-ai-chip" data-prompt-id="' +
+				escAttr(chip.id) +
+				'">' +
+				escHtml(chip.label) +
+				'</button></div>';
+		});
+		$row.html(html);
+		var $comparison = $('#wf_sn_ai_followup_comparison');
+		if ($comparison.length) {
+			$comparison.prop('hidden', !hasLockedComparisonChips(chips));
+		}
+	}
+
+	function setFollowUpPhase(active, chips) {
+		var $column = $('#wf_sn_ai_chat_column');
+		var $journey = $('#wf_sn_ai_followup_journey');
+		var $locked = $('#wf_sn_ai_followup_locked');
+		var $active = $('#wf_sn_ai_followup_active');
+		var $introActive = $('.wf-sn-ai-convo-intro--active');
+		var $introLocked = $('.wf-sn-ai-convo-intro--locked');
+		if (!$column.length) {
+			return;
+		}
+		$column.attr('data-followup-ready', active ? '1' : '0');
+		if (active) {
+			$journey.prop('hidden', true);
+			$locked.prop('hidden', true);
+			$active.prop('hidden', false);
+			$introActive.prop('hidden', false);
+			$introLocked.prop('hidden', true);
+			rebuildChipRow(chips || base.chips);
+		} else {
+			$journey.prop('hidden', false);
+			$locked.prop('hidden', false);
+			$active.prop('hidden', true);
+			$introActive.prop('hidden', true);
+			$introLocked.prop('hidden', false);
+		}
+		syncConvoEmptyState();
+	}
+
+	function applyFollowUpChips(chips, followupReady) {
+		if (Array.isArray(chips)) {
+			base.chips = chips;
+		}
+		var active =
+			typeof followupReady === 'boolean'
+				? followupReady
+				: enabledChipsFromList(base.chips).length > 0;
+		setFollowUpPhase(active, base.chips);
 	}
 
 	/**
@@ -256,9 +469,9 @@
 			return '';
 		}
 		return tpl
-			.replace('%1$s', escHtml(String(usage.model || '—')))
-			.replace('%2$s', escHtml(String(usage.token_input != null ? usage.token_input : '—')))
-			.replace('%3$s', escHtml(String(usage.token_output != null ? usage.token_output : '—')));
+			.replace('%1$s', escHtml(String(usage.model || '-')))
+			.replace('%2$s', escHtml(String(usage.token_input != null ? usage.token_input : '-')))
+			.replace('%3$s', escHtml(String(usage.token_output != null ? usage.token_output : '-')));
 	}
 
 	/**
@@ -542,6 +755,7 @@
 		var $loading = $('#wf_sn_ai_convo_loading');
 		var $convo = $('#wf_sn_ai_convo');
 		var $empty = $('#wf_sn_ai_assistant_empty');
+		var $journey = $('#wf_sn_ai_followup_journey');
 		if (!$loading.length) {
 			return;
 		}
@@ -549,6 +763,9 @@
 		if (isLoading) {
 			$convo.prop('hidden', true);
 			$empty.prop('hidden', true);
+			if ($journey.length) {
+				$journey.prop('hidden', true);
+			}
 		}
 	}
 
@@ -561,7 +778,16 @@
 		var $turns = $('#wf_sn_ai_convo_turns');
 		var $empty = $('#wf_sn_ai_assistant_empty');
 		var $convo = $('#wf_sn_ai_convo');
+		var $journey = $('#wf_sn_ai_followup_journey');
 		if (!$turns.length || !$empty.length) {
+			return;
+		}
+		var journeyVisible = $journey.length && !$journey.prop('hidden');
+		if (journeyVisible) {
+			$empty.prop('hidden', true);
+			if ($convo.length) {
+				$convo.prop('hidden', true);
+			}
 			return;
 		}
 		var hasContent = $turns.children('.wf-sn-ai-convo__turn').length > 0;
@@ -635,22 +861,30 @@
 		syncConvoEmptyState();
 	}
 
-	function appendConvoErrorTurn(promptId, promptLabel, message) {
+	function appendConvoErrorTurn(promptId, promptLabel, errorData) {
 		var echoTpl = base.strings.promptEchoPrefix || '';
 		var promptLine = '';
 		if (echoTpl && promptLabel) {
 			promptLine =
 				'<p class="wf-sn-ai-convo__prompt">' + escHtml(echoTpl.replace('%s', promptLabel)) + '</p>';
 		}
+		var errHtml = '';
+		if (errorData && typeof errorData === 'object') {
+			errHtml = renderStructuredErrorHtml(errorData, base.strings.requestFailed || '');
+		} else {
+			errHtml = renderStructuredErrorHtml(null, String(errorData || base.strings.requestFailed || ''));
+		}
 		var html =
 			'<article class="wf-sn-ai-convo__turn wf-sn-ai-convo__turn--error" data-prompt-id="' +
 			escAttr(String(promptId)) +
 			'">' +
 			promptLine +
-			'<div class="wf-sn-ai-convo__answer wf-sn-ai-result-canvas"><p class="description">' +
-			escHtml(message) +
-			'</p></div></article>';
-		$('#wf_sn_ai_convo_turns').append(html);
+			'<div class="wf-sn-ai-convo__answer wf-sn-ai-result-canvas">' +
+			errHtml +
+			'</div></article>';
+		var $turn = $(html);
+		$('#wf_sn_ai_convo_turns').append($turn);
+		bindStructuredErrorActions($turn.find('.wf-sn-ai-convo__answer'), promptId);
 		syncConvoEmptyState();
 	}
 
@@ -761,9 +995,28 @@
 			});
 	}
 
+	function bindStructuredErrorActions($container, chipPromptId) {
+		$container.find('.wf-sn-ai-error-retry').on('click', function () {
+			if (chipPromptId) {
+				runChipRequest(String(chipPromptId));
+				return;
+			}
+			var $section = $('#wf_sn_ai_section_full_report');
+			runRequest('full_report', $section);
+		});
+		$container.find('.wf-sn-ai-error-switch').on('click', function () {
+			var $settings = $('.wf-sn-ai-settings-card');
+			if ($settings.length && !$settings.prop('open')) {
+				$settings.prop('open', true);
+			}
+			$('html, body').animate({ scrollTop: $settings.offset().top - 40 }, 300);
+		});
+	}
+
 	function runRequest(requestType, $section) {
 		var $wrapper = $section.find('.wf-sn-ai-result-wrapper');
 		var $stage = $wrapper.find('.wf-sn-ai-result-stage');
+		var $statsEl = $wrapper.find('.wf-sn-ai-result-stats');
 		var $timerEl = $wrapper.find('.wf-sn-ai-result-timer');
 		var $tipEl = $wrapper.find('.wf-sn-ai-waiting-tip');
 		var $result = $wrapper.find('.wf-sn-ai-result');
@@ -772,10 +1025,11 @@
 		setAdvisorActionsBusy(true);
 		$btn.attr('aria-busy', 'true');
 		$btn.data('original-label', $btn.html());
-		$btn.html('<span class="dashicons dashicons-update" aria-hidden="true"></span> ' + (base.strings.generating || 'Generating…'));
+		$btn.html( escHtml( base.strings.generating || 'Generating…' ) );
 		$wrapper.show();
-		$result.empty().hide().attr('aria-live', 'polite');
+		$result.empty().hide().removeClass('wf-sn-ai-result--error').attr('aria-live', 'polite');
 		$stage.show().text(base.strings.stagePreparing || '');
+		$statsEl.empty().hide();
 		$timerEl.show().text('0.0s');
 		$tipEl.prop('hidden', true).removeClass('wf-sn-ai-tip-visible wf-sn-ai-tip-enter').find('.wf-sn-ai-waiting-tip-text').empty();
 
@@ -787,6 +1041,7 @@
 
 		var tipIndex = 0;
 		var tipIntervalId = null;
+		var longWaitTimeoutId = null;
 		var tips = Array.isArray(base.strings.waitingTips) && base.strings.waitingTips.length ? base.strings.waitingTips : [];
 		var $tipText = $tipEl.find('.wf-sn-ai-waiting-tip-text');
 
@@ -802,86 +1057,146 @@
 			}
 		}
 
-		var stageTimeout = setTimeout(function () {
-			$stage.text(base.strings.stageSending || '');
-		}, 600);
-		var stageTimeout2 = setTimeout(function () {
-			$stage.text(base.strings.stageWaiting || '');
-			if (tips.length) {
-				$tipEl.prop('hidden', false);
-				showTip(tips[0], true);
-				tipIndex = 1;
-				tipIntervalId = setInterval(function () {
-					showTip(tips[tipIndex % tips.length], false);
-					tipIndex += 1;
-				}, 5000);
+		function startWaitingTips() {
+			if (!tips.length || tipIntervalId) {
+				return;
 			}
-		}, 1500);
+			$tipEl.prop('hidden', false);
+			showTip(tips[0], true);
+			tipIndex = 1;
+			tipIntervalId = setInterval(function () {
+				showTip(tips[tipIndex % tips.length], false);
+				tipIndex += 1;
+			}, 5000);
+		}
+
+		function cleanupWaitUi() {
+			clearInterval(timerId);
+			if (tipIntervalId) {
+				clearInterval(tipIntervalId);
+				tipIntervalId = null;
+			}
+			if (longWaitTimeoutId) {
+				clearTimeout(longWaitTimeoutId);
+				longWaitTimeoutId = null;
+			}
+			$tipEl.prop('hidden', true).removeClass('wf-sn-ai-tip-visible wf-sn-ai-tip-enter').find('.wf-sn-ai-waiting-tip-text').empty();
+		}
+
+		function resetButton() {
+			setAdvisorActionsBusy(false);
+			$btn.removeAttr('aria-busy');
+			if ($btn.data('original-label')) {
+				$btn.html($btn.data('original-label'));
+			}
+		}
+
+		function handleSuccess(response) {
+			cleanupWaitUi();
+			$stage.text(base.strings.stageReceived || '').delay(800).fadeOut(200);
+			$timerEl.fadeOut(200);
+			$statsEl.fadeOut(200);
+			resetButton();
+			if (response.success && response.data && response.data.report) {
+				var newReportId = response.data.report_id ? parseInt(response.data.report_id, 10) : 0;
+				var synced = syncLatestReportCard(response.data.report, response.data.usage, newReportId);
+				if (synced) {
+					$result.empty().hide();
+					$wrapper.hide();
+					resetConvoForNewReport();
+					if (response.data.chips) {
+						applyFollowUpChips(response.data.chips, response.data.followup_ready);
+					} else {
+						applyFollowUpChips(null, true);
+					}
+				} else {
+					var inner = renderReport(response.data.report);
+					var uline = renderUsageLine(response.data.usage);
+					if (uline) {
+						inner += '<p class="wf-sn-ai-inline-usage description wf-sn-ai-inline-usage--footer">' + uline + '</p>';
+					}
+					$result.html(inner).show();
+				}
+			} else if (response.success && response.data && response.data.raw_text) {
+				$result.html('<pre>' + escHtml(response.data.raw_text) + '</pre>').show();
+			} else {
+				var errMsg = extractAjaxErrorMessage(response, base.strings.requestFailed || '');
+				$result.addClass('wf-sn-ai-result--error').html(renderStructuredErrorHtml(response.data, errMsg)).show();
+				bindStructuredErrorActions($result);
+			}
+		}
+
+		function handleFailure(message) {
+			cleanupWaitUi();
+			$stage.hide();
+			$timerEl.hide();
+			$statsEl.hide();
+			resetButton();
+			$result.addClass('wf-sn-ai-result--error').html(renderStructuredErrorHtml(null, message || base.strings.connectionError || base.strings.requestFailed || '')).show();
+			bindStructuredErrorActions($result);
+		}
 
 		var uiLocale = $section.data('ui-locale') || base.uiLocale || '';
 
-		var postData = {
-			action: 'wf_sn_ai_advisor_request',
-			nonce: nonce,
-			request_type: requestType,
-			ui_locale: uiLocale
-		};
-		$.post(ajaxUrl, postData)
+		function runGenerationPhase(prepareData) {
+			var connectorLabel = (prepareData && prepareData.connector_label) || getConnectorLabel(prepareData && prepareData.connector_id);
+			if (!connectorLabel) {
+				connectorLabel = base.strings.stageSending || 'AI';
+			}
+			$stage.text(formatLocalized(base.strings.stageSendingTo || base.strings.stageSending || '', [connectorLabel]));
+			if (prepareData && prepareData.stats) {
+				var statsLine = formatPrepareStatsLine(prepareData.stats);
+				if (statsLine) {
+					$statsEl.text(statsLine).show();
+				}
+			}
+			startWaitingTips();
+			longWaitTimeoutId = setTimeout(function () {
+				if (base.strings.longWaitExpectation) {
+					showTip(base.strings.longWaitExpectation, false);
+				}
+			}, 45000);
+
+			$.post(
+				ajaxUrl,
+				$.extend(
+					{
+						action: 'wf_sn_ai_advisor_request',
+						nonce: nonce,
+						request_type: requestType,
+						ui_locale: uiLocale,
+						prepared: 1
+					},
+					connectorPostField()
+				)
+			)
+				.done(handleSuccess)
+				.fail(function () {
+					handleFailure(base.strings.connectionError || base.strings.requestFailed || '');
+				});
+			$stage.text(formatLocalized(base.strings.stageWaitingFor || base.strings.stageWaiting || '', [connectorLabel]));
+		}
+
+		$.post(
+			ajaxUrl,
+			$.extend(
+				{
+					action: 'wf_sn_ai_advisor_prepare',
+					nonce: nonce,
+					ui_locale: uiLocale
+				},
+				connectorPostField()
+			)
+		)
 			.done(function (response) {
-				clearInterval(timerId);
-				clearTimeout(stageTimeout);
-				clearTimeout(stageTimeout2);
-				if (tipIntervalId) {
-					clearInterval(tipIntervalId);
-					tipIntervalId = null;
+				if (response.success && response.data && response.data.prepared) {
+					runGenerationPhase(response.data);
+					return;
 				}
-				$tipEl.prop('hidden', true).removeClass('wf-sn-ai-tip-visible wf-sn-ai-tip-enter').find('.wf-sn-ai-waiting-tip-text').empty();
-				$stage.text(base.strings.stageReceived || '').delay(800).fadeOut(200);
-				$timerEl.fadeOut(200);
-				setAdvisorActionsBusy(false);
-				$btn.removeAttr('aria-busy');
-				if ($btn.data('original-label')) {
-					$btn.html($btn.data('original-label'));
-				}
-				if (response.success && response.data && response.data.report) {
-					var newReportId = response.data.report_id ? parseInt(response.data.report_id, 10) : 0;
-					var synced = syncLatestReportCard(response.data.report, response.data.usage, newReportId);
-					if (synced) {
-						$result.empty().hide();
-						$wrapper.hide();
-						resetConvoForNewReport();
-					} else {
-						var inner = renderReport(response.data.report);
-						var uline = renderUsageLine(response.data.usage);
-						if (uline) {
-							inner += '<p class="wf-sn-ai-inline-usage description wf-sn-ai-inline-usage--footer">' + uline + '</p>';
-						}
-						$result.html(inner).show();
-					}
-				} else if (response.success && response.data && response.data.raw_text) {
-					$result.html('<pre>' + escHtml(response.data.raw_text) + '</pre>').show();
-				} else {
-					var errMsg = extractAjaxErrorMessage(response, base.strings.requestFailed || '');
-					$result.html('<p class="description">' + formatTextForHtml(errMsg) + '</p>').show();
-				}
+				handleFailure(extractAjaxErrorMessage(response, base.strings.requestFailed || ''));
 			})
 			.fail(function () {
-				clearInterval(timerId);
-				clearTimeout(stageTimeout);
-				clearTimeout(stageTimeout2);
-				if (tipIntervalId) {
-					clearInterval(tipIntervalId);
-					tipIntervalId = null;
-				}
-				$tipEl.prop('hidden', true).removeClass('wf-sn-ai-tip-visible wf-sn-ai-tip-enter').find('.wf-sn-ai-waiting-tip-text').empty();
-				$stage.hide();
-				$timerEl.hide();
-				setAdvisorActionsBusy(false);
-				$btn.removeAttr('aria-busy');
-				if ($btn.data('original-label')) {
-					$btn.html($btn.data('original-label'));
-				}
-				$result.text(base.strings.connectionError || base.strings.requestFailed || '').show();
+				handleFailure(base.strings.connectionError || base.strings.requestFailed || '');
 			});
 	}
 
@@ -899,13 +1214,19 @@
 		appendConvoPendingTurn(promptId, chipLbl);
 		scrollAdvisorResponseIntoView();
 
-		$.post(ajaxUrl, {
-			action: 'wf_sn_ai_advisor_request',
-			nonce: nonce,
-			request_type: PROMPT_CHIP,
-			prompt_id: promptId,
-			ui_locale: uiLocale
-		})
+		$.post(
+			ajaxUrl,
+			$.extend(
+				{
+					action: 'wf_sn_ai_advisor_request',
+					nonce: nonce,
+					request_type: PROMPT_CHIP,
+					prompt_id: promptId,
+					ui_locale: uiLocale
+				},
+				connectorPostField()
+			)
+		)
 			.done(function (response) {
 				setAdvisorActionsBusy(false);
 				$status.prop('hidden', true).text('');
@@ -927,8 +1248,11 @@
 						$convo[0].scrollTop = $convo[0].scrollHeight;
 					}
 				} else {
-					var msg = extractAjaxErrorMessage(response, base.strings.requestFailed || '');
-					appendConvoErrorTurn(promptId, lbl, msg);
+					appendConvoErrorTurn(
+						promptId,
+						lbl,
+						response.data && typeof response.data === 'object' ? response.data : extractAjaxErrorMessage(response, base.strings.requestFailed || '')
+					);
 				}
 			})
 			.fail(function () {
@@ -960,6 +1284,13 @@
 			}
 			runChipRequest(String(pid));
 		});
+		if ($('#wf_sn_ai_chat_column').length) {
+			var initialReady =
+				typeof base.followupReady === 'boolean'
+					? base.followupReady
+					: enabledChipsFromList(base.chips).length > 0;
+			setFollowUpPhase(initialReady, base.chips);
+		}
 	}
 
 	function initChipExpandToggles() {
@@ -993,10 +1324,14 @@
 				return;
 			}
 			var msg = base.strings.deleteConfirm || 'Delete?';
-			if (!window.confirm(msg)) {
-				return;
-			}
 			var $btn = $(this);
+			SnDialog.confirm({
+				message: msg,
+				danger: true
+			}).then(function (ok) {
+				if (!ok) {
+					return;
+				}
 			$btn.prop('disabled', true);
 			$.post(ajaxUrl, {
 				action: 'wf_sn_ai_advisor_delete_report',
@@ -1025,6 +1360,7 @@
 				.fail(function () {
 					$btn.prop('disabled', false);
 				});
+			});
 		});
 	}
 
@@ -1047,52 +1383,64 @@
 	}
 
 	function initPreviewModal() {
-		var $modal = $('#wf_sn_ai_preview_modal');
-		var $content = $modal.find('.wf-sn-ai-preview-data-content');
-		if (!$modal.length || !$content.length) {
-			return;
-		}
-
-		function showModal() {
-			$modal.prop('hidden', false);
-		}
-		function hideModal() {
-			$modal.prop('hidden', true);
-		}
-
 		$(document).on('click', '.wf-sn-ai-preview-data-link', function (e) {
 			e.preventDefault();
 			var $link = $(this);
 			var $section = $link.closest('.wf-sn-ai-section');
 			var uiLocale = $section.length ? $section.data('ui-locale') || '' : (base.uiLocale || '');
 			var requestType = $link.data('request-type') || 'full_report';
+			var title = base.strings.previewModalTitle || 'Preview of data sent to AI';
 
-			$content.text(base.strings.previewLoading || 'Loading…');
-			showModal();
+			SnDialog.open({
+				title: title,
+				size: 'large',
+				bodyHtml: '<p class="wf-sn-ai-preview-loading">' + $('<div/>').text(base.strings.previewLoading || 'Loading…').html() + '</p>'
+			});
 
-			$.post(ajaxUrl, {
-				action: 'wf_sn_ai_advisor_preview_data',
-				nonce: nonce,
-				request_type: requestType,
-				ui_locale: uiLocale
-			})
+			$.post(
+				ajaxUrl,
+				$.extend(
+					{
+						action: 'wf_sn_ai_advisor_preview_data',
+						nonce: nonce,
+						request_type: requestType,
+						ui_locale: uiLocale
+					},
+					connectorPostField()
+				)
+			)
 				.done(function (response) {
+					var root = document.getElementById('sn-dialog-root');
+					var body = root ? root.querySelector('.sn-dialog-body') : null;
+					if (!body) {
+						return;
+					}
+					var html = '';
 					if (response.success && response.data && response.data.data) {
+						if (response.data.stats) {
+							var statsLine = formatPrepareStatsLine(response.data.stats);
+							if (statsLine) {
+								html += '<p class="wf-sn-ai-preview-stats">' + $('<div/>').text(statsLine).html() + '</p>';
+							}
+						}
 						try {
-							$content.text(JSON.stringify(response.data.data, null, 2));
+							html += '<pre class="wf-sn-ai-preview-data-content"><code>' + $('<div/>').text(JSON.stringify(response.data.data, null, 2)).html() + '</code></pre>';
 						} catch (err) {
-							$content.text(base.strings.previewError || '');
+							html += '<p>' + $('<div/>').text(base.strings.previewError || '').html() + '</p>';
 						}
 					} else {
-						$content.text(response.data && response.data.message ? response.data.message : (base.strings.previewError || ''));
+						html = '<p>' + $('<div/>').text(response.data && response.data.message ? response.data.message : (base.strings.previewError || '')).html() + '</p>';
 					}
+					body.innerHTML = html;
 				})
 				.fail(function () {
-					$content.text(base.strings.previewError || base.strings.connectionError || '');
+					var root = document.getElementById('sn-dialog-root');
+					var body = root ? root.querySelector('.sn-dialog-body') : null;
+					if (body) {
+						body.innerHTML = '<p>' + $('<div/>').text(base.strings.previewError || base.strings.connectionError || '').html() + '</p>';
+					}
 				});
 		});
-
-		$modal.find('.wf-sn-ai-preview-modal-close, .wf-sn-ai-preview-modal-backdrop').on('click', hideModal);
 	}
 
 	function initViewFullReport() {
@@ -1160,6 +1508,122 @@
 		});
 	}
 
+	function initTestConnection() {
+		var $btn = $('#wf_sn_ai_test_connection_btn');
+		var $status = $('#wf_sn_ai_test_connection_status');
+		if (!$btn.length || !$status.length) {
+			return;
+		}
+		$btn.on('click', function () {
+			var connectorId = getSelectedConnectorId();
+			if (!connectorId) {
+				$status
+					.removeClass('wf-sn-ai-test-connection__status--ok wf-sn-ai-test-connection__status--error')
+					.addClass('wf-sn-ai-test-connection__status--error')
+					.text(base.strings.testConnectionSelect || 'Select a connector first.');
+				return;
+			}
+			$btn.prop('disabled', true);
+			$status
+				.removeClass('wf-sn-ai-test-connection__status--ok wf-sn-ai-test-connection__status--error')
+				.html('<span class="spinner is-active" aria-hidden="true"></span> ' + escHtml(base.strings.testConnectionRunning || 'Testing connection…'));
+			$.post(base.ajaxurl, {
+				action: 'wf_sn_ai_advisor_test_connector',
+				nonce: base.nonce,
+				connector_id: connectorId
+			})
+				.done(function (response) {
+					if (response.success && response.data && response.data.message) {
+						$status
+							.removeClass('wf-sn-ai-test-connection__status--error')
+							.addClass('wf-sn-ai-test-connection__status--ok')
+							.text(response.data.message);
+						return;
+					}
+					var errMsg = (response.data && response.data.message) ? response.data.message : (base.strings.requestFailed || 'Request failed.');
+					var fixUrl = (response.data && response.data.connectors_url) ? response.data.connectors_url : (base.connectorsAdminUrl || '');
+					var html = escHtml(errMsg);
+					if (fixUrl) {
+						html += ' <a href="' + escAttr(fixUrl) + '">' + escHtml(base.strings.testConnectionFixLink || 'Open Settings → Connectors') + '</a>';
+					}
+					$status
+						.removeClass('wf-sn-ai-test-connection__status--ok')
+						.addClass('wf-sn-ai-test-connection__status--error')
+						.html(html);
+				})
+				.fail(function () {
+					$status
+						.removeClass('wf-sn-ai-test-connection__status--ok')
+						.addClass('wf-sn-ai-test-connection__status--error')
+						.text(base.strings.connectionError || 'The request failed.');
+				})
+				.always(function () {
+					$btn.prop('disabled', false);
+				});
+		});
+		$('#wf_sn_ai_advisor_connector').on('change', function () {
+			$status.removeClass('wf-sn-ai-test-connection__status--ok wf-sn-ai-test-connection__status--error').empty();
+		});
+	}
+
+	function initRunScheduledNow() {
+		var $btn = $('#wf_sn_ai_schedule_run_now_btn');
+		var $status = $('#wf_sn_ai_schedule_run_now_status');
+		if (!$btn.length || !$status.length) {
+			return;
+		}
+		$btn.on('click', function () {
+			$btn.prop('disabled', true);
+			$status
+				.removeClass('wf-sn-ai-schedule-run-now__status--ok wf-sn-ai-schedule-run-now__status--error')
+				.html('<span class="spinner is-active" aria-hidden="true"></span> ' + escHtml(base.strings.scheduleRunNowRunning || 'Queuing report…'));
+			$.post(base.ajaxurl, {
+				action: 'wf_sn_ai_advisor_run_scheduled_now',
+				nonce: base.nonce
+			})
+				.done(function (response) {
+					if (response.success && response.data && response.data.message) {
+						$status
+							.removeClass('wf-sn-ai-schedule-run-now__status--error')
+							.addClass('wf-sn-ai-schedule-run-now__status--ok')
+							.text(response.data.message);
+						return;
+					}
+					var errMsg = (response.data && response.data.message) ? response.data.message : (base.strings.requestFailed || 'Request failed.');
+					$status
+						.removeClass('wf-sn-ai-schedule-run-now__status--ok')
+						.addClass('wf-sn-ai-schedule-run-now__status--error')
+						.text(errMsg);
+				})
+				.fail(function () {
+					$status
+						.removeClass('wf-sn-ai-schedule-run-now__status--ok')
+						.addClass('wf-sn-ai-schedule-run-now__status--error')
+						.text(base.strings.connectionError || 'The request failed.');
+				})
+				.always(function () {
+					$btn.prop('disabled', false);
+				});
+		});
+	}
+
+	function initSchedulePanelToggle() {
+		var $panel = $('#wf_sn_ai_schedule_panel');
+		var $toggle = $('#wf_sn_ai_advisor_scheduled_report_enabled');
+		if (!$panel.length || !$toggle.length || $panel.hasClass('wf-sn-ai-schedule--locked')) {
+			return;
+		}
+		function syncPanelState() {
+			if ($toggle.is(':checked')) {
+				$panel.removeClass('is-disabled').addClass('is-enabled');
+			} else {
+				$panel.removeClass('is-enabled').addClass('is-disabled');
+			}
+		}
+		$toggle.on('change', syncPanelState);
+		syncPanelState();
+	}
+
 	$(function () {
 		initSections();
 		initChips();
@@ -1169,6 +1633,9 @@
 		initPreviewModal();
 		initViewFullReport();
 		initConvoThread();
+		initTestConnection();
+		initRunScheduledNow();
+		initSchedulePanelToggle();
 		renderAttackChart();
 		initImprovementToggles($(document));
 	});

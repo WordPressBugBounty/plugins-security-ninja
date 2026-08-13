@@ -26,6 +26,61 @@ class FileViewer {
 	const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 
 	/**
+	 * Maximum number of lines to render for text files.
+	 *
+	 * @var int
+	 */
+	const MAX_LINES = 10000;
+
+	/**
+	 * Allowed text-like file extensions.
+	 *
+	 * @var string[]
+	 */
+	private static $text_extensions = array(
+		'php',
+		'js',
+		'css',
+		'txt',
+		'html',
+		'htm',
+		'log',
+		'inc',
+		'xml',
+		'json',
+		'md',
+		'yml',
+		'yaml',
+		'ini',
+		'sql',
+	);
+
+	/**
+	 * Allowed raster image extensions (SVG intentionally excluded).
+	 *
+	 * @var string[]
+	 */
+	private static $image_extensions = array(
+		'png',
+		'jpg',
+		'jpeg',
+		'gif',
+		'webp',
+		'ico',
+	);
+
+	/**
+	 * Exact known log basenames (compared case-insensitively).
+	 *
+	 * @var string[]
+	 */
+	private static $log_basenames = array(
+		'debug.log',
+		'error_log',
+		'php_errorlog',
+	);
+
+	/**
 	 * Whitelist of valid action values accepted by this viewer.
 	 *
 	 * @var array
@@ -168,11 +223,27 @@ class FileViewer {
 			.highlighted-line {
 				background-color: #ff0;
 			}
+			.sn-file-viewer-notice {
+				margin: 0 0 16px;
+				padding: 8px 12px;
+				background: #fff8e5;
+				border-left: 4px solid #dba617;
+			}
+			.sn-file-viewer-image-wrap {
+				margin-top: 12px;
+				text-align: center;
+			}
+			.sn-file-viewer-image {
+				max-width: 100%;
+				height: auto;
+				border: 1px solid #ccc;
+				background: #f5f5f5;
+			}
 
 			/* Diff view styles */
 			.diff { overflow-x: auto; }
 			.diff table { border-collapse: collapse; width: 100%; font-size: 12px; line-height: 1.25; }
-			.diff td, .diff th { 
+			.diff td, .diff th {
 				border: 0px;
 				text-align: left;
 				line-height: 1.25 !important;
@@ -293,7 +364,13 @@ class FileViewer {
 		}
 		echo '</div>';
 		echo '</div>';
-		echo wp_kses_post( self::render_file( $file_path, $highlight_line ) );
+
+		if ( self::is_image_file( $file_path ) ) {
+			// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- render_image() escapes its output.
+			echo self::render_image( $file_path );
+		} else {
+			echo wp_kses_post( self::render_file( $file_path, $highlight_line ) );
+		}
 		echo '</div>';
 	}
 
@@ -375,47 +452,154 @@ class FileViewer {
 	}
 
 	/**
+	 * Get lowercase file extension for a path.
+	 *
+	 * @param string $file_path File path.
+	 * @return string
+	 */
+	private static function get_file_extension( $file_path ) {
+		return strtolower( pathinfo( wp_normalize_path( $file_path ), PATHINFO_EXTENSION ) );
+	}
+
+	/**
+	 * Whether the path has an allowed image extension.
+	 *
+	 * @param string $file_path File path.
+	 * @return bool
+	 */
+	private static function is_image_file( $file_path ) {
+		return in_array( self::get_file_extension( $file_path ), self::$image_extensions, true );
+	}
+
+	/**
+	 * Whether a basename is a known log file (exact or simple rotation).
+	 *
+	 * @param string $basename File basename.
+	 * @return bool
+	 */
+	private static function is_allowed_log_basename( $basename ) {
+		$lower = strtolower( $basename );
+
+		if ( in_array( $lower, self::$log_basenames, true ) ) {
+			return true;
+		}
+
+		// Rotated error_log / php_errorlog names (e.g. error_log.1, error_log.old).
+		if ( preg_match( '/^(error_log|php_errorlog)(\.(old|\d+))?$/i', $basename ) ) {
+			return true;
+		}
+
+		return false;
+	}
+
+	/**
+	 * Whether the file type is allowed for viewing (extension or known log name).
+	 *
+	 * @param string $file_path File path.
+	 * @return bool
+	 */
+	private static function is_allowed_file_type( $file_path ) {
+		$normalized_path = wp_normalize_path( $file_path );
+		$extension       = self::get_file_extension( $normalized_path );
+		$basename        = basename( $normalized_path );
+
+		if ( in_array( $extension, self::$text_extensions, true ) ) {
+			return true;
+		}
+
+		if ( in_array( $extension, self::$image_extensions, true ) ) {
+			return true;
+		}
+
+		if ( self::is_allowed_log_basename( $basename ) ) {
+			return true;
+		}
+
+		return false;
+	}
+
+	/**
+	 * Map an image extension to a safe MIME type for data-URI preview.
+	 *
+	 * @param string $extension Lowercase extension.
+	 * @return string|false
+	 */
+	private static function get_image_mime_for_extension( $extension ) {
+		$map = array(
+			'png'  => 'image/png',
+			'jpg'  => 'image/jpeg',
+			'jpeg' => 'image/jpeg',
+			'gif'  => 'image/gif',
+			'webp' => 'image/webp',
+			'ico'  => 'image/x-icon',
+		);
+
+		return isset( $map[ $extension ] ) ? $map[ $extension ] : false;
+	}
+
+	/**
+	 * Shared validation for viewing a file.
+	 *
+	 * @param string $file_path  The path to the file.
+	 * @param bool   $log_events Whether to log denied attempts.
+	 * @return bool
+	 */
+	private static function validate_file_for_viewing( $file_path, $log_events = false ) {
+		$normalized_path = wp_normalize_path( $file_path );
+
+		if ( strpos( $normalized_path, '..' ) !== false ) {
+			if ( $log_events ) {
+				\WPSecurityNinja\Plugin\wf_sn_el_modules::log_event( 'File Viewer', 'Directory traversal attempt: ' . $normalized_path );
+			}
+			return false;
+		}
+
+		if ( ! self::is_allowed_file_type( $normalized_path ) ) {
+			if ( $log_events ) {
+				\WPSecurityNinja\Plugin\wf_sn_el_modules::log_event( 'File Viewer', 'Attempt to view disallowed file type: ' . self::get_file_extension( $normalized_path ) );
+			}
+			return false;
+		}
+
+		if ( ! self::is_within_wordpress_installation( $file_path ) ) {
+			if ( $log_events ) {
+				\WPSecurityNinja\Plugin\wf_sn_el_modules::log_event( 'File Viewer', 'Attempt to view file outside WordPress installation: ' . $normalized_path );
+			}
+			return false;
+		}
+
+		if ( ! is_readable( $file_path ) ) {
+			if ( $log_events ) {
+				\WPSecurityNinja\Plugin\wf_sn_el_modules::log_event( 'File Viewer', 'Attempt to view unreadable file: ' . $normalized_path );
+			}
+			return false;
+		}
+
+		$file_size = filesize( $file_path );
+		if ( false === $file_size ) {
+			return false;
+		}
+
+		// Images must stay within the hard size limit (no partial binary preview).
+		if ( self::is_image_file( $file_path ) && $file_size > self::MAX_FILE_SIZE ) {
+			if ( $log_events ) {
+				\WPSecurityNinja\Plugin\wf_sn_el_modules::log_event( 'File Viewer', 'Attempt to view file exceeding size limit: ' . self::MAX_FILE_SIZE );
+			}
+			return false;
+		}
+
+		// Text/log files over the size limit are allowed with a truncated preview.
+		return true;
+	}
+
+	/**
 	 * Check if the given file is allowed to be viewed.
 	 *
 	 * @param string $file_path The path to the file.
 	 * @return bool Whether the file is allowed to be viewed.
 	 */
 	private static function is_allowed_file( $file_path ) {
-		$normalized_path = wp_normalize_path( $file_path );
-
-		// Prevent directory traversal
-		if ( strpos( $normalized_path, '..' ) !== false ) {
-			\WPSecurityNinja\Plugin\wf_sn_el_modules::log_event( 'File Viewer', 'Directory traversal attempt: ' . $normalized_path );
-			return false;
-		}
-
-		// Check file extension
-		$allowed_extensions = array( 'php', 'js', 'css', 'txt', 'html', 'htm', 'log', 'inc', 'xml', 'json', 'md', 'yml', 'yaml', 'ini', 'sql' );
-		$file_extension     = strtolower( pathinfo( $normalized_path, PATHINFO_EXTENSION ) );
-		$allowed_files      = array( 'debug.log', 'error_log', 'php_errorlog' );
-
-		if ( ! in_array( $file_extension, $allowed_extensions, true ) && ! in_array( basename( $normalized_path ), $allowed_files, true ) ) {
-			\WPSecurityNinja\Plugin\wf_sn_el_modules::log_event( 'File Viewer', 'Attempt to view disallowed file type: ' . $file_extension );
-			return false;
-		}
-
-		// Check if file is within WordPress installation directory
-		if ( ! self::is_within_wordpress_installation( $file_path ) ) {
-			\WPSecurityNinja\Plugin\wf_sn_el_modules::log_event( 'File Viewer', 'Attempt to view file outside WordPress installation: ' . $normalized_path );
-			return false;
-		}
-
-		// Check if file is readable and within size limits
-		if ( ! is_readable( $file_path ) ) {
-			\WPSecurityNinja\Plugin\wf_sn_el_modules::log_event( 'File Viewer', 'Attempt to view unreadable file: ' . $normalized_path );
-			return false;
-		}
-		if ( filesize( $file_path ) > self::MAX_FILE_SIZE ) {
-			\WPSecurityNinja\Plugin\wf_sn_el_modules::log_event( 'File Viewer', 'Attempt to view file exceeding size limit: ' . self::MAX_FILE_SIZE );
-			return false;
-		}
-
-		return true;
+		return self::validate_file_for_viewing( $file_path, true );
 	}
 
 	/**
@@ -425,37 +609,7 @@ class FileViewer {
 	 * @return bool Whether the file can be viewed
 	 */
 	public static function can_view_file( $file_path ) {
-		// Use the same logic as is_allowed_file but without logging
-		$normalized_path = wp_normalize_path( $file_path );
-
-		// Prevent directory traversal
-		if ( strpos( $normalized_path, '..' ) !== false ) {
-			return false;
-		}
-
-		// Check file extension
-		$allowed_extensions = array( 'php', 'js', 'css', 'txt', 'html', 'htm', 'log', 'inc', 'xml', 'json', 'md', 'yml', 'yaml', 'ini', 'sql' );
-		$file_extension     = strtolower( pathinfo( $normalized_path, PATHINFO_EXTENSION ) );
-		$allowed_files      = array( 'debug.log', 'error_log', 'php_errorlog' );
-
-		if ( ! in_array( $file_extension, $allowed_extensions, true ) && ! in_array( basename( $normalized_path ), $allowed_files, true ) ) {
-			return false;
-		}
-
-		// Check if file is within WordPress installation directory
-		if ( ! self::is_within_wordpress_installation( $file_path ) ) {
-			return false;
-		}
-
-		// Check if file is readable and within size limits
-		if ( ! is_readable( $file_path ) ) {
-			return false;
-		}
-		if ( filesize( $file_path ) > self::MAX_FILE_SIZE ) {
-			return false;
-		}
-
-		return true;
+		return self::validate_file_for_viewing( $file_path, false );
 	}
 
 	/**
@@ -502,6 +656,45 @@ class FileViewer {
 	}
 
 	/**
+	 * Render a verified raster image as a data-URI preview.
+	 *
+	 * @param string $file_path The path to the image file.
+	 * @return string HTML output.
+	 */
+	private static function render_image( $file_path ) {
+		if ( ! file_exists( $file_path ) || ! is_readable( $file_path ) ) {
+			/* translators: %s: File path */
+			\WPSecurityNinja\Plugin\wf_sn_el_modules::log_event( 'File Viewer', sprintf( esc_html__( 'File not found or not readable: %s', 'security-ninja' ), $file_path ) );
+			return '<p>' . esc_html__( 'File not found or not readable.', 'security-ninja' ) . '</p>';
+		}
+
+		$extension = self::get_file_extension( $file_path );
+		$mime      = self::get_image_mime_for_extension( $extension );
+		if ( ! $mime ) {
+			return '<p>' . esc_html__( 'This image type cannot be previewed.', 'security-ninja' ) . '</p>';
+		}
+
+		// Verify the file is a real image before embedding.
+		// phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- getimagesize may warn on non-images.
+		$image_info = @getimagesize( $file_path );
+		if ( false === $image_info ) {
+			return '<p>' . esc_html__( 'This file could not be verified as a valid image and was not displayed.', 'security-ninja' ) . '</p>';
+		}
+
+		$contents = file_get_contents( $file_path ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents -- reading local validated file
+		if ( false === $contents || '' === $contents ) {
+			return '<p>' . esc_html__( 'File not found or not readable.', 'security-ninja' ) . '</p>';
+		}
+
+		$base64   = base64_encode( $contents ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_encode -- safe data-URI preview of verified local image
+		$filename = basename( $file_path );
+
+		return '<div class="sn-file-viewer-image-wrap">'
+			. '<img class="sn-file-viewer-image" src="data:' . esc_attr( $mime ) . ';base64,' . esc_attr( $base64 ) . '" alt="' . esc_attr( $filename ) . '" />'
+			. '</div>';
+	}
+
+	/**
 	 * Render the contents of a file.
 	 *
 	 * @param string $file_path      The path to the file.
@@ -515,14 +708,22 @@ class FileViewer {
 			return '<p>' . esc_html__( 'File not found or not readable.', 'security-ninja' ) . '</p>';
 		}
 
-		$output = '<pre>';
-		$file   = new \SplFileObject( $file_path );
+		$output    = '';
+		$file_size = filesize( $file_path );
+		if ( false !== $file_size && $file_size > self::MAX_FILE_SIZE ) {
+			$output .= '<div class="sn-file-viewer-notice"><p>'
+				. esc_html__( 'This file is larger than the viewer size limit. Showing a truncated preview of the beginning of the file.', 'security-ninja' )
+				. '</p></div>';
+		}
+
+		$output .= '<pre>';
+		$file    = new \SplFileObject( $file_path );
 
 		$line_count = 0;
 		foreach ( $file as $line_num => $line ) {
 			++$line_num;
 			++$line_count;
-			if ( $line_count > 10000 ) { // Limit to 10,000 lines
+			if ( $line_count > self::MAX_LINES ) {
 				$output .= '<span class="line">' . esc_html__( 'File truncated...', 'security-ninja' ) . '</span>';
 				break;
 			}

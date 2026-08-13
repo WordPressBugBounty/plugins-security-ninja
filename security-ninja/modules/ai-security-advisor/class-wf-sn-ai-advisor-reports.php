@@ -21,6 +21,15 @@ class Wf_Sn_Ai_Advisor_Reports {
 	const TABLE_NAME = 'wf_sn_ai_reports';
 
 	/**
+	 * Columns returned by list/get queries.
+	 *
+	 * @return string
+	 */
+	private static function select_columns() {
+		return 'id, created, report_text, snapshot, provider, model, token_input, token_output, request_type';
+	}
+
+	/**
 	 * Get the full table name including prefix.
 	 *
 	 * @return string
@@ -52,6 +61,7 @@ class Wf_Sn_Ai_Advisor_Reports {
 			token_output int unsigned DEFAULT NULL,
 			request_type varchar(32) DEFAULT 'full_report',
 			parent_report_id bigint(20) unsigned DEFAULT NULL,
+			snapshot longtext DEFAULT NULL,
 			PRIMARY KEY  (id),
 			KEY created (created),
 			KEY parent_report_id (parent_report_id),
@@ -96,9 +106,10 @@ class Wf_Sn_Ai_Advisor_Reports {
 	 * @param int|null   $token_output  Output token count (estimated or from API).
 	 * @param string     $request_type      Request type (e.g. full_report).
 	 * @param int|null   $parent_report_id  Parent full_report row id for prompt_chip rows.
+	 * @param string|null $snapshot         Optional JSON snapshot for full_report rows.
 	 * @return int|false Insert id or false on failure.
 	 */
-	public static function insert_report( $report_text, $provider = '', $model = null, $token_input = 0, $token_output = null, $request_type = 'full_report', $parent_report_id = null ) {
+	public static function insert_report( $report_text, $provider = '', $model = null, $token_input = 0, $token_output = null, $request_type = 'full_report', $parent_report_id = null, $snapshot = null ) {
 		global $wpdb;
 		self::ensure_table();
 		$table = self::get_table_name();
@@ -116,6 +127,10 @@ class Wf_Sn_Ai_Advisor_Reports {
 			$row['parent_report_id'] = (int) $parent_report_id;
 			$formats[]               = '%d';
 		}
+		if ( null !== $snapshot && is_string( $snapshot ) && '' !== $snapshot ) {
+			$row['snapshot'] = $snapshot;
+			$formats[]       = '%s';
+		}
 		$ok = $wpdb->insert( $table, $row, $formats );
 		return $ok ? (int) $wpdb->insert_id : false;
 	}
@@ -130,6 +145,7 @@ class Wf_Sn_Ai_Advisor_Reports {
 	 */
 	public static function get_reports( $limit = 20, $offset = 0, $request_type = null ) {
 		global $wpdb;
+		self::ensure_table();
 		$table = self::get_table_name();
 		if ( $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $table ) ) !== $table ) {
 			return array();
@@ -139,9 +155,10 @@ class Wf_Sn_Ai_Advisor_Reports {
 
 		if ( null !== $request_type && '' !== $request_type ) {
 			$type = sanitize_key( (string) $request_type );
+			$cols = self::select_columns();
 			$rows = $wpdb->get_results(
 				$wpdb->prepare(
-					"SELECT id, created, report_text, provider, model, token_input, token_output, request_type FROM {$table} WHERE request_type = %s ORDER BY created DESC LIMIT %d OFFSET %d", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+					"SELECT {$cols} FROM {$table} WHERE request_type = %s ORDER BY created DESC LIMIT %d OFFSET %d", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 					$type,
 					$limit,
 					$offset
@@ -149,9 +166,10 @@ class Wf_Sn_Ai_Advisor_Reports {
 				ARRAY_A
 			);
 		} else {
+			$cols = self::select_columns();
 			$rows = $wpdb->get_results(
 				$wpdb->prepare(
-					"SELECT id, created, report_text, provider, model, token_input, token_output, request_type FROM {$table} ORDER BY created DESC LIMIT %d OFFSET %d", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+					"SELECT {$cols} FROM {$table} ORDER BY created DESC LIMIT %d OFFSET %d", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 					$limit,
 					$offset
 				),
@@ -187,6 +205,7 @@ class Wf_Sn_Ai_Advisor_Reports {
 	 */
 	public static function get_row_by_id( $id ) {
 		global $wpdb;
+		self::ensure_table();
 		$table = self::get_table_name();
 		if ( $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $table ) ) !== $table ) {
 			return null;
@@ -197,7 +216,7 @@ class Wf_Sn_Ai_Advisor_Reports {
 		}
 		$row = $wpdb->get_row(
 			$wpdb->prepare(
-				"SELECT id, created, report_text, provider, model, token_input, token_output, request_type FROM {$table} WHERE id = %d LIMIT 1", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+				'SELECT ' . self::select_columns() . " FROM {$table} WHERE id = %d LIMIT 1", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 				$id
 			),
 			ARRAY_A
@@ -224,6 +243,37 @@ class Wf_Sn_Ai_Advisor_Reports {
 		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 		$deleted = $wpdb->delete( $table, array( 'id' => $id ), array( '%d' ) );
 		return false !== $deleted && $deleted > 0;
+	}
+
+	/**
+	 * Count all stored reports grouped by request type.
+	 *
+	 * @return array{full_report: int, prompt_chip: int, total: int}
+	 */
+	public static function count_all() {
+		$full = self::count_by_request_type( 'full_report' );
+		$chip = self::count_by_request_type( Wf_Sn_Ai_Advisor_Chips::REQUEST_TYPE );
+		return array(
+			'full_report' => $full,
+			'prompt_chip' => $chip,
+			'total'       => $full + $chip,
+		);
+	}
+
+	/**
+	 * Delete every row in the reports table.
+	 *
+	 * @return int Number of rows deleted, or 0 when table missing.
+	 */
+	public static function clear_all() {
+		global $wpdb;
+		$table = self::get_table_name();
+		if ( $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $table ) ) !== $table ) {
+			return 0;
+		}
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name internal
+		$deleted = $wpdb->query( "DELETE FROM {$table}" );
+		return false === $deleted ? 0 : (int) $deleted;
 	}
 
 	/**

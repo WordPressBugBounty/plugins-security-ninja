@@ -126,35 +126,43 @@ jQuery(document).ready(function () {
 		var $form = jQuery(this);
 		var $button = $form.find('#secnin-reset-secret-url');
 		
-		// Confirm the action
-		if (!confirm(wf_sn.strings.reset_secret_url_confirm)) {
-			return;
-		}
-		
-		// Disable button and show loading
-		$button.prop('disabled', true).val(wf_sn.strings.resetting);
-		
-		// Make AJAX request
-		jQuery.ajax({
-			type: 'POST',
-			url: ajaxurl,
-			data: {
-				action: 'sn_reset_secret_url',
-				_wpnonce: wf_sn.nonce_reset_secret_url
-			},
-			success: function(response) {
-				if (response.success) {
-					// Reload page to show WordPress notice
-					window.location.reload();
-				} else {
-					alert('Error: ' + (response.data ? response.data.message : wf_sn.strings.error_unknown));
+		SnDialog.confirm({
+			message: wf_sn.strings.reset_secret_url_confirm,
+			danger: true
+		}).then(function (ok) {
+			if (!ok) {
+				return;
+			}
+
+			// Disable button and show loading
+			$button.prop('disabled', true).val(wf_sn.strings.resetting);
+			
+			// Make AJAX request
+			jQuery.ajax({
+				type: 'POST',
+				url: ajaxurl,
+				data: {
+					action: 'sn_reset_secret_url',
+					_wpnonce: wf_sn.nonce_reset_secret_url
+				},
+				success: function(response) {
+					if (response.success) {
+						// Reload page to show WordPress notice
+						window.location.reload();
+					} else {
+						SnDialog.alert({
+							message: 'Error: ' + (response.data ? response.data.message : wf_sn.strings.error_unknown)
+						});
+						$button.val(wf_sn.strings.reset_button_text).prop('disabled', false);
+					}
+				},
+				error: function() {
+					SnDialog.alert({
+						message: 'Error: ' + wf_sn.strings.error_failed
+					});
 					$button.val(wf_sn.strings.reset_button_text).prop('disabled', false);
 				}
-			},
-			error: function() {
-				alert('Error: ' + wf_sn.strings.error_failed);
-				$button.val(wf_sn.strings.reset_button_text).prop('disabled', false);
-			}
+			});
 		});
 	});
 
@@ -443,13 +451,30 @@ jQuery(document).ready(function () {
 		
 		
 		// Asks before importing settings
-		jQuery(document).on('click', '#wf-import-settings-button', function () {
-			if (!confirm('Are you sure you want to import and overwrite the current settings?')) { //i8n
-				return false;
+		jQuery(document).on('click', '#wf-import-settings-button', function (e) {
+			var btn = this;
+			if (btn.getAttribute('data-sn-confirmed') === '1') {
+				btn.removeAttribute('data-sn-confirmed');
+				return;
 			}
-			else {
-				return true;
-			}
+			e.preventDefault();
+			SnDialog.confirm({
+				message: 'Are you sure you want to import and overwrite the current settings?', //i8n
+				danger: true
+			}).then(function (ok) {
+				if (!ok) {
+					return;
+				}
+				btn.setAttribute('data-sn-confirmed', '1');
+				var form = btn.form || (btn.closest && btn.closest('form'));
+				if (form && typeof form.requestSubmit === 'function') {
+					form.requestSubmit(btn);
+				} else if (form) {
+					form.submit();
+				} else {
+					btn.click();
+				}
+			});
 		});
 		
 		// abort scan by refreshing

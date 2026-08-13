@@ -29,6 +29,7 @@ class Wf_Sn_Vu {
         add_action( 'admin_notices', array(__NAMESPACE__ . '\\wf_sn_vu', 'admin_notice_vulnerabilities') );
         add_action( 'init', array(__NAMESPACE__ . '\\wf_sn_vu', 'schedule_cron_jobs') );
         add_action( 'secnin_update_vuln_list', array(__NAMESPACE__ . '\\wf_sn_vu', 'update_vuln_list') );
+        add_action( 'secnin_scan_vulnerabilities', array(__NAMESPACE__ . '\\wf_sn_vu', 'run_vulnerability_scan') );
         add_action( 'secnin_daily_vulnerability_warning_check', array(__NAMESPACE__ . '\\wf_sn_vu', 'daily_vulnerability_check') );
         add_action(
             'upgrader_process_complete',
@@ -59,7 +60,9 @@ class Wf_Sn_Vu {
             return;
         }
         // *** EMAIL WARNINGS - CHECK if an email should be sent...
-        $vulns = self::return_vulnerabilities();
+        $vulns = self::return_vulnerabilities( array(
+            'force' => true,
+        ) );
         if ( $vulns && (!empty( $vulns['plugins'] ) || !empty( $vulns['wordpress'] ) || !empty( $vulns['themes'] )) ) {
             self::send_vulnerability_email( $vulns );
         }
@@ -75,10 +78,10 @@ class Wf_Sn_Vu {
      */
     public static function do_action_upgrader_process_complete() {
         if ( self::$options['enable_vulns'] ) {
-            // deletes the transient before checking again
             delete_transient( 'wf_sn_return_vulnerabilities' );
-            // Updates the vuln list
-            self::return_vulnerabilities();
+            // Keep last known results visible; mark cache stale and rescan in the background.
+            update_option( 'wf_sn_vulnerabilities_cache_timestamp', 0, false );
+            self::schedule_vulnerability_scan();
         }
     }
 
@@ -303,16 +306,18 @@ class Wf_Sn_Vu {
      * @version v1.0.0  Tuesday, July 25th, 2023.
      * @version v1.0.1  Friday, October 13th, 2023.
      * @version v1.0.2  Friday, January 23rd, 2026.
-     * @param   mixed   $file_content
-     * @param   mixed   $filename
+     * @version v1.0.3  Sunday, August 2nd, 2026. Support binary gzip payloads.
+     * @param   mixed   $file_content File contents (plaintext JSONL or binary gzip).
+     * @param   mixed   $filename     Target filename within the vulns directory.
+     * @param   bool    $binary       When true, skip JSONL validation (for gzip bytes).
      * @return  boolean
      */
-    public static function get_file_and_save( $file_content, $filename ) {
-        if ( empty( $file_content ) || empty( $filename ) ) {
+    public static function get_file_and_save( $file_content, $filename, $binary = false ) {
+        if ( !is_string( $file_content ) && !is_numeric( $file_content ) || '' === $file_content || empty( $filename ) ) {
             return false;
         }
-        // Sanity check: ensure content looks like JSONL.
-        if ( !self::is_likely_jsonl( $file_content ) ) {
+        // Sanity check: ensure content looks like JSONL (plaintext writes only).
+        if ( !$binary && !self::is_likely_jsonl( $file_content ) ) {
             return false;
         }
         // Sanitize filename to prevent directory traversal.
@@ -354,7 +359,18 @@ class Wf_Sn_Vu {
             return false;
         }
         // Verify temp file is valid (lightweight check).
-        if ( !self::is_likely_jsonl( file_get_contents( $temp_path ) ) ) {
+        if ( $binary ) {
+            $temp_bytes = file_get_contents( $temp_path );
+            if ( false === $temp_bytes || strlen( $temp_bytes ) < 2 ) {
+                wp_delete_file( $temp_path );
+                return false;
+            }
+            $magic_bytes = unpack( 'C2', substr( $temp_bytes, 0, 2 ) );
+            if ( 0x1f !== $magic_bytes[1] || 0x8b !== $magic_bytes[2] ) {
+                wp_delete_file( $temp_path );
+                return false;
+            }
+        } elseif ( !self::is_likely_jsonl( file_get_contents( $temp_path ) ) ) {
             wp_delete_file( $temp_path );
             return false;
         }
@@ -476,13 +492,12 @@ class Wf_Sn_Vu {
                     ''
                 );
             }
-            // Touch local JSONL file so get_vulnerabilities_last_modified() shows a recent "Last Updated".
+            // Touch local vuln DB file so get_vulnerabilities_last_modified() shows a recent "Last Updated".
             require_once ABSPATH . 'wp-admin/includes/file.php';
             global $wp_filesystem;
             if ( !empty( $wp_filesystem ) || WP_Filesystem() ) {
-                $upload_dir = wp_upload_dir();
-                $file_path = $upload_dir['basedir'] . "/security-ninja/vulns/{$type}_vulns.jsonl";
-                if ( $wp_filesystem->exists( $file_path ) ) {
+                $file_path = self::resolve_vuln_jsonl_file_path( $type );
+                if ( $file_path && $wp_filesystem->exists( $file_path ) ) {
                     $wp_filesystem->touch( $file_path );
                 }
             }
@@ -579,11 +594,105 @@ class Wf_Sn_Vu {
                 }
                 return false;
             }
-            // Atomic write to file.
-            $write_result = self::get_file_and_save( $decoded_content, "{$type}_vulns.jsonl" );
+            // Re-compress and store gzipped on disk so host malware scanners do not
+            // false-positive on plaintext vulnerability descriptions (e.g. wp-config).
+            if ( !function_exists( 'gzencode' ) ) {
+                $error_msg = sprintf( 
+                    /* translators: %s: Vulnerability type */
+                    __( 'Failed to compress %s vulnerability file (gzencode unavailable).', 'security-ninja' ),
+                    sanitize_text_field( $type )
+                 );
+                if ( $validators ) {
+                    self::save_file_validators(
+                        $type,
+                        ( $stored_etag ? $stored_etag : '' ),
+                        ( $stored_last_modified ? $stored_last_modified : '' ),
+                        $current_time,
+                        ( !empty( $validators['last_success_ts'] ) ? $validators['last_success_ts'] : 0 ),
+                        $error_msg
+                    );
+                } else {
+                    self::save_file_validators(
+                        $type,
+                        '',
+                        '',
+                        $current_time,
+                        0,
+                        $error_msg
+                    );
+                }
+                return false;
+            }
+            $gzipped_content = gzencode( $decoded_content, 9 );
+            if ( false === $gzipped_content || '' === $gzipped_content ) {
+                $error_msg = sprintf( 
+                    /* translators: %s: Vulnerability type */
+                    __( 'Failed to compress %s vulnerability file.', 'security-ninja' ),
+                    sanitize_text_field( $type )
+                 );
+                if ( $validators ) {
+                    self::save_file_validators(
+                        $type,
+                        ( $stored_etag ? $stored_etag : '' ),
+                        ( $stored_last_modified ? $stored_last_modified : '' ),
+                        $current_time,
+                        ( !empty( $validators['last_success_ts'] ) ? $validators['last_success_ts'] : 0 ),
+                        $error_msg
+                    );
+                } else {
+                    self::save_file_validators(
+                        $type,
+                        '',
+                        '',
+                        $current_time,
+                        0,
+                        $error_msg
+                    );
+                }
+                return false;
+            }
+            // Atomic write of gzipped file.
+            $write_result = self::get_file_and_save( $gzipped_content, "{$type}_vulns.jsonl.gz", true );
             if ( $write_result ) {
+                // Round-trip verify at least one JSONL record before removing legacy plaintext.
+                $gzip_path = self::get_vuln_jsonl_file_path( $type );
+                if ( !$gzip_path || !self::vuln_file_has_valid_records( $gzip_path, 1 ) ) {
+                    if ( $gzip_path && file_exists( $gzip_path ) ) {
+                        wp_delete_file( $gzip_path );
+                    }
+                    $error_msg = sprintf( 
+                        /* translators: %s: Vulnerability type */
+                        __( 'Failed to verify %s vulnerability file after save.', 'security-ninja' ),
+                        sanitize_text_field( $type )
+                     );
+                    if ( $validators ) {
+                        self::save_file_validators(
+                            $type,
+                            ( $stored_etag ? $stored_etag : '' ),
+                            ( $stored_last_modified ? $stored_last_modified : '' ),
+                            $current_time,
+                            ( !empty( $validators['last_success_ts'] ) ? $validators['last_success_ts'] : 0 ),
+                            $error_msg
+                        );
+                    } else {
+                        self::save_file_validators(
+                            $type,
+                            '',
+                            '',
+                            $current_time,
+                            0,
+                            $error_msg
+                        );
+                    }
+                    return false;
+                }
                 $result_info['file_written'] = true;
                 $result_info['success'] = true;
+                // Remove legacy plaintext JSONL if present (migration / false-positive cleanup).
+                $legacy_path = self::get_vuln_legacy_jsonl_file_path( $type );
+                if ( $legacy_path && file_exists( $legacy_path ) ) {
+                    wp_delete_file( $legacy_path );
+                }
                 // Only if write succeeds: update validators and last_success_ts.
                 self::save_file_validators(
                     $type,
@@ -696,6 +805,7 @@ class Wf_Sn_Vu {
      * @since   v5.160
      * @version v1.0.0  Tuesday, July 25th, 2023.
      * @version v1.0.1  Monday, April 1st, 2024.
+     * @version v1.0.2  Sunday, August 2nd, 2026. Prefer gzipped local DB files.
      * @param   bool $bypass_cache If true, read from disk and refresh the per-request cache (e.g. after updating files).
      * @return  mixed Object with plugins, themes, WordPress arrays, or false on failure.
      */
@@ -704,32 +814,18 @@ class Wf_Sn_Vu {
         if ( !$bypass_cache && null !== $cached ) {
             return $cached;
         }
-        require_once ABSPATH . 'wp-admin/includes/file.php';
-        // More efficient to require_once at the top if not already included elsewhere
-        global $wp_filesystem;
-        if ( empty( $wp_filesystem ) && !WP_Filesystem() ) {
-            return false;
-            // Early return if filesystem initialization fails
-        }
-        $upload_dir = wp_upload_dir();
         $data = array(
             'wordpress' => array(),
             'plugins'   => array(),
             'themes'    => array(),
         );
         foreach ( $data as $type => &$data_for_type ) {
-            $file_path = $upload_dir['basedir'] . "/security-ninja/vulns/{$type}_vulns.jsonl";
-            if ( $wp_filesystem->exists( $file_path ) ) {
-                $file_lines = $wp_filesystem->get_contents_array( $file_path );
-                if ( $file_lines ) {
-                    foreach ( $file_lines as $line ) {
-                        $decoded_line = json_decode( $line, true );
-                        if ( is_array( $decoded_line ) ) {
-                            // Ensure decoding was successful and resulted in an array
-                            $data_for_type[] = $decoded_line;
-                        }
-                    }
-                }
+            $file_path = self::resolve_vuln_jsonl_file_path( $type );
+            if ( !$file_path ) {
+                continue;
+            }
+            foreach ( self::stream_jsonl_records( $file_path ) as $decoded_line ) {
+                $data_for_type[] = $decoded_line;
             }
         }
         $cached = (object) $data;
@@ -765,13 +861,39 @@ class Wf_Sn_Vu {
     }
 
     /**
-     * Get local path to a vulnerability JSONL file in uploads.
+     * Get canonical local path to a gzipped vulnerability JSONL file in uploads.
      *
      * @since   v5.263
-     * @param   string $type File type: 'plugins', 'themes', or 'WordPress'.
+     * @param   string $type File type: 'plugins', 'themes', or 'wordpress'.
      * @return  string|false Local file path on success, false on invalid type.
      */
     private static function get_vuln_jsonl_file_path( $type ) {
+        $type = sanitize_key( $type );
+        $filenames = array(
+            'plugins'   => 'plugins_vulns.jsonl.gz',
+            'themes'    => 'themes_vulns.jsonl.gz',
+            'wordpress' => 'wordpress_vulns.jsonl.gz',
+        );
+        if ( !isset( $filenames[$type] ) ) {
+            return false;
+        }
+        $upload_dir = wp_upload_dir();
+        if ( empty( $upload_dir['basedir'] ) ) {
+            return false;
+        }
+        return trailingslashit( $upload_dir['basedir'] ) . 'security-ninja/vulns/' . $filenames[$type];
+    }
+
+    /**
+     * Get legacy plaintext local path to a vulnerability JSONL file in uploads.
+     *
+     * Kept for migration fallback until the next successful gzipped download.
+     *
+     * @since   v5.294
+     * @param   string $type File type: 'plugins', 'themes', or 'wordpress'.
+     * @return  string|false Local file path on success, false on invalid type.
+     */
+    private static function get_vuln_legacy_jsonl_file_path( $type ) {
         $type = sanitize_key( $type );
         $filenames = array(
             'plugins'   => 'plugins_vulns.jsonl',
@@ -786,6 +908,350 @@ class Wf_Sn_Vu {
             return false;
         }
         return trailingslashit( $upload_dir['basedir'] ) . 'security-ninja/vulns/' . $filenames[$type];
+    }
+
+    /**
+     * Resolve the readable local vulnerability DB path (prefer gzip, else legacy plaintext).
+     *
+     * Skips gzip when gzopen is unavailable so hosts without zlib can still use legacy files.
+     *
+     * @since   v5.294
+     * @param   string $type File type: 'plugins', 'themes', or 'wordpress'.
+     * @return  string|false Absolute path if a readable file exists, false otherwise.
+     */
+    private static function resolve_vuln_jsonl_file_path( $type ) {
+        $gzip_path = self::get_vuln_jsonl_file_path( $type );
+        if ( $gzip_path && function_exists( 'gzopen' ) && is_file( $gzip_path ) && is_readable( $gzip_path ) ) {
+            return $gzip_path;
+        }
+        $legacy_path = self::get_vuln_legacy_jsonl_file_path( $type );
+        if ( $legacy_path && is_file( $legacy_path ) && is_readable( $legacy_path ) ) {
+            return $legacy_path;
+        }
+        return false;
+    }
+
+    /**
+     * Check that a local vuln DB file yields at least N valid JSONL records (streaming).
+     *
+     * Stops after the first matching record for min_records=1. Safe across corrupt gzip.
+     *
+     * @since   v5.294
+     * @param   string $file_path   Absolute local file path.
+     * @param   int    $min_records Minimum valid records required.
+     * @return  bool
+     */
+    private static function vuln_file_has_valid_records( $file_path, $min_records = 1 ) {
+        $min_records = max( 1, (int) $min_records );
+        if ( empty( $file_path ) || !is_string( $file_path ) ) {
+            return false;
+        }
+        if ( !is_file( $file_path ) || !is_readable( $file_path ) ) {
+            return false;
+        }
+        try {
+            $count = 0;
+            foreach ( self::stream_jsonl_records( $file_path ) as $record ) {
+                ++$count;
+                if ( $count >= $min_records ) {
+                    return true;
+                }
+            }
+        } catch ( \Throwable $e ) {
+            unset($e);
+            return false;
+        }
+        return false;
+    }
+
+    /**
+     * Schedule a throttled vulnerability DB repair download.
+     *
+     * @since   v5.294
+     * @param   string $reason Optional reason for premium event log.
+     * @return  void
+     */
+    private static function schedule_vuln_db_repair( $reason = '' ) {
+        if ( wp_next_scheduled( 'secnin_update_vuln_list' ) ) {
+            return;
+        }
+        if ( get_transient( 'secnin_vuln_db_repair' ) ) {
+            return;
+        }
+        set_transient( 'secnin_vuln_db_repair', 1, 30 * MINUTE_IN_SECONDS );
+        wp_schedule_single_event( time(), 'secnin_update_vuln_list' );
+    }
+
+    /**
+     * Ensure a local vulnerability DB file exists and is parseable.
+     *
+     * Missing files or non-trivial corrupt files trigger a throttled re-download.
+     * Corrupt gzip is removed so legacy plaintext can be resolved on the next check.
+     *
+     * @since   v5.294
+     * @param   string $type File type: 'plugins', 'themes', or 'wordpress'.
+     * @return  bool True when a usable local file is available.
+     */
+    private static function ensure_vuln_db_usable( $type ) {
+        $path = self::resolve_vuln_jsonl_file_path( $type );
+        if ( !$path ) {
+            self::schedule_vuln_db_repair( sprintf( 
+                /* translators: %s: Vulnerability type */
+                __( 'Vulnerability database file missing for %s; scheduled repair download.', 'security-ninja' ),
+                sanitize_text_field( $type )
+             ) );
+            return false;
+        }
+        $file_size = @filesize( $path );
+        // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- filesize can warn on transient FS races.
+        if ( false !== $file_size && $file_size >= 64 && !self::vuln_file_has_valid_records( $path, 1 ) ) {
+            wp_delete_file( $path );
+            $error_msg = sprintf( 
+                /* translators: %s: Vulnerability type */
+                __( 'Local %s vulnerability database file was unreadable or corrupt.', 'security-ninja' ),
+                sanitize_text_field( $type )
+             );
+            $validators = self::get_file_validators( $type );
+            if ( $validators ) {
+                self::save_file_validators(
+                    $type,
+                    ( !empty( $validators['stored_etag'] ) ? $validators['stored_etag'] : '' ),
+                    ( !empty( $validators['stored_last_modified'] ) ? $validators['stored_last_modified'] : '' ),
+                    time(),
+                    ( !empty( $validators['last_success_ts'] ) ? (int) $validators['last_success_ts'] : 0 ),
+                    $error_msg
+                );
+            } else {
+                self::save_file_validators(
+                    $type,
+                    '',
+                    '',
+                    time(),
+                    0,
+                    $error_msg
+                );
+            }
+            // After removing corrupt gzip, usable legacy plaintext may remain.
+            $fallback = self::resolve_vuln_jsonl_file_path( $type );
+            if ( $fallback && self::vuln_file_has_valid_records( $fallback, 1 ) ) {
+                return true;
+            }
+            self::schedule_vuln_db_repair( $error_msg );
+            return false;
+        }
+        return true;
+    }
+
+    /**
+     * Stream vulnerability JSONL records line-by-line.
+     *
+     * Avoids loading large files into memory. Intended for local files in the uploads directory.
+     * Supports gzipped (*.jsonl.gz) and legacy plaintext (*.jsonl) files.
+     * Yields nothing if the file path is invalid, the file is missing, or the file is not readable.
+     *
+     * @since   v5.263
+     * @param   string $file_path Absolute local file path.
+     * @return  \Generator Yields each decoded JSON object as an array.
+     */
+    private static function stream_jsonl_records( $file_path ) {
+        if ( empty( $file_path ) || !is_string( $file_path ) ) {
+            return;
+        }
+        if ( !is_file( $file_path ) || !is_readable( $file_path ) ) {
+            return;
+        }
+        $is_gzip = (bool) preg_match( '/\\.gz$/i', $file_path );
+        if ( $is_gzip ) {
+            if ( !function_exists( 'gzopen' ) ) {
+                return;
+            }
+            // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fopen -- Streaming gzipped local uploads JSONL; WP_Filesystem has no line iterator.
+            $handle = gzopen( $file_path, 'rb' );
+            if ( false === $handle ) {
+                return;
+            }
+            try {
+                while ( ($line = gzgets( $handle )) !== false ) {
+                    $line = trim( $line );
+                    if ( '' === $line ) {
+                        continue;
+                    }
+                    $decoded = json_decode( $line, true );
+                    if ( is_array( $decoded ) ) {
+                        (yield $decoded);
+                    }
+                }
+            } finally {
+                gzclose( $handle );
+            }
+            return;
+        }
+        $handle = fopen( $file_path, 'rb' );
+        // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fopen -- Streaming local uploads JSONL; WP_Filesystem has no line iterator.
+        if ( false === $handle ) {
+            return;
+        }
+        try {
+            while ( ($line = fgets( $handle )) !== false ) {
+                $line = trim( $line );
+                if ( '' === $line ) {
+                    continue;
+                }
+                $decoded = json_decode( $line, true );
+                if ( is_array( $decoded ) ) {
+                    (yield $decoded);
+                }
+            }
+        } finally {
+            if ( is_resource( $handle ) ) {
+                fclose( $handle );
+                // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fclose
+            }
+        }
+    }
+
+    /**
+     * Count valid JSONL records in a file without loading it into memory.
+     *
+     * @param string $file_path Absolute local file path.
+     * @return int
+     */
+    private static function count_jsonl_records( $file_path ) {
+        $count = 0;
+        try {
+            foreach ( self::stream_jsonl_records( $file_path ) as $record ) {
+                ++$count;
+            }
+        } catch ( \Throwable $e ) {
+            return 0;
+        }
+        return $count;
+    }
+
+    /**
+     * Stored vulnerability database record counts (non-autoload option).
+     *
+     * @return array{plugins:int,themes:int,wordpress:int}
+     */
+    private static function get_known_vuln_db_counts() {
+        $counts = get_option( 'wf_sn_known_vuln_db_counts', false );
+        if ( !is_array( $counts ) ) {
+            return array(
+                'plugins'   => 0,
+                'themes'    => 0,
+                'wordpress' => 0,
+            );
+        }
+        return array(
+            'plugins'   => ( isset( $counts['plugins'] ) ? (int) $counts['plugins'] : 0 ),
+            'themes'    => ( isset( $counts['themes'] ) ? (int) $counts['themes'] : 0 ),
+            'wordpress' => ( isset( $counts['wordpress'] ) ? (int) $counts['wordpress'] : 0 ),
+        );
+    }
+
+    /**
+     * Stream-count local JSONL files and persist counts (autoload=false).
+     *
+     * @return array{plugins:int,themes:int,wordpress:int}
+     */
+    private static function refresh_known_vuln_db_counts() {
+        $counts = array(
+            'plugins'   => 0,
+            'themes'    => 0,
+            'wordpress' => 0,
+        );
+        foreach ( array_keys( $counts ) as $type ) {
+            $file_path = self::resolve_vuln_jsonl_file_path( $type );
+            if ( $file_path ) {
+                $counts[$type] = self::count_jsonl_records( $file_path );
+            }
+        }
+        update_option( 'wf_sn_known_vuln_db_counts', $counts, false );
+        return $counts;
+    }
+
+    /**
+     * Cache TTL for site vulnerability scan results.
+     *
+     * @return int
+     */
+    private static function get_vulnerabilities_cache_expiry() {
+        return 24 * HOUR_IN_SECONDS;
+    }
+
+    /**
+     * Count vulnerabilities in a scan result array.
+     *
+     * @param mixed $vulnerabilities Scan result.
+     * @return int
+     */
+    private static function count_vulnerabilities_in_result( $vulnerabilities ) {
+        if ( !is_array( $vulnerabilities ) ) {
+            return 0;
+        }
+        $total = 0;
+        foreach ( array('plugins', 'themes', 'wordpress') as $type ) {
+            if ( !empty( $vulnerabilities[$type] ) && is_array( $vulnerabilities[$type] ) ) {
+                $total += count( $vulnerabilities[$type] );
+            }
+        }
+        return $total;
+    }
+
+    /**
+     * Persist scan results and a cheap badge count.
+     *
+     * @param array $found_vulnerabilities Scan results.
+     * @param array $scan_summary          Scan summary stats.
+     * @return void
+     */
+    private static function store_vulnerability_scan_results( $found_vulnerabilities, $scan_summary ) {
+        if ( !is_array( $found_vulnerabilities ) ) {
+            $found_vulnerabilities = array();
+        }
+        update_option( 'wf_sn_scan_summary', $scan_summary, false );
+        update_option( 'wf_sn_vulnerabilities_cache', $found_vulnerabilities, false );
+        update_option( 'wf_sn_vulnerabilities_cache_timestamp', time(), false );
+        update_option( 'wf_sn_vuln_count', self::count_vulnerabilities_in_result( $found_vulnerabilities ), false );
+    }
+
+    /**
+     * Read cached site vulnerability results without scanning.
+     *
+     * @param bool $allow_stale When true, return cached data even if expired.
+     * @return array|false Cached results, or false when nothing is stored.
+     */
+    public static function get_cached_vulnerabilities( $allow_stale = false ) {
+        $found_vulnerabilities = get_option( 'wf_sn_vulnerabilities_cache', false );
+        $cache_timestamp = (int) get_option( 'wf_sn_vulnerabilities_cache_timestamp', 0 );
+        if ( !is_array( $found_vulnerabilities ) ) {
+            return false;
+        }
+        if ( $allow_stale ) {
+            return $found_vulnerabilities;
+        }
+        if ( $cache_timestamp > 0 && time() - $cache_timestamp < self::get_vulnerabilities_cache_expiry() ) {
+            return $found_vulnerabilities;
+        }
+        return false;
+    }
+
+    /**
+     * Schedule a background vulnerability scan via WP-Cron (at most one pending).
+     *
+     * @return bool True when a new event was scheduled.
+     */
+    public static function schedule_vulnerability_scan() {
+        if ( empty( self::$options['enable_vulns'] ) ) {
+            return false;
+        }
+        if ( get_transient( 'secnin_vuln_scan_running' ) ) {
+            return false;
+        }
+        if ( wp_next_scheduled( 'secnin_scan_vulnerabilities' ) ) {
+            return false;
+        }
+        return (bool) wp_schedule_single_event( time(), 'secnin_scan_vulnerabilities' );
     }
 
     /**
@@ -804,15 +1270,14 @@ class Wf_Sn_Vu {
             return false;
             // Early return if filesystem initialization fails.
         }
-        $upload_dir = wp_upload_dir();
         $last_modified = array(
             'wordpress' => false,
             'plugins'   => false,
             'themes'    => false,
         );
         foreach ( $last_modified as $type => &$timestamp ) {
-            $file_path = $upload_dir['basedir'] . "/security-ninja/vulns/{$type}_vulns.jsonl";
-            if ( $wp_filesystem->exists( $file_path ) ) {
+            $file_path = self::resolve_vuln_jsonl_file_path( $type );
+            if ( $file_path && $wp_filesystem->exists( $file_path ) ) {
                 $timestamp = $wp_filesystem->mtime( $file_path );
             }
         }
@@ -848,8 +1313,8 @@ class Wf_Sn_Vu {
             return false;
         }
         self::ensure_vulns_directory();
-        $old_data = self::load_vulnerabilities();
-        $oldcount = ( $old_data ? count( $old_data->plugins ) + count( $old_data->themes ) + count( $old_data->wordpress ) : 0 );
+        $old_counts = self::get_known_vuln_db_counts();
+        $oldcount = $old_counts['plugins'] + $old_counts['themes'] + $old_counts['wordpress'];
         $download_results = array();
         foreach ( self::$api_urls as $type => $url ) {
             // Use conditional GET to download file.
@@ -864,16 +1329,26 @@ class Wf_Sn_Vu {
                 break;
             }
         }
-        $new_data = self::load_vulnerabilities( true );
-        // Bypass cache so we see the newly downloaded files.
-        $newcount = ( $new_data ? count( $new_data->plugins ) + count( $new_data->themes ) + count( $new_data->wordpress ) : 0 );
-        if ( $new_data ) {
-            update_option( 'wf_sn_known_vuln_db_counts', array(
-                'plugins'   => count( $new_data->plugins ),
-                'themes'    => count( $new_data->themes ),
-                'wordpress' => count( $new_data->wordpress ),
-            ), false );
+        // No file changes: keep stored counts; never load full JSONL for counting.
+        // One-time backfill when option is missing but local files already exist.
+        if ( $all_304 ) {
+            if ( 0 === $oldcount ) {
+                foreach ( array('plugins', 'themes', 'wordpress') as $type ) {
+                    $path = self::resolve_vuln_jsonl_file_path( $type );
+                    if ( $path && is_readable( $path ) && filesize( $path ) > 0 ) {
+                        self::refresh_known_vuln_db_counts();
+                        break;
+                    }
+                }
+            }
+            return;
         }
+        // When the vulnerability database files changed, mark the site scan cache stale
+        // and schedule a background rescan so admin pages keep last known results until cron finishes.
+        update_option( 'wf_sn_vulnerabilities_cache_timestamp', 0, false );
+        self::schedule_vulnerability_scan();
+        $new_counts = self::refresh_known_vuln_db_counts();
+        $newcount = $new_counts['plugins'] + $new_counts['themes'] + $new_counts['wordpress'];
         if ( $oldcount && $newcount ) {
             $diff = $newcount - $oldcount;
             if ( 0 === $oldcount ) {
@@ -895,22 +1370,11 @@ class Wf_Sn_Vu {
                 }
                 // Base message
                 $message = esc_html( $diff_text );
-                if ( isset( $old_data->timestamp ) ) {
-                    // Include the update with a focus on action if there's an increase
-                    $message .= ( $diff > 0 ? ' ' . sprintf( 
-                        // Translators: Explaining how many vulnerabilities are tracked by the plugin
-                        esc_html__( 'Now tracking a total of %1$s known vulnerabilities. Last checked: %2$s. Update or replace vulnerable plugins promptly.', 'security-ninja' ),
-                        esc_html( number_format_i18n( $newcount ) ),
-                        esc_html( date_i18n( get_option( 'date_format' ) . ' ' . get_option( 'time_format' ), $old_data->timestamp ) )
-                     ) : '' );
-                } else {
-                    // If no timestamp is available, keep it simple but informative
-                    $message .= ' ' . sprintf( 
-                        // Translators:
-                        esc_html__( 'Now tracking a total of %1$s known vulnerabilities. Ensure your plugins are secure.', 'security-ninja' ),
-                        esc_html( number_format_i18n( $newcount ) )
-                     );
-                }
+                $message .= ' ' . sprintf( 
+                    // Translators:
+                    esc_html__( 'Now tracking a total of %1$s known vulnerabilities. Ensure your plugins are secure.', 'security-ninja' ),
+                    esc_html( number_format_i18n( $newcount ) )
+                 );
                 update_option( 'wf_sn_vu_vulns_notice', $message, false );
             }
         }
@@ -1038,47 +1502,84 @@ class Wf_Sn_Vu {
     }
 
     /**
-     * Return list of known vulnerabilities from the website, checking installed plugins and WordPress version against list from API.
+     * Return known site vulnerabilities (plugins, themes, WordPress).
+     *
+     * Default behavior is cache-only so admin hot paths never load the JSONL database.
+     * Pass array( 'force' => true ) to run a scan immediately (manual scan, daily email cron).
      *
      * @author  Lars Koudal
      * @since   v0.0.1
      * @version v1.0.0  Friday, January 1st, 2021.
      * @version v1.0.1  Friday, May 13th, 2022.
-     * @return  array
+     * @version v1.0.2  Tuesday, July 28th, 2026. Cache-only by default; force for explicit scans.
+     * @param   array $args {
+     *     Optional. Arguments.
+     *     @type bool $force When true, run a scan now instead of reading cache.
+     * }
+     * @return  array|false
      */
-    public static function return_vulnerabilities() {
-        // Use persistent storage instead of transients for better reliability
-        $found_vulnerabilities = get_option( 'wf_sn_vulnerabilities_cache', false );
-        $cache_timestamp = get_option( 'wf_sn_vulnerabilities_cache_timestamp', 0 );
-        $cache_expiry = 24 * HOUR_IN_SECONDS;
-        // 24 hours instead of 1 hour
-        // Check if cache is still valid
-        if ( $found_vulnerabilities && time() - $cache_timestamp < $cache_expiry ) {
-            return $found_vulnerabilities;
+    public static function return_vulnerabilities( $args = array() ) {
+        $force = false;
+        if ( is_array( $args ) && !empty( $args['force'] ) ) {
+            $force = true;
         }
-        global $wp_version;
-        $found_vulnerabilities = array();
-        $installed_plugins = false;
-        // Initialize scan_summary outside the conditional to ensure it always exists.
-        $scan_summary = array(
-            'plugins'                     => array(),
-            'themes'                      => array(),
-            'wordpress'                   => array(),
-            'total_vulnerabilities_found' => 0,
-        );
-        if ( self::$options['enable_vulns'] ) {
+        if ( $force ) {
+            // Explicit scans (manual AJAX / daily email) must run even if a prior lock was left behind.
+            delete_transient( 'secnin_vuln_scan_running' );
+            return self::run_vulnerability_scan();
+        }
+        $cached = self::get_cached_vulnerabilities( false );
+        if ( is_array( $cached ) ) {
+            return $cached;
+        }
+        // Cache missing or expired: never scan in this request; schedule background work.
+        self::schedule_vulnerability_scan();
+        $stale = self::get_cached_vulnerabilities( true );
+        if ( is_array( $stale ) ) {
+            return $stale;
+        }
+        return array();
+    }
+
+    /**
+     * Run a full site vulnerability scan and persist results.
+     *
+     * Intended for WP-Cron, manual AJAX, and other explicit force paths — not admin_menu.
+     *
+     * @return array|false
+     */
+    public static function run_vulnerability_scan() {
+        if ( empty( self::$options['enable_vulns'] ) ) {
+            return array();
+        }
+        if ( get_transient( 'secnin_vuln_scan_running' ) ) {
+            $cached = self::get_cached_vulnerabilities( true );
+            return ( is_array( $cached ) ? $cached : array() );
+        }
+        set_transient( 'secnin_vuln_scan_running', 1, 5 * MINUTE_IN_SECONDS );
+        try {
+            global $wp_version;
+            $found_vulnerabilities = array();
+            $scan_summary = array(
+                'plugins'                     => array(),
+                'themes'                      => array(),
+                'wordpress'                   => array(),
+                'total_vulnerabilities_found' => 0,
+            );
             self::ensure_vulns_directory();
-            // Ensure vulnerability files exist (first run / missing files).
+            // Ensure vulnerability files exist and are parseable (first run / missing / corrupt).
             $needs_update = false;
             foreach ( array('plugins', 'themes', 'wordpress') as $type ) {
-                $file_path = self::get_vuln_jsonl_file_path( $type );
-                if ( empty( $file_path ) || !file_exists( $file_path ) ) {
+                if ( !self::ensure_vuln_db_usable( $type ) ) {
                     $needs_update = true;
                     break;
                 }
             }
             if ( $needs_update ) {
                 self::update_vuln_list();
+            }
+            if ( !function_exists( 'get_plugins' ) ) {
+                require_once ABSPATH . 'wp-admin/includes/plugin.php';
             }
             $installed_plugins = get_plugins();
             // Use memory-efficient plugin vulnerability checking
@@ -1196,89 +1697,81 @@ class Wf_Sn_Vu {
                     }
                 }
             }
-        }
-        // ------------ Find WordPress vulnerabilities ------------
-        $wp_vulnerabilities_found = 0;
-        $lookup_id = 0;
-        try {
-            $data = self::load_vulnerabilities();
-            if ( !$data || !isset( $data->wordpress ) ) {
-                self::ensure_vulns_directory();
-                wp_schedule_single_event( time(), 'secnin_update_vuln_list' );
-            } else {
-                foreach ( $data->wordpress as $wpvuln ) {
-                    if ( empty( $wpvuln['versionEndExcluding'] ) || empty( $wpvuln['CVE_ID'] ) ) {
-                        continue;
-                    }
-                    $version_end_excluding = rtrim( $wpvuln['versionEndExcluding'], '.0' );
-                    // Trim trailing .0s for comparing.
-                    if ( version_compare( $wp_version, $version_end_excluding, '<' ) ) {
-                        $found_vulnerabilities['wordpress'][$lookup_id] = array(
-                            'desc'                => ( isset( $wpvuln['description'] ) ? $wpvuln['description'] : '' ),
-                            'versionEndExcluding' => $version_end_excluding,
-                            'CVE_ID'              => $wpvuln['CVE_ID'],
-                        );
-                        if ( isset( $wpvuln['recommendation'] ) ) {
-                            $found_vulnerabilities['wordpress'][$lookup_id]['recommendation'] = $wpvuln['recommendation'];
+            // ------------ Find WordPress vulnerabilities ------------
+            $wp_vulnerabilities_found = 0;
+            $lookup_id = 0;
+            try {
+                if ( !self::ensure_vuln_db_usable( 'wordpress' ) ) {
+                    self::ensure_vulns_directory();
+                } else {
+                    $wp_file_path = self::resolve_vuln_jsonl_file_path( 'wordpress' );
+                    if ( empty( $wp_file_path ) ) {
+                        self::ensure_vulns_directory();
+                    } else {
+                        foreach ( self::stream_jsonl_records( $wp_file_path ) as $wpvuln ) {
+                            if ( empty( $wpvuln['versionEndExcluding'] ) || empty( $wpvuln['CVE_ID'] ) ) {
+                                continue;
+                            }
+                            $version_end_excluding = rtrim( $wpvuln['versionEndExcluding'], '.0' );
+                            // Trim trailing .0s for comparing.
+                            if ( version_compare( $wp_version, $version_end_excluding, '<' ) ) {
+                                $found_vulnerabilities['wordpress'][$lookup_id] = array(
+                                    'desc'                => ( isset( $wpvuln['description'] ) ? $wpvuln['description'] : '' ),
+                                    'versionEndExcluding' => $version_end_excluding,
+                                    'CVE_ID'              => $wpvuln['CVE_ID'],
+                                );
+                                if ( isset( $wpvuln['recommendation'] ) ) {
+                                    $found_vulnerabilities['wordpress'][$lookup_id]['recommendation'] = $wpvuln['recommendation'];
+                                }
+                                ++$lookup_id;
+                                ++$wp_vulnerabilities_found;
+                            }
                         }
-                        ++$lookup_id;
-                        ++$wp_vulnerabilities_found;
                     }
                 }
-            }
-        } catch ( \Exception $e ) {
-            $vulns = self::load_vulnerabilities();
-            if ( !$vulns ) {
-                self::update_vuln_list();
+            } catch ( \Exception $e ) {
                 $vulns = self::load_vulnerabilities();
-            }
-            $wordpressarr = false;
-            if ( $vulns && isset( $vulns->wordpress ) ) {
-                $wordpressarr = self::object_to_array( $vulns->wordpress );
-            }
-            if ( $wordpressarr ) {
-                foreach ( $wordpressarr as $key => $wpvuln ) {
-                    if ( empty( $wpvuln['versionEndExcluding'] ) || empty( $wpvuln['CVE_ID'] ) ) {
-                        continue;
-                    }
-                    $wpvuln['versionEndExcluding'] = rtrim( $wpvuln['versionEndExcluding'], '.0' );
-                    // Trim trailing .0s for comparing.
-                    if ( version_compare( $wp_version, $wpvuln['versionEndExcluding'], '<' ) ) {
-                        $found_vulnerabilities['wordpress'][$lookup_id] = array(
-                            'desc'                => ( isset( $wpvuln['description'] ) ? $wpvuln['description'] : '' ),
-                            'versionEndExcluding' => $wpvuln['versionEndExcluding'],
-                            'CVE_ID'              => $wpvuln['CVE_ID'],
-                        );
-                        if ( isset( $wpvuln['recommendation'] ) ) {
-                            $found_vulnerabilities['wordpress'][$lookup_id]['recommendation'] = $wpvuln['recommendation'];
+                if ( !$vulns ) {
+                    self::update_vuln_list();
+                    $vulns = self::load_vulnerabilities();
+                }
+                $wordpressarr = false;
+                if ( $vulns && isset( $vulns->wordpress ) ) {
+                    $wordpressarr = self::object_to_array( $vulns->wordpress );
+                }
+                if ( $wordpressarr ) {
+                    foreach ( $wordpressarr as $key => $wpvuln ) {
+                        if ( empty( $wpvuln['versionEndExcluding'] ) || empty( $wpvuln['CVE_ID'] ) ) {
+                            continue;
                         }
-                        ++$lookup_id;
-                        ++$wp_vulnerabilities_found;
+                        $wpvuln['versionEndExcluding'] = rtrim( $wpvuln['versionEndExcluding'], '.0' );
+                        // Trim trailing .0s for comparing.
+                        if ( version_compare( $wp_version, $wpvuln['versionEndExcluding'], '<' ) ) {
+                            $found_vulnerabilities['wordpress'][$lookup_id] = array(
+                                'desc'                => ( isset( $wpvuln['description'] ) ? $wpvuln['description'] : '' ),
+                                'versionEndExcluding' => $wpvuln['versionEndExcluding'],
+                                'CVE_ID'              => $wpvuln['CVE_ID'],
+                            );
+                            if ( isset( $wpvuln['recommendation'] ) ) {
+                                $found_vulnerabilities['wordpress'][$lookup_id]['recommendation'] = $wpvuln['recommendation'];
+                            }
+                            ++$lookup_id;
+                            ++$wp_vulnerabilities_found;
+                        }
                     }
                 }
             }
-        }
-        // Add WordPress scan summary
-        $scan_summary['wordpress'] = array(
-            'wordpress_checked'     => 1,
-            'vulnerabilities_found' => $wp_vulnerabilities_found,
-            'current_version'       => $wp_version,
-        );
-        $scan_summary['total_vulnerabilities_found'] += $wp_vulnerabilities_found;
-        // Store results persistently instead of using transients
-        if ( isset( $found_vulnerabilities ) ) {
-            // Store scan summary in a separate option for reporting
-            update_option( 'wf_sn_scan_summary', $scan_summary, false );
-            // Cache the results for 24 hours using persistent storage
-            update_option( 'wf_sn_vulnerabilities_cache', $found_vulnerabilities, false );
-            update_option( 'wf_sn_vulnerabilities_cache_timestamp', time(), false );
+            // Add WordPress scan summary
+            $scan_summary['wordpress'] = array(
+                'wordpress_checked'     => 1,
+                'vulnerabilities_found' => $wp_vulnerabilities_found,
+                'current_version'       => $wp_version,
+            );
+            $scan_summary['total_vulnerabilities_found'] += $wp_vulnerabilities_found;
+            self::store_vulnerability_scan_results( $found_vulnerabilities, $scan_summary );
             return $found_vulnerabilities;
-        } else {
-            // Cache empty results for 24 hours
-            update_option( 'wf_sn_vulnerabilities_cache', false, false );
-            update_option( 'wf_sn_vulnerabilities_cache_timestamp', time(), false );
-            update_option( 'wf_sn_scan_summary', $scan_summary, false );
-            return false;
+        } finally {
+            delete_transient( 'secnin_vuln_scan_running' );
         }
     }
 
@@ -1329,29 +1822,40 @@ class Wf_Sn_Vu {
     }
 
     /**
-     * Returns number of known vulnerabilities across all types
+     * Returns number of known vulnerabilities across all types.
+     *
+     * Cache/count only — never loads the vulnerability database (safe for admin_menu).
      *
      * @author  Lars Koudal
      * @since   v0.0.1
      * @version v1.0.0  Friday, January 1st, 2021.
+     * @version v1.0.1  Tuesday, July 28th, 2026.
      * @return  mixed
      */
     public static function return_vuln_count() {
-        $vulnerabilities = self::return_vulnerabilities();
-        if ( !$vulnerabilities ) {
-            return false;
+        $cached = self::get_cached_vulnerabilities( false );
+        if ( is_array( $cached ) ) {
+            $count = get_option( 'wf_sn_vuln_count', false );
+            if ( false === $count || !is_numeric( $count ) ) {
+                $count = self::count_vulnerabilities_in_result( $cached );
+                update_option( 'wf_sn_vuln_count', $count, false );
+            }
+            $count = (int) $count;
+            return ( $count > 0 ? $count : false );
         }
-        $total_vulnerabilities = 0;
-        if ( isset( $vulnerabilities['plugins'] ) ) {
-            $total_vulnerabilities = $total_vulnerabilities + count( $vulnerabilities['plugins'] );
+        // Missing or expired cache: schedule background scan; keep showing last known count.
+        self::schedule_vulnerability_scan();
+        $stale = self::get_cached_vulnerabilities( true );
+        if ( is_array( $stale ) ) {
+            $total = self::count_vulnerabilities_in_result( $stale );
+            return ( $total > 0 ? $total : false );
         }
-        if ( isset( $vulnerabilities['themes'] ) ) {
-            $total_vulnerabilities = $total_vulnerabilities + count( $vulnerabilities['themes'] );
+        $count = get_option( 'wf_sn_vuln_count', false );
+        if ( false !== $count && is_numeric( $count ) ) {
+            $count = (int) $count;
+            return ( $count > 0 ? $count : false );
         }
-        if ( isset( $vulnerabilities['wordpress'] ) ) {
-            $total_vulnerabilities = $total_vulnerabilities + count( $vulnerabilities['wordpress'] );
-        }
-        return $total_vulnerabilities;
+        return false;
     }
 
     /**
@@ -1370,14 +1874,17 @@ class Wf_Sn_Vu {
             $vulnerabilities = self::return_vulnerabilities();
             $needs_update = false;
             foreach ( array('plugins', 'themes', 'wordpress') as $type ) {
-                $file_path = self::get_vuln_jsonl_file_path( $type );
-                if ( empty( $file_path ) || !file_exists( $file_path ) ) {
+                $file_path = self::resolve_vuln_jsonl_file_path( $type );
+                if ( empty( $file_path ) ) {
                     $needs_update = true;
                     break;
                 }
             }
             if ( $needs_update ) {
-                self::update_vuln_list();
+                if ( !wp_next_scheduled( 'secnin_update_vuln_list' ) ) {
+                    wp_schedule_single_event( time(), 'secnin_update_vuln_list' );
+                }
+                self::schedule_vulnerability_scan();
             }
             $vuln_details = self::get_vuln_details();
             $plugin_vulns_count = $vuln_details['plugins'];
@@ -1607,10 +2114,9 @@ class Wf_Sn_Vu {
                             $outdated_files[] = $type;
                         }
                     } else {
-                        // Check if the file actually exists
-                        $upload_dir = wp_upload_dir();
-                        $file_path = $upload_dir['basedir'] . "/security-ninja/vulns/{$type}_vulns.jsonl";
-                        if ( file_exists( $file_path ) ) {
+                        // Check if the file actually exists (gzip preferred, legacy plaintext fallback).
+                        $file_path = self::resolve_vuln_jsonl_file_path( $type );
+                        if ( $file_path ) {
                             printf( '%1$s: %2$s', '<strong>' . esc_html( ucfirst( $type ) ) . '</strong>', esc_html__( 'File exists but timestamp unavailable', 'security-ninja' ) );
                         } else {
                             printf( '%1$s: %2$s', '<strong>' . esc_html( ucfirst( $type ) ) . '</strong>', esc_html__( 'File not found', 'security-ninja' ) );
@@ -1719,8 +2225,11 @@ class Wf_Sn_Vu {
      * @return  void
      */
     public static function activate() {
-        // Download the vulnerability list for the first time
-        self::update_vuln_list();
+        // Schedule the first vulnerability list download (never block activation on network I/O).
+        if ( !wp_next_scheduled( 'secnin_update_vuln_list' ) ) {
+            wp_schedule_single_event( time(), 'secnin_update_vuln_list' );
+        }
+        self::schedule_vulnerability_scan();
     }
 
     /**
@@ -1796,7 +2305,10 @@ class Wf_Sn_Vu {
         delete_option( 'wf_sn_vu_last_email' );
         delete_option( 'wf_sn_vulnerabilities_cache' );
         delete_option( 'wf_sn_vulnerabilities_cache_timestamp' );
+        delete_option( 'wf_sn_vuln_count' );
         delete_option( 'wf_sn_scan_summary' );
+        wp_clear_scheduled_hook( 'secnin_scan_vulnerabilities' );
+        delete_transient( 'secnin_vuln_scan_running' );
         // Clean up validator options for all file types.
         foreach ( self::$api_urls as $type => $url ) {
             delete_option( 'wf_sn_vu_file_validators_' . $type );
@@ -1824,10 +2336,16 @@ class Wf_Sn_Vu {
             'lines_processed'         => 0,
             'total_plugins_installed' => count( $installed_plugins ),
         );
-        $file_path = self::get_vuln_jsonl_file_path( 'plugins' );
-        if ( empty( $file_path ) || !is_file( $file_path ) || !is_readable( $file_path ) ) {
+        if ( !self::ensure_vuln_db_usable( 'plugins' ) ) {
             self::ensure_vulns_directory();
-            wp_schedule_single_event( time(), 'secnin_update_vuln_list' );
+            return array(
+                'vulnerabilities' => array(),
+                'stats'           => $scan_stats,
+            );
+        }
+        $file_path = self::resolve_vuln_jsonl_file_path( 'plugins' );
+        if ( empty( $file_path ) ) {
+            self::ensure_vulns_directory();
             return array(
                 'vulnerabilities' => array(),
                 'stats'           => $scan_stats,
@@ -1856,9 +2374,7 @@ class Wf_Sn_Vu {
         if ( !empty( $plugin_slug_map ) ) {
             $installed_set = array_fill_keys( array_keys( $plugin_slug_map ), true );
         }
-        $data = self::load_vulnerabilities();
-        $plugin_records = ( $data && isset( $data->plugins ) ? $data->plugins : array() );
-        foreach ( $plugin_records as $decoded_line ) {
+        foreach ( self::stream_jsonl_records( $file_path ) as $decoded_line ) {
             ++$scan_stats['lines_processed'];
             if ( !isset( $decoded_line['slug'] ) ) {
                 continue;
@@ -2030,9 +2546,12 @@ class Wf_Sn_Vu {
         // Clear cached results to force fresh scan
         delete_option( 'wf_sn_vulnerabilities_cache' );
         delete_option( 'wf_sn_vulnerabilities_cache_timestamp' );
+        delete_option( 'wf_sn_vuln_count' );
         delete_option( 'wf_sn_scan_summary' );
         // Perform the vulnerability scan
-        $vulnerabilities = self::return_vulnerabilities();
+        $vulnerabilities = self::return_vulnerabilities( array(
+            'force' => true,
+        ) );
         // Get scan summary for detailed reporting
         $scan_summary = get_option( 'wf_sn_scan_summary', false );
         // Count vulnerabilities found
@@ -2219,10 +2738,16 @@ class Wf_Sn_Vu {
             'lines_processed'        => 0,
             'total_themes_installed' => count( $installed_themes ),
         );
-        $file_path = self::get_vuln_jsonl_file_path( 'themes' );
-        if ( empty( $file_path ) || !is_file( $file_path ) || !is_readable( $file_path ) ) {
+        if ( !self::ensure_vuln_db_usable( 'themes' ) ) {
             self::ensure_vulns_directory();
-            wp_schedule_single_event( time(), 'secnin_update_vuln_list' );
+            return array(
+                'vulnerabilities' => array(),
+                'stats'           => $scan_stats,
+            );
+        }
+        $file_path = self::resolve_vuln_jsonl_file_path( 'themes' );
+        if ( empty( $file_path ) ) {
+            self::ensure_vulns_directory();
             return array(
                 'vulnerabilities' => array(),
                 'stats'           => $scan_stats,
@@ -2243,9 +2768,7 @@ class Wf_Sn_Vu {
         if ( !empty( $ignored_slugs ) ) {
             $ignored_set = array_fill_keys( $ignored_slugs, true );
         }
-        $data = self::load_vulnerabilities();
-        $theme_records = ( $data && isset( $data->themes ) ? $data->themes : array() );
-        foreach ( $theme_records as $decoded_line ) {
+        foreach ( self::stream_jsonl_records( $file_path ) as $decoded_line ) {
             ++$scan_stats['lines_processed'];
             if ( !isset( $decoded_line['slug'] ) ) {
                 continue;
@@ -2530,20 +3053,29 @@ class Wf_Sn_Vu {
                 }
             }
         } else {
-            // No vulnerabilities found
-            $output .= '<div class="noerrorsfound">';
-            $output .= '<h3>' . esc_html__( 'Great news!', 'security-ninja' ) . '</h3>';
-            $output .= '<p>' . esc_html__( 'No vulnerabilities found.', 'security-ninja' ) . '</p>';
-            $output .= '</div>';
-            // Show scan summary if available
-            if ( $scan_summary ) {
-                $output .= '<p>' . sprintf(
-                    /* translators: %1$s: Number of plugins checked, %2$s: Number of themes checked, %3$s: WordPress version */
-                    esc_html__( 'Scan completed: %1$s plugins, %2$s themes, WordPress %3$s checked against vulnerability database.', 'security-ninja' ),
-                    number_format_i18n( $scan_summary['plugins']['plugins_checked'] ?? 0 ),
-                    number_format_i18n( $scan_summary['themes']['themes_checked'] ?? 0 ),
-                    $scan_summary['wordpress']['current_version'] ?? 'unknown'
-                ) . '</p>';
+            // Recurring list-update cron is always scheduled — do not treat it as a pending site scan.
+            $scan_pending = empty( $scan_summary ) || wp_next_scheduled( 'secnin_scan_vulnerabilities' ) || (bool) get_transient( 'secnin_vuln_scan_running' );
+            if ( $scan_pending && empty( $scan_summary ) ) {
+                $output .= '<div class="noerrorsfound">';
+                $output .= '<h3>' . esc_html__( 'Scan in progress', 'security-ninja' ) . '</h3>';
+                $output .= '<p>' . esc_html__( 'A vulnerability scan is scheduled or running in the background. Results will appear here when it finishes. You can also use Scan Now.', 'security-ninja' ) . '</p>';
+                $output .= '</div>';
+            } else {
+                // No vulnerabilities found
+                $output .= '<div class="noerrorsfound">';
+                $output .= '<h3>' . esc_html__( 'Great news!', 'security-ninja' ) . '</h3>';
+                $output .= '<p>' . esc_html__( 'No vulnerabilities found.', 'security-ninja' ) . '</p>';
+                $output .= '</div>';
+                // Show scan summary if available
+                if ( $scan_summary ) {
+                    $output .= '<p>' . sprintf(
+                        /* translators: %1$s: Number of plugins checked, %2$s: Number of themes checked, %3$s: WordPress version */
+                        esc_html__( 'Scan completed: %1$s plugins, %2$s themes, WordPress %3$s checked against vulnerability database.', 'security-ninja' ),
+                        number_format_i18n( $scan_summary['plugins']['plugins_checked'] ?? 0 ),
+                        number_format_i18n( $scan_summary['themes']['themes_checked'] ?? 0 ),
+                        $scan_summary['wordpress']['current_version'] ?? 'unknown'
+                    ) . '</p>';
+                }
             }
         }
         return $output;

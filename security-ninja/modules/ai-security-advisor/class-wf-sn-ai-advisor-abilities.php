@@ -19,6 +19,11 @@ class Wf_Sn_Ai_Advisor_Abilities {
 	const CATEGORY = 'security-ninja';
 
 	/**
+	 * Option group key (matches Wf_Sn_Ai_Advisor_Page::OPTION_KEY).
+	 */
+	const OPTION_KEY = 'wf_sn_ai_advisor';
+
+	/**
 	 * Option key in wf_sn_ai_advisor for global abilities exposure toggle.
 	 */
 	const OPTION_ABILITIES_EXPOSED = 'abilities_exposed';
@@ -32,16 +37,9 @@ class Wf_Sn_Ai_Advisor_Abilities {
 		if ( ! function_exists( 'wp_register_ability' ) || ! function_exists( 'wp_register_ability_category' ) ) {
 			return;
 		}
-		if ( did_action( 'wp_abilities_api_categories_init' ) ) {
-			self::register_category();
-		} else {
-			add_action( 'wp_abilities_api_categories_init', array( __CLASS__, 'register_category' ) );
-		}
-		if ( did_action( 'wp_abilities_api_init' ) ) {
-			self::register_abilities();
-		} else {
-			add_action( 'wp_abilities_api_init', array( __CLASS__, 'register_abilities' ) );
-		}
+		// Must hook before the lazy registry bootstrap (e.g. REST /wp-json/.../abilities).
+		add_action( 'wp_abilities_api_categories_init', array( __CLASS__, 'register_category' ) );
+		add_action( 'wp_abilities_api_init', array( __CLASS__, 'register_abilities' ) );
 	}
 
 	/**
@@ -52,7 +50,10 @@ class Wf_Sn_Ai_Advisor_Abilities {
 	 * @return bool
 	 */
 	public static function is_exposed_enabled() {
-		$opts = Wf_Sn_Ai_Advisor_Page::get_options();
+		$opts = get_option( self::OPTION_KEY, array() );
+		if ( ! is_array( $opts ) ) {
+			$opts = array();
+		}
 		if ( ! array_key_exists( self::OPTION_ABILITIES_EXPOSED, $opts ) ) {
 			return true;
 		}
@@ -74,12 +75,18 @@ class Wf_Sn_Ai_Advisor_Abilities {
 	 * @return array<string, array{slug: string, label: string, summary: string, description: string, callback: callable, output_schema: array}>
 	 */
 	public static function definitions() {
+		$plugin_name = \WPSecurityNinja\Plugin\Utils::get_branded_plugin_name();
+
 		return array(
 			'get-test-summary' => array(
 				'slug'           => 'get-test-summary',
 				'label'          => __( 'Get Test Summary', 'security-ninja' ),
 				'summary'        => __( 'Passed, warning, and failed counts from your latest Security Tests.', 'security-ninja' ),
-				'description'    => __( 'Returns Security Ninja test summary counts: passed, warning, failed.', 'security-ninja' ),
+				'description'    => sprintf(
+					/* translators: %s: plugin display name */
+					__( 'Returns %s test summary counts: passed, warning, failed.', 'security-ninja' ),
+					$plugin_name
+				),
 				'callback'       => array( __CLASS__, 'execute_get_test_summary' ),
 				'output_schema'  => array(
 					'type'                 => 'object',
@@ -96,7 +103,11 @@ class Wf_Sn_Ai_Advisor_Abilities {
 				'slug'           => 'get-attack-activity',
 				'label'          => __( 'Get Attack Activity', 'security-ninja' ),
 				'summary'        => __( 'Seven-day attack totals compared to the previous week.', 'security-ninja' ),
-				'description'    => __( 'Returns 7-day and previous 7-day attack activity summary from Security Ninja.', 'security-ninja' ),
+				'description'    => sprintf(
+					/* translators: %s: plugin display name */
+					__( 'Returns 7-day and previous 7-day attack activity summary from %s.', 'security-ninja' ),
+					$plugin_name
+				),
 				'callback'       => array( __CLASS__, 'execute_get_attack_activity' ),
 				'output_schema'  => array(
 					'type'                 => 'object',
@@ -157,11 +168,16 @@ class Wf_Sn_Ai_Advisor_Abilities {
 		if ( ! self::is_exposed_enabled() ) {
 			return;
 		}
+		$plugin_name = \WPSecurityNinja\Plugin\Utils::get_branded_plugin_name();
 		wp_register_ability_category(
 			self::CATEGORY,
 			array(
-				'label'       => __( 'Security Ninja', 'security-ninja' ),
-				'description' => __( 'Read-only security summary abilities from Security Ninja.', 'security-ninja' ),
+				'label'       => $plugin_name,
+				'description' => sprintf(
+					/* translators: %s: plugin display name */
+					__( 'Read-only security summary abilities from %s.', 'security-ninja' ),
+					$plugin_name
+				),
 			)
 		);
 	}
@@ -224,11 +240,23 @@ class Wf_Sn_Ai_Advisor_Abilities {
 	}
 
 	/**
+	 * Load advisor data classes when an ability runs outside the Advisor admin UI.
+	 *
+	 * @return void
+	 */
+	private static function ensure_runtime() {
+		if ( class_exists( __NAMESPACE__ . '\\Wf_Sn_Ai_Advisor' ) ) {
+			Wf_Sn_Ai_Advisor::load_dependencies();
+		}
+	}
+
+	/**
 	 * Execute test summary ability.
 	 *
 	 * @return array<string,int>
 	 */
 	public static function execute_get_test_summary() {
+		self::ensure_runtime();
 		$score = Wf_Sn_Ai_Advisor_Test_Scores::get_counts();
 		return array(
 			'passed'  => $score['good'],
@@ -243,6 +271,7 @@ class Wf_Sn_Ai_Advisor_Abilities {
 	 * @return array<string,mixed>
 	 */
 	public static function execute_get_attack_activity() {
+		self::ensure_runtime();
 		$counts      = Wf_Sn_Ai_Advisor_Aggregation::get_counts_7d();
 		$prev_counts = Wf_Sn_Ai_Advisor_Aggregation::get_counts_prev_7d();
 
@@ -255,6 +284,7 @@ class Wf_Sn_Ai_Advisor_Abilities {
 	 * @return array<string,mixed>
 	 */
 	public static function execute_get_latest_report() {
+		self::ensure_runtime();
 		Wf_Sn_Ai_Advisor_Reports::ensure_table();
 		$rows = Wf_Sn_Ai_Advisor_Reports::get_reports( 1, 0, 'full_report' );
 		if ( empty( $rows ) || ! is_array( $rows[0] ) ) {

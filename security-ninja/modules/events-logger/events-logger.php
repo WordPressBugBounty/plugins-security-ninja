@@ -508,16 +508,13 @@ class Wf_Sn_El {
                             $details_output .= '<dt>' . esc_html( $key ) . '</dt><dd>' . esc_html( $value ) . '</dd>';
                         }
                     }
+                } elseif ( is_wp_error( $raw_data ) ) {
+                    $details_output .= '<dd>' . esc_html( $raw_data->get_error_message() ) . '</dd>';
+                } elseif ( is_object( $raw_data ) ) {
+                    // Handle the object, for example, display the class name
+                    $details_output .= '<dd>' . esc_html( get_class( $raw_data ) ) . '</dd>';
                 } else {
-                    // If $raw_data is not an array, check if it is a WP_Error
-                    if ( is_wp_error( $raw_data ) ) {
-                        $details_output .= '<dd>' . esc_html( $raw_data->get_error_message() ) . '</dd>';
-                    } elseif ( is_object( $raw_data ) ) {
-                        // Handle the object, for example, display the class name
-                        $details_output .= '<dd>' . esc_html( get_class( $raw_data ) ) . '</dd>';
-                    } else {
-                        $details_output .= '<dd>' . esc_html( $raw_data ) . '</dd>';
-                    }
+                    $details_output .= '<dd>' . esc_html( $raw_data ) . '</dd>';
                 }
                 $details_output .= '</dl></div>';
             }
@@ -636,7 +633,7 @@ class Wf_Sn_El {
         wp_register_script(
             'sn-el',
             $plugin_url . 'js/wf-sn-el.js',
-            array('jquery', 'sn-el-datatables'),
+            array('jquery', 'sn-el-datatables', 'sn-dialog'),
             wf_sn::$version,
             true
         );
@@ -1550,7 +1547,7 @@ class Wf_Sn_El {
 										</ul>
 										<p style="margin-top: 15px;">
 											<a href="<?php 
-        echo esc_url( \WPSecurityNinja\Plugin\Utils::generate_sn_web_link( 'upgrade_tab_events_auditing', '/pricing/' ) );
+        echo esc_url( \WPSecurityNinja\Plugin\Utils::generate_sn_web_link( 'upgrade_tab_events_auditing', '/upgrade/' ) );
         ?>" class="button button-primary button-small" target="_blank" rel="noopener">Upgrade to Pro</a>
 										</p>
 									</div>
@@ -1582,7 +1579,7 @@ class Wf_Sn_El {
 													</ul>
 													<p style="margin-top: 15px;">
 														<a href="<?php 
-            echo esc_url( \WPSecurityNinja\Plugin\Utils::generate_sn_web_link( 'upgrade_tab_events_notifications', '/pricing/' ) );
+            echo esc_url( \WPSecurityNinja\Plugin\Utils::generate_sn_web_link( 'upgrade_tab_events_notifications', '/upgrade/' ) );
             ?>" class="button button-primary button-small" target="_blank" rel="noopener">Upgrade to Pro</a>
 													</p>
 												</div>

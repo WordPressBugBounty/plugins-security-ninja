@@ -104,8 +104,7 @@ class Wf_Sn_Wiz {
      * @return string
      */
     private static function get_plugin_display_name() {
-        $plugin_name = 'Security Ninja';
-        return $plugin_name;
+        return Utils::get_branded_plugin_name();
     }
 
     /**
@@ -166,7 +165,7 @@ class Wf_Sn_Wiz {
      */
     private static function get_pro_overview_markup() {
         $text = __( 'Everything in this wizard works on the free plan. Pro adds stronger protection when you need it: cloud firewall with 600M+ bad IPs, login brute-force blocking, one-click security fixes, WooCommerce hardening, malware scanning, and more.', 'security-ninja' );
-        $url = Utils::generate_sn_web_link( 'install_wizard', '/pricing/' );
+        $url = Utils::generate_sn_web_link( 'install_wizard', '/upgrade/' );
         if ( $url ) {
             $text .= ' <a href="' . esc_url( $url ) . '" target="_blank" rel="noopener">' . esc_html__( 'Compare plans', 'security-ninja' ) . '</a>';
         }
@@ -500,7 +499,7 @@ class Wf_Sn_Wiz {
      */
     public static function get_step_default_fixes() {
         $content = array();
-        $content['summary'] = '<p>' . __( 'One-click fixes hide version info, add security headers, secure cookies, and more — all in a single step.', 'security-ninja' ) . '</p>';
+        $content['summary'] = '<p>' . __( 'One-click fixes hide version info, add security headers, secure cookies, and more, all in a single step.', 'security-ninja' ) . '</p>';
         $content['summary'] .= '<p>' . __( 'That is included with Pro. Use Continue below to finish your free setup.', 'security-ninja' ) . '</p>';
         return $content;
     }
@@ -521,7 +520,7 @@ class Wf_Sn_Wiz {
         $content['summary'] .= '<p><strong>' . __( 'Activate turns on:', 'security-ninja' ) . '</strong></p>';
         $content['summary'] .= '<ul class="summarylist">';
         $content['summary'] .= '<li>' . __( 'Firewall protection with global rules enabled', 'security-ninja' ) . '</li>';
-        $content['summary'] .= '<li>' . __( '8G firewall rules — filter suspicious queries and common attack patterns', 'security-ninja' ) . '</li>';
+        $content['summary'] .= '<li>' . __( '8G firewall rules: filter suspicious queries and common attack patterns', 'security-ninja' ) . '</li>';
         $content['summary'] .= '</ul>';
         return $content;
     }
@@ -548,7 +547,7 @@ class Wf_Sn_Wiz {
         $content['summary'] .= '</ul>';
         $show_events_pro_note = true;
         if ( $show_events_pro_note ) {
-            $content['summary'] .= '<p class="wizard-pro-overview">' . __( 'Email reports and webhooks are available with Pro — configure them later under Events Logger settings.', 'security-ninja' ) . '</p>';
+            $content['summary'] .= '<p class="wizard-pro-overview">' . __( 'Email reports and webhooks are available with Pro. Configure them later under Events Logger settings.', 'security-ninja' ) . '</p>';
         }
         return $content;
     }
@@ -600,7 +599,7 @@ class Wf_Sn_Wiz {
         $woocommerce_active = class_exists( 'WooCommerce' );
         $content['summary'] = '<p>' . __( 'Pro can rate-limit checkout and cart actions and stop coupon guessing attacks on WooCommerce stores.', 'security-ninja' ) . '</p>';
         if ( !$woocommerce_active ) {
-            $content['summary'] .= '<p>' . __( 'WooCommerce is not active on your site yet — use Continue below. You can turn on store protection later from Cloud Firewall settings.', 'security-ninja' ) . '</p>';
+            $content['summary'] .= '<p>' . __( 'WooCommerce is not active on your site yet. Use Continue below. You can turn on store protection later from Cloud Firewall settings.', 'security-ninja' ) . '</p>';
         } else {
             $content['summary'] .= '<p>' . __( 'Use Continue below to finish your free setup.', 'security-ninja' ) . '</p>';
         }
@@ -624,28 +623,28 @@ class Wf_Sn_Wiz {
         $content['summary'] .= '<ul class="summarylist wizard-next-steps">';
         $tests_url = admin_url( 'admin.php?page=wf-sn#sn_tests' );
         $content['summary'] .= '<li>' . sprintf(
-            '<a href="%1$s">%2$s</a> — %3$s',
+            '<a href="%1$s">%2$s</a>: %3$s',
             esc_url( $tests_url ),
             esc_html__( 'Run security tests', 'security-ninja' ),
             esc_html__( 'find and fix common WordPress misconfigurations', 'security-ninja' )
         ) . '</li>';
         $vuln_url = admin_url( 'admin.php?page=wf-sn#sn_vuln' );
         $content['summary'] .= '<li>' . sprintf(
-            '<a href="%1$s">%2$s</a> — %3$s',
+            '<a href="%1$s">%2$s</a>: %3$s',
             esc_url( $vuln_url ),
             esc_html__( 'Review vulnerability scan results', 'security-ninja' ),
             esc_html__( 'check plugins and themes for known issues', 'security-ninja' )
         ) . '</li>';
         $core_url = admin_url( 'admin.php?page=wf-sn#sn_core' );
         $content['summary'] .= '<li>' . sprintf(
-            '<a href="%1$s">%2$s</a> — %3$s',
+            '<a href="%1$s">%2$s</a>: %3$s',
             esc_url( $core_url ),
             esc_html__( 'Run the core file scanner', 'security-ninja' ),
             esc_html__( 'spot unexpected changes in WordPress core files', 'security-ninja' )
         ) . '</li>';
         $events_url = admin_url( 'admin.php?page=wf-sn#sn_logger' );
         $content['summary'] .= '<li>' . sprintf(
-            '<a href="%1$s">%2$s</a> — %3$s',
+            '<a href="%1$s">%2$s</a>: %3$s',
             esc_url( $events_url ),
             esc_html__( 'Browse the Events Logger', 'security-ninja' ),
             esc_html__( 'see who logged in and what changed on your site', 'security-ninja' )

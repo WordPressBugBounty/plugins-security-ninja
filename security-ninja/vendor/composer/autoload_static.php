@@ -15,20 +15,13 @@ class ComposerStaticInitb15ce2cb970bf46fe535f0461c2ba29f
     );
 
     public static $prefixLengthsPsr4 = array (
-        'p' =>
-        array (
-            'phpseclib\\' => 10,
-        ),
+
         'c' =>
         array (
             'cweagans\\Composer\\' => 18,
-            'chillerlan\\Settings\\' => 20,
-            'chillerlan\\QRCode\\' => 18,
+
         ),
-        'b' =>
-        array (
-            'bcmath_compat\\' => 14,
-        ),
+
         'Z' =>
         array (
             'Zxing\\' => 6,
@@ -50,10 +43,7 @@ class ComposerStaticInitb15ce2cb970bf46fe535f0461c2ba29f
         array (
             'MabeEnum\\' => 9,
         ),
-        'I' =>
-        array (
-            'IP2Location\\' => 12,
-        ),
+
         'D' =>
         array (
             'Da\\TwoFA\\' => 9,
@@ -71,26 +61,12 @@ class ComposerStaticInitb15ce2cb970bf46fe535f0461c2ba29f
     );
 
     public static $prefixDirsPsr4 = array (
-        'phpseclib\\' =>
-        array (
-            0 => __DIR__ . '/..' . '/phpseclib/phpseclib/phpseclib',
-        ),
+
         'cweagans\\Composer\\' =>
         array (
             0 => __DIR__ . '/..' . '/cweagans/composer-patches/src',
         ),
-        'chillerlan\\Settings\\' =>
-        array (
-            0 => __DIR__ . '/..' . '/chillerlan/php-settings-container/src',
-        ),
-        'chillerlan\\QRCode\\' =>
-        array (
-            0 => __DIR__ . '/..' . '/chillerlan/php-qrcode/src',
-        ),
-        'bcmath_compat\\' =>
-        array (
-            0 => __DIR__ . '/..' . '/phpseclib/bcmath_compat/src',
-        ),
+
         'Zxing\\' =>
         array (
             0 => __DIR__ . '/..' . '/khanamiryan/qrcode-detector-decoder/lib',
@@ -115,10 +91,7 @@ class ComposerStaticInitb15ce2cb970bf46fe535f0461c2ba29f
         array (
             0 => __DIR__ . '/..' . '/marc-mabe/php-enum/src',
         ),
-        'IP2Location\\' =>
-        array (
-            0 => __DIR__ . '/..' . '/ip2location/ip2location-php/src',
-        ),
+
         'Da\\TwoFA\\' =>
         array (
             0 => __DIR__ . '/..' . '/2amigos/2fa-library/src',

@@ -10,6 +10,8 @@
  */
 namespace WPSecurityNinja\Plugin\AiAdvisor;
 
+use WPSecurityNinja\Plugin\Wf_Sn_Priority_Resolver;
+use WPSecurityNinja\Plugin\Wf_Sn_Security_Snapshot;
 use WPSecurityNinja\Plugin\Wf_Sn_Test_Descriptions;
 use function WPSecurityNinja\Plugin\secnin_fs;
 if ( !defined( 'ABSPATH' ) ) {
@@ -59,8 +61,36 @@ class Wf_Sn_Ai_Advisor_Payload {
             'recent_events'            => self::build_recent_events_summary(),
             'ui_locale'                => $ui_locale,
             'ui_language_name'         => $ui_locale,
+            'product_name'             => \WPSecurityNinja\Plugin\Utils::get_branded_plugin_name(),
         );
+        $context['priorities'] = Wf_Sn_Priority_Resolver::get( 10 );
         return $context;
+    }
+
+    /**
+     * Estimate payload size for prepare UI and preview.
+     *
+     * @param array  $context        Payload from build().
+     * @param string $request_type   full_report or prompt_chip.
+     * @param string $ui_locale      Optional locale override.
+     * @return array{payload_chars: int, estimated_input_tokens: int, guidance_item_count: int}
+     */
+    public static function get_payload_stats(
+        array $context,
+        $request_type = 'full_report',
+        $ui_locale = '',
+        array $prompt_options = array()
+    ) {
+        $prompts = Wf_Sn_Ai_Advisor_Prompts::get( $request_type, $context, $prompt_options );
+        $prompt_text = ( isset( $prompts['prompt'] ) ? (string) $prompts['prompt'] : '' );
+        $system = ( isset( $prompts['system_instruction'] ) ? (string) $prompts['system_instruction'] : '' );
+        $guidance = ( isset( $context['tests_with_guidance'] ) && is_array( $context['tests_with_guidance'] ) ? $context['tests_with_guidance'] : array() );
+        $context_json = wp_json_encode( $context );
+        return array(
+            'payload_chars'          => strlen( ( is_string( $context_json ) ? $context_json : '' ) ),
+            'estimated_input_tokens' => Wf_Sn_Ai_Advisor_Reports::estimate_input_tokens( $system, $prompt_text ),
+            'guidance_item_count'    => count( $guidance ),
+        );
     }
 
     /**
@@ -197,7 +227,7 @@ class Wf_Sn_Ai_Advisor_Payload {
         if ( !class_exists( '\\WPSecurityNinja\\Plugin\\Wf_Sn_Test_Descriptions' ) ) {
             return array();
         }
-        $max_items = (int) apply_filters( 'wf_sn_ai_advisor_guidance_max_items', 30 );
+        $max_items = (int) apply_filters( 'wf_sn_ai_advisor_guidance_max_items', 20 );
         $max_items = max( 5, min( 50, $max_items ) );
         $rows = self::get_raw_test_results();
         $out = array();
@@ -235,7 +265,7 @@ class Wf_Sn_Ai_Advisor_Payload {
             if ( '' !== $details ) {
                 $entry['details'] = self::truncate_text_for_ai( self::strip_html_for_context( $details, $tid ), 180 );
             }
-            if ( '' !== $summary ) {
+            if ( '' !== $summary && '' === $msg ) {
                 $entry['guidance'] = $summary;
             }
             if ( empty( $entry['finding'] ) && empty( $entry['guidance'] ) && empty( $entry['title'] ) ) {
@@ -286,8 +316,8 @@ class Wf_Sn_Ai_Advisor_Payload {
              *
              * @param int $default Default limit.
              */
-            $max_len = (int) apply_filters( 'wf_sn_ai_advisor_guidance_summary_max_chars', 400 );
-            $max_len = max( 120, min( 1200, $max_len ) );
+            $max_len = (int) apply_filters( 'wf_sn_ai_advisor_guidance_summary_max_chars', 200 );
+            $max_len = max( 80, min( 1200, $max_len ) );
         }
         if ( function_exists( 'mb_strlen' ) && mb_strlen( $text, 'UTF-8' ) <= $max_len ) {
             return $text;
@@ -312,26 +342,8 @@ class Wf_Sn_Ai_Advisor_Payload {
      *
      * @return array{firewall_enabled: bool, login_protection_enabled: bool, two_factor_enabled: bool}
      */
-    private static function get_feature_flags() {
-        $flags = array(
-            'firewall_enabled'         => false,
-            'login_protection_enabled' => false,
-            'two_factor_enabled'       => false,
-        );
-        $cf_class = '\\WPSecurityNinja\\Plugin\\Wf_sn_cf';
-        if ( class_exists( $cf_class ) ) {
-            $cf_class::get_options();
-            // Ensure options are loaded.
-            if ( method_exists( $cf_class, 'is_active' ) ) {
-                $flags['firewall_enabled'] = (int) $cf_class::is_active() === 1;
-            }
-            $cf = $cf_class::get_options();
-            if ( is_array( $cf ) ) {
-                $flags['login_protection_enabled'] = !empty( $cf['protect_login_form'] );
-                $flags['two_factor_enabled'] = !empty( $cf['2fa_enabled'] );
-            }
-        }
-        return $flags;
+    public static function get_feature_flags() {
+        return Wf_Sn_Security_Snapshot::get_feature_flags();
     }
 
     /**

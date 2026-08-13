@@ -110,7 +110,7 @@ class Wf_Sn_Ai_Advisor_Schemas {
 			);
 		}
 
-		if ( in_array( $prompt_id, array( 'what_next', 'most_urgent', 'what_can_wait', 'what_improved' ), true ) ) {
+		if ( in_array( $prompt_id, array( 'what_next', 'most_urgent', 'what_can_wait', 'what_improved', 'explain_for_client', 'action_plan_30m', 'monitor_this_week' ), true ) ) {
 			return array(
 				'type'                 => 'object',
 				'required'             => array( 'answer' ),
@@ -169,6 +169,8 @@ class Wf_Sn_Ai_Advisor_Schemas {
 	 * @return void
 	 */
 	public static function normalize_full_report_response( array &$report, $model, $language = '' ) {
+		self::coerce_full_report_key_aliases( $report );
+
 		$allowed_top = array( 'executive_summary', 'overview', 'top_improvements', 'activity', 'meta' );
 		foreach ( array_keys( $report ) as $key ) {
 			if ( ! in_array( $key, $allowed_top, true ) ) {
@@ -203,17 +205,21 @@ class Wf_Sn_Ai_Advisor_Schemas {
 				$id = 'improvement_' . ( count( $normalized_improvements ) + 1 );
 			}
 			$short_label = isset( $imp['short_label'] ) && is_string( $imp['short_label'] ) ? trim( $imp['short_label'] ) : '';
-			if ( '' === $short_label ) {
-				$short_label = $title;
-			}
-			if ( function_exists( 'mb_substr' ) && mb_strlen( $short_label, 'UTF-8' ) > 80 ) {
-				$short_label = mb_substr( $short_label, 0, 77, 'UTF-8' ) . '…';
-			} elseif ( strlen( $short_label ) > 80 ) {
-				$short_label = substr( $short_label, 0, 77 ) . '…';
+			if ( '' === $short_label && isset( $imp['shortLabel'] ) && is_string( $imp['shortLabel'] ) ) {
+				$short_label = trim( $imp['shortLabel'] );
 			}
 			$details = isset( $imp['details'] ) && is_string( $imp['details'] ) ? trim( $imp['details'] ) : '';
-			if ( '' === $details ) {
+			if ( '' === $details && isset( $imp['description'] ) && is_string( $imp['description'] ) ) {
+				$details = trim( $imp['description'] );
+			}
+			if ( '' === $title && '' !== $details ) {
+				$title = $details;
+			}
+			if ( '' === $details && '' !== $title ) {
 				$details = $title;
+			}
+			if ( '' === $short_label ) {
+				$short_label = $title;
 			}
 			$risk = 'low';
 			if ( class_exists( __NAMESPACE__ . '\\Wf_Sn_Ai_Advisor_Improvements' ) ) {
@@ -226,6 +232,11 @@ class Wf_Sn_Ai_Advisor_Schemas {
 			}
 			if ( '' === $title && '' === $details ) {
 				continue;
+			}
+			if ( function_exists( 'mb_substr' ) && mb_strlen( $short_label, 'UTF-8' ) > 80 ) {
+				$short_label = mb_substr( $short_label, 0, 77, 'UTF-8' ) . '…';
+			} elseif ( strlen( $short_label ) > 80 ) {
+				$short_label = substr( $short_label, 0, 77 ) . '…';
 			}
 			$normalized_improvements[] = array(
 				'id'          => $id,
@@ -293,6 +304,48 @@ class Wf_Sn_Ai_Advisor_Schemas {
 	 */
 	public static function validate_full_report_response( array $data ) {
 		return self::validate_against_schema( $data, self::get_full_report_schema() );
+	}
+
+	/**
+	 * Whether a normalized report has enough content to show when strict schema validation fails.
+	 *
+	 * @param array $data Normalized report.
+	 * @return bool
+	 */
+	public static function is_viable_full_report( array $data ) {
+		$summary = isset( $data['executive_summary'] ) ? trim( (string) $data['executive_summary'] ) : '';
+		$overview = isset( $data['overview'] ) ? trim( (string) $data['overview'] ) : '';
+		return strlen( $summary ) >= 20 && strlen( $overview ) >= 10;
+	}
+
+	/**
+	 * Map common camelCase / alternate keys from non-schema providers.
+	 *
+	 * @param array<string,mixed> $report Decoded report (modified in place).
+	 * @return void
+	 */
+	private static function coerce_full_report_key_aliases( array &$report ) {
+		$aliases = array(
+			'executiveSummary' => 'executive_summary',
+			'topImprovements'  => 'top_improvements',
+			'attackActivity'   => 'activity',
+		);
+		foreach ( $aliases as $from => $to ) {
+			if ( ! isset( $report[ $to ] ) && isset( $report[ $from ] ) ) {
+				$report[ $to ] = $report[ $from ];
+			}
+			unset( $report[ $from ] );
+		}
+		if ( isset( $report['activity'] ) && is_array( $report['activity'] ) ) {
+			$activity = &$report['activity'];
+			if ( ! isset( $activity['attack_volume_trend'] ) && isset( $activity['attackVolumeTrend'] ) ) {
+				$activity['attack_volume_trend'] = $activity['attackVolumeTrend'];
+			}
+			if ( ! isset( $activity['attack_volume_reason'] ) && isset( $activity['attackVolumeReason'] ) ) {
+				$activity['attack_volume_reason'] = $activity['attackVolumeReason'];
+			}
+			unset( $activity['attackVolumeTrend'], $activity['attackVolumeReason'] );
+		}
 	}
 
 	/**

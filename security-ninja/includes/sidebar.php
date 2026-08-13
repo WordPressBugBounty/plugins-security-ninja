@@ -86,6 +86,11 @@ if ( function_exists( 'secnin_fs' ) ) {
         ?>
 			<div class="snupgradebox sidebarsection feature">
 				<h3><span class="dashicons dashicons-star-filled"></span> Security Ninja Pro <span class="dashicons dashicons-star-filled"></span></h3>
+				<p><strong><?php 
+        esc_html_e( 'Included free', 'security-ninja' );
+        ?>:</strong> <?php 
+        esc_html_e( 'Core Scanner, Security Tests, Vulnerability Scanner', 'security-ninja' );
+        ?></p>
 				<ul class="checkmarks">
 					<li><strong><?php 
         esc_html_e( 'Install Wizard', 'security-ninja' );
@@ -123,11 +128,6 @@ if ( function_exists( 'secnin_fs' ) ) {
         esc_html_e( 'Block entire countries.', 'security-ninja' );
         ?></li>
 					<li><strong><?php 
-        esc_html_e( 'Core Scanner', 'security-ninja' );
-        ?></strong> - <?php 
-        esc_html_e( 'Detect infected WordPress core files.', 'security-ninja' );
-        ?></li>
-					<li><strong><?php 
         esc_html_e( 'Plugin Validation', 'security-ninja' );
         ?></strong> - <?php 
         esc_html_e( 'Check plugins have not been modified with malware.', 'security-ninja' );
@@ -157,7 +157,9 @@ if ( function_exists( 'secnin_fs' ) ) {
         echo esc_html( 'Try the Pro version free for 14 days!' );
         ?></strong></p>
 				<a href="<?php 
-        echo esc_url( Utils::generate_sn_web_link( 'sidebar_link', '/pricing/?trial=free' ) );
+        echo esc_url( Utils::generate_sn_web_link( 'sidebar_link', '/upgrade/', array(
+            'trial' => 'free',
+        ) ) );
         ?>" class="button button-primary trial-button" target="_blank" rel="noopener"><?php 
         esc_html_e( 'Get started', 'security-ninja' );
         ?></a>
@@ -188,7 +190,7 @@ if ( function_exists( 'secnin_fs' ) ) {
         ?></li>
 							</ul>
 							<p><a href="<?php 
-        echo esc_url( Utils::generate_sn_web_link( 'sidebar_link', '/pricing/' ) );
+        echo esc_url( Utils::generate_sn_web_link( 'sidebar_link', '/upgrade/' ) );
         ?>" target="_blank" class="button button-primary" rel="noopener"><?php 
         echo esc_html( 'Read more about the Pro version' );
         ?></a></p>
@@ -256,47 +258,49 @@ if ( $show_pro_ad ) {
 			<ul>
 				<li><strong><?php 
     esc_html_e( 'Get premium protection in minutes', 'security-ninja' );
-    ?></strong> &mdash; <?php 
+    ?></strong>: <?php 
     esc_html_e( 'Guided wizard, no technical skills needed.', 'security-ninja' );
     ?></li>
 				<li><strong><?php 
     esc_html_e( 'Stay protected 24/7', 'security-ninja' );
-    ?></strong> &mdash; <?php 
+    ?></strong>: <?php 
     esc_html_e( 'Real-time firewall and automatic scans.', 'security-ninja' );
     ?></li>
 				<li><strong><?php 
     esc_html_e( 'Keep spam and bots out', 'security-ninja' );
-    ?></strong> &mdash; <?php 
+    ?></strong>: <?php 
     esc_html_e( 'Cleaner site, safer visitors.', 'security-ninja' );
     ?></li>
 				<li><strong><?php 
     esc_html_e( 'Lock down logins', 'security-ninja' );
-    ?></strong> &mdash; <?php 
+    ?></strong>: <?php 
     esc_html_e( 'Block brute force; add 2FA and hidden login URL.', 'security-ninja' );
     ?></li>
 				<li><strong><?php 
     esc_html_e( 'Find and fix issues fast', 'security-ninja' );
-    ?></strong> &mdash; <?php 
+    ?></strong>: <?php 
     esc_html_e( 'Malware &amp; core scans, one-click fixes.', 'security-ninja' );
     ?></li>
 				<li><strong><?php 
     esc_html_e( 'See who did what', 'security-ninja' );
-    ?></strong> &mdash; <?php 
+    ?></strong>: <?php 
     esc_html_e( 'Simple audit log of changes.', 'security-ninja' );
     ?></li>
 				<li><strong><?php 
     esc_html_e( 'Run scans on your schedule', 'security-ninja' );
-    ?></strong> &mdash; <?php 
+    ?></strong>: <?php 
     esc_html_e( 'Set it and forget it.', 'security-ninja' );
     ?></li>
 				<li><strong><?php 
     esc_html_e( 'Try risk-free', 'security-ninja' );
-    ?></strong> &mdash; <?php 
+    ?></strong>: <?php 
     esc_html_e( '30-day money-back guarantee.', 'security-ninja' );
     ?></li>
 			</ul>
 			<p style="margin-top: 10px;text-align: center;">
-				<a href="https://wpsecurityninja.com/pricing/?utm_source=overview-tab&amp;utm_medium=plugin&amp;utm_content=explore-pro&amp;utm_campaign=security_ninja_v5.235" class="button button-primary button-small" target="_blank" rel="noopener"><?php 
+				<a href="<?php 
+    echo esc_url( Utils::generate_sn_web_link( 'explore-pro', '/upgrade/' ) );
+    ?>" class="button button-primary button-small" target="_blank" rel="noopener"><?php 
     esc_html_e( 'Read more', 'security-ninja' );
     ?></a>
 			</p>

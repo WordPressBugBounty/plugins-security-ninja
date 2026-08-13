@@ -27,6 +27,9 @@ class Wf_Sn_Ai_Advisor_Chips {
 		'most_urgent',
 		'what_improved',
 		'what_can_wait',
+		'explain_for_client',
+		'action_plan_30m',
+		'monitor_this_week',
 	);
 
 	/**
@@ -36,20 +39,29 @@ class Wf_Sn_Ai_Advisor_Chips {
 	 */
 	public static function definitions() {
 		return array(
-			'delta_since_last' => array(
+			'delta_since_last'    => array(
 				'label' => __( 'What changed since last report?', 'security-ninja' ),
 			),
-			'what_next'        => array(
-				'label' => __( 'What should I do next?', 'security-ninja' ),
+			'what_next'           => array(
+				'label' => __( 'What should I fix first?', 'security-ninja' ),
 			),
-			'most_urgent'      => array(
+			'most_urgent'         => array(
 				'label' => __( 'Which issue is most urgent?', 'security-ninja' ),
 			),
-			'what_improved'    => array(
+			'what_improved'       => array(
 				'label' => __( 'What improved since last time?', 'security-ninja' ),
 			),
-			'what_can_wait'    => array(
+			'what_can_wait'       => array(
 				'label' => __( 'Which items can wait?', 'security-ninja' ),
+			),
+			'explain_for_client'  => array(
+				'label' => __( 'Explain this for a client', 'security-ninja' ),
+			),
+			'action_plan_30m'     => array(
+				'label' => __( 'Give me a 30-minute action plan', 'security-ninja' ),
+			),
+			'monitor_this_week'   => array(
+				'label' => __( 'What should I monitor this week?', 'security-ninja' ),
 			),
 		);
 	}
@@ -93,6 +105,9 @@ class Wf_Sn_Ai_Advisor_Chips {
 				return $n_full >= 2;
 			case 'what_next':
 			case 'what_can_wait':
+			case 'explain_for_client':
+			case 'action_plan_30m':
+			case 'monitor_this_week':
 				return $n_full >= 1;
 			case 'most_urgent':
 				return $n_full >= 1 || ( (int) $scores['bad'] + (int) $scores['warning'] ) > 0;
@@ -102,21 +117,109 @@ class Wf_Sn_Ai_Advisor_Chips {
 	}
 
 	/**
-	 * Chips for localize_script: id, label, enabled.
+	 * Human-readable reason when a chip is disabled.
 	 *
-	 * @return array<int, array{id: string, label: string, enabled: bool}>
+	 * @param string $prompt_id Prompt id.
+	 * @return string Empty when enabled or unknown.
+	 */
+	public static function get_disabled_reason( $prompt_id ) {
+		if ( self::is_visible( $prompt_id ) ) {
+			return '';
+		}
+		if ( ! self::is_valid_prompt_id( $prompt_id ) ) {
+			return '';
+		}
+
+		$n_full = self::count_full_reports();
+
+		switch ( $prompt_id ) {
+			case 'delta_since_last':
+				return __( 'Unavailable until there are at least two AI reports.', 'security-ninja' );
+			case 'what_improved':
+				return __( 'Unavailable until there is a previous report to compare.', 'security-ninja' );
+			case 'what_next':
+			case 'most_urgent':
+			case 'what_can_wait':
+			case 'explain_for_client':
+			case 'action_plan_30m':
+			case 'monitor_this_week':
+				return __( 'Generate a report first. Then you can ask guided follow-up questions.', 'security-ninja' );
+			default:
+				return __( 'This prompt is not available for your current reports.', 'security-ninja' );
+		}
+	}
+
+	/**
+	 * Chip ids that compare two saved full reports.
+	 *
+	 * @return array<int, string>
+	 */
+	public static function comparison_prompt_ids() {
+		return array(
+			'delta_since_last',
+			'what_improved',
+		);
+	}
+
+	/**
+	 * Chips currently enabled for the follow-up toolbar.
+	 *
+	 * @return array<int, array{id: string, label: string, enabled: bool, reason: string}>
+	 */
+	public static function get_enabled_chips_for_ui() {
+		return array_values(
+			array_filter(
+				self::get_chips_for_ui(),
+				static function ( $chip ) {
+					return ! empty( $chip['enabled'] );
+				}
+			)
+		);
+	}
+
+	/**
+	 * Whether the follow-up toolbar should be active (at least one enabled chip).
+	 *
+	 * @return bool
+	 */
+	public static function is_followup_toolbar_active() {
+		return ! empty( self::get_enabled_chips_for_ui() );
+	}
+
+	/**
+	 * Comparison chips that are visible in definitions but not yet enabled.
+	 *
+	 * @return array<int, array{id: string, label: string, enabled: bool, reason: string}>
+	 */
+	public static function get_locked_comparison_chips_for_ui() {
+		$comparison = self::comparison_prompt_ids();
+		return array_values(
+			array_filter(
+				self::get_chips_for_ui(),
+				static function ( $chip ) use ( $comparison ) {
+					return in_array( $chip['id'], $comparison, true ) && empty( $chip['enabled'] );
+				}
+			)
+		);
+	}
+
+	/**
+	 * Chips for localize_script: id, label, enabled, reason.
+	 *
+	 * @return array<int, array{id: string, label: string, enabled: bool, reason: string}>
 	 */
 	public static function get_chips_for_ui() {
 		$defs = self::definitions();
 		$out  = array();
 		foreach ( self::PROMPT_IDS as $pid ) {
-			$out[] = array(
+			$enabled = self::is_visible( $pid );
+			$out[]   = array(
 				'id'      => $pid,
 				'label'   => isset( $defs[ $pid ]['label'] ) ? $defs[ $pid ]['label'] : $pid,
-				'enabled' => self::is_visible( $pid ),
+				'enabled' => $enabled,
+				'reason'  => $enabled ? '' : self::get_disabled_reason( $pid ),
 			);
 		}
 		return $out;
 	}
-
 }

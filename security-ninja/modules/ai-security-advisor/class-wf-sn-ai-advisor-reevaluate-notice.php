@@ -207,7 +207,7 @@ class Wf_Sn_Ai_Advisor_Reevaluate_Notice {
 	 */
 	private static function message_for_context( $context ) {
 		$messages = array(
-			'settings_saved'          => __( 'Settings saved. Run Security Tests if needed, then generate a fresh Security Audit so advice matches your site.', 'security-ninja' ),
+			'settings_saved'          => __( 'Settings saved. Your connector is ready — run Security Tests if needed, then generate a fresh Security Audit.', 'security-ninja' ),
 			'tests_completed'         => __( 'Security Tests finished. Generate a fresh Security Audit so the AI advice reflects your latest results.', 'security-ninja' ),
 			'core_scan_completed'     => __( 'Core Scanner just finished. Re-evaluate with AI to include the latest file integrity findings.', 'security-ninja' ),
 			'vuln_scan_completed'     => __( 'Vulnerability scan just finished. Re-evaluate with AI to prioritize newly detected vulnerabilities.', 'security-ninja' ),

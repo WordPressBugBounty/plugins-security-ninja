@@ -39,7 +39,11 @@ class Wf_Sn_Ai_Advisor_Improvements {
 			$risk = 'low';
 		}
 		if ( ! in_array( $risk, array( 'high', 'medium', 'low' ), true ) ) {
-			$risk = 'low';
+			if ( in_array( $risk, array( 'critical', 'severe', 'urgent' ), true ) ) {
+				$risk = 'high';
+			} else {
+				$risk = 'low';
+			}
 		}
 		return $risk;
 	}

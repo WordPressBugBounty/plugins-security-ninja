@@ -1446,56 +1446,22 @@ class Wf_Sn_Tests extends WF_SN {
 	 * @return  mixed
 	 */
 	public static function deactivated_themes() {
-		$return            = array();
-		$all_themes        = wp_get_themes();
-		$wp_themes_to_keep = array(
-			'twentythirty',
-			'twentytwentynine',
-			'twentytwentyeight',
-			'twentytwentyseven',
-			'twentytwentysix',
-			'twentytwentyfive',
-			'twentytwentyfour',
-			'twentytwentythree',
-			'twentytwentytwo',
-			'twentytwentyone',
-			'twentytwenty',
-			'twentynineteen',
-			'twentyseventeen',
-			'twentysixteen',
-			'twentyfifteen',
-			'twentyfourteen',
-			'twentythirteen',
-			'twentytwelve',
-			'twentyeleven',
-			'twentyten',
-		);
+		$return     = array();
+		$all_themes = wp_get_themes();
 
-		$get_template   = get_template();
-		$get_stylesheet = get_stylesheet();
+		unset( $all_themes[ get_template() ], $all_themes[ get_stylesheet() ] );
 
-		unset( $all_themes[ $get_template ], $all_themes[ $get_stylesheet ] );
-
-		$newest_wp_found = false;
-		foreach ( $wp_themes_to_keep as $theme_slug ) {
-			if ( ! $newest_wp_found && isset( $all_themes[ $theme_slug ] ) ) {
-				unset( $all_themes[ $theme_slug ] );
-				$newest_wp_found = true;
-			}
-		}
-
-		$themes_to_remove = array_diff_key( $all_themes, array_flip( $wp_themes_to_keep ) );
-		$theme_names      = array_map(
+		$theme_names = array_map(
 			function ( $theme ) {
 				return $theme->get( 'Name' );
 			},
-			$themes_to_remove
+			$all_themes
 		);
 
-		if ( count( $themes_to_remove ) > 0 ) {
+		if ( count( $all_themes ) > 0 ) {
 			$return['status'] = 0;
 			/* translators: 1: number of themes, 2: comma-separated theme names */
-			$return['msg'] = sprintf( __( 'Safe to remove %1$d themes: %2$s', 'security-ninja' ), count( $themes_to_remove ), implode( ', ', $theme_names ) );
+			$return['msg'] = sprintf( __( 'Safe to remove %1$d themes: %2$s', 'security-ninja' ), count( $all_themes ), implode( ', ', $theme_names ) );
 		} else {
 			$return['status'] = 10;
 			$return['msg']    = __( 'All unnecessary themes are already removed.', 'security-ninja' );

@@ -297,38 +297,10 @@ class Wf_Sn_Dashboard_Widget {
             $last_reviewed = ( isset( $cached['last_reviewed'] ) ? $cached['last_reviewed'] : '' );
             $teaser = ( isset( $cached['teaser'] ) ? $cached['teaser'] : '' );
         } else {
-            $available = \WPSecurityNinja\Plugin\AiAdvisor\Wf_Sn_Ai_Advisor_Provider_Wp_Connectors::is_available();
-            $configured = \WPSecurityNinja\Plugin\AiAdvisor\Wf_Sn_Ai_Advisor_Provider_Wp_Connectors::get_configured_providers();
-            $options = \WPSecurityNinja\Plugin\AiAdvisor\Wf_Sn_Ai_Advisor_Page::get_options();
-            $site_registered = !empty( $options['site_registered'] );
-            $ready = $available && (is_array( $configured ) && count( $configured ) > 0 || $site_registered);
-            $reports = ( $available ? \WPSecurityNinja\Plugin\AiAdvisor\Wf_Sn_Ai_Advisor_Reports::get_reports( 1, 0, 'full_report' ) : array() );
-            $has_reports = is_array( $reports ) && isset( $reports[0] );
-            $state = 1;
-            $last_reviewed = '';
-            $teaser = '';
-            if ( $ready || $has_reports ) {
-                $state = 2;
-                if ( is_array( $reports ) && isset( $reports[0] ) ) {
-                    $report = $reports[0];
-                    if ( !empty( $report['created'] ) ) {
-                        $last_reviewed = human_time_diff( strtotime( $report['created'] ), time() );
-                    }
-                    $text = ( isset( $report['report_text'] ) ? $report['report_text'] : '' );
-                    if ( is_string( $text ) && '' !== $text ) {
-                        $decoded = json_decode( $text, true );
-                        if ( is_array( $decoded ) ) {
-                            if ( !empty( $decoded['executive_summary'] ) && is_string( $decoded['executive_summary'] ) ) {
-                                $teaser = wp_trim_words( $decoded['executive_summary'], 20 );
-                            } elseif ( !empty( $decoded['overview'] ) && is_string( $decoded['overview'] ) ) {
-                                $teaser = wp_trim_words( $decoded['overview'], 20 );
-                            }
-                        }
-                    }
-                }
-            } elseif ( $available ) {
-                $state = 3;
-            }
+            $ai = \WPSecurityNinja\Plugin\AiAdvisor\Wf_Sn_Ai_Advisor::get_card_state();
+            $state = (int) $ai['state'];
+            $last_reviewed = $ai['last_reviewed'];
+            $teaser = $ai['teaser'];
             set_transient( $cache_key, array(
                 'state'         => $state,
                 'last_reviewed' => $last_reviewed,
@@ -343,7 +315,7 @@ class Wf_Sn_Dashboard_Widget {
 					<span class="secnin-card-header secnin-card-header--advisor">
 						<span class="dashicons dashicons-admin-generic" style="color: #6c757d;"></span>
 						<?php 
-        esc_html_e( 'Security Advisor', 'security-ninja' );
+        esc_html_e( 'AI Security Advisor', 'security-ninja' );
         ?>
 						<span class="secnin-ai-badge">AI</span>
 					</span>
@@ -396,11 +368,11 @@ class Wf_Sn_Dashboard_Widget {
             ?>" class="secnin-card-link secnin-card-link--advisor">
 							<?php 
             if ( 2 === $state && $last_reviewed ) {
-                esc_html_e( 'Security Advisor', 'security-ninja' );
+                esc_html_e( 'Ask AI what to fix first', 'security-ninja' );
             } elseif ( 2 === $state ) {
-                esc_html_e( 'Run AI review', 'security-ninja' );
+                esc_html_e( 'Generate AI review', 'security-ninja' );
             } else {
-                esc_html_e( 'Set up', 'security-ninja' );
+                esc_html_e( 'Set up AI Advisor', 'security-ninja' );
             }
             ?>
 							→

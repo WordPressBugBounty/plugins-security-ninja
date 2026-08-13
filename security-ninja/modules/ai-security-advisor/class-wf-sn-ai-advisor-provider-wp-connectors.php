@@ -21,6 +21,103 @@ class Wf_Sn_Ai_Advisor_Provider_Wp_Connectors {
 	const PROVIDER_IDS = array( 'openai', 'google', 'anthropic' );
 
 	/**
+	 * Register default provider profile filter callbacks.
+	 *
+	 * @return void
+	 */
+	public static function register_default_profiles() {
+		add_filter( 'wf_sn_ai_advisor_provider_profile', array( __CLASS__, 'filter_default_provider_profile' ), 10, 2 );
+	}
+
+	/**
+	 * Shipped defaults for known connectors; unknown connectors use the generic ladder.
+	 *
+	 * @param array  $profile     Profile from prior filters.
+	 * @param string $provider_id Registry connector id.
+	 * @return array{modes: string[], model_prefs: string[], max_tokens: int|null}
+	 */
+	public static function filter_default_provider_profile( $profile, $provider_id ) {
+		if ( ! is_array( $profile ) ) {
+			$profile = array();
+		}
+		$provider_id = sanitize_key( (string) $provider_id );
+		$defaults    = array(
+			'modes'       => array( 'schema', 'mime', 'plain' ),
+			'model_prefs' => array(),
+			'max_tokens'  => 8192,
+		);
+		if ( in_array( $provider_id, array( 'openai', 'google' ), true ) ) {
+			$defaults['max_tokens'] = 8192;
+		} elseif ( 'anthropic' === $provider_id ) {
+			$defaults['modes']       = array( 'mime', 'plain' );
+			$defaults['max_tokens']  = 8192;
+		} elseif ( 'deepseek' === $provider_id ) {
+			$defaults['modes']       = array( 'mime', 'plain' );
+			$defaults['model_prefs'] = array( 'deepseek-chat' );
+			$defaults['max_tokens']  = 8192;
+		}
+		return wp_parse_args(
+			$profile,
+			array(
+				'modes'       => $defaults['modes'],
+				'model_prefs' => $defaults['model_prefs'],
+				'max_tokens'  => $defaults['max_tokens'],
+			)
+		);
+	}
+
+	/**
+	 * Resolved provider profile (modes, model prefs, token cap).
+	 *
+	 * @param string $provider_id Connector id.
+	 * @return array{modes: string[], model_prefs: string[], max_tokens: int|null}
+	 */
+	private static function get_provider_profile( $provider_id ) {
+		$provider_id = sanitize_key( (string) $provider_id );
+		/**
+		 * Filters generation profile for a WordPress AI connector.
+		 *
+		 * @param array  $profile {
+		 *     @type string[] $modes       Ordered modes: schema, mime, plain.
+		 *     @type string[] $model_prefs Optional model preference IDs.
+		 *     @type int|null $max_tokens  Optional cap for this provider.
+		 * }
+		 * @param string $provider_id Registry connector id.
+		 */
+		$profile = apply_filters( 'wf_sn_ai_advisor_provider_profile', array(), $provider_id );
+		if ( ! is_array( $profile ) ) {
+			$profile = array();
+		}
+		$modes = isset( $profile['modes'] ) && is_array( $profile['modes'] ) ? $profile['modes'] : array( 'schema', 'mime', 'plain' );
+		$modes = array_values(
+			array_filter(
+				array_map(
+					static function ( $mode ) {
+						return sanitize_key( (string) $mode );
+					},
+					$modes
+				),
+				static function ( $mode ) {
+					return in_array( $mode, array( 'schema', 'mime', 'plain' ), true );
+				}
+			)
+		);
+		if ( empty( $modes ) ) {
+			$modes = array( 'schema', 'mime', 'plain' );
+		}
+		$model_prefs = isset( $profile['model_prefs'] ) && is_array( $profile['model_prefs'] ) ? $profile['model_prefs'] : array();
+		$max_tokens  = null;
+		if ( isset( $profile['max_tokens'] ) && is_numeric( $profile['max_tokens'] ) ) {
+			$max_tokens = max( 256, (int) $profile['max_tokens'] );
+		}
+		return array(
+			'modes'       => $modes,
+			'model_prefs' => $model_prefs,
+			'max_tokens'  => $max_tokens,
+		);
+	}
+
+	/**
 	 * Check if WP 7 AI is available.
 	 *
 	 * @return bool
@@ -38,17 +135,171 @@ class Wf_Sn_Ai_Advisor_Provider_Wp_Connectors {
 		if ( ! self::is_available() ) {
 			return array();
 		}
-		$registry = \WordPress\AiClient\AiClient::defaultRegistry();
+		try {
+			$registry = \WordPress\AiClient\AiClient::defaultRegistry();
+		} catch ( \Throwable $e ) {
+			return array();
+		}
 		if ( ! method_exists( $registry, 'isProviderConfigured' ) ) {
 			return array();
 		}
 		$out = array();
 		foreach ( self::get_registered_provider_ids( $registry ) as $id ) {
-			if ( $registry->isProviderConfigured( $id ) ) {
-				$out[] = $id;
+			try {
+				if ( $registry->isProviderConfigured( $id ) ) {
+					$out[] = $id;
+				}
+			} catch ( \Throwable $e ) {
+				// AI Client may throw TypeError (e.g. cache returns bool instead of array).
+				continue;
 			}
 		}
 		return $out;
+	}
+
+	/**
+	 * Admin URL for WordPress Settings → Connectors.
+	 *
+	 * @return string
+	 */
+	public static function get_connectors_admin_url() {
+		if ( function_exists( 'wp_ai_connectors_admin_url' ) ) {
+			return (string) \wp_ai_connectors_admin_url();
+		}
+		return admin_url( 'options-connectors.php' );
+	}
+
+	/**
+	 * Metadata for one connector id (label, logo, configured state).
+	 *
+	 * @param string $id Connector / provider id.
+	 * @return array{id: string, label: string, description: string, logo_url: string, is_configured: bool}
+	 */
+	public static function get_connector_metadata( $id ) {
+		$id = sanitize_key( (string) $id );
+		$label       = ucfirst( $id );
+		$description = '';
+		$logo_url    = '';
+
+		if ( '' !== $id && function_exists( 'wp_get_connector' ) ) {
+			$connector = wp_get_connector( $id );
+			if ( is_array( $connector ) ) {
+				if ( ! empty( $connector['name'] ) && is_string( $connector['name'] ) ) {
+					$label = $connector['name'];
+				}
+				if ( ! empty( $connector['description'] ) && is_string( $connector['description'] ) ) {
+					$description = $connector['description'];
+				}
+				if ( ! empty( $connector['logo_url'] ) && is_string( $connector['logo_url'] ) ) {
+					$logo_url = $connector['logo_url'];
+				}
+			}
+		}
+
+		$is_configured = false;
+		if ( '' !== $id && self::is_available() ) {
+			try {
+				$registry = \WordPress\AiClient\AiClient::defaultRegistry();
+				if ( method_exists( $registry, 'isProviderConfigured' ) && $registry->hasProvider( $id ) ) {
+					$is_configured = (bool) $registry->isProviderConfigured( $id );
+				}
+			} catch ( \Throwable $e ) {
+				$is_configured = false;
+			}
+		}
+
+		return array(
+			'id'              => $id,
+			'label'           => $label,
+			'description'     => $description,
+			'logo_url'        => $logo_url,
+			'is_configured'   => $is_configured,
+		);
+	}
+
+	/**
+	 * Configured connectors with UI metadata for dropdowns and badges.
+	 *
+	 * @return array<int, array{id: string, label: string, description: string, logo_url: string, is_configured: bool}>
+	 */
+	public static function get_connectors_for_ui() {
+		$out = array();
+		foreach ( self::get_configured_providers() as $id ) {
+			$out[] = self::get_connector_metadata( $id );
+		}
+		return $out;
+	}
+
+	/**
+	 * Metadata for the stored or default connector selection.
+	 *
+	 * @return array{id: string, label: string, description: string, logo_url: string, is_configured: bool}|null
+	 */
+	public static function get_selected_connector_metadata() {
+		$configured = self::get_configured_providers();
+		if ( empty( $configured ) ) {
+			return null;
+		}
+		$options = Wf_Sn_Ai_Advisor_Page::get_options();
+		$stored  = isset( $options['last_connector_provider'] ) ? sanitize_key( (string) $options['last_connector_provider'] ) : '';
+		if ( '' !== $stored && in_array( $stored, $configured, true ) ) {
+			return self::get_connector_metadata( $stored );
+		}
+		return self::get_connector_metadata( $configured[0] );
+	}
+
+	/**
+	 * Verify that a connector is configured and reachable.
+	 *
+	 * @param string $id Connector id.
+	 * @return array{ok: bool, message: string}
+	 */
+	public static function test_connector( $id ) {
+		$id = sanitize_key( (string) $id );
+		if ( '' === $id ) {
+			return array(
+				'ok'      => false,
+				'message' => __( 'No connector selected.', 'security-ninja' ),
+			);
+		}
+		if ( ! self::is_available() ) {
+			return array(
+				'ok'      => false,
+				'message' => __( 'WordPress AI Connectors are not available.', 'security-ninja' ),
+			);
+		}
+		if ( function_exists( 'wp_supports_ai' ) && ! wp_supports_ai() ) {
+			return array(
+				'ok'      => false,
+				'message' => __( 'AI features are disabled on this site.', 'security-ninja' ),
+			);
+		}
+		$configured = self::get_configured_providers();
+		if ( ! in_array( $id, $configured, true ) ) {
+			return array(
+				'ok'      => false,
+				'message' => __( 'This connector is not configured. Add your API key under Settings → Connectors.', 'security-ninja' ),
+			);
+		}
+		$meta = self::get_connector_metadata( $id );
+		if ( ! empty( $meta['is_configured'] ) ) {
+			return array(
+				'ok'      => true,
+				'message' => sprintf(
+					/* translators: %s: connector display name */
+					__( '%s is ready to use.', 'security-ninja' ),
+					$meta['label']
+				),
+			);
+		}
+		return array(
+			'ok'      => false,
+			'message' => sprintf(
+				/* translators: %s: connector display name */
+				__( '%s could not be verified. Check your API key under Settings → Connectors.', 'security-ninja' ),
+				$meta['label']
+			),
+		);
 	}
 
 	/**
@@ -76,7 +327,7 @@ class Wf_Sn_Ai_Advisor_Provider_Wp_Connectors {
 	 * @param string $provider_id       One of openai, google, anthropic (must be configured).
 	 * @param string $system_instruction System instruction for the model.
 	 * @param string $prompt_text       User/message text (privacy-safe context).
-	 * @param array  $options           Optional: json_schema, max_tokens, temperature, request_type.
+	 * @param array  $options           Optional: json_schema, max_tokens, request_type.
 	 * @return array{ok: bool, text?: string, usage?: array, model?: string, error?: string}
 	 */
 	public static function generate_text( $provider_id, $system_instruction, $prompt_text, $options = array() ) {
@@ -104,78 +355,170 @@ class Wf_Sn_Ai_Advisor_Provider_Wp_Connectors {
 
 		$request_type = isset( $options['request_type'] ) ? sanitize_key( (string) $options['request_type'] ) : 'full_report';
 		$max_tokens   = self::resolve_max_tokens( $request_type, $options );
-		$temperature  = self::resolve_temperature( $options );
 		$json_schema  = isset( $options['json_schema'] ) && is_array( $options['json_schema'] ) ? $options['json_schema'] : null;
 
-		$result = null;
-
-		// WordPress 7: prefer as_json_response() when the connector supports it; otherwise plain text_generation.
-		if ( null !== $json_schema && self::is_prompt_supported( $provider_id, $system_instruction, $prompt_text, $max_tokens, $temperature, $json_schema, true, true ) ) {
-			$result = self::execute_prompt( $provider_id, $system_instruction, $prompt_text, $max_tokens, $temperature, $json_schema, true, true );
-			if ( ! empty( $result['ok'] ) ) {
-				return $result;
-			}
-			if ( self::is_unsupported_temperature_error( $result ) ) {
-				$retry_no_temp = self::execute_prompt( $provider_id, $system_instruction, $prompt_text, $max_tokens, $temperature, $json_schema, false, true );
-				if ( ! empty( $retry_no_temp['ok'] ) ) {
-					return $retry_no_temp;
-				}
-				$result = $retry_no_temp;
-			}
+		$profile = self::get_provider_profile( $provider_id );
+		if ( null !== $profile['max_tokens'] && $max_tokens > (int) $profile['max_tokens'] ) {
+			$max_tokens = (int) $profile['max_tokens'];
 		}
 
-		if ( null === $result || empty( $result['ok'] ) ) {
-			if ( ! self::is_prompt_supported( $provider_id, $system_instruction, $prompt_text, $max_tokens, $temperature, null, true, true ) ) {
-				if ( self::is_no_models_error( $result ) || null === $result ) {
-					$any_provider = self::execute_prompt( $provider_id, $system_instruction, $prompt_text, $max_tokens, $temperature, null, false, false );
-					if ( ! empty( $any_provider['ok'] ) ) {
-						return $any_provider;
-					}
-					if ( null !== $json_schema && self::is_prompt_supported( $provider_id, $system_instruction, $prompt_text, $max_tokens, $temperature, $json_schema, false, false ) ) {
-						$schema_any = self::execute_prompt( $provider_id, $system_instruction, $prompt_text, $max_tokens, $temperature, $json_schema, false, false );
-						if ( ! empty( $schema_any['ok'] ) ) {
-							return $schema_any;
-						}
-						$result = $schema_any;
-					} else {
-						$result = $any_provider;
-					}
-				}
-				if ( null === $result || empty( $result['error'] ) ) {
-					return array(
-						'ok'    => false,
-						'error' => sprintf(
-							/* translators: %s: connector provider id */
-							__( 'No AI model is available for provider "%s" with this prompt. Try another connector under Settings → Connectors, or check Security Advisor settings.', 'security-ninja' ),
-							$provider_id
-						),
-					);
-				}
-				return $result;
-			}
+		$result = self::run_generation_ladder(
+			$provider_id,
+			$system_instruction,
+			$prompt_text,
+			$max_tokens,
+			$json_schema,
+			$profile
+		);
 
-			$result = self::execute_prompt( $provider_id, $system_instruction, $prompt_text, $max_tokens, $temperature, null, true, true );
-			if ( ! empty( $result['ok'] ) ) {
-				return $result;
-			}
-			if ( self::is_unsupported_temperature_error( $result ) ) {
-				$retry_no_temp = self::execute_prompt( $provider_id, $system_instruction, $prompt_text, $max_tokens, $temperature, null, false, true );
-				if ( ! empty( $retry_no_temp['ok'] ) ) {
-					return $retry_no_temp;
-				}
-				$result = $retry_no_temp;
-			}
+		if ( is_array( $result ) ) {
+			$result['max_tokens_requested'] = $max_tokens;
 		}
 
-		if ( self::is_no_models_error( $result ) ) {
-			$any_provider = self::execute_prompt( $provider_id, $system_instruction, $prompt_text, $max_tokens, $temperature, null, false, false );
-			if ( ! empty( $any_provider['ok'] ) ) {
-				return $any_provider;
-			}
-			$result = $any_provider;
+		if ( is_array( $result ) && empty( $result['ok'] ) && self::should_report_no_models_error( $result ) ) {
+			return array(
+				'ok'            => false,
+				'error'         => sprintf(
+					/* translators: %s: connector provider id */
+					__( 'No AI model is available for provider "%s" with this prompt. Try another connector under Settings → Connectors, or check Security Advisor settings.', 'security-ninja' ),
+					$provider_id
+				),
+				'attempt_count' => isset( $result['attempt_count'] ) ? (int) $result['attempt_count'] : 0,
+			);
 		}
 
+		return is_array( $result ) ? $result : array(
+			'ok'    => false,
+			'error' => __( 'Request failed.', 'security-ninja' ),
+		);
+	}
+
+	/**
+	 * Whether the connector will use strict JSON schema output for this prompt.
+	 *
+	 * @param string                   $provider_id        Connector id.
+	 * @param string                   $system_instruction System instruction.
+	 * @param string                   $prompt_text        Prompt text.
+	 * @param array<string,mixed>|null $json_schema        JSON schema.
+	 * @return bool
+	 */
+	public static function uses_schema_output( $provider_id, $system_instruction, $prompt_text, $json_schema ) {
+		if ( null === $json_schema || ! is_array( $json_schema ) ) {
+			return false;
+		}
+		$profile = self::get_provider_profile( $provider_id );
+		$modes   = isset( $profile['modes'] ) && is_array( $profile['modes'] ) ? $profile['modes'] : array();
+		if ( ! in_array( 'schema', $modes, true ) ) {
+			return false;
+		}
+		$max_tokens = self::resolve_max_tokens( 'full_report', array() );
+		if ( null !== $profile['max_tokens'] && $max_tokens > (int) $profile['max_tokens'] ) {
+			$max_tokens = (int) $profile['max_tokens'];
+		}
+		return self::is_prompt_supported(
+			$provider_id,
+			$system_instruction,
+			$prompt_text,
+			$max_tokens,
+			$json_schema,
+			true,
+			'schema',
+			$profile
+		);
+	}
+
+	/**
+	 * Walk profile modes (schema → mime → plain) until one succeeds.
+	 *
+	 * @param string                   $provider_id        Provider id.
+	 * @param string                   $system_instruction System instruction.
+	 * @param string                   $prompt_text        Prompt text.
+	 * @param int                      $max_tokens         Max output tokens.
+	 * @param array<string,mixed>|null $json_schema        JSON schema when structured output requested.
+	 * @param array                    $profile            Provider profile from get_provider_profile().
+	 * @return array{ok: bool, text?: string, usage?: array, model?: string, error?: string, attempt_count?: int, generation_mode?: string}
+	 */
+	private static function run_generation_ladder( $provider_id, $system_instruction, $prompt_text, $max_tokens, $json_schema, array $profile ) {
+		$result        = null;
+		$attempt_count = 0;
+		$modes         = isset( $profile['modes'] ) && is_array( $profile['modes'] ) ? $profile['modes'] : array( 'schema', 'mime', 'plain' );
+
+		foreach ( $modes as $mode ) {
+			if ( 'plain' !== $mode && null === $json_schema ) {
+				continue;
+			}
+			if ( 'schema' === $mode && null === $json_schema ) {
+				continue;
+			}
+			if ( ! self::is_mode_supported( $provider_id, $system_instruction, $prompt_text, $max_tokens, $json_schema, $mode, $profile ) ) {
+				continue;
+			}
+			$schema_for_mode = ( 'plain' === $mode ) ? null : $json_schema;
+			$attempt         = self::execute_prompt(
+				$provider_id,
+				$system_instruction,
+				$prompt_text,
+				$max_tokens,
+				$schema_for_mode,
+				true,
+				$mode,
+				$profile
+			);
+			++$attempt_count;
+			if ( ! empty( $attempt['ok'] ) ) {
+				$attempt['attempt_count']   = $attempt_count;
+				$attempt['generation_mode'] = $mode;
+				return $attempt;
+			}
+			$result = $attempt;
+		}
+
+		if ( ! is_array( $result ) ) {
+			$result = array(
+				'ok'    => false,
+				'error' => '',
+			);
+		}
+		$result['attempt_count'] = $attempt_count;
 		return $result;
+	}
+
+	/**
+	 * Whether a generation mode passes WP feature detection.
+	 *
+	 * @param string                   $provider_id        Provider id.
+	 * @param string                   $system_instruction System instruction.
+	 * @param string                   $prompt_text        Prompt text.
+	 * @param int                      $max_tokens         Max output tokens.
+	 * @param array<string,mixed>|null $json_schema        JSON schema.
+	 * @param string                   $mode               schema, mime, or plain.
+	 * @param array                    $profile            Provider profile.
+	 * @return bool
+	 */
+	private static function is_mode_supported( $provider_id, $system_instruction, $prompt_text, $max_tokens, $json_schema, $mode, array $profile ) {
+		if ( 'plain' === $mode ) {
+			return true;
+		}
+		return self::is_prompt_supported(
+			$provider_id,
+			$system_instruction,
+			$prompt_text,
+			$max_tokens,
+			$json_schema,
+			true,
+			$mode,
+			$profile
+		);
+	}
+
+	/**
+	 * Whether to replace a provider error with the friendly no-models message.
+	 *
+	 * @param array<string,mixed> $result Provider result payload.
+	 * @return bool
+	 */
+	private static function should_report_no_models_error( array $result ) {
+		return self::is_no_models_error( $result );
 	}
 
 	/**
@@ -187,41 +530,46 @@ class Wf_Sn_Ai_Advisor_Provider_Wp_Connectors {
 	 * @param string                   $system_instruction System instruction.
 	 * @param string                   $prompt_text        Prompt text.
 	 * @param int                      $max_tokens         Max output tokens.
-	 * @param float                    $temperature        Temperature.
 	 * @param array<string,mixed>|null $json_schema        Optional JSON schema.
-	 * @param bool                     $use_temperature    Whether to include temperature.
 	 * @param bool                     $force_provider     Whether to force selected provider.
+	 * @param string                   $json_response_mode One of none, schema, mime.
 	 * @return bool
 	 */
-	public static function is_prompt_supported( $provider_id, $system_instruction, $prompt_text, $max_tokens, $temperature, $json_schema, $use_temperature = true, $force_provider = true ) {
+	public static function is_prompt_supported( $provider_id, $system_instruction, $prompt_text, $max_tokens, $json_schema, $force_provider = true, $json_response_mode = 'none', $profile = null ) {
 		if ( ! self::is_available() ) {
 			return false;
 		}
 		if ( function_exists( 'wp_supports_ai' ) && ! wp_supports_ai() ) {
 			return false;
 		}
-		$builder = self::configure_builder( $provider_id, $system_instruction, $prompt_text, $max_tokens, $temperature, $json_schema, $use_temperature, $force_provider );
-		if ( ! is_object( $builder ) || ! method_exists( $builder, 'is_supported_for_text_generation' ) ) {
+		try {
+			$builder = self::configure_builder( $provider_id, $system_instruction, $prompt_text, $max_tokens, $json_schema, $force_provider, $json_response_mode, $profile );
+			if ( ! is_object( $builder ) || ! method_exists( $builder, 'is_supported_for_text_generation' ) ) {
+				return false;
+			}
+			$supported = $builder->is_supported_for_text_generation();
+			return true === $supported;
+		} catch ( \Throwable $e ) {
 			return false;
 		}
-		$supported = $builder->is_supported_for_text_generation();
-		return true === $supported;
 	}
 
 	/**
 	 * Build a WP AI Client prompt builder with advisor defaults.
 	 *
+	 * Temperature is omitted so providers use their defaults (compatible with
+	 * Claude models that reject non-default sampling parameters).
+	 *
 	 * @param string                   $provider_id        Provider id.
 	 * @param string                   $system_instruction System instruction.
 	 * @param string                   $prompt_text        Prompt text.
 	 * @param int                      $max_tokens         Max output tokens.
-	 * @param float                    $temperature        Temperature.
 	 * @param array<string,mixed>|null $json_schema        Optional JSON schema.
-	 * @param bool                     $use_temperature    Whether to include temperature.
 	 * @param bool                     $force_provider     Whether to force selected provider.
+	 * @param string                   $json_response_mode One of none, schema, mime.
 	 * @return WP_AI_Client_Prompt_Builder|null
 	 */
-	private static function configure_builder( $provider_id, $system_instruction, $prompt_text, $max_tokens, $temperature, $json_schema, $use_temperature = true, $force_provider = true ) {
+	private static function configure_builder( $provider_id, $system_instruction, $prompt_text, $max_tokens, $json_schema, $force_provider = true, $json_response_mode = 'none', $profile = null ) {
 		if ( ! function_exists( 'wp_ai_client_prompt' ) ) {
 			return null;
 		}
@@ -230,16 +578,15 @@ class Wf_Sn_Ai_Advisor_Provider_Wp_Connectors {
 			->using_max_tokens( $max_tokens );
 		if ( $force_provider && '' !== (string) $provider_id ) {
 			$builder = $builder->using_provider( $provider_id );
-			$prefs = self::get_model_preferences_for_provider( $provider_id );
+			$prefs   = self::get_model_preferences_for_provider( $provider_id, $profile );
 			if ( ! empty( $prefs ) && method_exists( $builder, 'using_model_preference' ) ) {
 				$builder = $builder->using_model_preference( ...$prefs );
 			}
 		}
-		if ( $use_temperature ) {
-			$builder = $builder->using_temperature( $temperature );
-		}
-		if ( null !== $json_schema ) {
+		if ( 'schema' === $json_response_mode && null !== $json_schema ) {
 			$builder = $builder->as_json_response( $json_schema );
+		} elseif ( 'mime' === $json_response_mode && method_exists( $builder, 'as_output_mime_type' ) ) {
+			$builder = $builder->as_output_mime_type( 'application/json' );
 		}
 		return $builder;
 	}
@@ -247,17 +594,16 @@ class Wf_Sn_Ai_Advisor_Provider_Wp_Connectors {
 	/**
 	 * Build and run a single prompt request.
 	 *
-	 * @param string              $provider_id       Provider id.
-	 * @param string              $system_instruction System instruction.
-	 * @param string              $prompt_text       Prompt text.
-	 * @param int                 $max_tokens        Max output tokens.
-	 * @param float               $temperature       Temperature.
-	 * @param array<string,mixed>|null $json_schema  Optional JSON schema.
-	 * @param bool                      $use_temperature Whether to include temperature.
-	 * @param bool                      $force_provider  Whether to force selected provider.
+	 * @param string                   $provider_id         Provider id.
+	 * @param string                   $system_instruction  System instruction.
+	 * @param string                   $prompt_text         Prompt text.
+	 * @param int                      $max_tokens          Max output tokens.
+	 * @param array<string,mixed>|null $json_schema         Optional JSON schema.
+	 * @param bool                     $force_provider      Whether to force selected provider.
+	 * @param string                   $json_response_mode  One of none, schema, mime.
 	 * @return array{ok: bool, text?: string, usage?: array, model?: string, error?: string}
 	 */
-	private static function execute_prompt( $provider_id, $system_instruction, $prompt_text, $max_tokens, $temperature, $json_schema, $use_temperature = true, $force_provider = true ) {
+	private static function execute_prompt( $provider_id, $system_instruction, $prompt_text, $max_tokens, $json_schema, $force_provider = true, $json_response_mode = 'none', $profile = null ) {
 		$timeout_cb = static function ( $default_timeout ) {
 			/**
 			 * Filters AI request timeout for Security Advisor calls.
@@ -273,7 +619,7 @@ class Wf_Sn_Ai_Advisor_Provider_Wp_Connectors {
 		add_filter( 'wp_ai_client_default_request_timeout', $timeout_cb, 20 );
 		try {
 			try {
-				$builder = self::configure_builder( $provider_id, $system_instruction, $prompt_text, $max_tokens, $temperature, $json_schema, $use_temperature, $force_provider );
+				$builder = self::configure_builder( $provider_id, $system_instruction, $prompt_text, $max_tokens, $json_schema, $force_provider, $json_response_mode, $profile );
 				if ( ! is_object( $builder ) ) {
 					return array(
 						'ok'    => false,
@@ -281,7 +627,7 @@ class Wf_Sn_Ai_Advisor_Provider_Wp_Connectors {
 					);
 				}
 				$result = $builder->generate_text_result();
-			} catch ( \Exception $e ) {
+			} catch ( \Throwable $e ) {
 				return array(
 					'ok'    => false,
 					'error' => $e->getMessage(),
@@ -302,20 +648,6 @@ class Wf_Sn_Ai_Advisor_Provider_Wp_Connectors {
 	}
 
 	/**
-	 * Detect connector errors indicating unsupported temperature argument.
-	 *
-	 * @param array<string,mixed> $result Provider result payload.
-	 * @return bool
-	 */
-	private static function is_unsupported_temperature_error( array $result ) {
-		if ( empty( $result['error'] ) || ! is_string( $result['error'] ) ) {
-			return false;
-		}
-		$err = strtolower( $result['error'] );
-		return strpos( $err, 'unsupported parameter' ) !== false && strpos( $err, 'temperature' ) !== false;
-	}
-
-	/**
 	 * Detect connector errors indicating no matching models for selected provider.
 	 *
 	 * @param array<string,mixed> $result Provider result payload.
@@ -330,22 +662,24 @@ class Wf_Sn_Ai_Advisor_Provider_Wp_Connectors {
 	}
 
 	/**
-	 * Preferred model IDs per provider (first match wins).
+	 * Optional model preferences from the wf_sn_ai_advisor_model_preferences filter.
+	 *
+	 * Security Ninja does not ship provider-specific defaults; model selection is delegated
+	 * to WordPress AI Connectors when no filter overrides are present.
 	 *
 	 * @param string $provider_id Provider id.
 	 * @return array<int, string>
 	 */
-	private static function get_model_preferences_for_provider( $provider_id ) {
+	private static function get_model_preferences_for_provider( $provider_id, $profile = null ) {
 		$provider_id = sanitize_key( (string) $provider_id );
 		$defaults    = array();
-		if ( 'deepseek' === $provider_id ) {
-			// Chat model first — reasoning variants can consume the full output budget without JSON content.
-			$defaults = array( 'deepseek-chat', 'deepseek-v4-flash', 'deepseek-v4-pro' );
+		if ( is_array( $profile ) && ! empty( $profile['model_prefs'] ) && is_array( $profile['model_prefs'] ) ) {
+			$defaults = $profile['model_prefs'];
 		}
 		/**
 		 * Filters preferred model IDs for a connector (evaluated in order).
 		 *
-		 * @param array<int, string> $defaults    Default preference list.
+		 * @param array<int, string> $defaults    Default preference list from provider profile.
 		 * @param string             $provider_id Provider id.
 		 */
 		$prefs = apply_filters( 'wf_sn_ai_advisor_model_preferences', $defaults, $provider_id );
@@ -413,7 +747,7 @@ class Wf_Sn_Ai_Advisor_Provider_Wp_Connectors {
 				if ( is_string( $via_api ) && '' !== $via_api ) {
 					return $via_api;
 				}
-			} catch ( \Exception $e ) {
+			} catch ( \Throwable $e ) {
 				// Fall through.
 			}
 		}
@@ -545,21 +879,5 @@ class Wf_Sn_Ai_Advisor_Provider_Wp_Connectors {
 		 * @param string $request_type full_report or prompt_chip.
 		 */
 		return max( 256, (int) apply_filters( 'wf_sn_ai_advisor_max_tokens', $default, $request_type ) );
-	}
-
-	/**
-	 * @param array $options Caller options.
-	 * @return float
-	 */
-	private static function resolve_temperature( array $options ) {
-		if ( isset( $options['temperature'] ) && is_numeric( $options['temperature'] ) ) {
-			return (float) $options['temperature'];
-		}
-		/**
-		 * Filters temperature for Security Advisor AI requests.
-		 *
-		 * @param float $temperature Default 0.3 for factual security guidance.
-		 */
-		return (float) apply_filters( 'wf_sn_ai_advisor_temperature', 0.3 );
 	}
 }

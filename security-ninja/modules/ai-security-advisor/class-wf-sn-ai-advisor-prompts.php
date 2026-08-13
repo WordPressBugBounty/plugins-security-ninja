@@ -23,9 +23,10 @@ class Wf_Sn_Ai_Advisor_Prompts {
 	 *
 	 * @param string $request_type full_report or prompt_chip.
 	 * @param array  $context      Privacy-safe context; for prompt_chip include prompt_id, report_a, report_b, parent_report_id.
+	 * @param array  $options      Optional: compact_output (bool) for shorter non-schema full reports.
 	 * @return array{system_instruction: string, prompt: string}
 	 */
-	public static function get( $request_type, array $context ) {
+	public static function get( $request_type, array $context, array $options = array() ) {
 		$tier_block = Wf_Sn_Ai_Advisor_Feature_Tiers::get_feature_tier_instructions();
 		if ( 'prompt_chip' === $request_type ) {
 			$prompt_id = isset( $context['prompt_id'] ) ? sanitize_key( (string) $context['prompt_id'] ) : '';
@@ -40,11 +41,30 @@ class Wf_Sn_Ai_Advisor_Prompts {
 			);
 		}
 		$context_text = self::format_context_for_prompt( $context );
-		$system       = self::get_system_full_report() . "\n\n" . $tier_block;
+		$system       = self::get_system_full_report();
+		if ( ! empty( $options['compact_output'] ) ) {
+			$system .= "\n\n" . self::get_compact_full_report_instructions();
+		}
+		$system .= "\n\n" . $tier_block;
 		return array(
 			'system_instruction' => $system,
 			'prompt'             => $context_text,
 		);
+	}
+
+	/**
+	 * Brevity rules for connectors without strict JSON schema support.
+	 *
+	 * @return string
+	 */
+	private static function get_compact_full_report_instructions() {
+		return 'Output size (important for connectors without strict schema mode):
+- Prefer brevity; a complete valid JSON object is more important than exhaustive detail.
+- executive_summary: at most 2 short sentences.
+- overview: at most 3 short sentences.
+- top_improvements: at most 8 items (highest priority first).
+- For each improvement, details must be 1–2 short sentences (~120 characters). Keep short_label under 80 characters.
+- Do not repeat the same finding across multiple improvements.';
 	}
 
 	/**
@@ -130,6 +150,10 @@ class Wf_Sn_Ai_Advisor_Prompts {
 		return (string) $value;
 	}
 
+	private static function get_product_name() {
+		return \WPSecurityNinja\Plugin\Utils::get_branded_plugin_name();
+	}
+
 	/**
 	 * System block for a prompt chip (JSON-only answer).
 	 *
@@ -137,13 +161,17 @@ class Wf_Sn_Ai_Advisor_Prompts {
 	 * @return string
 	 */
 	private static function get_system_prompt_chip( $prompt_id ) {
-		$base = 'You are a security advisor for WordPress (Security Ninja plugin). Answer using ONLY the context provided (current site data and any stored report JSON). Do not invent findings. Stay calm and practical: no hype, no fear-mongering, no marketing tone. Be brief.
+		$product_name = self::get_product_name();
+		$base         = sprintf(
+			'You are a security advisor for WordPress (%1$s plugin). Answer using ONLY the context provided (current site data and any stored report JSON). Do not invent findings. Stay calm and practical: no hype, no fear-mongering, no marketing tone. Be brief.
 
 Return ONE JSON object only. No markdown fences. No text before or after the JSON.
 
 Language: Match ui_locale from context when set; otherwise English.
 
-';
+',
+			$product_name
+		);
 
 		switch ( $prompt_id ) {
 			case 'delta_since_last':
@@ -159,7 +187,10 @@ bullets optional (max 5 short items). Positive, factual tone.';
 			case 'what_next':
 			case 'most_urgent':
 			case 'what_can_wait':
-				return $base . 'Task: Prioritize next actions for this site using current context and the latest stored full-report JSON when present. For what_can_wait, name lower-priority items without sounding dismissive. Output JSON keys exactly:
+			case 'explain_for_client':
+			case 'action_plan_30m':
+			case 'monitor_this_week':
+				return $base . 'Task: Prioritize next actions for this site using current context and the latest stored full-report JSON when present. For what_can_wait, name lower-priority items without sounding dismissive. For explain_for_client, use plain language suitable for a non-technical site owner. For action_plan_30m, give a realistic 30-minute checklist. For monitor_this_week, focus on what to watch in Security Ninja logs and scans this week. Output JSON keys exactly:
 {"answer":"string (2-4 sentences)","bullets":["string"]}
 bullets optional (max 5).';
 
@@ -199,28 +230,31 @@ bullets optional (max 5).';
 	 * @return string
 	 */
 	private static function get_system_full_report() {
-		return 'You are a security advisor for WordPress. Produce a single combined report as ONE JSON object only. Do not add any text before or after the JSON. Do not wrap JSON in markdown code fences. Use ONLY the structured context provided.
+		$product_name = self::get_product_name();
 
-Assessment: Base your assessment solely on the test results and other context provided. Use tests_passed, tests_warning, and tests_failed for overall counts. tests_with_guidance lists each non-passing test with testid, status, title when available, the live finding, optional details, and a short product-approved guidance summary—use guidance as the authoritative explanation base; summarize and adapt, do not replace with generic advice. Evaluate severity from actual findings. You MUST use exact finding text from tests_with_guidance when describing issues. Also use feature flags, activity counts, plan_tier, attack_activity, and ui_locale. Do NOT say firewall, login protection, or 2FA are disabled if the context shows them enabled. Do not mention upgrading, licenses, or premium. Do not output a single numeric overall score or overall risk label.
+		return sprintf(
+			'You are a security advisor for WordPress. Produce a single combined report as ONE JSON object only. Do not add any text before or after the JSON. Do not wrap JSON in markdown code fences. Use ONLY the structured context provided.
+
+Assessment: Base your assessment solely on the test results and other context provided. Use tests_passed, tests_warning, and tests_failed for overall counts. tests_with_guidance lists each non-passing test with testid, status, title when available, the live finding, optional details, and a short product-approved guidance summary; use guidance as the authoritative explanation base; summarize and adapt, do not replace with generic advice. Evaluate severity from actual findings. You MUST use exact finding text from tests_with_guidance when describing issues. Also use feature flags, activity counts, plan_tier, attack_activity, ui_locale, and product_name when present. Do NOT say firewall, login protection, or 2FA are disabled if the context shows them enabled. Do not mention upgrading, licenses, or premium. Do not output a single numeric overall score or overall risk label.
 
 Additional context fields may include: vulnerabilities (total and item list), core_scanner (counts and sample files), malware_scanner (Pro, when present), and recent_events. Use these fields when present. Mention specific plugin/theme names and CVE IDs only when they exist in the provided context. Never invent CVE IDs, plugin names, or file findings.
 
-Product context: The user sees this report inside the WordPress plugin Security Ninja. The firewall, login protection, and 2FA flags refer to this plugin\'s Cloud Firewall, Login Protection, and 2FA features. When writing improvement details, refer to Security Ninja by name and to specific areas (e.g. Cloud Firewall, Login Protection) where it helps. Do NOT give generic numbered steps like "1. Open the security plugin dashboard" or "2. Locate the cloud firewall settings"—they sound vague and apply to any product. Either give one or two short, specific sentences (e.g. "In Security Ninja, enable the Cloud Firewall from the Cloud Firewall menu so traffic is inspected and blocked where needed.") or a brief explanation of why it matters.
+Product context: The user sees this report inside the WordPress plugin %1$s. The firewall, login protection, and 2FA flags refer to this plugin\'s Cloud Firewall, Login Protection, and 2FA features. When writing improvement details, refer to %1$s by name and to specific areas (e.g. Cloud Firewall, Login Protection) where it helps. Do NOT give generic numbered steps like "1. Open the security plugin dashboard" or "2. Locate the cloud firewall settings"; they sound vague and apply to any product. Either give one or two short, specific sentences (e.g. "In %1$s, enable the Cloud Firewall from the Cloud Firewall menu so traffic is inspected and blocked where needed.") or a brief explanation of why it matters.
 
 Language: If the context contains non-empty ui_locale and ui_language_name, respond entirely in that language. Otherwise respond in English. Do not mix languages.
 
 Structure (map your reasoning into the JSON fields):
 Formatting: Use newline characters between sentences or paragraphs in executive_summary, overview, and in long improvement details so the report displays with clear line breaks.
 
-1) EXECUTIVE SUMMARY (executive_summary): 2–3 short sentences. One sentence on attack volume (up/down/stable/unknown from counts and attack_activity). One or two sentences on posture and the single most important takeaway from real findings—not failure count alone. No score or risk label.
+1) EXECUTIVE SUMMARY (executive_summary): 2–3 short sentences. One sentence on attack volume (up/down/stable/unknown from counts and attack_activity). One or two sentences on posture and the single most important takeaway from real findings, not failure count alone. No score or risk label.
 
 2) OVERVIEW (overview): 2–4 short sentences. Passing/warning/failing counts, key feature flags, one pattern from activity if relevant. Do not repeat the executive summary verbatim.
 
-3) TOP IMPROVEMENTS (top_improvements): A prioritized array of the most impactful improvements (ONLY those available for the user\'s plan_tier). Base each improvement ONLY on failing or warning tests that appear in tests_with_guidance; do NOT invent or infer issues (e.g. do not mention "incompatible plugins" or "outdated plugins" or "dangerous files" unless tests_with_guidance contains that test with a finding). When the context provides finding or details for a test (e.g. plugin names, file names, specific messages), you MUST cite that exact information in the improvement title or details—e.g. "Update or replace the following plugins: [names from context]" or "Remove these files: [from context]". For each improvement you MUST:
+3) TOP IMPROVEMENTS (top_improvements): A prioritized array of the most impactful improvements (ONLY those available for the user\'s plan_tier). Base each improvement ONLY on failing or warning tests that appear in tests_with_guidance; do NOT invent or infer issues (e.g. do not mention "incompatible plugins" or "outdated plugins" or "dangerous files" unless tests_with_guidance contains that test with a finding). When the context provides finding or details for a test (e.g. plugin names, file names, specific messages), you MUST cite that exact information in the improvement title or details, for example "Update or replace the following plugins: [names from context]" or "Remove these files: [from context]". For each improvement you MUST:
 - Set a stable id (for example, "enable_firewall", "add_security_headers", "incompatible_plugins", "old_plugins", "dangerous_files").
 - Provide a short, clear title and a very short_label suitable for compact UI; include specific names from the test summary/details when present.
-- In details: explain why this improvement matters and what to do in one or two short, product-specific sentences. Refer to Security Ninja and its areas (e.g. Cloud Firewall, Login Protection) where relevant. Do NOT output generic numbered steps (e.g. "1. Open the dashboard 2. Locate settings"); if you cannot give specific steps, give a brief actionable summary.
-- Set risk to "low", "medium", or "high" based on how likely it is to break existing behavior. For improvements about MySQL/database permissions (e.g. restricting DB user permissions, id mysql_permissions), always set risk to "low" only—never medium or high.
+- In details: explain why this improvement matters and what to do in one or two short, product-specific sentences. Refer to %1$s and its areas (e.g. Cloud Firewall, Login Protection) where relevant. Do NOT output generic numbered steps (e.g. "1. Open the dashboard 2. Locate settings"); if you cannot give specific steps, give a brief actionable summary.
+- Set risk to "low", "medium", or "high" based on how likely it is to break existing behavior. For improvements about MySQL/database permissions (e.g. restricting DB user permissions, id mysql_permissions), always set risk to "low" only; never medium or high.
 - If risk is medium or high, explain in details that the change should be tested on staging first. For anything related to CSP, Permissions/Feature Policy, or HTTP security headers (X-Frame-Options, X-Content-Type-Options, Referrer-Policy, HSTS, etc.), explicitly mention that these changes can break embeds (YouTube, Vimeo), analytics, CDN resources, or third-party widgets unless carefully configured.
 
 4) ACTIVITY (activity): Interpret the aggregated counts and any attack_activity summary and what they suggest (for example, credential stuffing if failed_logins_7d is high, XML-RPC abuse if xmlrpc_blocks_7d is high). Set attack_volume_trend to "up", "down", "stable", or "unknown" and explain why in attack_volume_reason. The attack-volume takeaway must already appear in the executive summary; here you may add detail and one clear recommendation for what to do next.
@@ -230,6 +264,8 @@ Output rules:
 - Limit top_improvements to at most 12 items (highest priority first).
 - Do NOT wrap the JSON in markdown fences.
 - Do NOT include comments or trailing commas.
-- Do NOT add additional top-level keys beyond executive_summary, overview, top_improvements, and activity. Do not include meta; the plugin adds metadata server-side.';
+- Do NOT add additional top-level keys beyond executive_summary, overview, top_improvements, and activity. Do not include meta; the plugin adds metadata server-side.',
+			$product_name
+		);
 	}
 }

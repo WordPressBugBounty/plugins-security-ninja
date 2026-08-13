@@ -5,12 +5,12 @@ Plugin Name: Security Ninja
 Plugin URI: https://wpsecurityninja.com/
 Description: Check your site for security vulnerabilities and get precise suggestions for corrective actions on passwords, user accounts, file permissions, database security, version hiding, plugins, themes, security headers and other security aspects.
 Author: WP Security Ninja
-Version: 5.289
+Version: 5.296
 Author URI: https://wpsecurityninja.com/
 License: GPLv3
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 Text Domain: security-ninja
-Domain Path: /languages
+Domain Path: /languages/mo
 
 Copyright
 2011-2019 Web Factory Ltd
@@ -90,11 +90,13 @@ if ( !function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
                 'menu'             => ( is_multisite() ? array(
                     'support' => false,
                     'network' => false,
+                    'pricing' => false,
                 ) : array(
                     'slug'       => 'wf-sn',
                     'first-path' => 'admin.php?page=security-ninja-wizard',
                     'support'    => false,
                     'network'    => false,
+                    'pricing'    => false,
                 ) ),
                 'is_live'          => true,
                 'is_org_compliant' => true,
@@ -127,14 +129,15 @@ if ( !function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
     include_once WF_SN_PLUGIN_DIR . 'includes/class-wf-sn-test-descriptions.php';
     include_once WF_SN_PLUGIN_DIR . 'includes/class-wf-sn-free-render.php';
     include_once WF_SN_PLUGIN_DIR . 'includes/class-wf-sn-crypto.php';
+    include_once WF_SN_PLUGIN_DIR . 'includes/class-wf-sn-admin-links.php';
+    include_once WF_SN_PLUGIN_DIR . 'includes/class-wf-sn-security-snapshot.php';
+    include_once WF_SN_PLUGIN_DIR . 'includes/class-wf-sn-security-snapshot-diff.php';
+    include_once WF_SN_PLUGIN_DIR . 'includes/class-wf-sn-priority-resolver.php';
     include_once WF_SN_PLUGIN_DIR . 'modules/events-logger/events-logger.php';
     include_once WF_SN_PLUGIN_DIR . 'modules/wizard/class-wf-sn-wizard.php';
     if ( apply_filters( 'wf_sn_ai_advisor_enabled', true ) ) {
-        $wl_hide_advisor = false;
-        if ( !$wl_hide_advisor ) {
-            include_once WF_SN_PLUGIN_DIR . 'modules/ai-security-advisor/class-wf-sn-ai-advisor.php';
-            add_action( 'init', array('\\WPSecurityNinja\\Plugin\\AiAdvisor\\Wf_Sn_Ai_Advisor', 'init') );
-        }
+        include_once WF_SN_PLUGIN_DIR . 'modules/ai-security-advisor/class-wf-sn-ai-advisor.php';
+        add_action( 'init', array('\\WPSecurityNinja\\Plugin\\AiAdvisor\\Wf_Sn_Ai_Advisor', 'init') );
     }
     class Wf_Sn {
         /**
@@ -177,7 +180,7 @@ if ( !function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
          *
          * @var int
          */
-        const WF_SN_DB_VERSION = 5.272;
+        const WF_SN_DB_VERSION = 5.292;
 
         /**
          * Load plugin text domain for translations
@@ -189,7 +192,7 @@ if ( !function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
          * @return  void
          */
         public static function load_textdomain() {
-            load_plugin_textdomain( 'security-ninja', false, dirname( plugin_basename( __FILE__ ) ) . '/languages' );
+            load_plugin_textdomain( 'security-ninja', false, dirname( plugin_basename( __FILE__ ) ) . '/languages/mo' );
         }
 
         /**
@@ -222,6 +225,7 @@ if ( !function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
                 2
             );
             add_action( 'secnin_run_tests_event', array(__NAMESPACE__ . '\\Wf_Sn', 'do_event_run_tests') );
+            Wf_Sn_Security_Snapshot::register_hooks();
             // Admin-ajax: register always; each callback enforces current_user_can( 'manage_options' ) (or stricter).
             add_action( 'wp_ajax_sn_run_single_test', array(__NAMESPACE__ . '\\Wf_Sn', 'run_single_test') );
             add_action( 'wp_ajax_sn_get_single_test_details', array(__NAMESPACE__ . '\\Wf_Sn', 'get_single_test_details') );
@@ -384,6 +388,7 @@ if ( !function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
          * @return  void
          */
         public static function do_action_admin_init() {
+            self::maybe_redirect_after_first_install();
             // Check for secret URL reset success notice
             $reset_success_url = get_transient( 'sn_secret_url_reset_success' );
             if ( $reset_success_url ) {
@@ -409,6 +414,49 @@ if ( !function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
                     echo '<div class="notice notice-success secnin-notice"><p>' . esc_html__( 'Two-factor authentication has been reset for all users.', 'security-ninja' ) . '</p></div>';
                 } );
             }
+        }
+
+        /**
+         * Returns the one-time post-install/post-license landing page.
+         *
+         * @since 5.291
+         * @access private static
+         * @return string Admin URL.
+         */
+        private static function get_post_install_redirect_url() {
+            if ( class_exists( __NAMESPACE__ . '\\Wf_Sn_Wiz' ) && !\WPSecurityNinja\Plugin\Wf_Sn_Wiz::is_wizard_completed() ) {
+                return admin_url( 'admin.php?page=security-ninja-wizard' );
+            }
+            return admin_url( 'admin.php?page=wf-sn' );
+        }
+
+        /**
+         * Redirects once after a true first install only.
+         *
+         * Lands on the main Security Ninja page so Freemius license entry is not
+         * skipped. The wizard is opened later via license-activation redirect when
+         * setup is still incomplete.
+         *
+         * The redirect flag is only set when wf_sn_options did not exist before
+         * activation, so updates and later reactivations of existing installs do
+         * not reopen the wizard.
+         *
+         * @since 5.291
+         * @access private static
+         * @return void
+         */
+        private static function maybe_redirect_after_first_install() {
+            if ( wp_doing_ajax() || is_network_admin() || !current_user_can( 'manage_options' ) ) {
+                return;
+            }
+            $redirect_user_id = absint( get_option( 'secnin_activation_redirect', 0 ) );
+            if ( !$redirect_user_id || get_current_user_id() !== $redirect_user_id ) {
+                return;
+            }
+            delete_option( 'secnin_activation_redirect' );
+            // Land on the main plugin page so Freemius license entry is not skipped.
+            wp_safe_redirect( admin_url( 'admin.php?page=wf-sn' ) );
+            exit;
         }
 
         /**
@@ -667,6 +715,38 @@ if ( !function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
         }
 
         /**
+         * Register and enqueue shared SnDialog assets (free + Pro).
+         *
+         * Safe to call from any admin or front-end surface that needs dialogs.
+         *
+         * @since 5.292
+         * @return void
+         */
+        public static function enqueue_sn_dialog() {
+            wp_enqueue_style(
+                'sn-dialog',
+                WF_SN_PLUGIN_URL . 'css/sn-dialog.css',
+                array(),
+                filemtime( WF_SN_PLUGIN_DIR . 'css/sn-dialog.css' )
+            );
+            if ( !wp_script_is( 'sn-dialog', 'registered' ) ) {
+                wp_register_script(
+                    'sn-dialog',
+                    WF_SN_PLUGIN_URL . 'js/sn-dialog.js',
+                    array(),
+                    filemtime( WF_SN_PLUGIN_DIR . 'js/sn-dialog.js' ),
+                    true
+                );
+                wp_localize_script( 'sn-dialog', 'snDialogL10n', array(
+                    'ok'     => esc_html__( 'OK', 'security-ninja' ),
+                    'cancel' => esc_html__( 'Cancel', 'security-ninja' ),
+                    'close'  => esc_html__( 'Close', 'security-ninja' ),
+                ) );
+            }
+            wp_enqueue_script( 'sn-dialog' );
+        }
+
+        /**
          * Enqueue CSS and JS scripts on plugin's pages
          *
          * @author  Lars Koudal
@@ -682,19 +762,16 @@ if ( !function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
             if ( 'wp-admin/update.php' === $GLOBALS['pagenow'] ) {
                 return;
             }
-            $sn_global_deps = array('jquery');
             if ( self::is_plugin_page() ) {
+                $sn_global_deps = array('jquery', 'jquery-ui-tabs');
                 wp_enqueue_script( 'jquery-ui-tabs' );
-                $sn_global_deps[] = 'jquery-ui-tabs';
-            }
-            wp_enqueue_script(
-                'sn-global',
-                WF_SN_PLUGIN_URL . 'js/sn-global.js',
-                $sn_global_deps,
-                filemtime( WF_SN_PLUGIN_DIR . 'js/sn-global.js' ),
-                true
-            );
-            if ( self::is_plugin_page() ) {
+                wp_enqueue_script(
+                    'sn-global',
+                    WF_SN_PLUGIN_URL . 'js/sn-global.js',
+                    $sn_global_deps,
+                    filemtime( WF_SN_PLUGIN_DIR . 'js/sn-global.js' ),
+                    true
+                );
                 wp_enqueue_script(
                     'sn-jquery-plugins',
                     WF_SN_PLUGIN_URL . 'js/sn-jquery-plugins.js',
@@ -702,8 +779,7 @@ if ( !function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
                     filemtime( WF_SN_PLUGIN_DIR . 'js/sn-jquery-plugins.js' ),
                     true
                 );
-                wp_enqueue_style( 'wp-jquery-ui-dialog' );
-                wp_enqueue_script( 'jquery-ui-dialog' );
+                self::enqueue_sn_dialog();
                 $is_registered = false;
                 if ( secnin_fs()->is_registered() ) {
                     $is_registered = true;
@@ -727,7 +803,7 @@ if ( !function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
                 wp_register_script(
                     'sn-js',
                     WF_SN_PLUGIN_URL . 'js/sn-common.js',
-                    array('jquery', 'wp-i18n'),
+                    array('jquery', 'wp-i18n', 'sn-dialog'),
                     filemtime( WF_SN_PLUGIN_DIR . 'js/sn-common.js' ),
                     true
                 );
@@ -820,7 +896,6 @@ if ( !function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
             }
             // Register submenus only for pro users
             $add_advisor_for_free = true;
-            $hide_advisor_for_whitelabel = false;
             if ( $add_advisor_for_free && apply_filters( 'wf_sn_ai_advisor_enabled', true ) ) {
                 // Free build: only Security Advisor submenu (premium block was stripped)
                 add_submenu_page(
@@ -842,8 +917,7 @@ if ( !function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
                 array(__NAMESPACE__ . '\\Wf_Sn_Wiz', 'wizard_page')
             );
             // Append AI badge to Security Advisor menu item (all users when advisor is shown)
-            $show_advisor_badge = apply_filters( 'wf_sn_ai_advisor_enabled', true );
-            if ( $show_advisor_badge ) {
+            if ( apply_filters( 'wf_sn_ai_advisor_enabled', true ) ) {
                 add_filter( 'admin_menu', array(__CLASS__, 'add_advisor_menu_badge'), 999 );
                 add_action( 'admin_enqueue_scripts', array(__CLASS__, 'enqueue_advisor_menu_badge_style'), 10 );
             }
@@ -1872,8 +1946,23 @@ if ( !function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
          * @return  void
          */
         public static function activate( $network_wide = false ) {
+            $missing_options_marker = '__secnin_missing_options__';
+            $is_first_install = $missing_options_marker === get_option( 'wf_sn_options', $missing_options_marker );
             $options = self::get_options();
-            // Runs on first activation.
+            if ( $is_first_install ) {
+                $options['first_version'] = \WPSecurityNinja\Plugin\Utils::get_plugin_version();
+                $options['first_install'] = time();
+                update_option( 'wf_sn_options', $options, false );
+                $action = ( isset( $_REQUEST['action'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['action'] ) ) : '' );
+                $checked_plugins = ( isset( $_POST['checked'] ) ? array_map( 'sanitize_text_field', wp_unslash( (array) $_POST['checked'] ) ) : array() );
+                $is_bulk_activate = 'activate-selected' === $action || count( $checked_plugins ) > 1;
+                if ( !$network_wide && !$is_bulk_activate ) {
+                    $user_id = get_current_user_id();
+                    if ( $user_id ) {
+                        update_option( 'secnin_activation_redirect', $user_id, false );
+                    }
+                }
+            }
             global $wpdb;
             include_once ABSPATH . 'wp-admin/includes/upgrade.php';
             $charset = $wpdb->get_charset_collate();

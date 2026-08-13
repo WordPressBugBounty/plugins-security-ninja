@@ -55,22 +55,31 @@ jQuery(document).ready(function ($) {
     theme: 'classic'
   });
 
-  // Show modal on button click
+  // Show enable-firewall dialog
   $('#sn-enable-firewall-overlay').on('click', function (e) {
     e.preventDefault();
-    $('#sn-firewall-modal').show();
-  });
-
-  // Close modal on close button
-  $('.sn-modal-close').on('click', function () {
-    $('#sn-firewall-modal').hide();
-  });
-
-  // Close modal on clicking outside the modal
-  $(document).on('click', function (e) {
-    if ($(e.target).is('#sn-firewall-modal')) {
-      $('#sn-firewall-modal').hide();
+    var $host = $('#sn-firewall-modal');
+    var panel = $host.find('.sn-modal-content').get(0);
+    if (!panel || typeof SnDialog === 'undefined') {
+      $host.show();
+      return;
     }
+    SnDialog.open({
+      hideTitle: true,
+      bodyNode: panel,
+      buttons: false,
+      onClose: function () {
+        $host.append(panel);
+      }
+    });
+  });
+
+  // Close enable-firewall dialog
+  $(document).on('click', '.sn-modal-close', function () {
+    if (typeof SnDialog !== 'undefined') {
+      SnDialog.close();
+    }
+    $('#sn-firewall-modal').hide();
   });
 
   // Handle Continue button click
@@ -273,11 +282,6 @@ jQuery(document).ready(function ($) {
           e.preventDefault();
           self.closeIpRuleModal();
         });
-        $('#sn-cf-ip-rule-modal').on('click', function (e) {
-          if ($(e.target).is('#sn-cf-ip-rule-modal')) {
-            self.closeIpRuleModal();
-          }
-        });
         $('#sn-cf-remove-ip-confirm').on('click', function (e) {
           e.preventDefault();
           self.confirmRemove();
@@ -286,33 +290,17 @@ jQuery(document).ready(function ($) {
           e.preventDefault();
           self.closeRemoveModal();
         });
-        $('#sn-cf-remove-ip-modal').on('click', function (e) {
-          if ($(e.target).is('#sn-cf-remove-ip-modal')) {
-            self.closeRemoveModal();
-          }
-        });
         $(document).on('keydown.snCfIpModals', function (e) {
-          if ($('#sn-cf-ip-rule-modal').is(':visible')) {
-            if (e.key === 'Escape') {
-              e.preventDefault();
-              self.closeIpRuleModal();
-            }
-            if (e.key === 'Enter' && !$(e.target).is('textarea')) {
-              e.preventDefault();
-              self.submitIpRule();
-            }
-            return;
-          }
-          if (!$('#sn-cf-remove-ip-modal').is(':visible')) {
+          if (!self.ipRuleMode) {
             return;
           }
           if (e.key === 'Escape') {
             e.preventDefault();
-            self.closeRemoveModal();
+            self.closeIpRuleModal();
           }
-          if (e.key === 'Enter') {
+          if (e.key === 'Enter' && !$(e.target).is('textarea')) {
             e.preventDefault();
-            self.confirmRemove();
+            self.submitIpRule();
           }
         });
       },
@@ -320,10 +308,16 @@ jQuery(document).ready(function ($) {
       filteredEntries: function () {
         var search = ($('#sn-cf-ip-search').val() || '').toLowerCase().trim();
         return this.entries.filter(function (entry) {
-          if (search && entry.ip.toLowerCase().indexOf(search) === -1) {
-            return false;
+          if (!search) {
+            return true;
           }
-          return true;
+          if (entry.ip.toLowerCase().indexOf(search) !== -1) {
+            return true;
+          }
+          if (entry.note && String(entry.note).toLowerCase().indexOf(search) !== -1) {
+            return true;
+          }
+          return false;
         });
       },
 
@@ -374,8 +368,16 @@ jQuery(document).ready(function ($) {
           '<span class="sn-cf-ip-detail-line"><strong>' +
           (this.strings.last_visit_label || 'Last visit:') +
           '</strong> ' +
-          this.escapeHtml(entry.last_visit_text || '—') +
+          this.escapeHtml(entry.last_visit_text || '-') +
           '</span>';
+        if (entry.note) {
+          lines +=
+            '<span class="sn-cf-ip-detail-line"><strong>' +
+            (this.strings.note_label || 'Note:') +
+            '</strong> ' +
+            this.escapeHtml(entry.note) +
+            '</span>';
+        }
         return '<div class="sn-cf-ip-details">' + lines + '</div>';
       },
 
@@ -587,8 +589,9 @@ jQuery(document).ready(function ($) {
         $('#sn-cf-ip-rule-edit-wrap').hide();
         $('#sn-cf-ip-rule-textarea').val('');
         $('#sn-cf-ip-rule-input').val('');
+        $('#sn-cf-ip-rule-note').val('');
         $('input[name="sn_cf_ip_rule_list_type"][value="blacklist"]').prop('checked', true);
-        $('#sn-cf-ip-rule-modal').show();
+        this.showIpRuleDialog();
         window.setTimeout(function () {
           $('#sn-cf-ip-rule-textarea').trigger('focus');
         }, 0);
@@ -597,31 +600,65 @@ jQuery(document).ready(function ($) {
       openEditModal: function (ip, listType) {
         this.ipRuleMode = 'edit';
         this.ipRuleOldIp = ip;
+        var existing = null;
+        for (var i = 0; i < this.entries.length; i++) {
+          if (this.entries[i].ip === ip) {
+            existing = this.entries[i];
+            break;
+          }
+        }
         $('#sn-cf-ip-rule-modal-title').text(this.strings.edit_rule || 'Edit IP rule');
         $('#sn-cf-ip-rule-bulk-wrap').hide();
         $('#sn-cf-ip-rule-edit-wrap').show();
         $('#sn-cf-ip-rule-textarea').val('');
         $('#sn-cf-ip-rule-input').val(ip);
+        $('#sn-cf-ip-rule-note').val(existing && existing.note ? existing.note : '');
         $('input[name="sn_cf_ip_rule_list_type"][value="' + listType + '"]').prop('checked', true);
-        $('#sn-cf-ip-rule-modal').show();
+        this.showIpRuleDialog();
         window.setTimeout(function () {
           $('#sn-cf-ip-rule-input').trigger('focus');
         }, 0);
       },
 
+      showIpRuleDialog: function () {
+        var $host = $('#sn-cf-ip-rule-modal');
+        var panel = $host.find('.sn-modal-content').get(0);
+        if (!panel || typeof SnDialog === 'undefined') {
+          $host.show();
+          return;
+        }
+        var self = this;
+        SnDialog.open({
+          hideTitle: true,
+          bodyNode: panel,
+          buttons: false,
+          onClose: function () {
+            $host.append(panel);
+            self.ipRuleMode = null;
+            self.ipRuleOldIp = null;
+          }
+        });
+      },
+
       closeIpRuleModal: function () {
         this.ipRuleMode = null;
         this.ipRuleOldIp = null;
+        if (typeof SnDialog !== 'undefined') {
+          SnDialog.close();
+        }
         $('#sn-cf-ip-rule-modal').hide();
         $('#sn-cf-ip-rule-textarea').blur();
         $('#sn-cf-ip-rule-input').blur();
+        $('#sn-cf-ip-rule-note').blur();
       },
 
       submitIpRule: function () {
         var listType = $('input[name="sn_cf_ip_rule_list_type"]:checked').val();
+        var note = ($('#sn-cf-ip-rule-note').val() || '').trim();
         var self = this;
         var postData = {
           list_type: listType,
+          note: note,
           _ajax_nonce: wf_sn_cf.nonce
         };
 
@@ -665,22 +702,32 @@ jQuery(document).ready(function ($) {
         var currentIp = $('#sn-cf-current-user-ip').val();
         if (listType === 'whitelist' && currentIp && ip === currentIp) {
           message +=
-            '<br><br><strong>' +
+            '\n\n' +
             (this.strings.confirm_remove_ip ||
-              'Removing your current IP from the whitelist may lock you out.') +
-            '</strong>';
+              'Removing your current IP from the whitelist may lock you out.');
         }
 
         this.pendingRemove = { ip: ip, listType: listType };
-        $('#sn-cf-remove-ip-message').html(message);
-        $('#sn-cf-remove-ip-modal').show();
-        window.setTimeout(function () {
-          $('#sn-cf-remove-ip-confirm').trigger('focus');
-        }, 0);
+        var self = this;
+        SnDialog.confirm({
+          title: this.strings.remove_title || 'Remove IP rule',
+          message: message,
+          danger: true,
+          confirmText: this.strings.remove || 'Remove'
+        }).then(function (ok) {
+          if (!ok) {
+            self.pendingRemove = null;
+            return;
+          }
+          self.confirmRemove();
+        });
       },
 
       closeRemoveModal: function () {
         this.pendingRemove = null;
+        if (typeof SnDialog !== 'undefined') {
+          SnDialog.close();
+        }
         $('#sn-cf-remove-ip-modal').hide();
         $('#sn-cf-remove-ip-confirm').blur();
       },

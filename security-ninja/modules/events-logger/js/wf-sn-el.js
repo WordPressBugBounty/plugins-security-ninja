@@ -134,20 +134,26 @@ jQuery( document ).ready( function( $ ) {
 
 	jQuery( '#sn-el-truncate' ).on( 'click', function( e ) {
 		e.preventDefault();
-		var answer = confirm( 'Are you sure you want to delete all log entries?' );
-		if ( answer ) {
+		SnDialog.confirm({
+			message: 'Are you sure you want to delete all log entries?',
+			danger: true
+		}).then(function( ok ) {
+			if ( ! ok ) {
+				return;
+			}
 			var data = {
 				action: 'sn_el_truncate_log',
 				_ajax_nonce: wf_sn_el.nonce
 			};
 			$.post( ajaxurl, data, function( response ) {
 				if ( ! response ) {
-					alert( 'Bad AJAX response. Please reload the page.' );
+					SnDialog.alert({ message: 'Bad AJAX response. Please reload the page.' });
 				} else {
-					alert( 'All log entries have been deleted.' );
-					window.location.reload();
+					SnDialog.alert({ message: 'All log entries have been deleted.' }).then(function() {
+						window.location.reload();
+					});
 				}
 			} );
-		}
+		});
 	} );
 } );

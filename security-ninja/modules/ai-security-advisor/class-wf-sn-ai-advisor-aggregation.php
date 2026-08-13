@@ -168,4 +168,14 @@ class Wf_Sn_Ai_Advisor_Aggregation {
 		}
 		return $args;
 	}
+
+	/**
+	 * Delete cached aggregation transients.
+	 *
+	 * @return void
+	 */
+	public static function clear_cache() {
+		delete_transient( self::TRANSIENT_PREFIX . '7d' );
+		delete_transient( self::TRANSIENT_PREFIX . 'prev7d' );
+	}
 }

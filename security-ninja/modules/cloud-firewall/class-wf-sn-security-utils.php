@@ -96,9 +96,8 @@ class Wf_Sn_Security_Utils {
 
 		// Check MIME type (optional)
 		if ( $options['check_mime'] ) {
-			$finfo     = finfo_open( FILEINFO_MIME_TYPE );
-			$mime_type = finfo_file( $finfo, $file_path );
-			finfo_close( $finfo );
+			$finfo     = new \finfo( FILEINFO_MIME_TYPE );
+			$mime_type = $finfo->file( $file_path );
 
 			$allowed_mimes = array( 'text/plain', 'text/html', 'text/css', 'application/javascript', 'application/x-httpd-php' );
 			if ( ! in_array( $mime_type, $allowed_mimes, true ) ) {
