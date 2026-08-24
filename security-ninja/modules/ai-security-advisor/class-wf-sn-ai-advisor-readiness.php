@@ -75,7 +75,10 @@ class Wf_Sn_Ai_Advisor_Readiness {
 			'detail' => $login_ready ? __( 'Event logging active', 'security-ninja' ) : __( 'Event logging inactive', 'security-ninja' ),
 		);
 
-		$cs = get_option( 'wf_sn_cs_results', array() );
+		if ( ! class_exists( 'WPSecurityNinja\\Plugin\\Wf_Sn_Cs_Utils' ) ) {
+			require_once WF_SN_PLUGIN_DIR . 'modules/core-scanner/class-wf-sn-cs-utils.php';
+		}
+		$cs = \WPSecurityNinja\Plugin\Wf_Sn_Cs_Utils::get_scan_results( array() );
 		$cs_last = is_array( $cs ) && ! empty( $cs['last_run'] ) ? (int) $cs['last_run'] : 0;
 		$items[] = array(
 			'key'    => 'core_scanner',

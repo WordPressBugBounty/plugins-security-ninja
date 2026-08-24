@@ -27,11 +27,110 @@ class Wf_Sn_Cs_Utils {
     const USER_IGNORE_OPTION = 'wf_sn_cs_user_ignore';
 
     /**
+     * Option name for cached Core Scanner results.
+     *
+     * @var string
+     */
+    const RESULTS_OPTION = 'wf_sn_cs_results';
+
+    /**
      * Maximum number of user-ignored paths stored.
      *
      * @var int
      */
     const USER_IGNORE_MAX = 500;
+
+    /**
+     * Whether Core Scanner options should be network-scoped.
+     *
+     * On Multisite, core files under ABSPATH are shared, so Ignore and
+     * scan results must be shared across the network.
+     *
+     * @return bool
+     */
+    public static function uses_network_storage() {
+        return is_multisite();
+    }
+
+    /**
+     * Read a Core Scanner option, migrating from the main site blog option on first Multisite use.
+     *
+     * @param string $option  Option name.
+     * @param mixed  $default Default when unset.
+     * @return mixed
+     */
+    private static function get_stored_option( $option, $default = false ) {
+        if ( !self::uses_network_storage() ) {
+            return get_option( $option, $default );
+        }
+        $not_set = '__sn_cs_not_set__';
+        $stored = get_site_option( $option, $not_set );
+        if ( $not_set !== $stored ) {
+            return $stored;
+        }
+        $legacy = get_blog_option( get_main_site_id(), $option, $not_set );
+        if ( $not_set === $legacy ) {
+            return $default;
+        }
+        update_site_option( $option, $legacy );
+        return $legacy;
+    }
+
+    /**
+     * Write a Core Scanner option (site option on Multisite, blog option otherwise).
+     *
+     * @param string $option Option name.
+     * @param mixed  $value  Value to store.
+     * @return bool
+     */
+    private static function update_stored_option( $option, $value ) {
+        if ( self::uses_network_storage() ) {
+            return update_site_option( $option, $value );
+        }
+        return update_option( $option, $value, false );
+    }
+
+    /**
+     * Delete a Core Scanner option from the active storage scope.
+     *
+     * @param string $option Option name.
+     * @return bool
+     */
+    private static function delete_stored_option( $option ) {
+        if ( self::uses_network_storage() ) {
+            return delete_site_option( $option );
+        }
+        return delete_option( $option );
+    }
+
+    /**
+     * Get cached Core Scanner results.
+     *
+     * @param mixed $default Default when unset.
+     * @return mixed
+     */
+    public static function get_scan_results( $default = array() ) {
+        return self::get_stored_option( self::RESULTS_OPTION, $default );
+    }
+
+    /**
+     * Persist cached Core Scanner results.
+     *
+     * @param mixed $results Results array or null.
+     * @return bool
+     */
+    public static function update_scan_results( $results ) {
+        return self::update_stored_option( self::RESULTS_OPTION, $results );
+    }
+
+    /**
+     * Delete cached Core Scanner results.
+     *
+     * @return bool
+     */
+    public static function delete_scan_results() {
+        return self::delete_stored_option( self::RESULTS_OPTION );
+    }
 
     /**
      * Retrieve file hashes from the WordPress.org API.
@@ -94,7 +193,7 @@ class Wf_Sn_Cs_Utils {
      * @return string[]
      */
     public static function get_user_ignored_files() {
-        $stored = get_option( self::USER_IGNORE_OPTION, array() );
+        $stored = self::get_stored_option( self::USER_IGNORE_OPTION, array() );
         if ( !is_array( $stored ) ) {
             return array();
         }
@@ -106,6 +205,40 @@ class Wf_Sn_Cs_Utils {
             }
         }
         return array_values( array_unique( $paths ) );
+    }
+
+    /**
+     * Replace the user ignore list (used by settings import).
+     *
+     * @param string[] $paths Relative paths.
+     * @return true|\WP_Error
+     */
+    public static function set_user_ignored_files( $paths ) {
+        if ( !is_array( $paths ) ) {
+            return new \WP_Error('invalid_paths', __( 'Invalid ignore list.', 'security-ninja' ));
+        }
+        $sanitized = array();
+        foreach ( $paths as $path ) {
+            $normalized = self::normalize_relative_path( $path );
+            if ( false !== $normalized ) {
+                $sanitized[] = $normalized;
+            }
+        }
+        $sanitized = array_values( array_unique( $sanitized ) );
+        if ( count( $sanitized ) > self::USER_IGNORE_MAX ) {
+            $sanitized = array_slice( $sanitized, 0, self::USER_IGNORE_MAX );
+        }
+        self::update_stored_option( self::USER_IGNORE_OPTION, $sanitized );
+        return true;
+    }
+
+    /**
+     * Delete the user ignore list from storage.
+     *
+     * @return bool
+     */
+    public static function delete_user_ignored_files() {
+        return self::delete_stored_option( self::USER_IGNORE_OPTION );
     }
 
     /**
@@ -141,7 +274,7 @@ class Wf_Sn_Cs_Utils {
             return new \WP_Error('ignore_limit', __( 'The ignore list is full. Remove entries before adding more.', 'security-ninja' ));
         }
         $paths[] = $normalized;
-        update_option( self::USER_IGNORE_OPTION, $paths, false );
+        self::update_stored_option( self::USER_IGNORE_OPTION, $paths );
         return true;
     }
 
@@ -163,7 +296,7 @@ class Wf_Sn_Cs_Utils {
         $paths = array_values( array_filter( $paths, function ( $path ) use($normalized) {
             return $path !== $normalized;
         } ) );
-        update_option( self::USER_IGNORE_OPTION, $paths, false );
+        self::update_stored_option( self::USER_IGNORE_OPTION, $paths );
         return true;
     }
 
@@ -234,7 +367,7 @@ class Wf_Sn_Cs_Utils {
     /**
      * Check whether a stored results array has the expected data-only shape.
      *
-     * @param mixed $results Value from get_option( 'wf_sn_cs_results' ).
+     * @param mixed $results Value from Wf_Sn_Cs_Utils::get_scan_results().
      * @return bool True when the results contain a valid last_run timestamp.
      */
     public static function is_valid_results( $results ) {

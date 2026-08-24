@@ -86,6 +86,53 @@ class Wf_Sn_Cs {
     }
 
     /**
+     * Get cached Core Scanner results (network-scoped on Multisite).
+     *
+     * @param mixed $default Default when unset.
+     * @return mixed
+     */
+    private static function get_results_option( $default = array() ) {
+        self::load_utils();
+        return Wf_Sn_Cs_Utils::get_scan_results( $default );
+    }
+
+    /**
+     * Persist cached Core Scanner results (network-scoped on Multisite).
+     *
+     * @param mixed $results Results array or null.
+     * @return bool
+     */
+    private static function save_results_option( $results ) {
+        self::load_utils();
+        return Wf_Sn_Cs_Utils::update_scan_results( $results );
+    }
+
+    /**
+     * Delete cached Core Scanner results (network-scoped on Multisite).
+     *
+     * @return bool
+     */
+    private static function delete_results_option() {
+        self::load_utils();
+        return Wf_Sn_Cs_Utils::delete_scan_results();
+    }
+
+    /**
+     * Timestamp of the next scheduled core scan (main site on Multisite).
+     *
+     * @return int|false
+     */
+    private static function get_next_scheduled_scan_timestamp() {
+        if ( is_multisite() && !is_main_site() ) {
+            switch_to_blog( get_main_site_id() );
+            $next_scan_ts = wp_next_scheduled( 'secnin_run_core_scanner' );
+            restore_current_blog();
+            return $next_scan_ts;
+        }
+        return wp_next_scheduled( 'secnin_run_core_scanner' );
+    }
+
+    /**
      * Build the meta-string values (last_scan, files_checked, wp_version) from data arrays.
      *
      * @param array $results Data-only results array with last_run, total, run_time.
@@ -332,7 +379,7 @@ class Wf_Sn_Cs {
      * @return array Updated results.
      */
     private static function remove_paths_from_cached_results( $relative_paths ) {
-        $results = get_option( 'wf_sn_cs_results', array() );
+        $results = self::get_results_option( array() );
         if ( !is_array( $results ) ) {
             return array();
         }
@@ -349,7 +396,7 @@ class Wf_Sn_Cs {
             } ) );
         }
         self::enrich_results_with_findings( $results );
-        update_option( 'wf_sn_cs_results', $results, false );
+        self::save_results_option( $results );
         return $results;
     }
 
@@ -360,7 +407,7 @@ class Wf_Sn_Cs {
      * @return bool
      */
     private static function is_path_in_cached_unknown_bad( $relative_path ) {
-        $results = get_option( 'wf_sn_cs_results', array() );
+        $results = self::get_results_option( array() );
         if ( !is_array( $results ) || empty( $results['unknown_bad'] ) || !is_array( $results['unknown_bad'] ) ) {
             return false;
         }
@@ -374,7 +421,7 @@ class Wf_Sn_Cs {
      * @return array Updated results.
      */
     private static function patch_cached_results_after_ignore( $relative_path ) {
-        $results = get_option( 'wf_sn_cs_results', array() );
+        $results = self::get_results_option( array() );
         if ( !is_array( $results ) ) {
             return array();
         }
@@ -400,7 +447,7 @@ class Wf_Sn_Cs {
             );
         }
         self::enrich_results_with_findings( $results );
-        update_option( 'wf_sn_cs_results', $results, false );
+        self::save_results_option( $results );
         return $results;
     }
 
@@ -411,7 +458,7 @@ class Wf_Sn_Cs {
      * @return array Updated results.
      */
     private static function patch_cached_results_after_unignore( $relative_path ) {
-        $results = get_option( 'wf_sn_cs_results', array() );
+        $results = self::get_results_option( array() );
         if ( !is_array( $results ) ) {
             return array();
         }
@@ -434,7 +481,7 @@ class Wf_Sn_Cs {
             }
         }
         self::enrich_results_with_findings( $results );
-        update_option( 'wf_sn_cs_results', $results, false );
+        self::save_results_option( $results );
         return $results;
     }
 
@@ -444,7 +491,7 @@ class Wf_Sn_Cs {
      * @return string
      */
     public static function get_next_scan_string() {
-        $next_scan_ts = wp_next_scheduled( 'secnin_run_core_scanner' );
+        $next_scan_ts = self::get_next_scheduled_scan_timestamp();
         if ( !$next_scan_ts ) {
             return __( 'No core scan currently scheduled.', 'security-ninja' );
         }
@@ -665,7 +712,7 @@ class Wf_Sn_Cs {
         if ( !function_exists( 'secnin_fs' ) || secnin_fs()->is_premium() ) {
             return '';
         }
-        $pricing_url = \WPSecurityNinja\Plugin\Utils::generate_sn_web_link( 'core_scanner_upsell', '/upgrade/' );
+        $pricing_url = \WPSecurityNinja\Plugin\Utils::generate_sn_web_link( 'core_scanner_upgrade', '/upgrade/' );
         $changed = !empty( $results['changed_bad'] );
         $unknown = !empty( $results['unknown_bad'] );
         if ( $changed ) {
@@ -896,6 +943,9 @@ class Wf_Sn_Cs {
      * @return void
      */
     public static function do_action_secnin_run_core_scanner() {
+        if ( is_multisite() && !is_main_site() ) {
+            return;
+        }
         // Running the core scanner
         self::do_action_core_run_scan( true );
     }
@@ -906,6 +956,11 @@ class Wf_Sn_Cs {
      * @return void
      */
     public static function schedule_cron_jobs() {
+        // On Multisite, core is shared: schedule only on the main site.
+        if ( is_multisite() && !is_main_site() ) {
+            wp_clear_scheduled_hook( 'secnin_run_core_scanner' );
+            return;
+        }
         if ( !wp_next_scheduled( 'secnin_run_core_scanner' ) ) {
             wp_schedule_event( time(), 'daily', 'secnin_run_core_scanner' );
         }
@@ -932,7 +987,7 @@ class Wf_Sn_Cs {
             WP_Filesystem();
         }
         // DELETE critical & warning unknown files (notices require explicit per-file delete).
-        $results = get_option( 'wf_sn_cs_results' );
+        $results = self::get_results_option( array() );
         self::enrich_results_with_findings( $results );
         if ( isset( $results['unknown_bad'] ) && is_array( $results['unknown_bad'] ) ) {
             $deleted_files = 0;
@@ -1087,7 +1142,7 @@ class Wf_Sn_Cs {
                 'message' => __( 'You do not have sufficient permissions.', 'security-ninja' ),
             ) );
         }
-        $results = get_option( 'wf_sn_cs_results', array() );
+        $results = self::get_results_option( array() );
         self::load_utils();
         if ( !Wf_Sn_Cs_Utils::is_valid_results( $results ) ) {
             wp_send_json_success( array(
@@ -1111,7 +1166,7 @@ class Wf_Sn_Cs {
         if ( !isset( $_GET['_wpnonce'] ) || !wp_verify_nonce( sanitize_key( wp_unslash( $_GET['_wpnonce'] ) ), 'sn_core_scan_report' ) ) {
             wp_die( 'Security check failed.' );
         }
-        $results = get_option( 'wf_sn_cs_results', array() );
+        $results = self::get_results_option( array() );
         $has_issues = !empty( $results['changed_bad'] ) || !empty( $results['missing_bad'] ) || !empty( $results['unknown_bad'] );
         if ( !$has_issues || empty( $results['last_run'] ) ) {
             wp_die( 'No issues to report. Run a scan from the Core Scanner tab when issues are detected to print a report.' );
@@ -1264,7 +1319,7 @@ class Wf_Sn_Cs {
      * @return int|false Number of problems or false if no problems
      */
     private static function return_problem_count() {
-        $results = get_option( 'wf_sn_cs_results' );
+        $results = self::get_results_option( array() );
         if ( !$results || !is_array( $results ) ) {
             return false;
         }
@@ -1579,7 +1634,7 @@ class Wf_Sn_Cs {
             $results['run_time'] = number_format( microtime( true ) - $start_time, 2 );
             unset($results['missing_ok'], $results['changed_ok'], $results['ok']);
             self::enrich_results_with_findings( $results );
-            update_option( 'wf_sn_cs_results', $results, false );
+            self::save_results_option( $results );
             if ( $internal ) {
                 return;
             }
@@ -1699,14 +1754,14 @@ class Wf_Sn_Cs {
             if ( $returnresults ) {
                 return $results;
             }
-            update_option( 'wf_sn_cs_results', $results, false );
+            self::save_results_option( $results );
             die( '1' );
         } else {
             // no file definitions for this version of WP
             if ( $returnresults ) {
                 return null;
             }
-            update_option( 'wf_sn_cs_results', null, false );
+            self::save_results_option( null );
             die( '0' );
         }
     }
@@ -1718,7 +1773,7 @@ class Wf_Sn_Cs {
      */
     public static function core_page() {
         self::load_utils();
-        $cached_results = get_option( 'wf_sn_cs_results', array() );
+        $cached_results = self::get_results_option( array() );
         $has_cached = Wf_Sn_Cs_Utils::is_valid_results( $cached_results );
         $report_url = ( $has_cached && self::has_any_findings( $cached_results ) ? admin_url( 'admin-post.php?action=sn_core_scan_report&_wpnonce=' . wp_create_nonce( 'sn_core_scan_report' ) ) : '' );
         $issue_count = ( $has_cached ? self::get_issue_count( $cached_results ) : 0 );
@@ -1735,6 +1790,15 @@ class Wf_Sn_Cs {
 			<p><?php 
         esc_html_e( 'Verifies wp-admin, wp-includes, the site root, and hidden files in core folders against official WordPress checksums. Scans run automatically every 24 hours, and you can start a scan anytime with the button below.', 'security-ninja' );
         ?></p>
+			<?php 
+        if ( is_multisite() ) {
+            ?>
+				<p class="description"><?php 
+            esc_html_e( 'On Multisite, Core Scanner Ignore lists and scan results are shared across the entire network because WordPress core files are shared.', 'security-ninja' );
+            ?></p>
+			<?php 
+        }
+        ?>
 
 			<div class="sn-cs-primary-actions">
 				<input type="button" value="<?php 
@@ -1790,7 +1854,7 @@ class Wf_Sn_Cs {
         if ( !$is_whitelabel_active ) {
             ?>
 				<?php 
-            $doc_link = \WPSecurityNinja\Plugin\Utils::generate_sn_web_link( 'core_scanner_ignore_notice', '/docs/core-scanner/how-to-ignore-files/' );
+            $doc_link = \WPSecurityNinja\Plugin\Utils::generate_sn_web_link( 'core_scanner_docs', '/docs/core-scanner/how-to-ignore-files/' );
             ?>
 				<p class="description">
 					<?php 
@@ -2123,8 +2187,22 @@ class Wf_Sn_Cs {
             return;
         }
         if ( $centraloptions['remove_settings_deactivate'] ) {
+            // Shared network results/ignore lists must not be wiped when a subsite is deactivated.
+            if ( is_multisite() && !is_main_site() ) {
+                self::load_utils();
+                delete_option( Wf_Sn_Cs_Utils::RESULTS_OPTION );
+                delete_option( Wf_Sn_Cs_Utils::USER_IGNORE_OPTION );
+                return;
+            }
             wp_clear_scheduled_hook( 'secnin_run_core_scanner' );
-            delete_option( 'wf_sn_cs_results' );
+            self::load_utils();
+            self::delete_results_option();
+            Wf_Sn_Cs_Utils::delete_user_ignored_files();
+            if ( is_multisite() ) {
+                // Clean leftover per-blog copies from older versions.
+                delete_option( Wf_Sn_Cs_Utils::RESULTS_OPTION );
+                delete_option( Wf_Sn_Cs_Utils::USER_IGNORE_OPTION );
+            }
         }
     }
 

@@ -114,7 +114,10 @@ class Wf_Sn_Priority_Resolver {
 	 * @param array<int, array<string, string>> $items Items list (by ref).
 	 */
 	private static function maybe_add_core_scanner( array &$items ) {
-		$results = get_option( 'wf_sn_cs_results', array() );
+		if ( ! class_exists( 'WPSecurityNinja\\Plugin\\Wf_Sn_Cs_Utils' ) ) {
+			require_once WF_SN_PLUGIN_DIR . 'modules/core-scanner/class-wf-sn-cs-utils.php';
+		}
+		$results = \WPSecurityNinja\Plugin\Wf_Sn_Cs_Utils::get_scan_results( array() );
 		if ( ! is_array( $results ) ) {
 			return;
 		}
@@ -343,7 +346,10 @@ class Wf_Sn_Priority_Resolver {
 			$stale[] = __( 'vulnerability scan', 'security-ninja' );
 		}
 
-		$cs = get_option( 'wf_sn_cs_results', array() );
+		if ( ! class_exists( 'WPSecurityNinja\\Plugin\\Wf_Sn_Cs_Utils' ) ) {
+			require_once WF_SN_PLUGIN_DIR . 'modules/core-scanner/class-wf-sn-cs-utils.php';
+		}
+		$cs = \WPSecurityNinja\Plugin\Wf_Sn_Cs_Utils::get_scan_results( array() );
 		if ( is_array( $cs ) && ! empty( $cs['last_run'] ) && (int) $cs['last_run'] < $cutoff ) {
 			$stale[] = __( 'core scanner', 'security-ninja' );
 		}

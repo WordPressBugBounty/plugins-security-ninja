@@ -1547,7 +1547,7 @@ class Wf_Sn_El {
 										</ul>
 										<p style="margin-top: 15px;">
 											<a href="<?php 
-        echo esc_url( \WPSecurityNinja\Plugin\Utils::generate_sn_web_link( 'upgrade_tab_events_auditing', '/upgrade/' ) );
+        echo esc_url( \WPSecurityNinja\Plugin\Utils::generate_sn_web_link( 'events_logger_upgrade', '/upgrade/' ) );
         ?>" class="button button-primary button-small" target="_blank" rel="noopener">Upgrade to Pro</a>
 										</p>
 									</div>
@@ -1579,7 +1579,7 @@ class Wf_Sn_El {
 													</ul>
 													<p style="margin-top: 15px;">
 														<a href="<?php 
-            echo esc_url( \WPSecurityNinja\Plugin\Utils::generate_sn_web_link( 'upgrade_tab_events_notifications', '/upgrade/' ) );
+            echo esc_url( \WPSecurityNinja\Plugin\Utils::generate_sn_web_link( 'events_logger_upgrade', '/upgrade/' ) );
             ?>" class="button button-primary button-small" target="_blank" rel="noopener">Upgrade to Pro</a>
 													</p>
 												</div>

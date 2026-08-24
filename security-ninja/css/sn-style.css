@@ -1179,14 +1179,6 @@ margin-top: 0px;
   color: #64758b;
 }
 
-#run-selected-tests {
-  padding: 8px 16px 8px 16px;
-  border-radius: 8px;
-  background: #3163ec;
-  line-height: 1em;
-  padding: 0.5rem 0.75rem;
-}
-
 #runtestsrow {
   display: flex;
   flex-direction: row;

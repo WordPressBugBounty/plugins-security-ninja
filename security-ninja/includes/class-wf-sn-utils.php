@@ -35,6 +35,42 @@ class Utils {
     }
 
     /**
+     * Whether a PHP ini directive is enabled (on/true/1).
+     *
+     * Handles string values such as "Off" and "On" that are truthy in PHP
+     * but mean disabled/enabled respectively.
+     *
+     * @param string $directive Ini directive name.
+     * @return bool
+     */
+    public static function ini_is_enabled( $directive ) {
+        $value = ini_get( $directive );
+        if ( false === $value || '' === $value ) {
+            return false;
+        }
+        $normalized = strtolower( trim( (string) $value ) );
+        if ( in_array( $normalized, array(
+            '0',
+            'off',
+            'false',
+            'no',
+            'none'
+        ), true ) ) {
+            return false;
+        }
+        if ( in_array( $normalized, array(
+            '1',
+            'on',
+            'true',
+            'yes'
+        ), true ) ) {
+            return true;
+        }
+        // Unknown non-empty value: treat as enabled (conservative for security tests).
+        return true;
+    }
+
+    /**
      * Do admin notices
      *
      * @author  Lars Koudal
@@ -356,7 +392,10 @@ class Utils {
                 $information['SecNin_get_details']['tests'] = \WPSecurityNinja\Plugin\Wf_Sn::return_test_scores();
                 $information['SecNin_get_details']['test_results'] = \WPSecurityNinja\Plugin\Wf_Sn::get_test_results();
                 // Core Scanner (free) – sync results for all sites.
-                $wf_sn_cs_results = get_option( 'wf_sn_cs_results' );
+                if ( !class_exists( '\\WPSecurityNinja\\Plugin\\Wf_Sn_Cs_Utils' ) ) {
+                    require_once WF_SN_PLUGIN_DIR . 'modules/core-scanner/class-wf-sn-cs-utils.php';
+                }
+                $wf_sn_cs_results = \WPSecurityNinja\Plugin\Wf_Sn_Cs_Utils::get_scan_results( array() );
                 $information['SecNin_get_details']['cs_results'] = $wf_sn_cs_results;
                 if ( is_array( $wf_sn_cs_results ) && !empty( $wf_sn_cs_results['last_run'] ) && class_exists( '\\WPSecurityNinja\\Plugin\\Wf_Sn_Cs' ) ) {
                     $information['SecNin_get_details']['cs_meta'] = \WPSecurityNinja\Plugin\Wf_Sn_Cs::build_meta_strings( $wf_sn_cs_results );
@@ -403,11 +442,99 @@ class Utils {
                     break;
                 case 'manage_ip':
                     break;
+                // *** Refresh vulnerability database (free + Pro).
+                case 'update_vulnerabilities':
+                    $info['secnin_update_vulnerabilities'] = self::handle_mainwp_update_vulnerabilities_request();
+                    break;
                 default:
                     break;
             }
         }
         return $info;
+    }
+
+    /**
+     * Apply white label settings from MainWP Dashboard (Pro only).
+     *
+     * @param array $post_data Request payload from MainWP.
+     * @return array
+     */
+    public static function handle_mainwp_update_white_label_request( $post_data ) {
+        $response = array(
+            'success' => false,
+            'message' => __( 'White label update failed.', 'security-ninja' ),
+        );
+        $incoming = ( isset( $post_data['white_label_settings'] ) && is_array( $post_data['white_label_settings'] ) ? $post_data['white_label_settings'] : array() );
+        $sanitized_settings = array(
+            'wl_active'         => ( isset( $incoming['wl_active'] ) && '1' === $incoming['wl_active'] ? '1' : '0' ),
+            'wl_newname'        => ( isset( $incoming['wl_newname'] ) ? sanitize_text_field( $incoming['wl_newname'] ) : 'Security Ninja' ),
+            'wl_newdesc'        => ( isset( $incoming['wl_newdesc'] ) ? sanitize_text_field( $incoming['wl_newdesc'] ) : '' ),
+            'wl_newauthor'      => ( isset( $incoming['wl_newauthor'] ) ? sanitize_text_field( $incoming['wl_newauthor'] ) : '' ),
+            'wl_newurl'         => ( isset( $incoming['wl_newurl'] ) ? esc_url_raw( $incoming['wl_newurl'] ) : 'https://wpsecurityninja.com/' ),
+            'wl_newiconurl'     => ( isset( $incoming['wl_newiconurl'] ) ? esc_url_raw( $incoming['wl_newiconurl'] ) : '' ),
+            'wl_newmenuiconurl' => ( isset( $incoming['wl_newmenuiconurl'] ) ? esc_url_raw( $incoming['wl_newmenuiconurl'] ) : '' ),
+        );
+        $defaults = array(
+            'wl_active'         => '0',
+            'wl_newname'        => 'Security Ninja',
+            'wl_newdesc'        => '',
+            'wl_newauthor'      => '',
+            'wl_newurl'         => 'https://wpsecurityninja.com/',
+            'wl_newiconurl'     => '',
+            'wl_newmenuiconurl' => '',
+        );
+        $final_settings = wp_parse_args( $sanitized_settings, $defaults );
+        update_option( 'wf_sn_wl', $final_settings, false );
+        \WPSecurityNinja\Plugin\wf_sn_el_modules::log_event( 'security_ninja', 'mainwp', 'Updated white label settings via MainWP Dashboard.' );
+        $response['success'] = true;
+        $response['message'] = __( 'White label settings updated.', 'security-ninja' );
+        $response['settings'] = $final_settings;
+        return $response;
+    }
+
+    /**
+     * Schedule a one-off vulnerability list refresh from MainWP (free-safe).
+     *
+     * Uses a dedicated cron hook so the request is not skipped when the normal
+     * daily/weekly secnin_update_vuln_list schedule already exists.
+     *
+     * @return array
+     */
+    public static function handle_mainwp_update_vulnerabilities_request() {
+        $response = array(
+            'success' => false,
+            'message' => '',
+        );
+        if ( !class_exists( __NAMESPACE__ . '\\wf_sn_vu' ) ) {
+            $response['message'] = __( 'Vulnerability Scanner is not available on this site.', 'security-ninja' );
+            return $response;
+        }
+        $hook = 'secnin_mainwp_update_vuln_list';
+        if ( wp_next_scheduled( $hook ) ) {
+            $response['success'] = true;
+            $response['message'] = __( 'Vulnerability list update already pending.', 'security-ninja' );
+            return $response;
+        }
+        $scheduled = wp_schedule_single_event( time(), $hook );
+        if ( false === $scheduled ) {
+            $response['message'] = __( 'Could not schedule the vulnerability list update.', 'security-ninja' );
+            return $response;
+        }
+        $response['success'] = true;
+        $response['message'] = __( 'Vulnerability list update scheduled.', 'security-ninja' );
+        return $response;
+    }
+
+    /**
+     * Modules whose allowlisted key replaces the entire option value (not a nested key).
+     *
+     * @return array<string, string> module => key
+     */
+    public static function get_mainwp_whole_option_modules() {
+        return array(
+            'malware_scanner' => 'whitelist',
+            'core_scanner'    => 'user_ignore',
+        );
     }
 
     /**
@@ -436,6 +563,7 @@ class Utils {
         }
         $allow = self::get_mainwp_settings_allowlist();
         $map = self::get_mainwp_settings_option_map();
+        $whole_option = self::get_mainwp_whole_option_modules();
         foreach ( $patch as $module => $keys ) {
             $module = sanitize_key( $module );
             if ( !is_array( $keys ) || !isset( $map[$module] ) ) {
@@ -443,11 +571,42 @@ class Utils {
                 continue;
             }
             $option_key = $map[$module];
+            $module_allow = ( isset( $allow[$module] ) ? $allow[$module] : array() );
+            $is_whole = isset( $whole_option[$module] );
+            if ( $is_whole ) {
+                $expected_key = $whole_option[$module];
+                foreach ( $keys as $key => $raw_value ) {
+                    $key = sanitize_key( $key );
+                    if ( $key !== $expected_key || !isset( $module_allow[$key] ) ) {
+                        $response['skipped'][] = $module . '.' . $key;
+                        continue;
+                    }
+                    $type = $module_allow[$key];
+                    $value = self::sanitize_mainwp_setting_value(
+                        $type,
+                        $raw_value,
+                        $module,
+                        $key
+                    );
+                    if ( 'malware_scanner' === $module && 'whitelist' === $key ) {
+                        $value = self::merge_mainwp_malware_whitelist_hashes( $value, get_option( $option_key, array() ) );
+                    }
+                    if ( 'core_scanner' === $module && 'user_ignore' === $key ) {
+                        if ( !class_exists( '\\WPSecurityNinja\\Plugin\\Wf_Sn_Cs_Utils' ) ) {
+                            require_once WF_SN_PLUGIN_DIR . 'modules/core-scanner/class-wf-sn-cs-utils.php';
+                        }
+                        \WPSecurityNinja\Plugin\Wf_Sn_Cs_Utils::set_user_ignored_files( ( is_array( $value ) ? $value : array() ) );
+                    } else {
+                        update_option( $option_key, ( is_array( $value ) ? $value : array() ), false );
+                    }
+                    $response['applied'][] = $module . '.' . $key;
+                }
+                continue;
+            }
             $existing = get_option( $option_key, array() );
             if ( !is_array( $existing ) ) {
                 $existing = array();
             }
-            $module_allow = ( isset( $allow[$module] ) ? $allow[$module] : array() );
             foreach ( $keys as $key => $raw_value ) {
                 $key = sanitize_key( $key );
                 if ( !isset( $module_allow[$key] ) ) {
@@ -564,6 +723,7 @@ class Utils {
         $firewall['404guard_threshold'] = 'int';
         $firewall['404guard_window'] = 'int';
         $firewall['404guard_block_time'] = 'int';
+        $firewall['blocked_countries'] = 'country_codes';
         $vulns = array(
             'enable_vulns'              => 'bool',
             'enable_admin_notification' => 'bool',
@@ -635,7 +795,12 @@ class Utils {
             'scheduledscanner' => $scheduledscanner,
             'whitelabel'       => $whitelabel,
             'fixes'            => $fixes,
-            'malware_scanner'  => array(),
+            'malware_scanner'  => array(
+                'whitelist' => 'malware_whitelist',
+            ),
+            'core_scanner'     => array(
+                'user_ignore' => 'path_list',
+            ),
         );
     }
 
@@ -655,6 +820,7 @@ class Utils {
             'whitelabel'       => 'wf_sn_wl',
             'fixes'            => $fixes_key,
             'malware_scanner'  => 'wf_sn_ms_whitelist',
+            'core_scanner'     => 'wf_sn_cs_user_ignore',
         );
     }
 
@@ -682,9 +848,213 @@ class Utils {
                 return sanitize_email( (string) $value );
             case 'url':
                 return esc_url_raw( (string) $value );
+            case 'country_codes':
+                return self::sanitize_mainwp_country_codes( $value );
+            case 'path_list':
+                return self::sanitize_mainwp_path_list( $value );
+            case 'malware_whitelist':
+                return self::sanitize_mainwp_malware_whitelist( $value );
             default:
                 return sanitize_text_field( (string) $value );
         }
+    }
+
+    /**
+     * Sanitize a list of ISO country codes for MainWP settings apply.
+     *
+     * @param mixed $value Raw value.
+     * @return string[]
+     */
+    public static function sanitize_mainwp_country_codes( $value ) {
+        if ( is_string( $value ) ) {
+            $value = preg_split( '/[\\s,]+/', $value );
+        }
+        if ( !is_array( $value ) ) {
+            return array();
+        }
+        $out = array();
+        foreach ( $value as $code ) {
+            $code = strtoupper( sanitize_text_field( (string) $code ) );
+            if ( preg_match( '/^[A-Z]{2}$/', $code ) ) {
+                $out[] = $code;
+            }
+        }
+        return array_values( array_unique( $out ) );
+    }
+
+    /**
+     * Sanitize a list of relative path patterns for MainWP settings apply.
+     *
+     * @param mixed $value Raw value.
+     * @return string[]
+     */
+    public static function sanitize_mainwp_path_list( $value ) {
+        if ( is_string( $value ) ) {
+            $value = preg_split( '/\\r\\n|\\r|\\n/', $value );
+        }
+        if ( !is_array( $value ) ) {
+            return array();
+        }
+        $out = array();
+        foreach ( $value as $path ) {
+            if ( is_array( $path ) ) {
+                if ( isset( $path['file'] ) ) {
+                    $path = $path['file'];
+                } elseif ( isset( $path['path'] ) ) {
+                    $path = $path['path'];
+                } elseif ( isset( $path['filename'] ) ) {
+                    $path = $path['filename'];
+                } elseif ( isset( $path['pattern'] ) ) {
+                    $path = $path['pattern'];
+                } else {
+                    continue;
+                }
+            }
+            $path = trim( (string) $path );
+            if ( '' === $path ) {
+                continue;
+            }
+            if ( self::is_unsafe_mainwp_relative_path( $path ) ) {
+                continue;
+            }
+            $out[] = sanitize_text_field( $path );
+        }
+        return array_values( array_unique( $out ) );
+    }
+
+    /**
+     * Sanitize Malware Scanner whitelist entries for MainWP settings apply.
+     *
+     * Preserves { filename, hash } and { pattern } objects the scanner expects.
+     * Flat strings (textarea / older MainWP payloads) become pattern entries when
+     * they contain *, otherwise filename entries.
+     *
+     * @param mixed $value Raw value.
+     * @return array<int, array<string, string>>
+     */
+    public static function sanitize_mainwp_malware_whitelist( $value ) {
+        if ( is_string( $value ) ) {
+            $value = preg_split( '/\\r\\n|\\r|\\n/', $value );
+        }
+        if ( !is_array( $value ) ) {
+            return array();
+        }
+        $out = array();
+        $seen = array();
+        foreach ( $value as $item ) {
+            $entry = self::sanitize_mainwp_malware_whitelist_item( $item );
+            if ( null === $entry ) {
+                continue;
+            }
+            $dedupe_key = wp_json_encode( $entry );
+            if ( isset( $seen[$dedupe_key] ) ) {
+                continue;
+            }
+            $seen[$dedupe_key] = true;
+            $out[] = $entry;
+        }
+        return $out;
+    }
+
+    /**
+     * Copy hashes from an existing whitelist onto incoming filename entries that lack one.
+     *
+     * Textarea and flattened MainWP 2.2.0 payloads omit hashes. Matching filenames
+     * keep the hash already stored on the child so apply does not weaken ignores.
+     *
+     * @param array $incoming Sanitized incoming list.
+     * @param mixed $existing Stored option value.
+     * @return array
+     */
+    public static function merge_mainwp_malware_whitelist_hashes( $incoming, $existing ) {
+        if ( !is_array( $incoming ) ) {
+            return array();
+        }
+        if ( !is_array( $existing ) ) {
+            return $incoming;
+        }
+        $hashes_by_file = array();
+        foreach ( $existing as $item ) {
+            if ( !is_array( $item ) || empty( $item['filename'] ) || empty( $item['hash'] ) ) {
+                continue;
+            }
+            $hashes_by_file[(string) $item['filename']] = (string) $item['hash'];
+        }
+        foreach ( $incoming as $i => $item ) {
+            if ( !is_array( $item ) || empty( $item['filename'] ) || !empty( $item['hash'] ) ) {
+                continue;
+            }
+            $filename = (string) $item['filename'];
+            if ( isset( $hashes_by_file[$filename] ) ) {
+                $incoming[$i]['hash'] = $hashes_by_file[$filename];
+            }
+        }
+        return $incoming;
+    }
+
+    /**
+     * Sanitize one malware whitelist item.
+     *
+     * @param mixed $item Raw item.
+     * @return array<string, string>|null
+     */
+    private static function sanitize_mainwp_malware_whitelist_item( $item ) {
+        if ( is_string( $item ) ) {
+            $path = trim( $item );
+            if ( '' === $path || self::is_unsafe_mainwp_relative_path( $path ) ) {
+                return null;
+            }
+            $path = sanitize_text_field( $path );
+            if ( false !== strpos( $path, '*' ) ) {
+                return array(
+                    'pattern' => $path,
+                );
+            }
+            return array(
+                'filename' => $path,
+            );
+        }
+        if ( !is_array( $item ) ) {
+            return null;
+        }
+        if ( isset( $item['pattern'] ) && '' !== $item['pattern'] ) {
+            $pattern = trim( (string) $item['pattern'] );
+            if ( '' === $pattern || self::is_unsafe_mainwp_relative_path( $pattern ) ) {
+                return null;
+            }
+            return array(
+                'pattern' => sanitize_text_field( $pattern ),
+            );
+        }
+        $filename = '';
+        if ( !empty( $item['filename'] ) ) {
+            $filename = (string) $item['filename'];
+        } elseif ( !empty( $item['file'] ) ) {
+            $filename = (string) $item['file'];
+        } elseif ( !empty( $item['path'] ) ) {
+            $filename = (string) $item['path'];
+        }
+        $filename = trim( $filename );
+        if ( '' === $filename || self::is_unsafe_mainwp_relative_path( $filename ) ) {
+            return null;
+        }
+        $entry = array(
+            'filename' => sanitize_text_field( $filename ),
+        );
+        if ( isset( $item['hash'] ) && '' !== $item['hash'] ) {
+            $entry['hash'] = sanitize_text_field( (string) $item['hash'] );
+        }
+        return $entry;
+    }
+
+    /**
+     * Whether a relative path is unsafe for MainWP path settings.
+     *
+     * @param string $path Path or pattern.
+     * @return bool
+     */
+    private static function is_unsafe_mainwp_relative_path( $path ) {
+        return (bool) preg_match( '#(^/|\\\\|\\.\\.)#', (string) $path );
     }
 
     /**
@@ -759,12 +1129,30 @@ class Utils {
     }
 
     /**
-     * Helper function to generate tagged links
+     * Generate a wpsecurityninja.com URL with UTM parameters.
      *
-     * @param  string $placement [description]
-     * @param  string $page      [description]
-     * @param  array  $params    [description]
-     * @return string            Full URL with utm_ parameters added
+     * utm_source: security_ninja_free | security_ninja_pro (auto)
+     * utm_medium: plugin (default) or email via $params
+     * utm_campaign: security_ninja (stable; version tracked in Freemius)
+     * utm_content: $placement — use a value from the vocabulary below
+     *
+     * Allowed utm_content values:
+     * Upgrades: firewall_upgrade, events_logger_upgrade, malware_upgrade,
+     *   scheduler_upgrade, ai_advisor_upgrade, core_scanner_upgrade, whitelabel_upgrade
+     * Learn more: firewall_learn_more, events_logger_learn_more
+     * Docs: malware_docs, core_scanner_docs, ai_advisor_docs, scheduler_docs,
+     *   security_tests_docs, wizard_docs, wizard_help, sidebar_docs
+     * Sidebar/overview: sidebar_article, sidebar_upgrade, sidebar_trial,
+     *   overview_upgrade, overview_trial
+     * Topbar: topbar_docs, topbar_help
+     * Wizard: wizard_upgrade
+     * Email: email_vuln_footer, email_secret_access
+     * Other: newsletter_signup
+     *
+     * @param string $placement utm_content placement key.
+     * @param string $page      Path on wpsecurityninja.com (default home).
+     * @param array  $params    Extra query args (e.g. trial=free, utm_medium=email).
+     * @return string Full URL with UTM parameters.
      */
     public static function generate_sn_web_link( $placement = '', $page = '/', $params = array() ) {
         $base_url = 'https://wpsecurityninja.com';
@@ -776,7 +1164,7 @@ class Utils {
             'utm_source'   => esc_attr( $utm_source ),
             'utm_medium'   => 'plugin',
             'utm_content'  => esc_attr( $placement ),
-            'utm_campaign' => esc_attr( 'security_ninja_v' . self::get_plugin_version() ),
+            'utm_campaign' => 'security_ninja',
         ), $params );
         $out = $base_url . $page . '?' . http_build_query( $parts, '', '&amp;' );
         return $out;
@@ -885,7 +1273,7 @@ class Utils {
 					</ul>
 					<p style="margin-top: 15px;">
 						<a href="<?php 
-        echo esc_url( self::generate_sn_web_link( 'upgrade_tab_whitelabel', '/upgrade/' ) );
+        echo esc_url( self::generate_sn_web_link( 'whitelabel_upgrade', '/upgrade/' ) );
         ?>" class="button button-primary button-small" target="_blank" rel="noopener">Upgrade to Pro</a>
 					</p>
 				</div>

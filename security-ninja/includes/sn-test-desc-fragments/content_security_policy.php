@@ -24,7 +24,7 @@ defined( 'ABSPATH' ) || exit;
 			<p><?php esc_html_e( 'For Nginx add this to the nginx.conf under server block', 'security-ninja' ); ?></p>
 			<pre>add_header Content-Security-Policy "default-src 'self'";</pre>
 			<p>
-				<a href="<?php echo esc_url( \WPSecurityNinja\Plugin\Utils::generate_sn_web_link( 'docs', 'docs/security-fixes/content-security-policy/' ) ); ?>" target="_blank" rel="noopener">
+				<a href="<?php echo esc_url( \WPSecurityNinja\Plugin\Utils::generate_sn_web_link( 'security_tests_docs', 'docs/security-fixes/content-security-policy/' ) ); ?>" target="_blank" rel="noopener">
 					<?php esc_html_e( 'Read our guide to configuring Content Security Policy', 'security-ninja' ); ?>
 				</a>
 			</p>

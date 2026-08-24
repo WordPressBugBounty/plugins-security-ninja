@@ -9,3 +9,4 @@ defined( 'ABSPATH' ) || exit;
 		<pre>expose_php = on</pre>
 		<p><?php esc_html_e( 'and change it to:', 'security-ninja' ); ?></p>
 		<pre>expose_php = off</pre>
+		<p><?php esc_html_e( 'On shared hosting you may not be able to edit php.ini. If you hide the PHP version header via .htaccess or Security Ninja Security Headers, re-run this test and it should pass when the header is no longer sent.', 'security-ninja' ); ?></p>

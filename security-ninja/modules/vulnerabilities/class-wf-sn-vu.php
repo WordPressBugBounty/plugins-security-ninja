@@ -29,6 +29,8 @@ class Wf_Sn_Vu {
         add_action( 'admin_notices', array(__NAMESPACE__ . '\\wf_sn_vu', 'admin_notice_vulnerabilities') );
         add_action( 'init', array(__NAMESPACE__ . '\\wf_sn_vu', 'schedule_cron_jobs') );
         add_action( 'secnin_update_vuln_list', array(__NAMESPACE__ . '\\wf_sn_vu', 'update_vuln_list') );
+        // Dedicated one-off hook for MainWP so a remote refresh is not blocked by the recurring schedule.
+        add_action( 'secnin_mainwp_update_vuln_list', array(__NAMESPACE__ . '\\wf_sn_vu', 'update_vuln_list') );
         add_action( 'secnin_scan_vulnerabilities', array(__NAMESPACE__ . '\\wf_sn_vu', 'run_vulnerability_scan') );
         add_action( 'secnin_daily_vulnerability_warning_check', array(__NAMESPACE__ . '\\wf_sn_vu', 'daily_vulnerability_check') );
         add_action(
@@ -186,19 +188,59 @@ class Wf_Sn_Vu {
      * @return  boolean True if likely JSONL, false otherwise.
      */
     public static function is_likely_jsonl( $content ) {
-        if ( empty( $content ) || strlen( $content ) === 0 ) {
+        if ( !is_string( $content ) || '' === $content ) {
             return false;
         }
-        // Check if contains at least one newline.
-        if ( strpos( $content, "\n" ) !== false ) {
-            return true;
-        }
-        // Check if first non-whitespace character is '{'.
+        // Gzip and other binary payloads often contain 0x0A bytes, so a newline
+        // is not enough. JSONL records start with '{'.
         $trimmed = ltrim( $content );
-        if ( !empty( $trimmed ) && '{' === $trimmed[0] ) {
-            return true;
+        return '' !== $trimmed && '{' === $trimmed[0];
+    }
+
+    /**
+     * Whether a string starts with gzip magic bytes (0x1f 0x8b).
+     *
+     * @since 5.296
+     * @param string $payload Raw bytes.
+     * @return bool
+     */
+    public static function is_gzip_payload( $payload ) {
+        if ( !is_string( $payload ) || strlen( $payload ) < 2 ) {
+            return false;
         }
-        return false;
+        $magic_bytes = unpack( 'C2', substr( $payload, 0, 2 ) );
+        return is_array( $magic_bytes ) && 0x1f === $magic_bytes[1] && 0x8b === $magic_bytes[2];
+    }
+
+    /**
+     * Turn a downloaded vuln-feed body into plaintext JSONL.
+     *
+     * Handles origin (raw gzip), CDN Content-Encoding (HTTP already decoded),
+     * double-gzip, and plaintext JSONL. Never calls gzdecode() unless magic matches.
+     *
+     * @since 5.296
+     * @param string $body Raw HTTP body.
+     * @return string JSONL or empty string.
+     */
+    public static function normalize_vuln_feed_body( $body ) {
+        if ( !is_string( $body ) || '' === $body ) {
+            return '';
+        }
+        $payload = $body;
+        for ($i = 0; $i < 2; $i++) {
+            if ( !self::is_gzip_payload( $payload ) ) {
+                break;
+            }
+            if ( !function_exists( 'gzdecode' ) ) {
+                return '';
+            }
+            $decoded = gzdecode( $payload );
+            if ( false === $decoded || '' === $decoded ) {
+                return '';
+            }
+            $payload = $decoded;
+        }
+        return ( self::is_likely_jsonl( $payload ) ? $payload : '' );
     }
 
     /**
@@ -289,12 +331,45 @@ class Wf_Sn_Vu {
      * @return  mixed
      */
     public static function remove_http( $url = '' ) {
+        if ( !is_string( $url ) ) {
+            $url = ( is_scalar( $url ) ? (string) $url : '' );
+        }
+        if ( '' === $url ) {
+            return '';
+        }
         if ( strpos( $url, 'http://' ) === 0 ) {
             $url = substr( $url, 7 );
         } elseif ( strpos( $url, 'https://' ) === 0 ) {
             $url = substr( $url, 8 );
         }
         return $url;
+    }
+
+    /**
+     * Render a single vulnerability reference list item.
+     * Refs from the vulnerability DB may omit name (or url); never assume both exist.
+     *
+     * @param object $ref Decoded reference object.
+     * @return string HTML list item, or empty string when unusable.
+     */
+    private static function format_vuln_ref_list_item( $ref ) {
+        if ( !is_object( $ref ) ) {
+            return '';
+        }
+        $ref_url = '';
+        if ( isset( $ref->url ) && is_string( $ref->url ) ) {
+            $ref_url = $ref->url;
+        }
+        if ( '' === $ref_url ) {
+            return '';
+        }
+        $ref_label = '';
+        if ( isset( $ref->name ) && is_string( $ref->name ) && '' !== $ref->name ) {
+            $ref_label = $ref->name;
+        } else {
+            $ref_label = $ref_url;
+        }
+        return '<li><a href="' . esc_url( $ref_url ) . '" target="_blank" class="exlink" rel="noopener">' . esc_html( self::remove_http( $ref_label ) ) . '</a></li>';
     }
 
     /**
@@ -320,8 +395,20 @@ class Wf_Sn_Vu {
         if ( !$binary && !self::is_likely_jsonl( $file_content ) ) {
             return false;
         }
-        // Sanitize filename to prevent directory traversal.
-        $filename = sanitize_file_name( $filename );
+        // Allowlist only. sanitize_file_name() turns plugins_vulns.jsonl.gz into
+        // plugins_vulns.jsonl_.gz (jsonl is not a WP mime), so the UI never finds the file.
+        $allowed_names = array(
+            'plugins_vulns.jsonl.gz',
+            'themes_vulns.jsonl.gz',
+            'wordpress_vulns.jsonl.gz',
+            'plugins_vulns.jsonl',
+            'themes_vulns.jsonl',
+            'wordpress_vulns.jsonl'
+        );
+        $filename = basename( (string) $filename );
+        if ( !in_array( $filename, $allowed_names, true ) ) {
+            return false;
+        }
         $upload_dir = wp_upload_dir();
         $sn_dir = trailingslashit( $upload_dir['basedir'] ) . 'security-ninja/vulns/';
         require_once ABSPATH . 'wp-admin/includes/file.php';
@@ -361,12 +448,11 @@ class Wf_Sn_Vu {
         // Verify temp file is valid (lightweight check).
         if ( $binary ) {
             $temp_bytes = file_get_contents( $temp_path );
-            if ( false === $temp_bytes || strlen( $temp_bytes ) < 2 ) {
+            if ( false === $temp_bytes || !self::is_gzip_payload( $temp_bytes ) ) {
                 wp_delete_file( $temp_path );
                 return false;
             }
-            $magic_bytes = unpack( 'C2', substr( $temp_bytes, 0, 2 ) );
-            if ( 0x1f !== $magic_bytes[1] || 0x8b !== $magic_bytes[2] ) {
+            if ( !self::vuln_file_has_valid_records( $temp_path, 1 ) ) {
                 wp_delete_file( $temp_path );
                 return false;
             }
@@ -374,9 +460,14 @@ class Wf_Sn_Vu {
             wp_delete_file( $temp_path );
             return false;
         }
-        // Atomically move temp to final (WP_Filesystem::move uses rename on same filesystem).
-        $renamed = $wp_filesystem->move( $temp_path, $final_path, true );
+        // PHP rename on the same filesystem. WP_Filesystem::move can report success
+        // on FTP/SSH while the PHP path in uploads never gets the file.
+        $renamed = @rename( $temp_path, $final_path );
+        // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged,WordPress.WP.AlternativeFunctions.rename_rename -- Atomic replace of local vuln DB.
         if ( !$renamed ) {
+            $renamed = $wp_filesystem->move( $temp_path, $final_path, true );
+        }
+        if ( !$renamed || !is_file( $final_path ) || !is_readable( $final_path ) ) {
             wp_delete_file( $temp_path );
             return false;
         }
@@ -410,22 +501,29 @@ class Wf_Sn_Vu {
             $stored_etag = ( !empty( $validators['stored_etag'] ) ? $validators['stored_etag'] : false );
             $stored_last_modified = ( !empty( $validators['stored_last_modified'] ) ? $validators['stored_last_modified'] : false );
         }
+        // Never send If-None-Match when the local file is missing, or a 304
+        // "success" leaves the site with no vulnerability database.
+        $have_local_file = (bool) self::resolve_vuln_jsonl_file_path( $type );
         // Build conditional GET headers.
-        $conditional_headers = array();
-        if ( $stored_etag ) {
+        $conditional_headers = array(
+            'Accept-Encoding' => 'identity',
+        );
+        if ( $have_local_file && $stored_etag ) {
             // Sanitize ETag header value (preserve quotes/W/ prefix but escape any dangerous characters).
             $conditional_headers['If-None-Match'] = sanitize_text_field( $stored_etag );
         }
-        if ( $stored_last_modified ) {
+        if ( $have_local_file && $stored_last_modified ) {
             // Sanitize Last-Modified header value.
             $conditional_headers['If-Modified-Since'] = sanitize_text_field( $stored_last_modified );
         }
         // Prepare request arguments.
         $request_url = esc_url_raw( $url . '.gz' );
         $args = array(
-            'headers'   => $conditional_headers,
-            'timeout'   => 30,
-            'sslverify' => true,
+            'headers'     => $conditional_headers,
+            'timeout'     => 60,
+            'sslverify'   => true,
+            'decompress'  => false,
+            'redirection' => 3,
         );
         // Make conditional GET request (use wp_remote_get to allow custom headers).
         $response = wp_remote_get( $request_url, $args );
@@ -433,7 +531,7 @@ class Wf_Sn_Vu {
         $result_info = array(
             'success'            => false,
             'status_code'        => 0,
-            'conditional_sent'   => !empty( $conditional_headers ),
+            'conditional_sent'   => isset( $conditional_headers['If-None-Match'] ) || isset( $conditional_headers['If-Modified-Since'] ),
             'etag_sent'          => !empty( $stored_etag ),
             'last_modified_sent' => !empty( $stored_last_modified ),
             'bytes_downloaded'   => 0,
@@ -471,7 +569,17 @@ class Wf_Sn_Vu {
         $headers = wp_remote_retrieve_headers( $response );
         $result_info['status_code'] = $response_code;
         // Handle 304 Not Modified.
+        if ( 304 === $response_code && !self::resolve_vuln_jsonl_file_path( $type ) ) {
+            unset($args['headers']['If-None-Match'], $args['headers']['If-Modified-Since']);
+            $response = wp_remote_get( $request_url, $args );
+            $response_code = ( is_wp_error( $response ) ? 0 : (int) wp_remote_retrieve_response_code( $response ) );
+            $headers = ( is_wp_error( $response ) ? array() : wp_remote_retrieve_headers( $response ) );
+            $result_info['status_code'] = $response_code;
+        }
         if ( 304 === $response_code ) {
+            if ( !self::resolve_vuln_jsonl_file_path( $type ) ) {
+                return false;
+            }
             // No body processing needed, don't update file content; update validators and touch file so "Last Updated" UI reflects check time.
             if ( $validators ) {
                 self::save_file_validators(
@@ -511,61 +619,33 @@ class Wf_Sn_Vu {
             $result_info['bytes_downloaded'] = $content_length;
             $received_etag = ( isset( $headers['etag'] ) ? sanitize_text_field( $headers['etag'] ) : '' );
             $received_last_modified = ( isset( $headers['last-modified'] ) ? sanitize_text_field( $headers['last-modified'] ) : '' );
-            $content_encoding = ( isset( $headers['content-encoding'] ) ? strtolower( $headers['content-encoding'] ) : '' );
-            $is_gzipped = false;
-            if ( 'gzip' === $content_encoding ) {
-                $is_gzipped = true;
-            } elseif ( strlen( $body ) >= 2 ) {
-                // Check magic bytes: 0x1f 0x8b indicates gzip.
-                $magic_bytes = unpack( 'C2', substr( $body, 0, 2 ) );
-                if ( 0x1f === $magic_bytes[1] && 0x8b === $magic_bytes[2] ) {
-                    $is_gzipped = true;
-                }
-            }
-            $result_info['gzip_detected'] = $is_gzipped;
-            // Decode if gzipped.
-            $decoded_content = $body;
-            if ( $is_gzipped ) {
-                $decoded = gzdecode( $body );
-                if ( false !== $decoded && strlen( $decoded ) > 0 ) {
-                    $decoded_content = $decoded;
-                    $result_info['decode_succeeded'] = true;
-                } elseif ( self::is_likely_jsonl( $body ) ) {
-                    // Already decoded, use as-is (fallback).
-                    $decoded_content = $body;
-                    $result_info['decode_succeeded'] = true;
-                } else {
-                    // Failed decode, treat as error - don't overwrite file.
-                    $error_msg = sprintf( 
-                        /* translators: %s: Vulnerability type */
-                        __( 'Failed to decompress %s vulnerability file.', 'security-ninja' ),
-                        $type
-                     );
-                    if ( $validators ) {
-                        self::save_file_validators(
-                            $type,
-                            ( $stored_etag ? $stored_etag : '' ),
-                            ( $stored_last_modified ? $stored_last_modified : '' ),
-                            $current_time,
-                            ( !empty( $validators['last_success_ts'] ) ? $validators['last_success_ts'] : 0 ),
-                            $error_msg
-                        );
-                    } else {
-                        self::save_file_validators(
-                            $type,
-                            '',
-                            '',
-                            $current_time,
-                            0,
-                            $error_msg
-                        );
+            $result_info['gzip_detected'] = self::is_gzip_payload( $body );
+            $decoded_content = self::normalize_vuln_feed_body( $body );
+            if ( '' === $decoded_content ) {
+                $plain_response = wp_remote_get( esc_url_raw( $url ), array(
+                    'headers'     => array(
+                        'Accept-Encoding' => 'identity',
+                    ),
+                    'timeout'     => 30,
+                    'sslverify'   => true,
+                    'decompress'  => false,
+                    'redirection' => 3,
+                ) );
+                if ( !is_wp_error( $plain_response ) && 200 === (int) wp_remote_retrieve_response_code( $plain_response ) ) {
+                    $plain_body = wp_remote_retrieve_body( $plain_response );
+                    $decoded_content = self::normalize_vuln_feed_body( $plain_body );
+                    $result_info['bytes_downloaded'] = strlen( $plain_body );
+                    $result_info['gzip_detected'] = self::is_gzip_payload( $plain_body );
+                    $plain_headers = wp_remote_retrieve_headers( $plain_response );
+                    if ( isset( $plain_headers['etag'] ) ) {
+                        $received_etag = sanitize_text_field( $plain_headers['etag'] );
                     }
-                    return false;
+                    if ( isset( $plain_headers['last-modified'] ) ) {
+                        $received_last_modified = sanitize_text_field( $plain_headers['last-modified'] );
+                    }
                 }
-            } else {
-                // Not gzipped, treat as plain text JSONL.
-                $result_info['decode_succeeded'] = true;
             }
+            $result_info['decode_succeeded'] = '' !== $decoded_content;
             // Sanity check: ensure decoded content is valid JSONL.
             if ( !self::is_likely_jsonl( $decoded_content ) ) {
                 $error_msg = sprintf( 
@@ -654,44 +734,25 @@ class Wf_Sn_Vu {
             // Atomic write of gzipped file.
             $write_result = self::get_file_and_save( $gzipped_content, "{$type}_vulns.jsonl.gz", true );
             if ( $write_result ) {
-                // Round-trip verify at least one JSONL record before removing legacy plaintext.
-                $gzip_path = self::get_vuln_jsonl_file_path( $type );
-                if ( !$gzip_path || !self::vuln_file_has_valid_records( $gzip_path, 1 ) ) {
-                    if ( $gzip_path && file_exists( $gzip_path ) ) {
-                        wp_delete_file( $gzip_path );
-                    }
-                    $error_msg = sprintf( 
-                        /* translators: %s: Vulnerability type */
-                        __( 'Failed to verify %s vulnerability file after save.', 'security-ninja' ),
-                        sanitize_text_field( $type )
-                     );
-                    if ( $validators ) {
-                        self::save_file_validators(
-                            $type,
-                            ( $stored_etag ? $stored_etag : '' ),
-                            ( $stored_last_modified ? $stored_last_modified : '' ),
-                            $current_time,
-                            ( !empty( $validators['last_success_ts'] ) ? $validators['last_success_ts'] : 0 ),
-                            $error_msg
-                        );
-                    } else {
-                        self::save_file_validators(
-                            $type,
-                            '',
-                            '',
-                            $current_time,
-                            0,
-                            $error_msg
-                        );
-                    }
-                    return false;
-                }
                 $result_info['file_written'] = true;
                 $result_info['success'] = true;
-                // Remove legacy plaintext JSONL if present (migration / false-positive cleanup).
-                $legacy_path = self::get_vuln_legacy_jsonl_file_path( $type );
-                if ( $legacy_path && file_exists( $legacy_path ) ) {
-                    wp_delete_file( $legacy_path );
+                // Only remove pre-5.294 plaintext JSONL after a gzip file is
+                // actually readable. Never leave an older site with no list.
+                $gzip_ready = false;
+                foreach ( self::get_vuln_candidate_paths( $type ) as $candidate_path ) {
+                    if ( !$candidate_path || !preg_match( '/\\.gz$/i', $candidate_path ) ) {
+                        continue;
+                    }
+                    if ( is_file( $candidate_path ) && is_readable( $candidate_path ) ) {
+                        $gzip_ready = true;
+                        break;
+                    }
+                }
+                if ( $gzip_ready ) {
+                    $legacy_path = self::get_vuln_legacy_jsonl_file_path( $type );
+                    if ( $legacy_path && file_exists( $legacy_path ) ) {
+                        wp_delete_file( $legacy_path );
+                    }
                 }
                 // Only if write succeeds: update validators and last_success_ts.
                 self::save_file_validators(
@@ -911,22 +972,55 @@ class Wf_Sn_Vu {
     }
 
     /**
-     * Resolve the readable local vulnerability DB path (prefer gzip, else legacy plaintext).
+     * Local filenames that may exist for a vuln type.
      *
-     * Skips gzip when gzopen is unavailable so hosts without zlib can still use legacy files.
+     * 5.294+ used sanitize_file_name() which saved *.jsonl_.gz. Sites that have
+     * not re-downloaded yet still have that name. Canonical is *.jsonl.gz.
+     *
+     * @param string $type File type: 'plugins', 'themes', or 'wordpress'.
+     * @return string[] Absolute paths, preferred first.
+     */
+    private static function get_vuln_candidate_paths( $type ) {
+        $canonical = self::get_vuln_jsonl_file_path( $type );
+        if ( !$canonical ) {
+            return array();
+        }
+        $paths = array($canonical);
+        $mangled = preg_replace( '/\\.jsonl\\.gz$/', '.jsonl_.gz', $canonical );
+        if ( is_string( $mangled ) && $mangled !== $canonical ) {
+            $paths[] = $mangled;
+        }
+        $legacy = self::get_vuln_legacy_jsonl_file_path( $type );
+        if ( $legacy ) {
+            $paths[] = $legacy;
+        }
+        return $paths;
+    }
+
+    /**
+     * Resolve the readable local vulnerability DB path.
+     *
+     * Accepts canonical gzip, the sanitize_file_name() *.jsonl_.gz name from
+     * 5.294+, and legacy plaintext. Does not require gzopen().
      *
      * @since   v5.294
      * @param   string $type File type: 'plugins', 'themes', or 'wordpress'.
      * @return  string|false Absolute path if a readable file exists, false otherwise.
      */
     private static function resolve_vuln_jsonl_file_path( $type ) {
-        $gzip_path = self::get_vuln_jsonl_file_path( $type );
-        if ( $gzip_path && function_exists( 'gzopen' ) && is_file( $gzip_path ) && is_readable( $gzip_path ) ) {
-            return $gzip_path;
-        }
-        $legacy_path = self::get_vuln_legacy_jsonl_file_path( $type );
-        if ( $legacy_path && is_file( $legacy_path ) && is_readable( $legacy_path ) ) {
-            return $legacy_path;
+        $paths = self::get_vuln_candidate_paths( $type );
+        $canonical = ( isset( $paths[0] ) ? $paths[0] : '' );
+        foreach ( $paths as $path ) {
+            if ( !$path || !is_file( $path ) || !is_readable( $path ) ) {
+                continue;
+            }
+            if ( $canonical && $path !== $canonical && !is_file( $canonical ) ) {
+                if ( @rename( $path, $canonical ) && is_file( $canonical ) && is_readable( $canonical ) ) {
+                    // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged,WordPress.WP.AlternativeFunctions.rename_rename -- Recover mangled vuln DB filename.
+                    return $canonical;
+                }
+            }
+            return $path;
         }
         return false;
     }
@@ -1060,29 +1154,54 @@ class Wf_Sn_Vu {
         if ( !is_file( $file_path ) || !is_readable( $file_path ) ) {
             return;
         }
-        $is_gzip = (bool) preg_match( '/\\.gz$/i', $file_path );
+        $is_gzip = false;
+        $peek = fopen( $file_path, 'rb' );
+        // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fopen -- Peek gzip magic; extension may be .gz.tmp.
+        if ( false !== $peek ) {
+            $magic = fread( $peek, 2 );
+            // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fread
+            fclose( $peek );
+            // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fclose
+            $is_gzip = self::is_gzip_payload( ( is_string( $magic ) ? $magic : '' ) );
+        }
         if ( $is_gzip ) {
-            if ( !function_exists( 'gzopen' ) ) {
-                return;
-            }
-            // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fopen -- Streaming gzipped local uploads JSONL; WP_Filesystem has no line iterator.
-            $handle = gzopen( $file_path, 'rb' );
-            if ( false === $handle ) {
-                return;
-            }
-            try {
-                while ( ($line = gzgets( $handle )) !== false ) {
-                    $line = trim( $line );
-                    if ( '' === $line ) {
-                        continue;
+            if ( function_exists( 'gzopen' ) ) {
+                // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fopen -- Streaming gzipped local uploads JSONL; WP_Filesystem has no line iterator.
+                $handle = gzopen( $file_path, 'rb' );
+                if ( false !== $handle ) {
+                    try {
+                        while ( ($line = gzgets( $handle )) !== false ) {
+                            $line = trim( $line );
+                            if ( '' === $line ) {
+                                continue;
+                            }
+                            $decoded = json_decode( $line, true );
+                            if ( is_array( $decoded ) ) {
+                                (yield $decoded);
+                            }
+                        }
+                    } finally {
+                        gzclose( $handle );
                     }
-                    $decoded = json_decode( $line, true );
-                    if ( is_array( $decoded ) ) {
-                        (yield $decoded);
-                    }
+                    return;
                 }
-            } finally {
-                gzclose( $handle );
+            }
+            if ( !function_exists( 'gzdecode' ) ) {
+                return;
+            }
+            $decoded_file = gzdecode( (string) file_get_contents( $file_path ) );
+            if ( !is_string( $decoded_file ) || '' === $decoded_file ) {
+                return;
+            }
+            foreach ( preg_split( '/\\r\\n|\\n|\\r/', $decoded_file ) as $line ) {
+                $line = trim( $line );
+                if ( '' === $line ) {
+                    continue;
+                }
+                $decoded = json_decode( $line, true );
+                if ( is_array( $decoded ) ) {
+                    (yield $decoded);
+                }
             }
             return;
         }
@@ -1264,12 +1383,6 @@ class Wf_Sn_Vu {
      * @return  array|false An array of last modified timestamps for each vulnerability type, or false on failure.
      */
     public static function get_vulnerabilities_last_modified() {
-        require_once ABSPATH . 'wp-admin/includes/file.php';
-        global $wp_filesystem;
-        if ( empty( $wp_filesystem ) && !WP_Filesystem() ) {
-            return false;
-            // Early return if filesystem initialization fails.
-        }
         $last_modified = array(
             'wordpress' => false,
             'plugins'   => false,
@@ -1277,8 +1390,11 @@ class Wf_Sn_Vu {
         );
         foreach ( $last_modified as $type => &$timestamp ) {
             $file_path = self::resolve_vuln_jsonl_file_path( $type );
-            if ( $file_path && $wp_filesystem->exists( $file_path ) ) {
-                $timestamp = $wp_filesystem->mtime( $file_path );
+            if ( $file_path ) {
+                $mtime = filemtime( $file_path );
+                if ( false !== $mtime ) {
+                    $timestamp = $mtime;
+                }
             }
         }
         return $last_modified;
@@ -1425,7 +1541,7 @@ class Wf_Sn_Vu {
         $message_content_html .= '<p>' . esc_html__( 'View all vulnerabilities:', 'security-ninja' ) . ' <a href="' . esc_url( admin_url( 'admin.php?page=wf-sn#sn_vuln' ) ) . '" target="_blank">' . esc_html__( 'here', 'security-ninja' ) . '</a></p>';
         $message_content_html .= '<p>' . esc_html__( 'You are receiving this email because you have activated email warnings for the vulnerability scanner.', 'security-ninja' ) . '</p>';
         $message_content_html .= '<hr>';
-        $url = Utils::generate_sn_web_link( 'email_vuln_warning_footer', '/' );
+        $url = Utils::generate_sn_web_link( 'email_vuln_footer', '/' );
         $message_content_html .= '<p>' . esc_html__( 'Thank you for using WP Security Ninja', 'security-ninja' ) . ' - <a href="' . esc_url( $url ) . '" target="_blank">' . esc_html__( 'WP Security Ninja', 'security-ninja' ) . '</a></p>';
         // Additional security advice
         $message_content_html .= '<p>' . esc_html__( 'For enhanced security, please ensure that all your plugins, themes, and WordPress itself are always up-to-date. Regular updates help protect your website from known vulnerabilities.', 'security-ninja' ) . '</p>';
@@ -2102,6 +2218,7 @@ class Wf_Sn_Vu {
                         } elseif ( $timestamp === $current_time ) {
                             $time_diff = __( 'just now', 'security-ninja' );
                         }
+                        echo '<p>';
                         printf(
                             // translators: %1$s: Type, %2$s: Formatted date, %3$s: Time difference
                             '%1$s: %2$s (%3$s)',
@@ -2109,6 +2226,7 @@ class Wf_Sn_Vu {
                             esc_html( date_i18n( get_option( 'date_format' ) . ' ' . get_option( 'time_format' ), $timestamp ) ),
                             esc_html( $time_diff )
                         );
+                        echo '</p>';
                         if ( $is_outdated ) {
                             $has_missing_or_outdated = true;
                             $outdated_files[] = $type;
@@ -2117,9 +2235,13 @@ class Wf_Sn_Vu {
                         // Check if the file actually exists (gzip preferred, legacy plaintext fallback).
                         $file_path = self::resolve_vuln_jsonl_file_path( $type );
                         if ( $file_path ) {
+                            echo '<p>';
                             printf( '%1$s: %2$s', '<strong>' . esc_html( ucfirst( $type ) ) . '</strong>', esc_html__( 'File exists but timestamp unavailable', 'security-ninja' ) );
+                            echo '</p>';
                         } else {
+                            echo '<p>';
                             printf( '%1$s: %2$s', '<strong>' . esc_html( ucfirst( $type ) ) . '</strong>', esc_html__( 'File not found', 'security-ninja' ) );
+                            echo '</p>';
                             $has_missing_or_outdated = true;
                             $missing_files[] = $type;
                         }
@@ -2897,8 +3019,8 @@ class Wf_Sn_Vu {
                          ) . '</p>';
                         if ( isset( $wpvuln['CVE_ID'] ) && '' !== $wpvuln['CVE_ID'] ) {
                             $output .= '<p><span class="nvdlink">' . sprintf(
-                                /* translators: %s: CVE ID */
-                                esc_html__( 'More details: %1$sRead more about %2$s%3$s%4$s', 'security-ninja' ),
+                                /* translators: %1$s: opening link tag, %2$s: CVE ID, %3$s: closing link tag */
+                                esc_html__( 'More details: %1$sRead more about %2$s%3$s', 'security-ninja' ),
                                 '<a href="' . esc_url( 'https://nvd.nist.gov/vuln/detail/' . $wpvuln['CVE_ID'] ) . '" target="_blank" rel="noopener">',
                                 esc_html( $wpvuln['CVE_ID'] ),
                                 '</a>'
@@ -2969,7 +3091,7 @@ class Wf_Sn_Vu {
                                     $output .= '<li><a href="' . esc_url( 'https://nvd.nist.gov/vuln/detail/' . $found_vuln['CVE_ID'] ) . '" target="_blank" class="exlink" rel="noopener">' . esc_attr( $found_vuln['CVE_ID'] ) . '</a></li>';
                                 }
                                 foreach ( $refs as $ref ) {
-                                    $output .= '<li><a href="' . esc_url( $ref->url ) . '" target="_blank" class="exlink" rel="noopener">' . esc_html( self::remove_http( $ref->name ) ) . '</a></li>';
+                                    $output .= self::format_vuln_ref_list_item( $ref );
                                 }
                                 $output .= '</ul>';
                             }
@@ -3037,7 +3159,7 @@ class Wf_Sn_Vu {
                                     $output .= '<li><a href="' . esc_url( 'https://nvd.nist.gov/vuln/detail/' . $found_vuln['CVE_ID'] ) . '" target="_blank" class="exlink" rel="noopener">' . esc_attr( $found_vuln['CVE_ID'] ) . '</a></li>';
                                 }
                                 foreach ( $refs as $ref ) {
-                                    $output .= '<li><a href="' . esc_url( $ref->url ) . '" target="_blank" class="exlink" rel="noopener">' . esc_html( self::remove_http( $ref->name ) ) . '</a></li>';
+                                    $output .= self::format_vuln_ref_list_item( $ref );
                                 }
                                 $output .= '</ul>';
                             }
@@ -3111,7 +3233,7 @@ class Wf_Sn_Vu {
         foreach ( self::$api_urls as $file_type => $api_url ) {
             $result = self::download_vuln_file_with_conditional_get( $file_type, $api_url );
             $results[$file_type] = $result;
-            if ( $result && isset( $result['success'] ) && $result['success'] ) {
+            if ( $result && !empty( $result['success'] ) && self::resolve_vuln_jsonl_file_path( $file_type ) ) {
                 ++$success_count;
             } else {
                 ++$error_count;

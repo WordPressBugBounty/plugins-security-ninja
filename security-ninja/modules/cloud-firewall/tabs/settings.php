@@ -66,7 +66,7 @@ function wf_sn_cf_render_settings_content(  $options, $ips = array()  ) {
 										</ul>
 										<p style="margin-top: 15px;">
 											<a href="<?php 
-        echo esc_url( \WPSecurityNinja\Plugin\Utils::generate_sn_web_link( 'upgrade_tab_firewall_settings', '/upgrade/' ) );
+        echo esc_url( \WPSecurityNinja\Plugin\Utils::generate_sn_web_link( 'firewall_upgrade', '/upgrade/' ) );
         ?>" class="button button-primary button-small" target="_blank" rel="noopener">Upgrade to Pro</a>
 										</p>
 									</div>

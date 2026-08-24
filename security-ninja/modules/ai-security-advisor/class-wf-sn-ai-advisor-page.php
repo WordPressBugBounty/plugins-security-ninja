@@ -35,7 +35,7 @@ class Wf_Sn_Ai_Advisor_Page {
         $has_connectors = !empty( $ai_state['has_connectors'] );
         $plugin_name = \WPSecurityNinja\Plugin\Utils::get_branded_plugin_name();
         $show_docs_link = true;
-        $docs_url = \WPSecurityNinja\Plugin\Utils::generate_sn_web_link( 'what_happens_link', '/docs/security-advisor/what-happens-when-you-generate-a-report/' );
+        $docs_url = \WPSecurityNinja\Plugin\Utils::generate_sn_web_link( 'ai_advisor_docs', '/docs/security-advisor/what-happens-when-you-generate-a-report/' );
         $ui_locale = ( isset( $options['ui_locale'] ) && '' !== $options['ui_locale'] ? $options['ui_locale'] : (( function_exists( 'get_user_locale' ) ? get_user_locale() : get_locale() )) );
         // Compute an effective locale that actually exists in the available translations list.
         $effective_locale = $ui_locale;
@@ -1278,7 +1278,7 @@ class Wf_Sn_Ai_Advisor_Page {
             ?></p>
 						<p style="margin-top: 15px;">
 							<a href="<?php 
-            echo esc_url( \WPSecurityNinja\Plugin\Utils::generate_sn_web_link( 'upgrade_ai_scheduled_reports', '/upgrade/' ) );
+            echo esc_url( \WPSecurityNinja\Plugin\Utils::generate_sn_web_link( 'ai_advisor_upgrade', '/upgrade/' ) );
             ?>" class="button button-primary button-small" target="_blank" rel="noopener"><?php 
             esc_html_e( 'Upgrade to Pro', 'security-ninja' );
             ?></a>

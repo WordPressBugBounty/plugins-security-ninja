@@ -165,7 +165,7 @@ class Wf_Sn_Wiz {
      */
     private static function get_pro_overview_markup() {
         $text = __( 'Everything in this wizard works on the free plan. Pro adds stronger protection when you need it: cloud firewall with 600M+ bad IPs, login brute-force blocking, one-click security fixes, WooCommerce hardening, malware scanning, and more.', 'security-ninja' );
-        $url = Utils::generate_sn_web_link( 'install_wizard', '/upgrade/' );
+        $url = Utils::generate_sn_web_link( 'wizard_upgrade', '/upgrade/' );
         if ( $url ) {
             $text .= ' <a href="' . esc_url( $url ) . '" target="_blank" rel="noopener">' . esc_html__( 'Compare plans', 'security-ninja' ) . '</a>';
         }
@@ -653,8 +653,8 @@ class Wf_Sn_Wiz {
         $content['summary'] .= '<p>' . sprintf( 
             /* translators: 1: documentation link HTML, 2: support link HTML */
             __( 'Need help? Read our %1$s or %2$s.', 'security-ninja' ),
-            '<a href="https://wpsecurityninja.com/docs/" target="_blank" rel="noopener">' . esc_html__( 'documentation', 'security-ninja' ) . '</a>',
-            '<a href="https://wpsecurityninja.com/help/" target="_blank" rel="noopener">' . esc_html__( 'contact support', 'security-ninja' ) . '</a>'
+            '<a href="' . esc_url( Utils::generate_sn_web_link( 'wizard_docs', '/docs/' ) ) . '" target="_blank" rel="noopener">' . esc_html__( 'documentation', 'security-ninja' ) . '</a>',
+            '<a href="' . esc_url( Utils::generate_sn_web_link( 'wizard_help', '/help/' ) ) . '" target="_blank" rel="noopener">' . esc_html__( 'contact support', 'security-ninja' ) . '</a>'
          ) . '</p>';
         $secninlink = admin_url( 'admin.php?page=wf-sn#sn_overview' );
         $content['summary'] .= '<p><a href="' . esc_url( $secninlink ) . '" class="button button-primary button-hero secnin-wizard-finish">' . __( 'Go to Dashboard', 'security-ninja' ) . '</a></p>';

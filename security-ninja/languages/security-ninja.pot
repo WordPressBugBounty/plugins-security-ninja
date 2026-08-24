@@ -9917,10 +9917,10 @@ msgstr ""
 msgid "Fixed in WordPress version %1$s"
 msgstr ""
 
-#. translators: %s: CVE ID
+#. translators: %1$s: opening link tag, %2$s: CVE ID, %3$s: closing link tag
 #: modules/vulnerabilities/class-wf-sn-vu.php:2806
 #, php-format
-msgid "More details: %1$sRead more about %2$s%3$s%4$s"
+msgid "More details: %1$sRead more about %2$s%3$s"
 msgstr ""
 
 #: modules/vulnerabilities/class-wf-sn-vu.php:2821

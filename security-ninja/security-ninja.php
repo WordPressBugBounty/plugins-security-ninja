@@ -5,7 +5,7 @@ Plugin Name: Security Ninja
 Plugin URI: https://wpsecurityninja.com/
 Description: Check your site for security vulnerabilities and get precise suggestions for corrective actions on passwords, user accounts, file permissions, database security, version hiding, plugins, themes, security headers and other security aspects.
 Author: WP Security Ninja
-Version: 5.296
+Version: 5.299
 Author URI: https://wpsecurityninja.com/
 License: GPLv3
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
@@ -260,6 +260,9 @@ if ( !function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
                         10,
                         6
                     );
+                    // Free opt-in / Skip: land on Setup Wizard when setup is still incomplete.
+                    secnin_fs()->add_filter( 'after_connect_url', array(__NAMESPACE__ . '\\Wf_Sn', 'filter_post_freemius_landing_url') );
+                    secnin_fs()->add_filter( 'after_skip_url', array(__NAMESPACE__ . '\\Wf_Sn', 'filter_post_freemius_landing_url') );
                 }
                 add_filter(
                     'sn_tabs',
@@ -428,6 +431,17 @@ if ( !function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
                 return admin_url( 'admin.php?page=security-ninja-wizard' );
             }
             return admin_url( 'admin.php?page=wf-sn' );
+        }
+
+        /**
+         * Freemius after_connect_url / after_skip_url: prefer Setup Wizard when incomplete.
+         *
+         * @since 5.296
+         * @param string $url Default Freemius landing URL.
+         * @return string
+         */
+        public static function filter_post_freemius_landing_url( $url ) {
+            return self::get_post_install_redirect_url();
         }
 
         /**
@@ -1265,7 +1279,7 @@ if ( !function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
         public static function tab_tests() {
             $testsresults = self::get_test_results();
             ?>
-			<div class="submit-test-container">
+			<div class="submit-test-container sncard settings-card">
 				<h2><span class="dashicons dashicons-list-view"></span>
 					<?php 
             esc_html_e( 'Test your website security', 'security-ninja' );
@@ -1297,7 +1311,7 @@ if ( !function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
 
 				<?php 
             $tests = wf_sn_tests::return_security_tests();
-            $out = '<div id="runtestsrow"><input type="submit" value="' . __( 'Run Tests', 'security-ninja' ) . '" id="run-selected-tests" class="button button-primary button-hero" name="Submit" />';
+            $out = '<div id="runtestsrow"><button type="button" id="run-selected-tests" class="button button-primary button-hero wf-sn-button button-center">' . esc_html__( 'Run Tests', 'security-ninja' ) . '</button>';
             $out .= '<span class="runtestsbn spinner"></span>';
             $out .= '<div id="secninja-tests-quickselect">';
             $out .= '<span>' . __( 'Quick Filter', 'security-ninja' ) . ':</span><ul><li><a href="#" id="sn-quickselect-all">' . __( 'All', 'security-ninja' ) . '</a></li><li><a href="#" id="sn-quickselect-failed">' . __( 'Failed', 'security-ninja' ) . '</a></li><li><a href="#"  id="sn-quickselect-warning">' . __( 'Warning', 'security-ninja' ) . '</a></li><li><a href="#" id="sn-quickselect-okay">' . __( 'Passed', 'security-ninja' ) . '</a></li><li><a href="#" id="sn-quickselect-untested">' . __( 'Untested', 'security-ninja' ) . '</a></li>';

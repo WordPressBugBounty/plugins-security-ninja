@@ -69,7 +69,10 @@ class Wf_Sn_Security_Snapshot {
 			}
 		}
 
-		$cs = get_option( 'wf_sn_cs_results', array() );
+		if ( ! class_exists( 'WPSecurityNinja\\Plugin\\Wf_Sn_Cs_Utils' ) ) {
+			require_once WF_SN_PLUGIN_DIR . 'modules/core-scanner/class-wf-sn-cs-utils.php';
+		}
+		$cs = \WPSecurityNinja\Plugin\Wf_Sn_Cs_Utils::get_scan_results( array() );
 		if ( ! is_array( $cs ) ) {
 			$cs = array();
 		}

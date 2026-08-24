@@ -55,22 +55,22 @@ esc_html_e( 'Learn more', 'security-ninja' );
 ?></h3>
 		<ul class="linklist">
 			<li><a href="<?php 
-echo esc_url( Utils::generate_sn_web_link( 'sidebar_link', '/security-tests/' ) );
+echo esc_url( Utils::generate_sn_web_link( 'sidebar_article', '/security-tests/' ) );
 ?>" target="_blank" rel="noopener"><?php 
 esc_html_e( 'About the tests', 'security-ninja' );
 ?></a></li>
 			<li><a href="<?php 
-echo esc_url( Utils::generate_sn_web_link( 'sidebar_link', '/why-is-insignificant-small-site-attacked-by-hackers/' ) );
+echo esc_url( Utils::generate_sn_web_link( 'sidebar_article', '/why-is-insignificant-small-site-attacked-by-hackers/' ) );
 ?>" target="_blank" rel="noopener"><?php 
 esc_html_e( 'Even small sites are attacked by hackers', 'security-ninja' );
 ?></a></li>
 			<li><a href="<?php 
-echo esc_url( Utils::generate_sn_web_link( 'sidebar_link', '/wordpress-beginner-mistakes/' ) );
+echo esc_url( Utils::generate_sn_web_link( 'sidebar_article', '/wordpress-beginner-mistakes/' ) );
 ?>" target="_blank" rel="noopener"><?php 
 esc_html_e( 'New to WordPress? avoid these beginner mistakes', 'security-ninja' );
 ?></a></li>
 			<li><a href="<?php 
-echo esc_url( Utils::generate_sn_web_link( 'sidebar_link', '/signs-wordpress-site-is-hacked/' ) );
+echo esc_url( Utils::generate_sn_web_link( 'sidebar_article', '/signs-wordpress-site-is-hacked/' ) );
 ?>" target="_blank" rel="noopener"><?php 
 esc_html_e( 'Signs that your site has been hacked', 'security-ninja' );
 ?></a></li>
@@ -157,7 +157,7 @@ if ( function_exists( 'secnin_fs' ) ) {
         echo esc_html( 'Try the Pro version free for 14 days!' );
         ?></strong></p>
 				<a href="<?php 
-        echo esc_url( Utils::generate_sn_web_link( 'sidebar_link', '/upgrade/', array(
+        echo esc_url( Utils::generate_sn_web_link( 'sidebar_trial', '/upgrade/', array(
             'trial' => 'free',
         ) ) );
         ?>" class="button button-primary trial-button" target="_blank" rel="noopener"><?php 
@@ -190,7 +190,7 @@ if ( function_exists( 'secnin_fs' ) ) {
         ?></li>
 							</ul>
 							<p><a href="<?php 
-        echo esc_url( Utils::generate_sn_web_link( 'sidebar_link', '/upgrade/' ) );
+        echo esc_url( Utils::generate_sn_web_link( 'sidebar_upgrade', '/upgrade/' ) );
         ?>" target="_blank" class="button button-primary" rel="noopener"><?php 
         echo esc_html( 'Read more about the Pro version' );
         ?></a></p>
@@ -217,7 +217,7 @@ echo esc_url( 'https://wordpress.org/support/plugin/security-ninja/' );
 esc_html_e( 'Support Forum', 'security-ninja' );
 ?></a></li>
 			<li><a href="<?php 
-echo esc_url( 'https://wpsecurityninja.com/docs/' );
+echo esc_url( Utils::generate_sn_web_link( 'sidebar_docs', '/docs/' ) );
 ?>" target="_blank" rel="noopener"><?php 
 esc_html_e( 'Knowledge Base', 'security-ninja' );
 ?></a></li>
@@ -299,7 +299,7 @@ if ( $show_pro_ad ) {
 			</ul>
 			<p style="margin-top: 10px;text-align: center;">
 				<a href="<?php 
-    echo esc_url( Utils::generate_sn_web_link( 'explore-pro', '/upgrade/' ) );
+    echo esc_url( Utils::generate_sn_web_link( 'sidebar_upgrade', '/upgrade/' ) );
     ?>" class="button button-primary button-small" target="_blank" rel="noopener"><?php 
     esc_html_e( 'Read more', 'security-ninja' );
     ?></a>

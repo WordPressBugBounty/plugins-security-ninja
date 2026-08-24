@@ -23,9 +23,88 @@ class Wf_Sn_Tests extends WF_SN {
 	public static $security_tests = null;
 
 
+	/**
+	 * Whether outbound self-checks should treat the site as local (skip TLS verify, etc.).
+	 *
+	 * Note: do not run REMOTE_ADDR through sanitize_key() — it strips dots/colons and turns
+	 * 127.0.0.1 into 127001, so localhost was never detected.
+	 *
+	 * @return bool
+	 */
 	private static function is_local_request() {
-		$remote_addr = isset( $_SERVER['REMOTE_ADDR'] ) ? sanitize_key( $_SERVER['REMOTE_ADDR'] ) : '';
-		return in_array( $remote_addr, array( '127.0.0.1', '::1' ), true );
+		$remote_addr = '';
+		if ( isset( $_SERVER['REMOTE_ADDR'] ) ) {
+			$remote_addr = trim( (string) wp_unslash( $_SERVER['REMOTE_ADDR'] ) );
+		}
+		if ( in_array( $remote_addr, array( '127.0.0.1', '::1' ), true ) ) {
+			return true;
+		}
+
+		if ( function_exists( 'wp_get_environment_type' ) && 'local' === wp_get_environment_type() ) {
+			return true;
+		}
+
+		$host = wp_parse_url( home_url(), PHP_URL_HOST );
+		if ( is_string( $host ) && '' !== $host ) {
+			$host = strtolower( $host );
+			if ( 'localhost' === $host || '127.0.0.1' === $host || '[::1]' === $host ) {
+				return true;
+			}
+			// Local WP / Valet-style hosts (.local, .test, .localhost).
+			if ( preg_match( '/\.(local|test|localhost)$/', $host ) ) {
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	/**
+	 * Whether Security Headers "hide PHP version" is enabled in wf_sn_fixes.
+	 *
+	 * @return bool
+	 */
+	private static function security_headers_hide_php_version_enabled() {
+		$fixes = get_option( 'wf_sn_fixes', array() );
+
+		return is_array( $fixes ) && ! empty( $fixes['hide_php_ver'] );
+	}
+
+	/**
+	 * Whether the X-Powered-By response header is absent on the front-end.
+	 *
+	 * @return bool|null True when hidden, false when present, null when inconclusive.
+	 */
+	private static function php_version_header_is_hidden() {
+		$is_local = self::is_local_request();
+		$response = wp_remote_head(
+			home_url( '/' ),
+			array(
+				'timeout'     => 8,
+				'sslverify'   => ! $is_local,
+				'redirection' => 3,
+			)
+		);
+
+		if ( is_wp_error( $response ) ) {
+			return null;
+		}
+
+		$headers = wp_remote_retrieve_headers( $response );
+		if ( ! is_array( $headers ) && ! ( $headers instanceof \ArrayAccess ) ) {
+			return null;
+		}
+
+		foreach ( $headers as $name => $value ) {
+			if ( strtolower( (string) $name ) === 'x-powered-by' ) {
+				if ( is_array( $value ) ) {
+					$value = implode( ', ', $value );
+				}
+				return '' === trim( (string) $value );
+			}
+		}
+
+		return true;
 	}
 
 
@@ -332,14 +411,19 @@ class Wf_Sn_Tests extends WF_SN {
 		// Check if the REST API URL was retrieved successfully
 		if ( ! $url ) {
 			return array(
-				'status'    => 10,
-				'msg'       => __( 'REST API URL not found.', 'security-ninja' ),
-				'sslverify' => ! $is_local,
-
+				'status' => 10,
+				'msg'    => __( 'REST API URL not found.', 'security-ninja' ),
 			);
 		}
 
-		$response = wp_remote_get( $url, array( 'redirection' => 0 ) );
+		$response = wp_remote_get(
+			$url,
+			array(
+				'redirection' => 0,
+				'timeout'     => 8,
+				'sslverify'   => ! $is_local,
+			)
+		);
 
 		// Check if the request was successful
 		if ( is_wp_error( $response ) ) {
@@ -919,9 +1003,8 @@ class Wf_Sn_Tests extends WF_SN {
 	 * @return  mixed
 	 */
 	public static function register_globals_check() {
-		$return           = array();
-		$ini_option_name  = 'register_globals';
-		$register_globals = (bool) ini_get( $ini_option_name );
+		$return          = array();
+		$register_globals = Utils::ini_is_enabled( 'register_globals' );
 
 		if ( $register_globals ) {
 			$return['status'] = 0;
@@ -951,7 +1034,7 @@ class Wf_Sn_Tests extends WF_SN {
 	public static function display_errors_check() {
 		$return = array();
 
-		$display_errors = (bool) ini_get( 'display_errors' );
+		$display_errors = Utils::ini_is_enabled( 'display_errors' );
 		if ( $display_errors ) {
 			$return['status'] = 0;
 			$return['msg']    = __( 'display_errors is enabled. This can reveal sensitive information and is a security risk.', 'security-ninja' );
@@ -1033,18 +1116,27 @@ class Wf_Sn_Tests extends WF_SN {
 	public static function expose_php_check() {
 		$return = array();
 
-		$expose_php_setting = ini_get( 'expose_php' );
-
-		if ( $expose_php_setting === false ) {
-			$return['status'] = 5; // Indicate an error or unexpected result
-			$return['msg']    = __( 'Unable to determine the "expose_php" setting. Please check your configuration.', 'security-ninja' );
-		} elseif ( $expose_php_setting ) {
-			$return['status'] = 0; // Not the recommended setting
-			$return['msg']    = __( 'Warning: "expose_php" is enabled. It is recommended to disable "expose_php" to hide PHP version info from headers for security reasons.', 'security-ninja' );
-		} else {
-			$return['status'] = 10; // Recommended setting
+		if ( ! Utils::ini_is_enabled( 'expose_php' ) ) {
+			$return['status'] = 10;
 			$return['msg']    = __( '"expose_php" is disabled. Your PHP version info is not exposed in headers, which is the recommended setting.', 'security-ninja' );
+			return $return;
 		}
+
+		if ( self::security_headers_hide_php_version_enabled() ) {
+			$return['status'] = 10;
+			$return['msg']    = __( 'PHP version header is not exposed (Security Ninja Security Headers).', 'security-ninja' );
+			return $return;
+		}
+
+		$header_hidden = self::php_version_header_is_hidden();
+		if ( true === $header_hidden ) {
+			$return['status'] = 10;
+			$return['msg']    = __( 'PHP version header is not exposed (server configuration).', 'security-ninja' );
+			return $return;
+		}
+
+		$return['status'] = 0;
+		$return['msg']    = __( 'Warning: "expose_php" is enabled. It is recommended to disable "expose_php" to hide PHP version info from headers for security reasons.', 'security-ninja' );
 
 		return $return;
 	}
@@ -1062,19 +1154,18 @@ class Wf_Sn_Tests extends WF_SN {
 	 */
 	public static function allow_url_include_check() {
 		$return = array(
-			'status' => 10, // Assume the recommended setting by default
+			'status' => 10,
 			'msg'    => '',
 		);
 
-		// Check if allow_url_include is enabled
 		// phpcs:ignore PHPCompatibility.PHP.DeprecatedIniDirectives -- Intentionally checking deprecated setting for security testing
-		$allowUrlInclude = ini_get( 'allow_url_include' );
-		if ( $allowUrlInclude ) {
-			$return['status'] = 0; // Not OK
+		if ( Utils::ini_is_enabled( 'allow_url_include' ) ) {
+			$return['status'] = 0;
 			$return['msg']    = __( 'Warning: allow_url_include is enabled. It is recommended to disable this setting for security reasons.', 'security-ninja' );
 		} else {
 			$return['msg'] = __( 'allow_url_include is disabled - Recommended setting.', 'security-ninja' );
 		}
+
 		return $return;
 	}
 
@@ -1089,18 +1180,21 @@ class Wf_Sn_Tests extends WF_SN {
 	 * @return  mixed
 	 */
 	public static function safe_mode_check() {
-		$return          = array();
-		$safeModeEnabled = ini_get( 'safe_mode' ); // phpcs:ignore PHPCompatibility.PHP.DeprecatedIniDirectives -- Intentionally checking deprecated setting for security testing
+		$return = array();
 
-		if ( $safeModeEnabled === false ) {
-			$return['status'] = 10;
-			$return['msg']    = __( 'Safe Mode is disabled, which is the recommended setting.', 'security-ninja' );
-		} elseif ( $safeModeEnabled === '' ) {
-			$return['status'] = 10;
-			$return['msg']    = __( 'Safe Mode is not applicable in PHP versions 5.3.0 and above.', 'security-ninja' );
-		} else {
+		// phpcs:ignore PHPCompatibility.PHP.DeprecatedIniDirectives -- Intentionally checking deprecated setting for security testing
+		$safe_mode_value = ini_get( 'safe_mode' );
+
+		if ( Utils::ini_is_enabled( 'safe_mode' ) ) {
 			$return['status'] = 0;
 			$return['msg']    = __( 'Safe Mode is enabled. It is recommended to disable Safe Mode if possible.', 'security-ninja' );
+		} else {
+			$return['status'] = 10;
+			if ( false === $safe_mode_value || '' === $safe_mode_value ) {
+				$return['msg'] = __( 'Safe Mode is not applicable in PHP versions 5.3.0 and above.', 'security-ninja' );
+			} else {
+				$return['msg'] = __( 'Safe Mode is disabled, which is the recommended setting.', 'security-ninja' );
+			}
 		}
 
 		return $return;
@@ -1235,6 +1329,7 @@ class Wf_Sn_Tests extends WF_SN {
 	 */
 	public static function debug_log_file_check() {
 		$return   = array();
+		$path     = WP_CONTENT_DIR . '/debug.log';
 		$url      = trailingslashit( content_url() ) . 'debug.log';
 		$is_local = self::is_local_request();
 
@@ -1242,17 +1337,32 @@ class Wf_Sn_Tests extends WF_SN {
 			$url,
 			array(
 				'redirection' => 0,
+				'timeout'     => 8,
 				'sslverify'   => ! $is_local,
 			)
 		);
 
 		if ( is_wp_error( $response ) ) {
+			if ( ! file_exists( $path ) ) {
+				$return['status'] = 10;
+				$return['msg']    = __( 'The debug.log file does not exist or is not accessible.', 'security-ninja' );
+				return $return;
+			}
+
 			$return['status'] = 5;
-			$return['msg']    = __( 'An error occurred while checking the debug.log file.', 'security-ninja' );
-		} elseif ( 200 === wp_remote_retrieve_response_code( $response ) ) {
+			$return['msg']    = sprintf(
+				/* translators: %s: transport error message from wp_remote_get */
+				__( 'Could not verify if debug.log is publicly accessible (%s). The file exists on disk. Block web access to wp-content/debug.log.', 'security-ninja' ),
+				$response->get_error_message()
+			);
+			return $return;
+		}
+
+		$code = (int) wp_remote_retrieve_response_code( $response );
+		if ( 200 === $code ) {
 			$return['status'] = 0;
 			$return['msg']    = __( 'The debug.log file is accessible.', 'security-ninja' );
-		} elseif ( 404 === wp_remote_retrieve_response_code( $response ) ) {
+		} elseif ( 404 === $code ) {
 			$return['status'] = 10;
 			$return['msg']    = __( 'The debug.log file does not exist or is not accessible.', 'security-ninja' );
 		} else {

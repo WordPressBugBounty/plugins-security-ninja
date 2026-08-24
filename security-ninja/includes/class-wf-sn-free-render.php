@@ -49,7 +49,7 @@ class Free_Render {
 			<p>
 				<em>Don't let important activities go unnoticed. Activate Events Logger and maintain complete visibility over your WordPress site.</em>
 			</p>
-			<p class="fomlink"><a target="_blank" href="<?php echo esc_url( \WPSecurityNinja\Plugin\Utils::generate_sn_web_link( 'tab_events_logger', '/events-logger/' ) ); ?>" class="button button-primary" rel="noopener">Learn more</a></p>
+			<p class="fomlink"><a target="_blank" href="<?php echo esc_url( \WPSecurityNinja\Plugin\Utils::generate_sn_web_link( 'events_logger_learn_more', '/events-logger/' ) ); ?>" class="button button-primary" rel="noopener">Learn more</a></p>
 		</div>
 		<?php
 		echo '</div>';
@@ -87,7 +87,7 @@ class Free_Render {
 				<em>Give your site the proactive protection it deserves. Activate Firewall and stay one step ahead of online threats.</em>
 			</p>
 
-			<p class="fomlink"><a target="_blank" href="<?php echo esc_url( \WPSecurityNinja\Plugin\Utils::generate_sn_web_link( 'tab_firewall', '/cloud-firewall/' ) ); ?>" class="button button-primary" rel="noopener">Learn more</a></p>
+			<p class="fomlink"><a target="_blank" href="<?php echo esc_url( \WPSecurityNinja\Plugin\Utils::generate_sn_web_link( 'firewall_learn_more', '/cloud-firewall/' ) ); ?>" class="button button-primary" rel="noopener">Learn more</a></p>
 		</div>
 		<?php
 		echo '</div>';
@@ -119,7 +119,7 @@ class Free_Render {
 						<li>Exclude paths and whitelist trusted files to reduce false positives</li>
 					</ul>
 					<p style="margin-top: 15px;">
-						<a href="<?php echo esc_url( Utils::generate_sn_web_link( 'upgrade_tab_malware', '/upgrade/' ) ); ?>" class="button button-primary button-small" target="_blank" rel="noopener">Upgrade to Pro</a>
+						<a href="<?php echo esc_url( Utils::generate_sn_web_link( 'malware_upgrade', '/upgrade/' ) ); ?>" class="button button-primary button-small" target="_blank" rel="noopener">Upgrade to Pro</a>
 					</p>
 				</div>
 			</div>
@@ -153,7 +153,7 @@ class Free_Render {
 						<li>Historical tracking of scan results over time</li>
 					</ul>
 					<p style="margin-top: 15px;">
-						<a href="<?php echo esc_url( Utils::generate_sn_web_link( 'upgrade_tab_scheduler', '/upgrade/' ) ); ?>" class="button button-primary button-small" target="_blank" rel="noopener">Upgrade to Pro</a>
+						<a href="<?php echo esc_url( Utils::generate_sn_web_link( 'scheduler_upgrade', '/upgrade/' ) ); ?>" class="button button-primary button-small" target="_blank" rel="noopener">Upgrade to Pro</a>
 					</p>
 				</div>
 			</div>

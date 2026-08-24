@@ -442,12 +442,9 @@ class WF_SN_Overview_Tab {
      * Pro upsell card (free only).
      */
     private static function render_card_upgrade_pro() : void {
-        $pricing_url = Utils::generate_sn_web_link( 'explore-pro', '/upgrade/', array(
-            'utm_source' => 'overview-tab',
-        ) );
-        $trial_url = Utils::generate_sn_web_link( 'explore-pro', '/upgrade/', array(
-            'utm_source' => 'overview-tab',
-            'trial'      => 'free',
+        $pricing_url = Utils::generate_sn_web_link( 'overview_upgrade', '/upgrade/' );
+        $trial_url = Utils::generate_sn_web_link( 'overview_trial', '/upgrade/', array(
+            'trial' => 'free',
         ) );
         ?>
 		<div class="sncard upgradepro">

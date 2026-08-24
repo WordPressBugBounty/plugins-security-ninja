@@ -5,8 +5,8 @@ Tags: security, firewall, waf, vulnerability, malware
 License: GPLv3
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 Requires at least: 4.7
-Tested up to: 7.0.2
-Stable tag: 5.296
+Tested up to: 7.1
+Stable tag: 5.299
 Requires PHP: 7.4
 
 WordPress security plugin: free 8G firewall/WAF, 50+ tests, vulnerability/core scanning, events logging, AI reports.
@@ -283,9 +283,39 @@ While we strive for universal compatibility, if you face any issues, our support
 
 == Changelog ==
 
+= 5.299 =
+* 2026-08-24
+* FIX: Vulnerability Scanner - Opening the Vulnerabilities tab no longer floods PHP warnings when a CVE reference is missing its display name (Undefined property stdClass::$name) or when strip-http helpers receive null (strpos deprecation on PHP 8+).
+* NEW: Cloud Firewall - Claude / Anthropic crawlers (ClaudeBot, Claude-User, Claude-SearchBot) are verified against Anthropic's published IP ranges at claude.com/crawling/bots.json, same pattern as OpenAI and Perplexity. Thank you David.
+* FIX: Security Tests - Local site detection no longer strips dots from 127.0.0.1 via sanitize_key (which broke TLS skip-verify). Self-checks against .local hosts and WP_ENVIRONMENT_TYPE=local work again, so tests like debug.log accessibility stop failing with a generic transport error on Local.
+* FIX: Security Tests - REST API enabled check now skips TLS verify on local sites (same as other self-checks). Local installs with self-signed certs no longer get a false "Could not determine REST API accessibility" warning.
+* FIX: Security Tests - PHP ini boolean checks (allow_url_include, expose_php, display_errors, register_globals, safe_mode) no longer treat the string Off as enabled.
+* IMPROVED: Security Tests - expose_php test passes when the PHP version header is already hidden via Security Headers or server config (e.g. .htaccess), not only when php.ini is editable.
+* FIX: Auto Fixer - Table prefix change requires an explicit prefix, shows the applied prefix on success, and handles long runs/timeouts more clearly.
+
+= 5.298 =
+* 2026-08-18
+* FIX: MainWP - Applying Malware Scanner whitelist settings no longer wipes existing file hashes when the dashboard does not send them, so ignored files stay ignored.
+* IMPROVED: MainWP - White Label updates now properly report success or failure per site, so a bulk push no longer looks like it succeeded everywhere.
+* IMPROVED: German - Events Logger and Overview now talk about security events (Ereignisse), not calendar events. Other leftover strings such as event details, action counts, and emptied log are corrected too.
+* IMPROVED: Spanish - Admin screens read more naturally. Buttons and actions such as Close, Save, Clear, and Ban IP now mean what they say.
+
+= 5.297 =
+* 2026-08-14
+* FIX: Compatibility - Removed a chillerlan Settings class_alias that broke LatePoint (and similar) booking confirmation QR codes after the 5.294 Imposter isolation fix. Thank you Daniel.
+* IMPROVED: Security headers - Default Referrer-Policy is now strict-origin-when-cross-origin (browser-aligned; better embed compatibility). Existing saved settings are not changed. Thank you Heath.
+* NEW: MainWP - Added the remote `update_vulnerabilities` action for free and Pro sites. It schedules a dedicated one-off database refresh even when the normal daily or weekly vulnerability job already exists.
+* IMPROVED: MainWP - Remote vulnerability refreshes now return clear scheduled, already-pending, unavailable, and scheduling-failed responses.
+* IMPROVED: MainWP - Remote settings apply accepts blocked-country lists, Malware Scanner whitelist paths, and Core Scanner ignore paths with Security Ninja for MainWP 2.2.0+.
+* FIX: MainWP - Copying Malware Scanner whitelist settings now keeps filename, hash, and pattern entries instead of flattening them into strings the scanner ignores.
+* FIX: Core Scanner - Deactivating the plugin on a Multisite subsite no longer deletes network-wide scan results, ignore lists, or the main-site daily scan schedule.
+* FIX: MainWP - Malware whitelist path sanitization now accepts the stored `filename` field when settings are copied between sites.
+
 = 5.296 =
-* 2026-08-06
+* 2026-08-11
 * FIX: After activating the plugin, redirect to the main Security Ninja page instead of the setup wizard so Freemius license entry is not skipped. Wizard opens after license activation when setup is still incomplete.
+* FIX: Vulnerability Scanner - Rendering a WordPress CVE no longer fatals with ArgumentCountError (sprintf placeholder mismatch), which could white-screen the entire Security Ninja admin. Thank you Franck.
+* FIX: Vulnerability Scanner - Vulnerability list download works whether the CDN sends gzip, already-decoded JSONL, or a stale Content-Encoding header. A failed decode no longer wipes a good local file. Local lists saved as *.jsonl_.gz (WordPress sanitize_file_name on 5.294+) are read again; new saves use *.jsonl.gz.
 
 = 5.295 =
 * 2026-08-03

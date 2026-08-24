@@ -404,9 +404,9 @@ class Wf_sn_cf {
     /**
      * Validate a crawlers IP against the hostname
      *
-     * Also validates known AI crawlers (OpenAI, Perplexity) when User-Agent matches and the IP is in
-     * published provider ranges (cached; non-blocking refresh). Anthropic is not included: no stable
-     * published IP ranges for verification. Google-Extended is a robots policy token, not a crawler UA.
+     * Also validates known AI crawlers (OpenAI, Perplexity, Anthropic/Claude) when User-Agent matches
+     * and the IP is in published provider ranges (cached; non-blocking refresh). Google-Extended is a
+     * robots policy token, not a crawler UA.
      *
      * @author  Lars Koudal
      * @since   v5.123
@@ -2418,7 +2418,7 @@ class Wf_sn_cf {
         $body .= '<p>' . esc_html__( 'Please keep it safe and do not share it with others. Use it only if you get blocked by the firewall.', 'security-ninja' ) . '</p>';
         $show_docs_link = true;
         if ( $show_docs_link ) {
-            $sal_email_link = Utils::generate_sn_web_link( 'secret_access_link', '/docs/firewall-protection/secret-access-link/', array(
+            $sal_email_link = Utils::generate_sn_web_link( 'email_secret_access', '/docs/firewall-protection/secret-access-link/', array(
                 'utm_medium' => 'email',
             ) );
             $body .= '<p><a href="' . $sal_email_link . '" target="_blank" rel="noopener">Documentation for Secret Access Link</a></p>';
@@ -3824,7 +3824,7 @@ class Wf_sn_cf {
 					</ul>
 					<p style="margin-top: 15px;">
 						<a href="<?php 
-        echo esc_url( \WPSecurityNinja\Plugin\Utils::generate_sn_web_link( 'upgrade_tab_login', '/upgrade/' ) );
+        echo esc_url( \WPSecurityNinja\Plugin\Utils::generate_sn_web_link( 'firewall_upgrade', '/upgrade/' ) );
         ?>" class="button button-primary button-small" target="_blank" rel="noopener">Upgrade to Pro</a>
 					</p>
 				</div>
@@ -4225,7 +4225,7 @@ class Wf_sn_cf {
 											</ul>
 											<p style="margin-top: 15px;">
 												<a href="<?php 
-                echo esc_url( \WPSecurityNinja\Plugin\Utils::generate_sn_web_link( 'upgrade_tab_visitor_logging', '/upgrade/' ) );
+                echo esc_url( \WPSecurityNinja\Plugin\Utils::generate_sn_web_link( 'firewall_upgrade', '/upgrade/' ) );
                 ?>" class="button button-primary button-small" target="_blank" rel="noopener">Upgrade to Pro</a>
 											</p>
 										</div>
@@ -4261,7 +4261,7 @@ class Wf_sn_cf {
 											</ul>
 											<p style="margin-top: 15px;">
 												<a href="<?php 
-                echo esc_url( \WPSecurityNinja\Plugin\Utils::generate_sn_web_link( 'upgrade_tab_ip_management', '/upgrade/' ) );
+                echo esc_url( \WPSecurityNinja\Plugin\Utils::generate_sn_web_link( 'firewall_upgrade', '/upgrade/' ) );
                 ?>" class="button button-primary button-small" target="_blank" rel="noopener">Upgrade to Pro</a>
 											</p>
 										</div>
@@ -4298,7 +4298,7 @@ class Wf_sn_cf {
 											</ul>
 											<p style="margin-top: 15px;">
 												<a href="<?php 
-                echo esc_url( \WPSecurityNinja\Plugin\Utils::generate_sn_web_link( 'upgrade_tab_404guard', '/upgrade/' ) );
+                echo esc_url( \WPSecurityNinja\Plugin\Utils::generate_sn_web_link( 'firewall_upgrade', '/upgrade/' ) );
                 ?>" class="button button-primary button-small" target="_blank" rel="noopener">Upgrade to Pro</a>
 											</p>
 										</div>
@@ -4335,7 +4335,7 @@ class Wf_sn_cf {
 											</ul>
 											<p style="margin-top: 15px;">
 												<a href="<?php 
-                echo esc_url( \WPSecurityNinja\Plugin\Utils::generate_sn_web_link( 'upgrade_tab_woocommerce', '/upgrade/' ) );
+                echo esc_url( \WPSecurityNinja\Plugin\Utils::generate_sn_web_link( 'firewall_upgrade', '/upgrade/' ) );
                 ?>" class="button button-primary button-small" target="_blank" rel="noopener">Upgrade to Pro</a>
 											</p>
 										</div>
@@ -4375,7 +4375,7 @@ class Wf_sn_cf {
 						</ul>
 						<p style="margin-top: 15px;">
 							<a href="<?php 
-                echo esc_url( \WPSecurityNinja\Plugin\Utils::generate_sn_web_link( 'upgrade_tab_firewall', '/upgrade/' ) );
+                echo esc_url( \WPSecurityNinja\Plugin\Utils::generate_sn_web_link( 'firewall_upgrade', '/upgrade/' ) );
                 ?>" class="button button-primary button-small" target="_blank" rel="noopener">Upgrade to Pro</a>
 						</p>
 					</div>

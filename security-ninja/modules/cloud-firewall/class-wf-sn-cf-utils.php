@@ -250,7 +250,7 @@ class Wf_sn_cf_Utils {
 	}
 
 	/**
-	 * Map User-Agent substrings to official published-prefix JSON URLs (OpenAI, Perplexity).
+	 * Map User-Agent substrings to official published-prefix JSON URLs (OpenAI, Perplexity, Anthropic).
 	 *
 	 * @since 5.277
 	 * @param string $ua Sanitized User-Agent.
@@ -264,11 +264,14 @@ class Wf_sn_cf_Utils {
 		static $token_to_url = null;
 		if ( null === $token_to_url ) {
 			$token_to_url = array(
-				'GPTBot'          => 'https://openai.com/gptbot.json',
-				'ChatGPT-User'    => 'https://openai.com/chatgpt-user.json',
-				'OAI-SearchBot'   => 'https://openai.com/searchbot.json',
-				'PerplexityBot'   => 'https://www.perplexity.com/perplexitybot.json',
-				'Perplexity-User' => 'https://www.perplexity.com/perplexity-user.json',
+				'GPTBot'           => 'https://openai.com/gptbot.json',
+				'ChatGPT-User'     => 'https://openai.com/chatgpt-user.json',
+				'OAI-SearchBot'    => 'https://openai.com/searchbot.json',
+				'PerplexityBot'    => 'https://www.perplexity.com/perplexitybot.json',
+				'Perplexity-User'  => 'https://www.perplexity.com/perplexity-user.json',
+				'ClaudeBot'        => 'https://claude.com/crawling/bots.json',
+				'Claude-User'      => 'https://claude.com/crawling/bots.json',
+				'Claude-SearchBot' => 'https://claude.com/crawling/bots.json',
 			);
 		}
 
