@@ -38,7 +38,8 @@ function wf_sn_cf_render_settings_content(  $options, $ips = array()  ) {
     // Free feature: 8G Firewall Rules
     echo '<tr valign="top"><th scope="row"><label for="wf_sn_cf_filterqueries"><h3>' . esc_html__( 'Filter Suspicious Queries', 'security-ninja' ) . '</h3>';
     echo '<p class="description">' . esc_html__( 'Block suspicious page requests and malicious query strings using the proven 8G Firewall rules.', 'security-ninja' ) . '</p>';
-    echo '<p class="description">' . esc_html__( 'Based on the excellent 8G Firewall by Jeff Starr from Perishable Press. This protection filters out dangerous requests including SQL injections, XSS attacks, and other malicious patterns.', 'security-ninja' ) . '</p></label></th>';
+    echo '<p class="description">' . esc_html__( 'Based on the excellent 8G Firewall by Jeff Starr from Perishable Press. This protection filters out dangerous requests including SQL injections, XSS attacks, and other malicious patterns.', 'security-ninja' ) . '</p>';
+    echo '<p class="description">' . esc_html__( 'This setting also checks visitor reverse-DNS hostnames. Cloud Firewall and Prevent Banned IPs do not control hostname matching; turn this off if you need to stop hostname-based blocks while keeping other firewall features on.', 'security-ninja' ) . '</p></label></th>';
     echo '</th><td class="sn-cf-options">';
     \WPSecurityNinja\Plugin\Utils::create_toggle_switch( WF_SN_CF_OPTIONS_KEY . '_filterqueries', array(
         'saved_value' => $options['filterqueries'],

@@ -1062,24 +1062,7 @@ class Wf_sn_cf {
             'ref_xbshell'         => 'xbshell',
             'ref_ypxaieo'         => 'ypxaieo',
         ) );
-        $blocked_hosts_array = apply_filters( 'blocked_hosts_items', array(
-            'blocked_163data'           => '163data',
-            'blocked_colocrossing'      => 'colocrossing',
-            'blocked_crimea'            => 'crimea',
-            'blocked_g00g1e'            => 'g00g1e',
-            'blocked_justhost'          => 'justhost',
-            'blocked_kanagawa'          => 'kanagawa',
-            'blocked_loopia'            => 'loopia',
-            'blocked_masterhost'        => 'masterhost',
-            'blocked_onlinehome'        => 'onlinehome',
-            'blocked_poneytel'          => 'poneytel',
-            'blocked_sprintdatacenter'  => 'sprintdatacenter',
-            'blocked_reverse_softlayer' => 'reverse.softlayer',
-            'blocked_safenet'           => 'safenet',
-            'blocked_ttnet'             => 'ttnet',
-            'blocked_woodpecker'        => 'woodpecker',
-            'blocked_wowrack'           => 'wowrack',
-        ) );
+        $blocked_hosts_array = self::get_blocked_hosts_array();
         $request_uri_string = false;
         $query_string_string = false;
         $user_agent_string = false;
@@ -1173,6 +1156,45 @@ class Wf_sn_cf {
             return $response;
         }
         return false;
+    }
+
+    /**
+     * Default blocked-hosts hostname patterns, after the blocked_hosts_items filter.
+     *
+     * Permanently strips removed rules (e.g. blocked_kanagawa) so a future 8G sync
+     * or a filter cannot restore them. Ticket #8215: "kanagawa" is a Japanese
+     * prefecture and matched legitimate OCN ISP hostnames.
+     *
+     * @since 5.300
+     * @return array<string, string>
+     */
+    private static function get_blocked_hosts_array() {
+        $blocked_hosts_array = apply_filters( 'blocked_hosts_items', array(
+            'blocked_163data'           => '163data',
+            'blocked_colocrossing'      => 'colocrossing',
+            'blocked_crimea'            => 'crimea',
+            'blocked_g00g1e'            => 'g00g1e',
+            'blocked_justhost'          => 'justhost',
+            'blocked_loopia'            => 'loopia',
+            'blocked_masterhost'        => 'masterhost',
+            'blocked_onlinehome'        => 'onlinehome',
+            'blocked_poneytel'          => 'poneytel',
+            'blocked_sprintdatacenter'  => 'sprintdatacenter',
+            'blocked_reverse_softlayer' => 'reverse.softlayer',
+            'blocked_safenet'           => 'safenet',
+            'blocked_ttnet'             => 'ttnet',
+            'blocked_woodpecker'        => 'woodpecker',
+            'blocked_wowrack'           => 'wowrack',
+        ) );
+        if ( !is_array( $blocked_hosts_array ) ) {
+            return array();
+        }
+        // Do not re-add: Japanese prefecture / OCN false positives (ticket #8215).
+        $removed_keys = array('blocked_kanagawa');
+        foreach ( $removed_keys as $removed_key ) {
+            unset($blocked_hosts_array[$removed_key]);
+        }
+        return $blocked_hosts_array;
     }
 
     /**

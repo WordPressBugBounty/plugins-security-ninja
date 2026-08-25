@@ -6,7 +6,7 @@ License: GPLv3
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 Requires at least: 4.7
 Tested up to: 7.1
-Stable tag: 5.299
+Stable tag: 5.300
 Requires PHP: 7.4
 
 WordPress security plugin: free 8G firewall/WAF, 50+ tests, vulnerability/core scanning, events logging, AI reports.
@@ -282,6 +282,12 @@ While we strive for universal compatibility, if you face any issues, our support
 5. Core Scanner (detect modified/unknown core files).
 
 == Changelog ==
+
+= 5.300 =
+* 2026-08-25
+* FIX: Firewall - Removed the blocked_kanagawa hostname rule again (Japanese prefecture / OCN false positives). Thank you Masahiro.
+* IMPROVED: Firewall - Filter Suspicious Queries help text now states that it includes reverse-DNS hostname checks, separate from Cloud Firewall and Prevent Banned IPs.
+* FIX: Scheduled Scanner - Security Testing emails no longer fire on message-only diffs or HTTP timeout Warning/Good flaps.
 
 = 5.299 =
 * 2026-08-24
