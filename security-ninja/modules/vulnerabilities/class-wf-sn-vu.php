@@ -1474,21 +1474,21 @@ class Wf_Sn_Vu {
             if ( 0 < $diff ) {
                 $message = '';
                 if ( $oldcount > 0 && $diff > 0 ) {
-                    // Translators: How many new vulnerabilities were downloaded
+                    // Translators: How many newly tracked known vulnerabilities were added to the database.
                     $diff_text = sprintf( _n(
-                        'Downloaded %s new vulnerability.',
-                        'Downloaded %s new vulnerabilities.',
+                        'Now tracking %s more known vulnerability.',
+                        'Now tracking %s more known vulnerabilities.',
                         $diff,
                         'security-ninja'
                     ), number_format_i18n( $diff ) );
                 } else {
-                    $diff_text = __( 'No new vulnerabilities detected.', 'security-ninja' );
+                    $diff_text = __( 'No new known vulnerabilities found.', 'security-ninja' );
                 }
                 // Base message
                 $message = esc_html( $diff_text );
                 $message .= ' ' . sprintf( 
-                    // Translators:
-                    esc_html__( 'Now tracking a total of %1$s known vulnerabilities. Ensure your plugins are secure.', 'security-ninja' ),
+                    // Translators: Total number of known vulnerabilities in the local database.
+                    esc_html__( 'Database total: %1$s. Keep your plugins and themes updated.', 'security-ninja' ),
                     esc_html( number_format_i18n( $newcount ) )
                  );
                 update_option( 'wf_sn_vu_vulns_notice', $message, false );

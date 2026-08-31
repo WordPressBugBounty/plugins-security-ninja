@@ -119,7 +119,7 @@ class Free_Render {
 						<li>Exclude paths and whitelist trusted files to reduce false positives</li>
 					</ul>
 					<p style="margin-top: 15px;">
-						<a href="<?php echo esc_url( Utils::generate_sn_web_link( 'malware_upgrade', '/upgrade/' ) ); ?>" class="button button-primary button-small" target="_blank" rel="noopener">Upgrade to Pro</a>
+						<a href="<?php echo esc_url( Utils::generate_sn_web_link( 'malware_upgrade', '/upgrade/' ) ); ?>" class="button button-primary button-small" target="_blank" rel="noopener"><?php esc_html_e( 'Upgrade to Pro', 'security-ninja' ); ?></a>
 					</p>
 				</div>
 			</div>
@@ -153,7 +153,8 @@ class Free_Render {
 						<li>Historical tracking of scan results over time</li>
 					</ul>
 					<p style="margin-top: 15px;">
-						<a href="<?php echo esc_url( Utils::generate_sn_web_link( 'scheduler_upgrade', '/upgrade/' ) ); ?>" class="button button-primary button-small" target="_blank" rel="noopener">Upgrade to Pro</a>
+						<a href="<?php echo esc_url( Utils::generate_sn_web_link( 'scheduler_upgrade', '/upgrade/' ) ); ?>" class="button button-primary button-small" target="_blank" rel="noopener"><?php esc_html_e( 'Upgrade to Pro', 'security-ninja' ); ?></a>
+
 					</p>
 				</div>
 			</div>

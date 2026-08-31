@@ -3847,7 +3847,9 @@ class Wf_sn_cf {
 					<p style="margin-top: 15px;">
 						<a href="<?php 
         echo esc_url( \WPSecurityNinja\Plugin\Utils::generate_sn_web_link( 'firewall_upgrade', '/upgrade/' ) );
-        ?>" class="button button-primary button-small" target="_blank" rel="noopener">Upgrade to Pro</a>
+        ?>" class="button button-primary button-small" target="_blank" rel="noopener"><?php 
+        esc_html_e( 'Upgrade to Pro', 'security-ninja' );
+        ?></a>
 					</p>
 				</div>
 			</div>
@@ -4248,7 +4250,9 @@ class Wf_sn_cf {
 											<p style="margin-top: 15px;">
 												<a href="<?php 
                 echo esc_url( \WPSecurityNinja\Plugin\Utils::generate_sn_web_link( 'firewall_upgrade', '/upgrade/' ) );
-                ?>" class="button button-primary button-small" target="_blank" rel="noopener">Upgrade to Pro</a>
+                ?>" class="button button-primary button-small" target="_blank" rel="noopener"><?php 
+                esc_html_e( 'Upgrade to Pro', 'security-ninja' );
+                ?></a>
 											</p>
 										</div>
 									</div>
@@ -4284,7 +4288,9 @@ class Wf_sn_cf {
 											<p style="margin-top: 15px;">
 												<a href="<?php 
                 echo esc_url( \WPSecurityNinja\Plugin\Utils::generate_sn_web_link( 'firewall_upgrade', '/upgrade/' ) );
-                ?>" class="button button-primary button-small" target="_blank" rel="noopener">Upgrade to Pro</a>
+                ?>" class="button button-primary button-small" target="_blank" rel="noopener"><?php 
+                esc_html_e( 'Upgrade to Pro', 'security-ninja' );
+                ?></a>
 											</p>
 										</div>
 									</div>
@@ -4321,7 +4327,9 @@ class Wf_sn_cf {
 											<p style="margin-top: 15px;">
 												<a href="<?php 
                 echo esc_url( \WPSecurityNinja\Plugin\Utils::generate_sn_web_link( 'firewall_upgrade', '/upgrade/' ) );
-                ?>" class="button button-primary button-small" target="_blank" rel="noopener">Upgrade to Pro</a>
+                ?>" class="button button-primary button-small" target="_blank" rel="noopener"><?php 
+                esc_html_e( 'Upgrade to Pro', 'security-ninja' );
+                ?></a>
 											</p>
 										</div>
 									</div>
@@ -4358,7 +4366,9 @@ class Wf_sn_cf {
 											<p style="margin-top: 15px;">
 												<a href="<?php 
                 echo esc_url( \WPSecurityNinja\Plugin\Utils::generate_sn_web_link( 'firewall_upgrade', '/upgrade/' ) );
-                ?>" class="button button-primary button-small" target="_blank" rel="noopener">Upgrade to Pro</a>
+                ?>" class="button button-primary button-small" target="_blank" rel="noopener"><?php 
+                esc_html_e( 'Upgrade to Pro', 'security-ninja' );
+                ?></a>
 											</p>
 										</div>
 									</div>
@@ -4398,7 +4408,9 @@ class Wf_sn_cf {
 						<p style="margin-top: 15px;">
 							<a href="<?php 
                 echo esc_url( \WPSecurityNinja\Plugin\Utils::generate_sn_web_link( 'firewall_upgrade', '/upgrade/' ) );
-                ?>" class="button button-primary button-small" target="_blank" rel="noopener">Upgrade to Pro</a>
+                ?>" class="button button-primary button-small" target="_blank" rel="noopener"><?php 
+                esc_html_e( 'Upgrade to Pro', 'security-ninja' );
+                ?></a>
 						</p>
 					</div>
 				</div>

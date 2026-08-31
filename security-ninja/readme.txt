@@ -6,7 +6,7 @@ License: GPLv3
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 Requires at least: 4.7
 Tested up to: 7.1
-Stable tag: 5.300
+Stable tag: 5.301
 Requires PHP: 7.4
 
 WordPress security plugin: free 8G firewall/WAF, 50+ tests, vulnerability/core scanning, events logging, AI reports.
@@ -282,6 +282,11 @@ While we strive for universal compatibility, if you face any issues, our support
 5. Core Scanner (detect modified/unknown core files).
 
 == Changelog ==
+
+= 5.301 =
+* 2026-08-31
+* FIX: Fixes - Saving Security Fixes with "Disable debug mode" off no longer forces WP_DEBUG to true in wp-config.php. Thank you Mike.
+* IMPROVED: Vulnerability Scanner - Update notices now say we are tracking more known vulnerabilities in the database, not that vulnerabilities were "downloaded" to the site. Thank you Tom.
 
 = 5.300 =
 * 2026-08-25

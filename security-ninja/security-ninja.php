@@ -5,7 +5,7 @@ Plugin Name: Security Ninja
 Plugin URI: https://wpsecurityninja.com/
 Description: Check your site for security vulnerabilities and get precise suggestions for corrective actions on passwords, user accounts, file permissions, database security, version hiding, plugins, themes, security headers and other security aspects.
 Author: WP Security Ninja
-Version: 5.300
+Version: 5.301
 Author URI: https://wpsecurityninja.com/
 License: GPLv3
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
@@ -241,6 +241,13 @@ if ( !function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
                     secnin_fs()->add_filter(
                         'show_admin_notice',
                         array(__NAMESPACE__ . '\\Utils', 'do_filter_show_admin_notice'),
+                        10,
+                        2
+                    );
+                    // Hide Add-Ons until Freemius account is registered (avoids broken Complementos/Add-Ons page).
+                    secnin_fs()->add_filter(
+                        'is_submenu_visible',
+                        array(__NAMESPACE__ . '\\Utils', 'filter_freemius_addons_submenu_visibility'),
                         10,
                         2
                     );

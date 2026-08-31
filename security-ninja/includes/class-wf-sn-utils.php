@@ -1192,6 +1192,29 @@ class Utils {
     }
 
     /**
+     * Hide Freemius Add-Ons menu/action link until the account is registered.
+     *
+     * Unregistered / skipped opt-in can still surface wf-sn-addons ("Complementos")
+     * while the page fails to load a usable add-ons list.
+     *
+     * @param bool   $is_visible Default Freemius visibility.
+     * @param string $menu_id    Freemius submenu id (e.g. addons, account).
+     * @return bool
+     */
+    public static function filter_freemius_addons_submenu_visibility( $is_visible, $menu_id ) {
+        if ( 'addons' !== $menu_id ) {
+            return $is_visible;
+        }
+        if ( !function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
+            return $is_visible;
+        }
+        if ( !secnin_fs()->is_registered() ) {
+            return false;
+        }
+        return $is_visible;
+    }
+
+    /**
      * Add markup for UI overlay.
      *
      * @author  Lars Koudal
@@ -1274,7 +1297,9 @@ class Utils {
 					<p style="margin-top: 15px;">
 						<a href="<?php 
         echo esc_url( self::generate_sn_web_link( 'whitelabel_upgrade', '/upgrade/' ) );
-        ?>" class="button button-primary button-small" target="_blank" rel="noopener">Upgrade to Pro</a>
+        ?>" class="button button-primary button-small" target="_blank" rel="noopener"><?php 
+        esc_html_e( 'Upgrade to Pro', 'security-ninja' );
+        ?></a>
 					</p>
 				</div>
 			</div>
