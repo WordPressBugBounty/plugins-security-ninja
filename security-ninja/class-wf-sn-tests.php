@@ -385,7 +385,7 @@ class Wf_Sn_Tests extends WF_SN {
 			),
 
 			'usernames_enumeration'     => array(
-				'title' => __( 'Check if the list of usernames can be fetched by looping through user IDs', 'security-ninja' ),
+				'title' => __( 'Check if usernames can be discovered via ?author=N or the REST /wp/v2/users endpoint', 'security-ninja' ),
 				'score' => 3,
 			),
 
@@ -3171,13 +3171,14 @@ class Wf_Sn_Tests extends WF_SN {
 	}
 
 	/**
-	 * Try getting usernames from user IDs
+	 * Try getting usernames from user IDs and anonymous REST /wp/v2/users.
 	 *
 	 * @author  Lars Koudal
 	 * @author  Unknown
 	 * @since   v0.0.1
 	 * @version v1.0.0  Monday, January 25th, 2021.
 	 * @version v1.0.1  Tuesday, June 11th, 2024.
+	 * @version v1.0.2  Monday, August 31st, 2026. Also probes REST users for logged-out clients.
 	 * @access  public static
 	 * @return  mixed
 	 */
@@ -3185,14 +3186,12 @@ class Wf_Sn_Tests extends WF_SN {
 		$users    = get_users( 'number=10' );
 		$success  = false;
 		$url      = home_url() . '/?author=';
-		$args     = array();
 		$is_local = self::is_local_request();
-
-		if ( $is_local ) {
-			$args['sslverify']   = false;
-			$args['redirection'] = 0;
-
-		}
+		$args     = array(
+			'timeout'     => 8,
+			'redirection' => 0,
+			'sslverify'   => ! $is_local,
+		);
 
 		$request_failed = false;
 		foreach ( $users as $user ) {
@@ -3208,7 +3207,9 @@ class Wf_Sn_Tests extends WF_SN {
 			}
 		} // foreach
 
-		if ( $success ) {
+		$rest_leaks = self::rest_users_enumeration_leaks( $args, $request_failed );
+
+		if ( $success || $rest_leaks ) {
 			$return['status'] = 0;
 			$return['msg']    = __( 'Username enumeration test passed.', 'security-ninja' );
 		} elseif ( $request_failed ) {
@@ -3222,5 +3223,53 @@ class Wf_Sn_Tests extends WF_SN {
 		}
 
 		return $return;
+	}
+
+
+	/**
+	 * Whether anonymous REST /wp/v2/users returns a user list.
+	 *
+	 * Probes pretty permalinks and ?rest_route= so both rewrite modes are covered.
+	 *
+	 * @param array $args            Request args (timeout, sslverify, redirection).
+	 * @param bool  $request_failed  By-ref flag set when a transport error occurs.
+	 * @return bool True if a JSON user list is exposed to logged-out clients.
+	 */
+	private static function rest_users_enumeration_leaks( $args, &$request_failed ) {
+		$urls = array(
+			add_query_arg( 'per_page', 100, rest_url( 'wp/v2/users' ) ),
+			home_url( '/?rest_route=/wp/v2/users&per_page=100' ),
+		);
+
+		foreach ( $urls as $rest_url ) {
+			$response = wp_remote_get( $rest_url, $args );
+			if ( is_wp_error( $response ) ) {
+				$request_failed = true;
+				continue;
+			}
+
+			$code = (int) wp_remote_retrieve_response_code( $response );
+			if ( in_array( $code, array( 401, 403, 404 ), true ) ) {
+				continue;
+			}
+
+			if ( 200 !== $code ) {
+				continue;
+			}
+
+			$body = wp_remote_retrieve_body( $response );
+			$data = json_decode( $body, true );
+			if ( ! is_array( $data ) || empty( $data ) ) {
+				continue;
+			}
+
+			// Collection is a numeric array of user objects; a single user is associative with slug/name.
+			$first = isset( $data[0] ) && is_array( $data[0] ) ? $data[0] : $data;
+			if ( isset( $first['slug'] ) || isset( $first['name'] ) || isset( $first['id'] ) ) {
+				return true;
+			}
+		}
+
+		return false;
 	}
 }

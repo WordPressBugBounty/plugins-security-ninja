@@ -5,7 +5,7 @@ Plugin Name: Security Ninja
 Plugin URI: https://wpsecurityninja.com/
 Description: Check your site for security vulnerabilities and get precise suggestions for corrective actions on passwords, user accounts, file permissions, database security, version hiding, plugins, themes, security headers and other security aspects.
 Author: WP Security Ninja
-Version: 5.301
+Version: 5.302
 Author URI: https://wpsecurityninja.com/
 License: GPLv3
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
@@ -2057,6 +2057,10 @@ if ( !function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
             delete_option( 'wf_sn_active_plugins' );
             delete_option( 'wf_sn_review_notice' );
             delete_option( 'wf_sn_tests' );
+            delete_option( 'wf_sn_cf_ip_lookup_cleanup' );
+            if ( class_exists( __NAMESPACE__ . '\\Wf_sn_cf', false ) ) {
+                Wf_sn_cf::delete_all_ip_lookup_transients();
+            }
             // Delete usermeta
             $wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->usermeta} WHERE meta_key = %s", 'sn_last_login' ) );
         }

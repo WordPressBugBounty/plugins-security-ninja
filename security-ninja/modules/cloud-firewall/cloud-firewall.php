@@ -7,7 +7,9 @@ if ( !defined( 'ABSPATH' ) ) {
 }
 define( 'WF_SN_CF_OPTIONS_KEY', 'wf_sn_cf' );
 // @important - if changed, this is used various places, 2FA, etc.
-define( 'WF_SN_CF_VALIDATED_CRAWLERS', 'wf_sn_cf_validated_crawlers' );
+if ( !defined( 'WF_SN_CF_VALIDATED_CRAWLERS' ) ) {
+    define( 'WF_SN_CF_VALIDATED_CRAWLERS', 'wf_sn_cf_validated_crawlers' );
+}
 class Wf_sn_cf {
     /**
      * Cached visitor IP for the current request.
@@ -52,6 +54,27 @@ class Wf_sn_cf {
     private static $visitor_hostname_cache = array();
 
     /**
+     * Option flag set when leftover per-IP lookup transients have been removed.
+     *
+     * @since 5.302
+     */
+    const IP_LOOKUP_CLEANUP_OPTION = 'wf_sn_cf_ip_lookup_cleanup';
+
+    /**
+     * Cleanup generation. Bump when new prefixes must be swept.
+     *
+     * @since 5.302
+     */
+    const IP_LOOKUP_CLEANUP_DONE = '5.302';
+
+    /**
+     * Whether this request already ran an IP lookup-cache cleanup batch.
+     *
+     * @var bool
+     */
+    private static $ip_lookup_cleanup_ran = false;
+
+    /**
      * Per-request cache for cloud IP blocklist option (wf_sn_cf_ips).
      *
      * @var array|null|false null = not loaded; false = missing/invalid; array = decoded option.
@@ -72,6 +95,8 @@ class Wf_sn_cf {
             add_action( 'login_head', array(__NAMESPACE__ . '\\wf_sn_cf', 'check_visitor'), 1 );
         }
         add_action( 'init', array(__NAMESPACE__ . '\\wf_sn_cf', 'do_init_action'), 1 );
+        add_action( 'init', array(__CLASS__, 'maybe_schedule_ip_lookup_cache_cleanup'), 20 );
+        add_action( 'secnin_prune_ip_lookup_transients', array(__CLASS__, 'prune_ip_lookup_transients') );
         // Basic login/failed login logging for all versions
         add_action(
             'wp_login',
@@ -371,7 +396,12 @@ class Wf_sn_cf {
     }
 
     /**
-     * Reverse DNS hostname for an IP with per-request and transient caching.
+     * Reverse DNS hostname for an IP with per-request and object-cache caching.
+     *
+     * Per-IP values are not stored as WordPress transients in wp_options. On hosts
+     * without Redis/Memcached that filled the options table with one row per visitor
+     * IP and could stall MySQL. Persistent cache is used only when an external
+     * object cache is present.
      *
      * @author  Lars Koudal
      * @since   5.289
@@ -386,8 +416,8 @@ class Wf_sn_cf {
             return self::$visitor_hostname_cache[$ip];
         }
         $transient_key = 'wf_sn_cf_rdns_' . md5( $ip );
-        $cached = get_transient( $transient_key );
-        if ( false !== $cached && is_string( $cached ) ) {
+        $cached = Wf_sn_cf_Utils::get_ip_lookup_cache( $transient_key );
+        if ( is_string( $cached ) && '' !== $cached ) {
             self::$visitor_hostname_cache[$ip] = $cached;
             return $cached;
         }
@@ -396,98 +426,204 @@ class Wf_sn_cf {
             $hostname = $ip;
         }
         $hostname = strtolower( $hostname );
-        set_transient( $transient_key, $hostname, WEEK_IN_SECONDS );
+        Wf_sn_cf_Utils::set_ip_lookup_cache( $transient_key, $hostname, WEEK_IN_SECONDS );
         self::$visitor_hostname_cache[$ip] = $hostname;
         return $hostname;
     }
 
     /**
-     * Validate a crawlers IP against the hostname
+     * Transient key prefixes used for per-IP firewall lookup caches.
      *
-     * Also validates known AI crawlers (OpenAI, Perplexity, Anthropic/Claude) when User-Agent matches
-     * and the IP is in published provider ranges (cached; non-blocking refresh). Google-Extended is a
-     * robots policy token, not a crawler UA.
+     * @since 5.302
+     * @return array<int, string>
+     */
+    public static function get_ip_lookup_transient_prefixes() {
+        return array('wf_sn_cf_rdns_', 'sn_cf_asn_v1_', 'sn_cf_geoip_');
+    }
+
+    /**
+     * Read a per-IP lookup cache entry.
+     *
+     * Thin wrapper around Wf_sn_cf_Utils for callers and tests.
+     *
+     * @since 5.302
+     * @param string $key Transient key (without _transient_ prefix).
+     * @return mixed Cached value, or false on miss.
+     */
+    public static function get_ip_lookup_cache( $key ) {
+        return Wf_sn_cf_Utils::get_ip_lookup_cache( $key );
+    }
+
+    /**
+     * Store a per-IP lookup cache entry.
+     *
+     * Thin wrapper around Wf_sn_cf_Utils for callers and tests.
+     *
+     * @since 5.302
+     * @param string $key   Transient key (without _transient_ prefix).
+     * @param mixed  $value Value to cache.
+     * @param int    $ttl   TTL in seconds.
+     * @return void
+     */
+    public static function set_ip_lookup_cache( $key, $value, $ttl ) {
+        Wf_sn_cf_Utils::set_ip_lookup_cache( $key, $value, $ttl );
+    }
+
+    /**
+     * Schedule leftover per-IP transient cleanup after update, and run one batch.
+     *
+     * Runs even when the firewall is off so already-bloated options tables recover.
+     *
+     * @since 5.302
+     * @return void
+     */
+    public static function maybe_schedule_ip_lookup_cache_cleanup() {
+        if ( self::IP_LOOKUP_CLEANUP_DONE === get_option( self::IP_LOOKUP_CLEANUP_OPTION ) ) {
+            return;
+        }
+        if ( self::$ip_lookup_cleanup_ran ) {
+            return;
+        }
+        self::$ip_lookup_cleanup_ran = true;
+        self::prune_ip_lookup_transients();
+    }
+
+    /**
+     * Delete leftover per-IP lookup transients in small batches.
+     *
+     * @since 5.302
+     * @return int Number of options rows deleted in this run.
+     */
+    public static function prune_ip_lookup_transients() {
+        $max_batches = ( wp_doing_cron() ? 8 : 1 );
+        $batch_limit = 250;
+        $deleted = 0;
+        $drained = false;
+        for ($i = 0; $i < $max_batches; $i++) {
+            $n = self::delete_ip_lookup_transient_batch( $batch_limit );
+            if ( false === $n ) {
+                if ( !wp_next_scheduled( 'secnin_prune_ip_lookup_transients' ) ) {
+                    wp_schedule_single_event( time() + 60, 'secnin_prune_ip_lookup_transients' );
+                }
+                return $deleted;
+            }
+            $deleted += (int) $n;
+            if ( $n < $batch_limit ) {
+                $drained = true;
+                break;
+            }
+        }
+        if ( $deleted > 0 ) {
+            wp_cache_delete( 'alloptions', 'options' );
+            wp_cache_delete( 'notoptions', 'options' );
+        }
+        if ( $drained ) {
+            update_option( self::IP_LOOKUP_CLEANUP_OPTION, self::IP_LOOKUP_CLEANUP_DONE, false );
+            wp_clear_scheduled_hook( 'secnin_prune_ip_lookup_transients' );
+            return $deleted;
+        }
+        if ( !wp_next_scheduled( 'secnin_prune_ip_lookup_transients' ) ) {
+            wp_schedule_single_event( time() + 15, 'secnin_prune_ip_lookup_transients' );
+        }
+        return $deleted;
+    }
+
+    /**
+     * Delete remaining per-IP lookup transients (uninstall / one-shot).
+     *
+     * @since 5.302
+     * @param int $max_seconds Time budget in seconds.
+     * @return int Total rows deleted.
+     */
+    public static function delete_all_ip_lookup_transients( $max_seconds = 20 ) {
+        $started = time();
+        $max_seconds = max( 1, (int) $max_seconds );
+        $deleted = 0;
+        do {
+            $n = self::delete_ip_lookup_transient_batch( 500 );
+            if ( false === $n || $n < 1 ) {
+                break;
+            }
+            $deleted += $n;
+        } while ( time() - $started < $max_seconds );
+        wp_cache_delete( 'alloptions', 'options' );
+        wp_cache_delete( 'notoptions', 'options' );
+        wp_clear_scheduled_hook( 'secnin_prune_ip_lookup_transients' );
+        delete_option( self::IP_LOOKUP_CLEANUP_OPTION );
+        return $deleted;
+    }
+
+    /**
+     * Delete one batch of per-IP lookup transients and their timeout rows.
+     *
+     * @since 5.302
+     * @param int $limit Max rows to delete.
+     * @return int|false Rows deleted, 0 if none, false on query failure.
+     */
+    private static function delete_ip_lookup_transient_batch( $limit = 250 ) {
+        global $wpdb;
+        $limit = absint( $limit );
+        if ( $limit < 1 ) {
+            $limit = 250;
+        }
+        $likes = array();
+        foreach ( self::get_ip_lookup_transient_prefixes() as $prefix ) {
+            $likes[] = $wpdb->esc_like( '_transient_' . $prefix ) . '%';
+            $likes[] = $wpdb->esc_like( '_transient_timeout_' . $prefix ) . '%';
+        }
+        $placeholders = implode( ' OR ', array_fill( 0, count( $likes ), 'option_name LIKE %s' ) );
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+        $result = $wpdb->query( $wpdb->prepare( 
+            "DELETE FROM {$wpdb->options} WHERE {$placeholders} LIMIT {$limit}",
+            // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- placeholders from esc_like prefixes; limit is absint.
+            ...$likes
+         ) );
+        return $result;
+    }
+
+    /**
+     * Validate a crawler IP against published ranges or reverse-DNS.
+     *
+     * Order: remembered list, AI UA + CIDR (no PTR), classic crawler UA then PTR +
+     * forward confirm. Generic browsers never trigger reverse-DNS.
      *
      * @author  Lars Koudal
      * @since   v5.123
      * @version v1.0.0  Monday, August 30th, 2021.
      * @version v1.0.1  Monday, June 3rd, 2024.
+     * @version v1.0.2  Monday, August 31st, 2026. UA-first; no PTR for generic UAs.
      * @access  private static
      * @param   mixed       $testip Client IP.
      * @param   string|null $ua     User-Agent string; null reads HTTP_USER_AGENT when present.
      * @return  boolean
      */
     public static function validate_crawler_ip( $testip, $ua = null ) {
-        // Lets check if the IP has already been validated
+        if ( !is_string( $testip ) || '' === $testip || !filter_var( $testip, FILTER_VALIDATE_IP ) ) {
+            return false;
+        }
+        if ( Wf_sn_cf_Utils::is_non_public_ip( $testip ) ) {
+            return false;
+        }
         $validated_crawlers = get_option( WF_SN_CF_VALIDATED_CRAWLERS );
-        if ( $validated_crawlers ) {
-            if ( in_array( $testip, $validated_crawlers, true ) ) {
-                return true;
-            }
-        } else {
-            $validated_crawlers = array();
+        if ( is_array( $validated_crawlers ) && in_array( $testip, $validated_crawlers, true ) ) {
+            return true;
         }
-        $hostname = self::get_visitor_hostname( $testip );
-        //"crawl-66-249-66-1.googlebot.com"
-        $valid_host_names = array(
-            '.crawl.baidu.com',
-            '.crawl.baidu.jp',
-            '.search.msn.com',
-            '.google.com',
-            '.googlebot.com',
-            '.crawl.yahoo.net',
-            '.yandex.ru',
-            '.yandex.net',
-            '.yandex.com',
-            '.search.msn.com',
-            '.petalsearch.com',
-            'applebot.apple.com',
-            '.ahrefs.com',
-            // Added Ahrefs
-            '.semrush.com',
-            '.duckduckgo.com',
-            'facebookexternalhit.com',
-            '.commoncrawl.org',
-            '.googleother.com',
-            '.google-inspectiontool.com',
-            '.swiftype.com',
-            '.sogou.com',
-            '.yahoo.com',
-            '.bing.com',
-        );
-        foreach ( $valid_host_names as $valid_host ) {
-            if ( Wf_sn_cf_Utils::string_ends_with( $hostname, $valid_host ) ) {
-                $returned_ip = gethostbyname( $hostname );
-                if ( $returned_ip === $testip ) {
-                    $validated_crawlers[] = $testip;
-                    update_option( WF_SN_CF_VALIDATED_CRAWLERS, $validated_crawlers, false );
-                    wf_sn_el_modules::log_event(
-                        'security_ninja',
-                        'validated_crawler_ip',
-                        'Valid Crawler' . esc_attr( $hostname ),
-                        '',
-                        '',
-                        esc_attr( $testip )
-                    );
-                    return true;
-                }
-            }
-        }
-        // Verified AI crawlers: UA token + IP in provider-published ranges (cached).
         if ( null === $ua ) {
             $ua = '';
             if ( isset( $_SERVER['HTTP_USER_AGENT'] ) ) {
                 $ua = sanitize_text_field( wp_unslash( $_SERVER['HTTP_USER_AGENT'] ) );
             }
+        } elseif ( !is_string( $ua ) ) {
+            $ua = '';
         }
+        // Verified AI crawlers: UA token + IP in provider-published ranges (no PTR).
         $ai_feed_urls = Wf_sn_cf_Utils::get_ai_crawler_feed_urls_for_ua( $ua );
         if ( !empty( $ai_feed_urls ) ) {
             foreach ( $ai_feed_urls as $feed_url ) {
                 $cidrs = Wf_sn_cf_Utils::get_ai_crawler_cidrs_for_feed_url( $feed_url );
                 foreach ( $cidrs as $cidr ) {
                     if ( Wf_sn_cf_Utils::ipCIDRMatch( $testip, $cidr ) ) {
-                        $validated_crawlers[] = $testip;
-                        update_option( WF_SN_CF_VALIDATED_CRAWLERS, $validated_crawlers, false );
+                        Wf_sn_cf_Utils::remember_validated_crawler( $testip );
                         wf_sn_el_modules::log_event(
                             'security_ninja',
                             'validated_crawler_ip',
@@ -497,10 +633,35 @@ class Wf_sn_cf {
                                 'ua'   => $ua,
                             ),
                             null,
-                            ( is_string( $testip ) ? $testip : null )
+                            $testip
                         );
                         return true;
                     }
+                }
+            }
+            // AI UA did not match published ranges; do not fall through to PTR.
+            return false;
+        }
+        // Classic crawlers: only reverse-DNS when UA claims to be one.
+        if ( !Wf_sn_cf_Utils::ua_looks_like_classic_crawler( $ua ) ) {
+            return false;
+        }
+        $hostname = self::get_visitor_hostname( $testip );
+        $valid_host_names = Wf_sn_cf_Utils::get_classic_crawler_host_suffixes();
+        foreach ( $valid_host_names as $valid_host ) {
+            if ( Wf_sn_cf_Utils::string_ends_with( $hostname, $valid_host ) ) {
+                $returned_ip = gethostbyname( $hostname );
+                if ( $returned_ip === $testip ) {
+                    Wf_sn_cf_Utils::remember_validated_crawler( $testip );
+                    wf_sn_el_modules::log_event(
+                        'security_ninja',
+                        'validated_crawler_ip',
+                        'Valid Crawler' . esc_attr( $hostname ),
+                        '',
+                        '',
+                        esc_attr( $testip )
+                    );
+                    return true;
                 }
             }
         }
@@ -1062,7 +1223,6 @@ class Wf_sn_cf {
             'ref_xbshell'         => 'xbshell',
             'ref_ypxaieo'         => 'ypxaieo',
         ) );
-        $blocked_hosts_array = self::get_blocked_hosts_array();
         $request_uri_string = false;
         $query_string_string = false;
         $user_agent_string = false;
@@ -1138,7 +1298,8 @@ class Wf_sn_cf {
                 }
             }
         }
-        if ( empty( $response ) && $has_remote_addr ) {
+        if ( empty( $response ) && $has_remote_addr && apply_filters( 'secnin_cf_check_blocked_hosts', false ) ) {
+            $blocked_hosts_array = self::get_blocked_hosts_array();
             $visitor_host = self::get_visitor_hostname( sanitize_text_field( wp_unslash( $_SERVER['REMOTE_ADDR'] ) ) );
             foreach ( $blocked_hosts_array as $key => $item ) {
                 if ( preg_match( '#\\b' . preg_quote( $item, '#' ) . '\\b#i', $visitor_host, $matches ) ) {

@@ -15,6 +15,10 @@ if ( ! defined( 'WF_SN_CF_AI_CRAWLER_RANGES' ) ) {
 	define( 'WF_SN_CF_AI_CRAWLER_RANGES', 'wf_sn_cf_ai_crawler_ranges' );
 }
 
+if ( ! defined( 'WF_SN_CF_VALIDATED_CRAWLERS' ) ) {
+	define( 'WF_SN_CF_VALIDATED_CRAWLERS', 'wf_sn_cf_validated_crawlers' );
+}
+
 /**
  * Class Wf_sn_cf_Utils
  *
@@ -247,6 +251,182 @@ class Wf_sn_cf_Utils {
 		$mask            = -1 << ( 32 - $subnet_mask );
 		$subnet_address &= $mask;
 		return ( $address & $mask ) === $subnet_address;
+	}
+
+	/**
+	 * Max IPs remembered in wf_sn_cf_validated_crawlers (FIFO).
+	 *
+	 * @since 5.302
+	 */
+	const VALIDATED_CRAWLERS_MAX = 200;
+
+	/**
+	 * Read a per-IP lookup cache entry.
+	 *
+	 * Persistent only when an external object cache is present. Never writes to wp_options.
+	 *
+	 * @since 5.302
+	 * @param string $key Transient key (without _transient_ prefix).
+	 * @return mixed Cached value, or false on miss.
+	 */
+	public static function get_ip_lookup_cache( $key ) {
+		if ( ! is_string( $key ) || '' === $key ) {
+			return false;
+		}
+		if ( ! wp_using_ext_object_cache() ) {
+			return false;
+		}
+		return get_transient( $key );
+	}
+
+	/**
+	 * Store a per-IP lookup cache entry.
+	 *
+	 * Writes a WordPress transient only when an external object cache is present.
+	 *
+	 * @since 5.302
+	 * @param string $key   Transient key (without _transient_ prefix).
+	 * @param mixed  $value Value to cache.
+	 * @param int    $ttl   TTL in seconds.
+	 * @return void
+	 */
+	public static function set_ip_lookup_cache( $key, $value, $ttl ) {
+		if ( ! is_string( $key ) || '' === $key ) {
+			return;
+		}
+		if ( ! wp_using_ext_object_cache() ) {
+			return;
+		}
+		set_transient( $key, $value, (int) $ttl );
+	}
+
+	/**
+	 * Classic search/SEO crawler UA tokens that may justify reverse-DNS confirmation.
+	 *
+	 * Filterable via secnin_cf_crawler_ua_tokens.
+	 *
+	 * @since 5.302
+	 * @return string[]
+	 */
+	public static function get_classic_crawler_ua_tokens() {
+		$default = array(
+			'Googlebot',
+			'GoogleOther',
+			'Google-InspectionTool',
+			'bingbot',
+			'msnbot',
+			'Baiduspider',
+			'Applebot',
+			'AhrefsBot',
+			'SemrushBot',
+			'DuckDuckBot',
+			'YandexBot',
+			'Yandex',
+			'Slurp',
+			'PetalBot',
+			'CCBot',
+			'facebookexternalhit',
+			'Facebot',
+			'Sogou',
+			'Swiftbot',
+		);
+
+		$list = apply_filters( 'secnin_cf_crawler_ua_tokens', $default );
+		if ( ! is_array( $list ) ) {
+			return array();
+		}
+
+		$out = array();
+		foreach ( $list as $token ) {
+			if ( is_string( $token ) && '' !== $token ) {
+				$out[] = $token;
+			}
+		}
+
+		return $out;
+	}
+
+	/**
+	 * Whether the User-Agent looks like a classic crawler that needs PTR confirmation.
+	 *
+	 * @since 5.302
+	 * @param string $ua Sanitized User-Agent.
+	 * @return bool
+	 */
+	public static function ua_looks_like_classic_crawler( $ua ) {
+		if ( ! is_string( $ua ) || '' === $ua ) {
+			return false;
+		}
+
+		foreach ( self::get_classic_crawler_ua_tokens() as $token ) {
+			if ( false !== stripos( $ua, $token ) ) {
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	/**
+	 * Hostname suffixes accepted for classic crawler reverse-DNS confirmation.
+	 *
+	 * @since 5.302
+	 * @return string[]
+	 */
+	public static function get_classic_crawler_host_suffixes() {
+		return array(
+			'.crawl.baidu.com',
+			'.crawl.baidu.jp',
+			'.search.msn.com',
+			'.google.com',
+			'.googlebot.com',
+			'.crawl.yahoo.net',
+			'.yandex.ru',
+			'.yandex.net',
+			'.yandex.com',
+			'.petalsearch.com',
+			'applebot.apple.com',
+			'.ahrefs.com',
+			'.semrush.com',
+			'.duckduckgo.com',
+			'facebookexternalhit.com',
+			'.commoncrawl.org',
+			'.googleother.com',
+			'.google-inspectiontool.com',
+			'.swiftype.com',
+			'.sogou.com',
+			'.yahoo.com',
+			'.bing.com',
+		);
+	}
+
+	/**
+	 * Remember a validated crawler IP with a hard FIFO cap.
+	 *
+	 * @since 5.302
+	 * @param string $ip Client IP.
+	 * @return void
+	 */
+	public static function remember_validated_crawler( $ip ) {
+		if ( ! is_string( $ip ) || '' === $ip || ! filter_var( $ip, FILTER_VALIDATE_IP ) ) {
+			return;
+		}
+
+		$list = get_option( WF_SN_CF_VALIDATED_CRAWLERS, array() );
+		if ( ! is_array( $list ) ) {
+			$list = array();
+		}
+
+		if ( in_array( $ip, $list, true ) ) {
+			return;
+		}
+
+		$list[] = $ip;
+		while ( count( $list ) > self::VALIDATED_CRAWLERS_MAX ) {
+			array_shift( $list );
+		}
+
+		update_option( WF_SN_CF_VALIDATED_CRAWLERS, array_values( $list ), false );
 	}
 
 	/**

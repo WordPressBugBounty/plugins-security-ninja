@@ -6,7 +6,7 @@ License: GPLv3
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 Requires at least: 4.7
 Tested up to: 7.1
-Stable tag: 5.301
+Stable tag: 5.302
 Requires PHP: 7.4
 
 WordPress security plugin: free 8G firewall/WAF, 50+ tests, vulnerability/core scanning, events logging, AI reports.
@@ -282,6 +282,15 @@ While we strive for universal compatibility, if you face any issues, our support
 5. Core Scanner (detect modified/unknown core files).
 
 == Changelog ==
+
+= 5.302 =
+* 2026-09-01
+* FIX: Firewall - Per-visitor reverse-DNS, ASN, and GeoIP caches no longer fill the WordPress options table with one row per IP. On busy sites without Redis/Memcached that could grow to hundreds of thousands of rows and cause intermittent downtime. After update, leftover rows are removed automatically in small batches. Thank you Davina.
+* FIX: Firewall - Search-engine and crawler checks only run reverse-DNS when the User-Agent looks like a known crawler. Normal browser traffic no longer triggers a DNS lookup on every page view. AI crawlers (OpenAI, Perplexity, Claude) are checked against published IP ranges only.
+* FIX: Firewall - Hostname-based "blocked hosts" matching (part of Filter Suspicious Queries) is off by default. URI, query string, user agent, and referrer rules still run. Developers can re-enable hostname checks with the secnin_cf_check_blocked_hosts filter.
+* FIX: Firewall - Satellite/ASN softening (Pro) no longer calls the remote ASN API on every miss when the site has no object cache. With Redis or Memcached, results are cached there instead of in the database.
+* FIX: Firewall - The list of remembered validated crawler IPs is limited to 200 entries so it cannot grow without bound.
+* FIX: Fixes - Disable Username Enumeration now blocks anonymous REST user listing (/wp/v2/users and ?rest_route=), not only by removing the endpoint. The username enumeration security test checks that path as well. Thank you Elias.
 
 = 5.301 =
 * 2026-08-31
