@@ -612,4 +612,184 @@ class Wf_sn_cf_Utils {
 		);
 		update_option( WF_SN_CF_AI_CRAWLER_RANGES, $option, false );
 	}
+
+	/**
+	 * Cloudflare proxy CIDR ranges (snapshot for header-trust only, not blocking).
+	 *
+	 * @return string[]
+	 */
+	public static function get_cloudflare_proxy_cidrs() {
+		return array(
+			'173.245.48.0/20',
+			'103.21.244.0/22',
+			'103.22.200.0/22',
+			'103.31.4.0/22',
+			'141.101.64.0/18',
+			'108.162.192.0/18',
+			'190.93.240.0/20',
+			'188.114.96.0/20',
+			'197.234.240.0/22',
+			'198.41.128.0/17',
+			'162.158.0.0/15',
+			'104.16.0.0/13',
+			'104.24.0.0/14',
+			'172.64.0.0/13',
+			'131.0.72.0/22',
+			'2400:cb00::/32',
+			'2606:4700::/32',
+			'2803:f800::/32',
+			'2405:b500::/32',
+			'2405:8100::/32',
+			'2a06:98c0::/29',
+			'2c0f:f248::/32',
+		);
+	}
+
+	/**
+	 * Whether an IP belongs to a Cloudflare proxy range (for trusting CF-Connecting-IP).
+	 *
+	 * @param string $ip IP address.
+	 * @return bool
+	 */
+	public static function is_cloudflare_proxy_ip( $ip ) {
+		if ( ! is_string( $ip ) || '' === $ip || ! filter_var( $ip, FILTER_VALIDATE_IP ) ) {
+			return false;
+		}
+		foreach ( self::get_cloudflare_proxy_cidrs() as $cidr ) {
+			if ( self::ipCIDRMatch( $ip, $cidr ) ) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	/**
+	 * Extract the first valid IP from a header value (comma-separated list).
+	 *
+	 * @param string $raw Raw header value.
+	 * @return string|false
+	 */
+	public static function first_valid_ip_from_header( $raw ) {
+		if ( ! is_string( $raw ) || '' === $raw ) {
+			return false;
+		}
+		foreach ( explode( ',', $raw ) as $part ) {
+			$ip = trim( $part );
+			if ( filter_var( $ip, FILTER_VALIDATE_IP ) ) {
+				return $ip;
+			}
+		}
+		return false;
+	}
+
+	/**
+	 * Maximum trusted proxy CIDR entries (user-configured).
+	 */
+	const MAX_TRUSTED_PROXY_CIDRS = 32;
+
+	/**
+	 * Whether a string is a valid proxy CIDR or IP for trusted-proxy lists.
+	 *
+	 * @param string $entry Raw entry.
+	 * @return bool
+	 */
+	public static function is_valid_proxy_cidr_entry( $entry ) {
+		if ( ! is_string( $entry ) || '' === $entry ) {
+			return false;
+		}
+		if ( class_exists( __NAMESPACE__ . '\\Wf_Sn_Cf_Ip_Management' ) ) {
+			return null !== \WPSecurityNinja\Plugin\Wf_Sn_Cf_Ip_Management::sanitize_ip_or_cidr( $entry );
+		}
+		if ( filter_var( $entry, FILTER_VALIDATE_IP ) ) {
+			return true;
+		}
+		$parts = explode( '/', $entry, 2 );
+		if ( 2 !== count( $parts ) ) {
+			return false;
+		}
+		$subnet = $parts[0];
+		$mask   = (int) $parts[1];
+		if ( filter_var( $subnet, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4 ) ) {
+			return $mask >= 0 && $mask <= 32;
+		}
+		if ( filter_var( $subnet, FILTER_VALIDATE_IP, FILTER_FLAG_IPV6 ) ) {
+			return $mask >= 0 && $mask <= 128;
+		}
+		return false;
+	}
+
+	/**
+	 * Sanitize user trusted proxy CIDR list (dedupe, cap, reject open ranges).
+	 *
+	 * @param mixed $raw Raw option value or newline string.
+	 * @return string[]
+	 */
+	public static function sanitize_trusted_proxy_cidrs( $raw ) {
+		if ( is_string( $raw ) ) {
+			$raw = preg_split( '/\r\n|\r|\n/', $raw );
+		}
+		if ( ! is_array( $raw ) ) {
+			return array();
+		}
+
+		$out = array();
+		foreach ( $raw as $line ) {
+			if ( count( $out ) >= self::MAX_TRUSTED_PROXY_CIDRS ) {
+				break;
+			}
+			$line = trim( (string) $line );
+			if ( '' === $line ) {
+				continue;
+			}
+			if ( in_array( $line, array( '0.0.0.0/0', '::/0' ), true ) ) {
+				continue;
+			}
+			if ( ! self::is_valid_proxy_cidr_entry( $line ) ) {
+				continue;
+			}
+			if ( class_exists( __NAMESPACE__ . '\\Wf_Sn_Cf_Ip_Management' ) ) {
+				$normalized = \WPSecurityNinja\Plugin\Wf_Sn_Cf_Ip_Management::sanitize_ip_or_cidr( $line );
+				if ( null === $normalized ) {
+					continue;
+				}
+				$line = $normalized;
+			}
+			if ( ! in_array( $line, $out, true ) ) {
+				$out[] = $line;
+			}
+		}
+
+		/**
+		 * Filter the sanitized trusted proxy CIDR list before it is stored or used.
+		 *
+		 * @param string[] $out Sanitized CIDR list.
+		 */
+		return apply_filters( 'wf_sn_trusted_proxy_cidrs', $out );
+	}
+
+	/**
+	 * Whether REMOTE_ADDR is a trusted proxy (Cloudflare snapshot or user CIDR list).
+	 *
+	 * @param string        $ip          IP to test (typically REMOTE_ADDR).
+	 * @param string[]|null $user_cidrs  Optional pre-sanitized user CIDR list.
+	 * @return bool
+	 */
+	public static function is_trusted_proxy_ip( $ip, $user_cidrs = null ) {
+		if ( ! is_string( $ip ) || '' === $ip || ! filter_var( $ip, FILTER_VALIDATE_IP ) ) {
+			return false;
+		}
+		if ( self::is_cloudflare_proxy_ip( $ip ) ) {
+			return true;
+		}
+		if ( null === $user_cidrs ) {
+			return false;
+		}
+		$user_cidrs = self::sanitize_trusted_proxy_cidrs( $user_cidrs );
+		foreach ( $user_cidrs as $cidr ) {
+			if ( self::ipCIDRMatch( $ip, $cidr ) ) {
+				return true;
+			}
+		}
+		return false;
+	}
 }

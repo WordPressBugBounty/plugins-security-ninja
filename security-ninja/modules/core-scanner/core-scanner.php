@@ -40,15 +40,33 @@ class Wf_Sn_Cs {
         if ( false === $filepath ) {
             return false;
         }
-        // Define core WordPress directories
-        $core_dirs = array(realpath( ABSPATH . 'wp-admin' ), realpath( ABSPATH . WPINC ), realpath( ABSPATH ));
-        // Check if the file is within any core directory
-        foreach ( $core_dirs as $core_dir ) {
-            if ( false !== $core_dir && strpos( $filepath, $core_dir ) === 0 ) {
-                return true;
-            }
+        $wp_admin = realpath( ABSPATH . 'wp-admin' );
+        $wp_inc = realpath( ABSPATH . WPINC );
+        $wp_root = realpath( ABSPATH );
+        if ( false !== $wp_admin && self::path_is_inside_directory( $filepath, $wp_admin ) ) {
+            return true;
+        }
+        if ( false !== $wp_inc && self::path_is_inside_directory( $filepath, $wp_inc ) ) {
+            return true;
+        }
+        if ( false !== $wp_root && dirname( $filepath ) === $wp_root ) {
+            return true;
         }
         return false;
+    }
+
+    /**
+     * Whether a file path is strictly inside a directory (not a sibling prefix match).
+     *
+     * @param string $filepath Normalized absolute file path.
+     * @param string $directory Normalized absolute directory path.
+     * @return bool
+     */
+    private static function path_is_inside_directory( $filepath, $directory ) {
+        $directory = rtrim( wp_normalize_path( $directory ), '/' );
+        $filepath = wp_normalize_path( $filepath );
+        $prefix = $directory . '/';
+        return str_starts_with( $filepath, $prefix );
     }
 
     /**
@@ -1000,6 +1018,9 @@ class Wf_Sn_Cs {
                     continue;
                 }
                 $filepath = ABSPATH . $ub;
+                if ( !self::is_core_file( $filepath ) ) {
+                    continue;
+                }
                 // Use WP filesystem method to delete files.
                 if ( $wp_filesystem->exists( $filepath ) ) {
                     if ( $wp_filesystem->delete( $filepath ) ) {
@@ -1899,8 +1920,8 @@ class Wf_Sn_Cs {
                 'message' => __( 'Access denied: File is not within WordPress core directories.', 'security-ninja' ),
             ) );
         }
-        // Validate the secure token if provided
-        if ( isset( $_POST['hash'] ) && isset( $_POST['nonce'] ) && !\WPSecurityNinja\Plugin\Wf_Sn_Crypto::validate_secure_file_token(
+        // Validate the secure token (required).
+        if ( !isset( $_POST['hash'], $_POST['nonce'] ) || !\WPSecurityNinja\Plugin\Wf_Sn_Crypto::validate_secure_file_token(
             $file,
             wp_unslash( $_POST['hash'] ),
             wp_unslash( $_POST['nonce'] ),
@@ -1981,8 +2002,8 @@ class Wf_Sn_Cs {
                 'message' => __( 'Access denied: File is not within WordPress core directories.', 'security-ninja' ),
             ) );
         }
-        // Validate the secure token if provided
-        if ( isset( $_POST['hash'] ) && isset( $_POST['nonce'] ) && !\WPSecurityNinja\Plugin\Wf_Sn_Crypto::validate_secure_file_token(
+        // Validate the secure token (required).
+        if ( !isset( $_POST['hash'], $_POST['nonce'] ) || !\WPSecurityNinja\Plugin\Wf_Sn_Crypto::validate_secure_file_token(
             $file,
             wp_unslash( $_POST['hash'] ),
             wp_unslash( $_POST['nonce'] ),
@@ -2090,6 +2111,11 @@ class Wf_Sn_Cs {
             ) );
         }
         $abs_path = ABSPATH . $file_short;
+        if ( !self::is_core_file( $abs_path ) ) {
+            wp_send_json_error( array(
+                'message' => __( 'Access denied: File is not within WordPress core directories.', 'security-ninja' ),
+            ) );
+        }
         if ( !isset( $_POST['hash'], $_POST['nonce'] ) || !\WPSecurityNinja\Plugin\Wf_Sn_Crypto::validate_secure_file_token(
             $abs_path,
             wp_unslash( $_POST['hash'] ),
@@ -2182,27 +2208,24 @@ class Wf_Sn_Cs {
      * @return  void
      */
     public static function deactivate() {
-        $centraloptions = Wf_Sn::get_options();
-        if ( !isset( $centraloptions['remove_settings_deactivate'] ) ) {
+        wp_clear_scheduled_hook( 'secnin_run_core_scanner' );
+        if ( !\WPSecurityNinja\Plugin\Utils::should_remove_settings_on_deactivate() ) {
             return;
         }
-        if ( $centraloptions['remove_settings_deactivate'] ) {
-            // Shared network results/ignore lists must not be wiped when a subsite is deactivated.
-            if ( is_multisite() && !is_main_site() ) {
-                self::load_utils();
-                delete_option( Wf_Sn_Cs_Utils::RESULTS_OPTION );
-                delete_option( Wf_Sn_Cs_Utils::USER_IGNORE_OPTION );
-                return;
-            }
-            wp_clear_scheduled_hook( 'secnin_run_core_scanner' );
+        // Shared network results/ignore lists must not be wiped when a subsite is deactivated.
+        if ( is_multisite() && !is_main_site() ) {
             self::load_utils();
-            self::delete_results_option();
-            Wf_Sn_Cs_Utils::delete_user_ignored_files();
-            if ( is_multisite() ) {
-                // Clean leftover per-blog copies from older versions.
-                delete_option( Wf_Sn_Cs_Utils::RESULTS_OPTION );
-                delete_option( Wf_Sn_Cs_Utils::USER_IGNORE_OPTION );
-            }
+            delete_option( Wf_Sn_Cs_Utils::RESULTS_OPTION );
+            delete_option( Wf_Sn_Cs_Utils::USER_IGNORE_OPTION );
+            return;
+        }
+        self::load_utils();
+        self::delete_results_option();
+        Wf_Sn_Cs_Utils::delete_user_ignored_files();
+        if ( is_multisite() ) {
+            // Clean leftover per-blog copies from older versions.
+            delete_option( Wf_Sn_Cs_Utils::RESULTS_OPTION );
+            delete_option( Wf_Sn_Cs_Utils::USER_IGNORE_OPTION );
         }
     }
 

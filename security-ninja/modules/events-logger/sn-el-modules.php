@@ -62,6 +62,9 @@ class wf_sn_el_modules extends wf_sn_el {
         $user_id = null,
         $ip = null
     ) {
+        if ( !parent::is_active() ) {
+            return 0;
+        }
         if ( empty( $description ) ) {
             $description = esc_html__( 'No details available.', 'security-ninja' );
         }
@@ -109,7 +112,7 @@ class wf_sn_el_modules extends wf_sn_el {
                 error_log( 'Security Ninja Event Logger: insert failed – ' . $wpdb->last_error );
             }
         }
-        if ( !function_exists( 'secnin_fs' ) || !is_object( secnin_fs() ) ) {
+        if ( !function_exists( __NAMESPACE__ . '\\secnin_fs' ) || !is_object( secnin_fs() ) ) {
             return $wpdb->insert_id;
         }
         return $wpdb->insert_id;
@@ -1067,28 +1070,4 @@ class wf_sn_el_modules extends wf_sn_el {
         );
     }
 
-    /**
-     * Deactivate routines
-     *
-     * @author  Unknown
-     * @since   v0.0.1
-     * @version v1.0.0  Friday, May 13th, 2022.
-     * @access  static
-     * @return  void
-     */
-    public static function deactivate() {
-        $centraloptions = Wf_Sn::get_options();
-        if ( !isset( $centraloptions['remove_settings_deactivate'] ) ) {
-            return;
-        }
-        if ( !empty( $centraloptions['remove_settings_deactivate'] ) ) {
-            global $wpdb;
-            $table_name = $wpdb->prefix . 'wf_sn_el';
-            // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name from $wpdb->prefix only
-            $wpdb->query( 'DROP TABLE IF EXISTS ' . $table_name );
-        }
-    }
-
 }
-
-register_deactivation_hook( WF_SN_BASE_FILE, array(__NAMESPACE__ . '\\wf_sn_el_modules', 'deactivate') );

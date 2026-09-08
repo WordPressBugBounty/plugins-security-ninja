@@ -274,7 +274,6 @@ class Wf_Sn_Settings {
 					'email_modules'                => array(),
 					'notify_new_admin'             => 0,
 					'new_admin_notification_email' => '',
-					'remove_settings_deactivate'   => '',
 				);
 
 			case 'cloud_firewall':

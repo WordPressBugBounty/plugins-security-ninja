@@ -5,7 +5,7 @@ Plugin Name: Security Ninja
 Plugin URI: https://wpsecurityninja.com/
 Description: Check your site for security vulnerabilities and get precise suggestions for corrective actions on passwords, user accounts, file permissions, database security, version hiding, plugins, themes, security headers and other security aspects.
 Author: WP Security Ninja
-Version: 5.302
+Version: 5.303
 Author URI: https://wpsecurityninja.com/
 License: GPLv3
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
@@ -112,15 +112,36 @@ if ( !function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
     define( 'WF_SN_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
     define( 'WF_SN_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
     define( 'WF_SN_PLUGIN_BASENAME', plugin_basename( __FILE__ ) );
+    /**
+     * Whether this request is wp-admin, AJAX, cron, WP-CLI, import, or MainWP.
+     *
+     * @since 5.303
+     * @return bool
+     */
+    function secnin_is_admin_or_background_request() {
+        if ( is_admin() || wp_doing_cron() || wp_doing_ajax() ) {
+            return true;
+        }
+        if ( defined( 'WP_CLI' ) && WP_CLI ) {
+            return true;
+        }
+        if ( defined( 'WP_IMPORTING' ) && WP_IMPORTING ) {
+            return true;
+        }
+        // MainWP child pings can look like frontend POSTs.
+        // phpcs:ignore WordPress.Security.NonceVerification.Recommended,WordPress.Security.NonceVerification.Missing -- Detection only, not a form handler.
+        if ( isset( $_POST['mainwpsignature'] ) || isset( $_GET['mainwpsignature'] ) ) {
+            return true;
+        }
+        return false;
+    }
+
+    $secnin_load_admin_modules = secnin_is_admin_or_background_request();
     include_once WF_SN_PLUGIN_DIR . 'modules/overview/class-wf-sn-overview-tab.php';
-    // Dashboard widget
     include_once WF_SN_PLUGIN_DIR . 'modules/dashboard-widget/class-wf-sn-dashboard-widget.php';
     \WPSecurityNinja\Plugin\Wf_Sn_Dashboard_Widget::init();
-    // Vulnerabilities
     include_once WF_SN_PLUGIN_DIR . 'modules/vulnerabilities/class-wf-sn-vu.php';
-    // Core Scanner
     include_once WF_SN_PLUGIN_DIR . 'modules/core-scanner/core-scanner.php';
-    // File viewer
     include_once WF_SN_PLUGIN_DIR . 'modules/file-viewer/class-fileviewer.php';
     include_once WF_SN_PLUGIN_DIR . 'modules/cloud-firewall/class-wf-sn-cf-utils.php';
     include_once WF_SN_PLUGIN_DIR . 'modules/cloud-firewall/class-wf-sn-security-utils.php';
@@ -208,7 +229,6 @@ if ( !function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
             self::$options = self::get_options();
             // loads persistent admin notices
             add_action( 'admin_init', array('PAnD', 'init') );
-            // Load security tests
             include_once WF_SN_PLUGIN_DIR . 'class-wf-sn-tests.php';
             include_once WF_SN_PLUGIN_DIR . 'includes/class-wf-sn-utils.php';
             // MainWP integration - run here to make sure it's loaded
@@ -408,11 +428,6 @@ if ( !function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
                 } );
             }
             // Check for cleanup success notice.
-            if ( isset( $_GET['legacy_cleanup'] ) && 'success' === sanitize_text_field( wp_unslash( $_GET['legacy_cleanup'] ) ) ) {
-                add_action( 'admin_notices', function () {
-                    echo '<div class="notice notice-success secnin-notice"><p>' . esc_html__( 'Cleanup completed successfully.', 'security-ninja' ) . '</p></div>';
-                } );
-            }
             if ( isset( $_GET['visitor_log_cleared'] ) && 'success' === sanitize_text_field( wp_unslash( $_GET['visitor_log_cleared'] ) ) ) {
                 add_action( 'admin_notices', function () {
                     echo '<div class="notice notice-success secnin-notice"><p>' . esc_html__( 'Firewall visitor log cleared successfully.', 'security-ninja' ) . '</p></div>';
@@ -719,7 +734,6 @@ if ( !function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
             $current_id = $current_screen->id;
             // Extract the page part after the last underscore
             $page_part = substr( $current_id, strrpos( $current_id, '_' ) + 1 );
-            // error_log(print_r($page_part, true));
             // Define our plugin pages using just the page part
             $plugin_pages = array();
             $plugin_pages[] = 'wf-sn';
@@ -2016,8 +2030,8 @@ if ( !function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
         /**
          * Performs cleanup operations when the plugin is deactivated.
          *
-         * This method checks if the option to remove settings on deactivation is set and if so, it should implement the removal functionality.
-         * Currently, the removal functionality is not implemented and is marked as a todo.
+         * Plugin and module deactivation callbacks remove their own data when the
+         * central setting is enabled. This callback removes core plugin data last.
          *
          * @author  Lars Koudal
          * @since   v0.0.1
@@ -2026,11 +2040,15 @@ if ( !function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
          * @return  void
          */
         public static function deactivate() {
-            $centraloptions = self::get_options();
-            if ( !isset( $centraloptions['remove_settings_deactivate'] ) || !$centraloptions['remove_settings_deactivate'] ) {
+            wp_clear_scheduled_hook( 'wf_sn_ai_advisor_cron' );
+            wp_clear_scheduled_hook( 'wf_sn_refresh_security_snapshot_daily' );
+            if ( function_exists( 'as_unschedule_all_actions' ) ) {
+                as_unschedule_all_actions( 'wf_sn_ai_advisor_run_scheduled_report', array(), 'security-ninja' );
+            }
+            if ( !\WPSecurityNinja\Plugin\Utils::should_remove_settings_on_deactivate() ) {
                 return;
             }
-            // @todo - implement remove functionality here
+            \WPSecurityNinja\Plugin\Utils::remove_plugin_data( 'deactivate' );
         }
 
         /**
@@ -2045,24 +2063,7 @@ if ( !function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
          * @return  void
          */
         public static function uninstall() {
-            global $wpdb;
-            // Drop security tests table
-            if ( self::table_exists( $wpdb->prefix . 'wf_sn_tests' ) ) {
-                $wpdb->query( 'DROP TABLE IF EXISTS ' . $wpdb->prefix . 'wf_sn_tests' );
-            }
-            // Delete options
-            delete_option( 'wf_sn_results' );
-            delete_option( 'wf_sn_options' );
-            delete_option( 'wfsn_freemius_state' );
-            delete_option( 'wf_sn_active_plugins' );
-            delete_option( 'wf_sn_review_notice' );
-            delete_option( 'wf_sn_tests' );
-            delete_option( 'wf_sn_cf_ip_lookup_cleanup' );
-            if ( class_exists( __NAMESPACE__ . '\\Wf_sn_cf', false ) ) {
-                Wf_sn_cf::delete_all_ip_lookup_transients();
-            }
-            // Delete usermeta
-            $wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->usermeta} WHERE meta_key = %s", 'sn_last_login' ) );
+            \WPSecurityNinja\Plugin\Utils::remove_plugin_data( 'uninstall' );
         }
 
         /**

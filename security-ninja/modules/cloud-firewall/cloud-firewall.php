@@ -157,16 +157,6 @@ class Wf_sn_cf {
             // Return early - don't check bans or kill the request
             return;
         }
-        // Enhanced REST API protection - check for wp-json in the URL
-        $request_uri = ( isset( $_SERVER['REQUEST_URI'] ) ? $_SERVER['REQUEST_URI'] : '' );
-        if ( strpos( $request_uri, '/wp-json/' ) !== false ) {
-            return;
-        }
-        // Additional protection for REST API requests that might not have /wp-json/ in the path
-        // but are still legitimate REST API calls (e.g. when using rest_route parameter)
-        if ( wp_is_json_request() || defined( 'REST_REQUEST' ) && REST_REQUEST || isset( $_GET['rest_route'] ) ) {
-            return;
-        }
         if ( wp_doing_cron() || defined( 'WP_CLI' ) && WP_CLI ) {
             return;
         }
@@ -176,9 +166,9 @@ class Wf_sn_cf {
             return;
         }
         $current_user_ip = self::get_user_ip();
-        // Skip expensive ban checks for logged-in admins in wp-admin / admin-ajax.
-        // (Secret unlock, REST, cron/CLI, and inactive firewall already returned above.)
-        $skip_ban_enforcement = (is_admin() || wp_doing_ajax()) && current_user_can( 'manage_options' );
+        // Skip expensive ban checks for logged-in admins (all contexts including front-end and REST).
+        // (Secret unlock, cron/CLI, and inactive firewall already returned above.)
+        $skip_ban_enforcement = self::should_skip_ban_enforcement();
         $reason = false;
         if ( !$skip_ban_enforcement ) {
             $reason = self::is_banned_ip( $current_user_ip );
@@ -735,10 +725,8 @@ class Wf_sn_cf {
             '167.71.93.101',
             '167.71.179.192',
         );
-        /*
-        		@todo -
-        		IP addresses used by wpcompress.com resolve to rDNS names in the format api.wpcompress.com. To simplify firewall configurations and ensure you're whitelisting the correct IP addresses, you can whitelist IPs based on the domain *.wpcompress.com by resolving the rDNS of our IPs.
-        */
+        // Keep this as a static list. Reverse-DNS matching here would add a DNS
+        // lookup to ordinary visitor requests on sites without an object cache.
         $whitelist_wpcompress = array(
             '168.119.147.46',
             '71.19.240.35',
@@ -945,24 +933,12 @@ class Wf_sn_cf {
      */
     public static function check_visitor() {
         global $wpdb;
-        // Enhanced REST API protection - check for wp-json in the URL
-        $request_uri = ( isset( $_SERVER['REQUEST_URI'] ) ? $_SERVER['REQUEST_URI'] : '' );
-        if ( strpos( $request_uri, '/wp-json/' ) !== false ) {
-            return;
-        }
-        // Additional protection for REST API requests that might not have /wp-json/ in the path
-        // but are still legitimate REST API calls (e.g. when using rest_route parameter)
-        if ( wp_is_json_request() || defined( 'REST_REQUEST' ) && REST_REQUEST || isset( $_GET['rest_route'] ) ) {
-            return;
-        }
         // Filter out AJAX, cron and admin related requests
         if ( wp_doing_ajax() || wp_doing_cron() || is_admin() ) {
             return;
         }
         $server_ip = self::get_server_ip();
         $whitelisted_user = false;
-        $administrator = false;
-        // @todo next linie - implementer egen løsning med bonus for at finde land hvis slået til
         $visit_logged = false;
         $current_user_ip = self::get_user_ip();
         if ( $server_ip === $current_user_ip ) {
@@ -970,7 +946,6 @@ class Wf_sn_cf {
         }
         if ( current_user_can( 'manage_options' ) ) {
             // A user with admin privileges
-            $administrator = true;
             $whitelisted_user = true;
         }
         // Prevents user from being blocked even from a blocked country if IP is whitelisted (exact IP or CIDR range).
@@ -988,7 +963,6 @@ class Wf_sn_cf {
             // Do not auto-trust localhost for WAF/logging unless explicitly whitelisted.
             if ( !Wf_sn_cf_Utils::is_whitelisted( $current_user_ip, $local_whitelist ) ) {
                 $whitelisted_user = false;
-                $administrator = false;
             }
         }
         $ua_string = '';
@@ -1067,14 +1041,7 @@ class Wf_sn_cf {
      * @return  array|false Array with match details or false if no match
      */
     public static function check_bad_queries() {
-        // Enhanced REST API protection - check for wp-json in the URL
-        $request_uri = ( isset( $_SERVER['REQUEST_URI'] ) ? $_SERVER['REQUEST_URI'] : '' );
-        if ( strpos( $request_uri, '/wp-json/' ) !== false ) {
-            return false;
-        }
-        // Additional protection for REST API requests that might not have /wp-json/ in the path
-        // but are still legitimate REST API calls (e.g. when using rest_route parameter)
-        if ( wp_is_json_request() || defined( 'REST_REQUEST' ) && REST_REQUEST || isset( $_GET['rest_route'] ) ) {
+        if ( apply_filters( 'wf_sn_cf_skip_bad_query_check', false ) ) {
             return false;
         }
         $request_uri_array = apply_filters( 'request_uri_items', array(
@@ -1644,8 +1611,8 @@ class Wf_sn_cf {
      * @access  public static
      * @param   mixed   $current_user_ip    Default: null
      * @param   string  $reason             Default: ''
-     * @param   mixed   $time               Default: null
-     * @param   boolean $register_block     Should the IP block be registered in the database. Default: false
+     * @param   mixed   $time               Reserved for backward compatibility.
+     * @param   boolean $register_block     Reserved for backward compatibility.
      * @return  void
      */
     public static function kill_request(
@@ -1654,16 +1621,6 @@ class Wf_sn_cf {
         $time = 1 * DAY_IN_SECONDS,
         $register_block = false
     ) {
-        // @todo - update the database with new columns -
-        /*
-        		$table_name = $wpdb->prefix . 'wf_sn_cf_bl_ips';
-        		$sql = "CREATE TABLE {$table_name} (tid datetime NOT NULL DEFAULT NOW(),ip varchar(46) NOT NULL, reason varchar(255) NOT NULL, PRIMARY KEY  (ip),KEY tid (tid)) {$charset}";
-        */
-        // if ($register_block) {
-        //  $wpdb->insert(
-        //      $wpdp->prefix.'wf_sn_cf_bl_ips',
-        //  )
-        // }
         // Set the constant to prevent caching
         if ( !defined( 'DONOTCACHEPAGE' ) ) {
             define( 'DONOTCACHEPAGE', true );
@@ -1711,11 +1668,10 @@ class Wf_sn_cf {
      * @since   v0.0.1
      * @version v1.0.0  Monday, December 21st, 2020.
      * @access  public static
-     * @param   mixed   $ip IP that was blocked - NOT IN USE YET
+     * @param   mixed   $ip Reserved for backward compatibility; counts are aggregate.
      * @return  void
      */
     public static function update_blocked_count( $ip ) {
-        // @todo - store block count per IP
         $blocked_count = get_option( 'wf_sn_cf_blocked_count' );
         if ( $blocked_count ) {
             ++$blocked_count;
@@ -1862,26 +1818,36 @@ class Wf_sn_cf {
      * @return  void
      */
     public static function deactivate() {
-        //$centraloptions = Wf_Sn::get_options();
-        // $centraloptions = $options = Wf_sn_cf::$options;
-        if ( !isset( self::$options['remove_settings_deactivate'] ) ) {
+        $cron_hooks = array(
+            'secnin_update_geoip',
+            'secnin_update_cloud_firewall',
+            'secnin_prune_visitor_log',
+            'secnin_prune_banned',
+            'secnin_update_blocked_ips',
+            'secnin_prune_ip_lookup_transients',
+            'secnin_geoip_updater'
+        );
+        foreach ( $cron_hooks as $cron_hook ) {
+            wp_clear_scheduled_hook( $cron_hook );
+        }
+        if ( !\WPSecurityNinja\Plugin\Utils::should_remove_settings_on_deactivate() ) {
             return;
         }
-        if ( self::$options['remove_settings_deactivate'] ) {
-            global $wpdb;
-            $wpdb->query( 'DROP TABLE IF EXISTS ' . $wpdb->prefix . 'wf_sn_cf_vl' );
-            $wpdb->query( 'DROP TABLE IF EXISTS ' . $wpdb->prefix . 'wf_sn_cf_bl_ips' );
-            delete_option( 'wf_sn_cf_bl_ips' );
-            delete_option( 'wf_sn_cf_vl' );
-            delete_option( WF_SN_CF_VALIDATED_CRAWLERS );
-            delete_option( WF_SN_CF_AI_CRAWLER_RANGES );
-            delete_option( 'wf_sn_cf_blocked_count' );
-            delete_option( WF_SN_CF_OPTIONS_KEY );
-            delete_option( 'wf_sn_cf_ips' );
-            self::clear_cloud_ips_cache();
-            delete_option( 'wf_sn_banned_ips' );
-            // list of locally banned IPs
-        }
+        global $wpdb;
+        $wpdb->query( 'DROP TABLE IF EXISTS ' . $wpdb->prefix . 'wf_sn_cf_vl' );
+        $wpdb->query( 'DROP TABLE IF EXISTS ' . $wpdb->prefix . 'wf_sn_cf_bl_ips' );
+        delete_option( 'wf_sn_cf_bl_ips' );
+        delete_option( 'wf_sn_cf_vl' );
+        delete_option( WF_SN_CF_VALIDATED_CRAWLERS );
+        delete_option( WF_SN_CF_AI_CRAWLER_RANGES );
+        delete_option( 'wf_sn_cf_blocked_count' );
+        delete_option( 'wf_sn_cf_blocked_today' );
+        delete_option( WF_SN_CF_OPTIONS_KEY );
+        delete_option( 'wf_sn_cf_ips' );
+        self::clear_cloud_ips_cache();
+        self::delete_all_ip_lookup_transients();
+        delete_option( 'wf_sn_banned_ips' );
+        // list of locally banned IPs
     }
 
     /**
@@ -2046,6 +2012,8 @@ class Wf_sn_cf {
             'woo_coupon_ban_time'           => 900,
             'satellite_soft_enabled'        => 1,
             'satellite_soft_asns'           => array('14593'),
+            'ip_source'                     => 'auto',
+            'trusted_proxy_cidrs'           => array(),
         );
         $return = array_merge( $defaults, $options );
         // Backwards compatibility: normalize all boolean values to integers (0 or 1)
@@ -2081,7 +2049,18 @@ class Wf_sn_cf {
         $two_fa_on = !empty( $return['2fa_enabled'] );
         $return['2fa_required_roles'] = self::normalize_2fa_required_roles( $return['2fa_required_roles'] ?? array(), $two_fa_on );
         $return['2fa_methods'] = self::normalize_2fa_methods( $return['2fa_methods'] ?? array() );
+        $return['ip_source'] = self::normalize_ip_source( $return['ip_source'] ?? 'auto' );
+        $return['trusted_proxy_cidrs'] = Wf_sn_cf_Utils::sanitize_trusted_proxy_cidrs( $return['trusted_proxy_cidrs'] ?? array() );
         return $return;
+    }
+
+    /**
+     * Drop the in-request options cache so the next get_options() reads from the database.
+     *
+     * @return void
+     */
+    public static function reset_cached_options() {
+        self::$options = null;
     }
 
     /**
@@ -3334,55 +3313,195 @@ class Wf_sn_cf {
     }
 
     /**
-     * Centralized way to get users IP - @todo - replace med opdateret version
+     * Valid visitor IP source modes (stored in wf_sn_cf['ip_source']).
+     *
+     * @return string[]
+     */
+    public static function get_ip_source_modes() {
+        return array(
+            'auto',
+            'remote_addr',
+            'cf_connecting_ip',
+            'x_forwarded_for',
+            'x_real_ip'
+        );
+    }
+
+    /**
+     * Normalize and validate an IP source setting.
+     *
+     * @param mixed $source Raw option value.
+     * @return string
+     */
+    public static function normalize_ip_source( $source ) {
+        $source = ( is_string( $source ) ? sanitize_key( $source ) : 'auto' );
+        if ( !in_array( $source, self::get_ip_source_modes(), true ) ) {
+            return 'auto';
+        }
+        return $source;
+    }
+
+    /**
+     * Sanitize trusted proxy CIDR list for storage.
+     *
+     * @param mixed $raw Raw value.
+     * @return string[]
+     */
+    public static function sanitize_trusted_proxy_cidrs( $raw ) {
+        return Wf_sn_cf_Utils::sanitize_trusted_proxy_cidrs( $raw );
+    }
+
+    /**
+     * Whether the current user should skip IP ban enforcement (logged-in site admin).
+     *
+     * @return bool
+     */
+    public static function should_skip_ban_enforcement() {
+        return current_user_can( 'manage_options' );
+    }
+
+    /**
+     * Whether the current request is a WordPress REST API request.
+     *
+     * @return bool
+     */
+    public static function is_rest_request() {
+        if ( defined( 'REST_REQUEST' ) && REST_REQUEST ) {
+            return true;
+        }
+        if ( isset( $_GET['rest_route'] ) ) {
+            return true;
+        }
+        $request_uri = ( isset( $_SERVER['REQUEST_URI'] ) ? (string) wp_unslash( $_SERVER['REQUEST_URI'] ) : '' );
+        if ( '' !== $request_uri && false !== strpos( $request_uri, '/wp-json/' ) ) {
+            return true;
+        }
+        return function_exists( 'wp_is_json_request' ) && wp_is_json_request();
+    }
+
+    /**
+     * Resolve visitor IP for a given source mode (no static cache).
+     *
+     * @param string|null $source One of get_ip_source_modes(); null uses saved option.
+     * @return string|false
+     */
+    public static function resolve_user_ip_for_source( $source = null ) {
+        if ( null === $source ) {
+            if ( is_null( self::$options ) ) {
+                // Read ip_source only — get_options() defaults call get_user_ip() and would recurse.
+                $raw = get_option( 'wf_sn_cf', array() );
+                $source = ( is_array( $raw ) && isset( $raw['ip_source'] ) ? $raw['ip_source'] : 'auto' );
+            } else {
+                $source = ( isset( self::$options['ip_source'] ) ? self::$options['ip_source'] : 'auto' );
+            }
+        }
+        $source = self::normalize_ip_source( $source );
+        $remote_addr = self::get_server_ip_from_key( 'REMOTE_ADDR' );
+        if ( false === $remote_addr ) {
+            $remote_addr = '127.0.0.1';
+        }
+        $user_proxy_cidrs = array();
+        if ( is_null( self::$options ) ) {
+            $raw_opts = get_option( 'wf_sn_cf', array() );
+            if ( is_array( $raw_opts ) && isset( $raw_opts['trusted_proxy_cidrs'] ) ) {
+                $user_proxy_cidrs = $raw_opts['trusted_proxy_cidrs'];
+            }
+        } elseif ( isset( self::$options['trusted_proxy_cidrs'] ) ) {
+            $user_proxy_cidrs = self::$options['trusted_proxy_cidrs'];
+        }
+        $user_proxy_cidrs = Wf_sn_cf_Utils::sanitize_trusted_proxy_cidrs( $user_proxy_cidrs );
+        $resolved = $remote_addr;
+        switch ( $source ) {
+            case 'remote_addr':
+                $resolved = $remote_addr;
+                break;
+            case 'cf_connecting_ip':
+                $cf_ip = self::get_server_ip_from_key( 'HTTP_CF_CONNECTING_IP' );
+                $resolved = ( false !== $cf_ip ? $cf_ip : $remote_addr );
+                break;
+            case 'x_forwarded_for':
+                $xff = self::get_server_ip_from_key( 'HTTP_X_FORWARDED_FOR' );
+                $resolved = ( false !== $xff ? $xff : $remote_addr );
+                break;
+            case 'x_real_ip':
+                $xri = self::get_server_ip_from_key( 'HTTP_X_REAL_IP' );
+                $resolved = ( false !== $xri ? $xri : $remote_addr );
+                break;
+            case 'auto':
+            default:
+                $cf_ip = self::get_server_ip_from_key( 'HTTP_CF_CONNECTING_IP' );
+                if ( false !== $cf_ip && Wf_sn_cf_Utils::is_cloudflare_proxy_ip( $remote_addr ) ) {
+                    $resolved = $cf_ip;
+                } elseif ( Wf_sn_cf_Utils::is_trusted_proxy_ip( $remote_addr, $user_proxy_cidrs ) ) {
+                    $xff = self::get_server_ip_from_key( 'HTTP_X_FORWARDED_FOR' );
+                    if ( false !== $xff ) {
+                        $resolved = $xff;
+                    } else {
+                        $xri = self::get_server_ip_from_key( 'HTTP_X_REAL_IP' );
+                        $resolved = ( false !== $xri ? $xri : $remote_addr );
+                    }
+                } else {
+                    $resolved = $remote_addr;
+                }
+                break;
+        }
+        $resolved = apply_filters(
+            'wf_sn_client_ip',
+            $resolved,
+            $source,
+            $remote_addr
+        );
+        if ( !is_string( $resolved ) || !filter_var( $resolved, FILTER_VALIDATE_IP ) ) {
+            return false;
+        }
+        return $resolved;
+    }
+
+    /**
+     * Preview resolved IP for each source mode (settings UI).
+     *
+     * @return array<string, string|false>
+     */
+    public static function get_ip_source_preview() {
+        $preview = array();
+        foreach ( self::get_ip_source_modes() as $mode ) {
+            $preview[$mode] = self::resolve_user_ip_for_source( $mode );
+        }
+        return $preview;
+    }
+
+    /**
+     * Read and validate a single $_SERVER IP key.
+     *
+     * @param string $key Server key (e.g. REMOTE_ADDR, HTTP_CF_CONNECTING_IP).
+     * @return string|false
+     */
+    private static function get_server_ip_from_key( $key ) {
+        if ( !isset( $_SERVER[$key] ) || '' === $_SERVER[$key] ) {
+            return false;
+        }
+        $raw = sanitize_text_field( wp_unslash( (string) $_SERVER[$key] ) );
+        if ( 'HTTP_X_FORWARDED_FOR' === $key || 'HTTP_CF_CONNECTING_IP' === $key || 'HTTP_X_REAL_IP' === $key ) {
+            return Wf_sn_cf_Utils::first_valid_ip_from_header( $raw );
+        }
+        return ( filter_var( $raw, FILTER_VALIDATE_IP ) ? $raw : false );
+    }
+
+    /**
+     * Centralized way to get the visitor IP address.
      *
      * @author  Lars Koudal
-     * @author  Unknown
      * @since   v0.0.1
-     * @version v1.0.0  Monday, December 21st, 2020.
-     * @version v1.0.1  Tuesday, May 14th, 2024.
      * @access  public static
-     * @return  boolean
-     * @todo    - replace med opdateret version
+     * @return  string|false
      */
     public static function get_user_ip() {
-        // Check if we have already cached the IP
         if ( self::$cached_ip !== null ) {
             return self::$cached_ip;
         }
-        $headers = array(
-            'HTTP_CF_CONNECTING_IP',
-            // CloudFlare
-            'HTTP_X_FORWARDED_FOR',
-            // May contain a comma+space separated list of IP addresses
-            'HTTP_X_REAL_IP',
-            'HTTP_CLIENT_IP',
-            'HTTP_X_FORWARDED',
-            'HTTP_X_CLUSTER_CLIENT_IP',
-            'HTTP_X_COMING_FROM',
-            'HTTP_PROXY_CONNECTION',
-            'HTTP_FORWARDED_FOR',
-            'HTTP_FORWARDED',
-            'HTTP_COMING_FROM',
-            'HTTP_VIA',
-            'REMOTE_ADDR',
-        );
-        foreach ( $headers as $header ) {
-            if ( !empty( $_SERVER[$header] ) ) {
-                foreach ( explode( ',', $_SERVER[$header] ) as $ip ) {
-                    $ip = trim( $ip );
-                    // Check if IP is valid, including private/reserved ranges for local/dev environments
-                    if ( filter_var( $ip, FILTER_VALIDATE_IP ) ) {
-                        // Cache the result
-                        self::$cached_ip = $ip;
-                        return $ip;
-                    }
-                }
-            }
-        }
-        // If no valid IP is found, cache and return false
-        self::$cached_ip = false;
-        return false;
+        $ip = self::resolve_user_ip_for_source();
+        self::$cached_ip = ( false !== $ip ? $ip : false );
+        return self::$cached_ip;
     }
 
     /**
@@ -3613,6 +3732,8 @@ class Wf_sn_cf {
             'woo_coupon_ban_time'           => 900,
             'satellite_soft_enabled'        => 1,
             'satellite_soft_asns'           => array('14593'),
+            'ip_source'                     => 'auto',
+            'trusted_proxy_cidrs'           => array(),
         );
         $current_options = self::get_options();
         $old_2fa_status = $current_options['2fa_enabled'];
@@ -3869,6 +3990,12 @@ class Wf_sn_cf {
                             $out = array('14593');
                         }
                         $new_options['satellite_soft_asns'] = array_unique( $out );
+                        break;
+                    case 'ip_source':
+                        $new_options['ip_source'] = self::normalize_ip_source( $value );
+                        break;
+                    case 'trusted_proxy_cidrs':
+                        $new_options['trusted_proxy_cidrs'] = self::sanitize_trusted_proxy_cidrs( $value );
                         break;
                     default:
                         $new_options[$key] = sanitize_text_field( $value );

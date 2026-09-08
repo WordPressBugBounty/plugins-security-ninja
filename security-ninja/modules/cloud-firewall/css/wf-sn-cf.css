@@ -129,6 +129,45 @@
   margin: 5px 0 0 0;
 }
 
+.sn-cf-ip-source-cell {
+  max-width: 36em;
+}
+
+.sn-cf-ip-source-cell select.regular-text {
+  max-width: 100%;
+}
+
+.sn-cf-ip-source-help {
+  margin-top: 6px;
+}
+
+.sn-cf-ip-source-current-line {
+  margin-top: 4px;
+}
+
+.sn-cf-ip-source-preview-details {
+  margin-top: 8px;
+}
+
+.sn-cf-ip-source-preview-details summary {
+  cursor: pointer;
+  color: #2271b1;
+}
+
+.sn-cf-ip-source-preview-table {
+  margin-top: 8px;
+  max-width: 420px;
+}
+
+.sn-cf-ip-source-preview-table th,
+.sn-cf-ip-source-preview-table td {
+  padding: 6px 10px;
+}
+
+.sn-cf-ip-source-preview-table tr.is-selected td {
+  font-weight: 600;
+}
+
 
 .sn-disabled{
   position: relative;

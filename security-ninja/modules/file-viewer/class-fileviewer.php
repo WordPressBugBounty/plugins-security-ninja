@@ -637,7 +637,8 @@ class FileViewer {
 		}
 
 		// Check if the file is within WordPress installation
-		return strpos( $file_path, $wp_root ) === 0;
+		$prefix = rtrim( wp_normalize_path( $wp_root ), '/' ) . '/';
+		return str_starts_with( wp_normalize_path( $file_path ), $prefix );
 	}
 
 	/**

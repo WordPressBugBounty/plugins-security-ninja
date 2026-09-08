@@ -17,6 +17,162 @@ if ( !class_exists( 'Wf_sn_cf' ) ) {
     return;
 }
 /**
+ * Render visitor IP source control and preview (free feature).
+ *
+ * @param array<string,mixed> $options Firewall options.
+ * @return void
+ */
+function wf_sn_cf_render_ip_source_settings(  $options  ) {
+    $ip_source = ( isset( $options['ip_source'] ) ? \WPSecurityNinja\Plugin\wf_sn_cf::normalize_ip_source( $options['ip_source'] ) : 'auto' );
+    $ip_preview = \WPSecurityNinja\Plugin\wf_sn_cf::get_ip_source_preview();
+    $active_ip = \WPSecurityNinja\Plugin\wf_sn_cf::get_user_ip();
+    $ip_source_labels = array(
+        'auto'             => array(
+            'title' => __( 'Automatic (recommended)', 'security-ninja' ),
+            'desc'  => __( 'Use Cloudflare or your trusted proxy headers only when REMOTE_ADDR matches a known proxy range.', 'security-ninja' ),
+        ),
+        'remote_addr'      => array(
+            'title' => __( 'REMOTE_ADDR only', 'security-ninja' ),
+            'desc'  => __( 'Direct connection. Most secure on origin-only hosts.', 'security-ninja' ),
+        ),
+        'cf_connecting_ip' => array(
+            'title' => __( 'Cloudflare CF-Connecting-IP', 'security-ninja' ),
+            'desc'  => __( 'Trust the Cloudflare visitor header. Falls back to REMOTE_ADDR.', 'security-ninja' ),
+        ),
+        'x_forwarded_for'  => array(
+            'title' => __( 'X-Forwarded-For', 'security-ninja' ),
+            'desc'  => __( 'First valid IP in the X-Forwarded-For header. Falls back to REMOTE_ADDR.', 'security-ninja' ),
+        ),
+        'x_real_ip'        => array(
+            'title' => __( 'X-Real-IP', 'security-ninja' ),
+            'desc'  => __( 'Trust the X-Real-IP header. Falls back to REMOTE_ADDR.', 'security-ninja' ),
+        ),
+    );
+    $current_desc = ( isset( $ip_source_labels[$ip_source]['desc'] ) ? $ip_source_labels[$ip_source]['desc'] : '' );
+    $trusted_cidrs = ( isset( $options['trusted_proxy_cidrs'] ) ? \WPSecurityNinja\Plugin\wf_sn_cf::sanitize_trusted_proxy_cidrs( $options['trusted_proxy_cidrs'] ) : array() );
+    $trusted_max = \WPSecurityNinja\Plugin\Wf_sn_cf_Utils::MAX_TRUSTED_PROXY_CIDRS;
+    $trusted_count = count( $trusted_cidrs );
+    ?>
+	<tr valign="top">
+		<th scope="row">
+			<label for="wf_sn_cf_ip_source"><?php 
+    esc_html_e( 'Visitor IP detection', 'security-ninja' );
+    ?></label>
+			<p class="description"><?php 
+    esc_html_e( 'How the firewall resolves visitor IPs for bans, whitelists, and logging.', 'security-ninja' );
+    ?></p>
+		</th>
+		<td class="sn-cf-options sn-cf-ip-source-cell">
+			<select id="wf_sn_cf_ip_source" class="regular-text" name="<?php 
+    echo esc_attr( WF_SN_CF_OPTIONS_KEY );
+    ?>[ip_source]">
+				<?php 
+    foreach ( $ip_source_labels as $mode => $label ) {
+        ?>
+					<?php 
+        $preview_ip = ( !empty( $ip_preview[$mode] ) ? (string) $ip_preview[$mode] : '' );
+        $option_label = $label['title'];
+        if ( '' !== $preview_ip ) {
+            /* translators: 1: IP source label, 2: preview IP for this request */
+            $option_label = sprintf( __( '%1$s (%2$s)', 'security-ninja' ), $label['title'], $preview_ip );
+        }
+        ?>
+					<option
+						value="<?php 
+        echo esc_attr( $mode );
+        ?>"
+						data-desc="<?php 
+        echo esc_attr( $label['desc'] );
+        ?>"
+						<?php 
+        selected( $ip_source, $mode );
+        ?>
+					><?php 
+        echo esc_html( $option_label );
+        ?></option>
+				<?php 
+    }
+    ?>
+			</select>
+			<p class="description sn-cf-ip-source-help" id="wf_sn_cf_ip_source_desc"><?php 
+    echo esc_html( $current_desc );
+    ?></p>
+			<p class="description sn-cf-ip-source-current-line">
+				<?php 
+    esc_html_e( 'Your IP with current setting:', 'security-ninja' );
+    ?>
+				<code><?php 
+    echo esc_html( ( false !== $active_ip ? $active_ip : __( 'unknown', 'security-ninja' ) ) );
+    ?></code>
+			</p>
+			<details class="sn-cf-ip-source-preview-details">
+				<summary><?php 
+    esc_html_e( 'Preview all methods', 'security-ninja' );
+    ?></summary>
+				<table class="widefat striped sn-cf-ip-source-preview-table">
+					<thead>
+						<tr>
+							<th scope="col"><?php 
+    esc_html_e( 'Method', 'security-ninja' );
+    ?></th>
+							<th scope="col"><?php 
+    esc_html_e( 'Would resolve to', 'security-ninja' );
+    ?></th>
+						</tr>
+					</thead>
+					<tbody>
+						<?php 
+    foreach ( $ip_source_labels as $mode => $label ) {
+        ?>
+							<tr<?php 
+        echo ( $ip_source === $mode ? ' class="is-selected"' : '' );
+        ?>>
+								<td><?php 
+        echo esc_html( $label['title'] );
+        ?></td>
+								<td><code><?php 
+        echo esc_html( ( !empty( $ip_preview[$mode] ) ? $ip_preview[$mode] : '—' ) );
+        ?></code></td>
+							</tr>
+						<?php 
+    }
+    ?>
+					</tbody>
+				</table>
+			</details>
+		</td>
+	</tr>
+	<tr valign="top">
+		<th scope="row">
+			<label for="wf_sn_cf_trusted_proxy_cidrs"><?php 
+    esc_html_e( 'Trusted proxy CIDRs', 'security-ninja' );
+    ?></label>
+			<p class="description"><?php 
+    esc_html_e( 'Used in Automatic mode when your site sits behind a load balancer or reverse proxy (not Cloudflare).', 'security-ninja' );
+    ?></p>
+		</th>
+		<td class="sn-cf-options">
+			<textarea id="wf_sn_cf_trusted_proxy_cidrs" class="large-text code" rows="4" name="<?php 
+    echo esc_attr( WF_SN_CF_OPTIONS_KEY );
+    ?>[trusted_proxy_cidrs]"><?php 
+    echo esc_textarea( implode( "\n", $trusted_cidrs ) );
+    ?></textarea>
+			<p class="description">
+				<?php 
+    printf( 
+        /* translators: 1: current count, 2: maximum allowed */
+        esc_html__( 'One CIDR or IP per line. %1$d / %2$d entries. Add only your proxy egress IPs, never public ranges like 0.0.0.0/0.', 'security-ninja' ),
+        (int) $trusted_count,
+        (int) $trusted_max
+     );
+    ?>
+			</p>
+		</td>
+	</tr>
+	<?php 
+}
+
+/**
  * Render the settings form content
  *
  * @param array $options Current options
@@ -48,6 +204,9 @@ function wf_sn_cf_render_settings_content(  $options, $ips = array()  ) {
     echo '</td></tr>';
     // Pro features - show unified marketing info box for free users (Freemius: do not use negation of can_use_premium_code__premium_only)
     $show_pro_upsell = true;
+    if ( $show_pro_upsell ) {
+        wf_sn_cf_render_ip_source_settings( $options );
+    }
     if ( $show_pro_upsell ) {
         ?>
 
@@ -180,6 +339,14 @@ function wf_sn_cf_render_settings_content(  $options, $ips = array()  ) {
         ?>
 							</td>
 						</tr>
+
+						<tr>
+							<td colspan="2"><hr></td>
+						</tr>
+
+						<?php 
+        wf_sn_cf_render_ip_source_settings( $options );
+        ?>
 
 						<tr>
 							<td colspan="2"><hr></td>

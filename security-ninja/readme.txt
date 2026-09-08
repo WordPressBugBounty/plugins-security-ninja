@@ -1,12 +1,12 @@
 === Security Ninja – WordPress Security & Firewall ===
 Contributors: lkoudal, cleverplugins, freemius
-Donate link: https://wpsecurityninja.com/
+Donate link: https://wpsecurityninja.com/?utm_source=wordpressorg&utm_medium=content&utm_campaign=readme&utm_content=donate
 Tags: security, firewall, waf, vulnerability, malware
 License: GPLv3
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 Requires at least: 4.7
 Tested up to: 7.1
-Stable tag: 5.302
+Stable tag: 5.303
 Requires PHP: 7.4
 
 WordPress security plugin: free 8G firewall/WAF, 50+ tests, vulnerability/core scanning, events logging, AI reports.
@@ -173,7 +173,7 @@ If you are not on WordPress 7 yet, you will see a notice on the AI Security Advi
 **MainWP** - Manage Security Ninja across many sites from one MainWP Dashboard. Security Ninja on each child site includes MainWP integration built in (no extra plugin on child sites).
 
 * **Free addon** - <a href="https://wordpress.org/plugins/security-ninja-for-mainwp/" target="_blank">Security Ninja for MainWP</a> (WordPress.org): view test results and vulnerabilities per site, trigger remote security scans, and sync fresh results. Works with child sites on free or Pro Security Ninja; data shown matches what each site’s installed version provides.
-* **Premium addon** - Adds a combined events log across all connected sites, search/filter for security events, and remote white-label control on Pro child sites. Requires Security Ninja Pro on child sites for log and white-label features. Available from your <a href="https://wpsecurityninja.com/account/" target="_blank">WP Security Ninja account</a>; see <a href="https://wpsecurityninja.com/mainwp/" target="_blank">MainWP integration</a> for details.
+* **Premium addon** - Adds a combined events log across all connected sites, search/filter for security events, and remote white-label control on Pro child sites. Requires Security Ninja Pro on child sites for log and white-label features. Available from your <a href="https://wpsecurityninja.com/account/?utm_source=wordpressorg&utm_medium=content&utm_campaign=readme&utm_content=account" target="_blank">WP Security Ninja account</a>; see <a href="https://wpsecurityninja.com/mainwp/?utm_source=wordpressorg&utm_medium=content&utm_campaign=readme&utm_content=mainwp" target="_blank">MainWP integration</a> for details.
 
 https://wordpress.org/plugins/security-ninja-for-mainwp/
 
@@ -282,6 +282,20 @@ While we strive for universal compatibility, if you face any issues, our support
 5. Core Scanner (detect modified/unknown core files).
 
 == Changelog ==
+
+= 5.303 =
+* 2026-09-08
+* NEW: Visitor IP detection - Choose how the firewall reads the visitor IP: Automatic, Cloudflare, proxy headers, or REMOTE_ADDR. Automatic trusts Cloudflare ranges by default. For another load balancer or reverse proxy, add its IPs under Trusted proxy CIDRs. Free and Pro.
+* IMPROVED: Vulnerability Scanner - Scheduled warning emails wait for a finished scan, skip plugins and themes that are gone or already patched, and do not repeat the same findings within 24 hours. Thank you Jamie.
+* IMPROVED: Deactivation - One central "Remove settings when deactivating" switch. Leave it off to keep settings, scans, logs, and cached files. Scheduled jobs still stop when the plugin is deactivated.
+* IMPROVED: Uninstall - Removing the plugin also clears module tables, settings, cached files, and related user metadata.
+* IMPROVED: Events Logger - Administrator emails now cover new accounts and role promotions.
+* IMPROVED: Events Logger - Speed improvement - When logging is off, event hooks and database writes are skipped. Broad REST API error logging stays off by default; turn it on in Events settings if you need those diagnostics.
+* IMPROVED: Settings import/export and MainWP - Events REST logging and visitor IP settings, including trusted proxy CIDRs, are included when you copy settings between sites.
+* IMPROVED: Malware Scanner - Removed the unused legacy scanner.
+* IMPROVED: MainWP - Applying settings remotely now reschedules the scanner cron when the schedule changes, and applies the same wp-config updates as the Fixes page (file editor, debug, secure cookies).
+* IMPROVED: MainWP - Remote settings now include WooCommerce rate-limit numbers, 2FA grace period and login copy, and satellite/ASN soft-mode lists.
+* IMPROVED: Frontend - Speed improvement - Premium no longer loads unused Pro modules on public page views. Free modules are unchanged. Thank you Jose.
 
 = 5.302 =
 * 2026-09-01
@@ -429,4 +443,4 @@ While we strive for universal compatibility, if you face any issues, our support
 
 ...
 
-Entire changelog can be seen here: <a href="https://wpsecurityninja.com/changelog/" target="_blank">https://wpsecurityninja.com/changelog/</a>
+Entire changelog can be seen here: <a href="https://wpsecurityninja.com/changelog/?utm_source=wordpressorg&utm_medium=content&utm_campaign=readme&utm_content=changelog" target="_blank">https://wpsecurityninja.com/changelog/</a>

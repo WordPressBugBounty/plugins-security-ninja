@@ -51,23 +51,214 @@ class Wf_Sn_Vu {
     /**
      * daily_vulnerability_check.
      *
+     * Runs a fresh scan for email warnings. Never emails from a lock/stale
+     * fallback. Skips when a scan is already running and schedules one retry.
+     *
      * @author  Lars Koudal
      * @since   v0.0.1
      * @version v1.0.0  Friday, June 7th, 2024.
+     * @version v1.1.0  Tuesday, September 8th, 2026. Finished-scan only; prune; fingerprint mute.
      * @return  void
      */
     public static function daily_vulnerability_check() {
-        $enable_email_notice = self::$options['enable_email_notice'];
-        if ( !$enable_email_notice ) {
+        self::get_options();
+        if ( empty( self::$options['enable_email_notice'] ) ) {
             return;
         }
-        // *** EMAIL WARNINGS - CHECK if an email should be sent...
-        $vulns = self::return_vulnerabilities( array(
-            'force' => true,
-        ) );
-        if ( $vulns && (!empty( $vulns['plugins'] ) || !empty( $vulns['wordpress'] ) || !empty( $vulns['themes'] )) ) {
-            self::send_vulnerability_email( $vulns );
+        if ( get_transient( 'secnin_vuln_scan_running' ) ) {
+            self::maybe_schedule_vulnerability_email_retry();
+            return;
         }
+        $timestamp_before = (int) get_option( 'wf_sn_vulnerabilities_cache_timestamp', 0 );
+        $vulns = self::return_vulnerabilities( array(
+            'force'        => true,
+            'respect_lock' => true,
+        ) );
+        // respect_lock skip signal when another scan holds the lock.
+        if ( false === $vulns ) {
+            self::maybe_schedule_vulnerability_email_retry();
+            return;
+        }
+        $timestamp_after = (int) get_option( 'wf_sn_vulnerabilities_cache_timestamp', 0 );
+        if ( $timestamp_after <= 0 || $timestamp_after <= $timestamp_before ) {
+            // Scan did not finish storing results (lock race or no-op). Do not email stale cache.
+            self::maybe_schedule_vulnerability_email_retry();
+            return;
+        }
+        $vulns = self::prune_vulnerabilities_for_email( $vulns );
+        if ( empty( $vulns['plugins'] ) && empty( $vulns['themes'] ) && empty( $vulns['wordpress'] ) ) {
+            return;
+        }
+        if ( self::should_mute_vulnerability_email( $vulns ) ) {
+            return;
+        }
+        self::send_vulnerability_email( $vulns );
+    }
+
+    /**
+     * Schedule a one-shot retry of the daily warning check when a scan lock was held.
+     *
+     * @return void
+     */
+    public static function maybe_schedule_vulnerability_email_retry() {
+        if ( get_transient( 'secnin_vuln_email_retry_scheduled' ) ) {
+            return;
+        }
+        set_transient( 'secnin_vuln_email_retry_scheduled', 1, 15 * MINUTE_IN_SECONDS );
+        wp_schedule_single_event( time() + 6 * MINUTE_IN_SECONDS, 'secnin_daily_vulnerability_warning_check' );
+    }
+
+    /**
+     * Drop plugin/theme/core rows that are no longer installed or no longer vulnerable.
+     *
+     * Email-path safety net only. Does not mutate the stored scan cache.
+     *
+     * @param array $vulns Scan result array.
+     * @return array Pruned result (always an array with plugins/themes/wordpress keys when present).
+     */
+    public static function prune_vulnerabilities_for_email( $vulns ) {
+        if ( !is_array( $vulns ) ) {
+            return array();
+        }
+        global $wp_version;
+        if ( !function_exists( 'get_plugins' ) ) {
+            require_once ABSPATH . 'wp-admin/includes/plugin.php';
+        }
+        $installed_plugins = get_plugins();
+        $plugin_slug_map = array();
+        foreach ( $installed_plugins as $key => $plugin_data ) {
+            $slug = strtok( $key, '/' );
+            if ( !empty( $slug ) ) {
+                $plugin_slug_map[$slug] = $plugin_data;
+            }
+        }
+        $theme_slug_map = array();
+        foreach ( wp_get_themes() as $theme ) {
+            $theme_slug_map[$theme->stylesheet] = array(
+                'Name'    => $theme->get( 'Name' ),
+                'Version' => $theme->get( 'Version' ),
+            );
+        }
+        $ignored_set = array();
+        if ( !empty( self::$options['ignored_plugin_slugs'] ) ) {
+            $ignored_slugs = array_filter( array_map( 'trim', explode( "\n", self::$options['ignored_plugin_slugs'] ) ) );
+            $ignored_set = array_fill_keys( $ignored_slugs, true );
+        }
+        $pruned = array();
+        if ( !empty( $vulns['plugins'] ) && is_array( $vulns['plugins'] ) ) {
+            foreach ( $vulns['plugins'] as $slug => $row ) {
+                if ( !is_array( $row ) || isset( $ignored_set[$slug] ) || !isset( $plugin_slug_map[$slug] ) ) {
+                    continue;
+                }
+                if ( self::installed_version_still_vulnerable( $plugin_slug_map[$slug]['Version'], $row ) ) {
+                    $pruned['plugins'][$slug] = $row;
+                }
+            }
+        }
+        if ( !empty( $vulns['themes'] ) && is_array( $vulns['themes'] ) ) {
+            foreach ( $vulns['themes'] as $slug => $row ) {
+                if ( !is_array( $row ) || isset( $ignored_set[$slug] ) || !isset( $theme_slug_map[$slug] ) ) {
+                    continue;
+                }
+                if ( self::installed_version_still_vulnerable( $theme_slug_map[$slug]['Version'], $row ) ) {
+                    $pruned['themes'][$slug] = $row;
+                }
+            }
+        }
+        if ( !empty( $vulns['wordpress'] ) && is_array( $vulns['wordpress'] ) ) {
+            foreach ( $vulns['wordpress'] as $key => $row ) {
+                if ( !is_array( $row ) ) {
+                    continue;
+                }
+                if ( self::installed_version_still_vulnerable( $wp_version, $row ) ) {
+                    $pruned['wordpress'][$key] = $row;
+                }
+            }
+        }
+        return $pruned;
+    }
+
+    /**
+     * Whether an installed version still matches a vulnerability row's version rules.
+     *
+     * @param string $installed_version Installed version string.
+     * @param array  $row               Vulnerability row.
+     * @return bool
+     */
+    public static function installed_version_still_vulnerable( $installed_version, $row ) {
+        if ( !is_array( $row ) || '' === (string) $installed_version ) {
+            return false;
+        }
+        // Shared by email prune + legacy plugin scan: EndExcluding when present, else Impact.
+        // Do not fall through from a failed EndExcluding check into Impact on the same row.
+        // Never rtrim( $ver, '.0' ): that character class turns 5.10.0 into 5.1.
+        if ( isset( $row['versionEndExcluding'] ) && '' !== $row['versionEndExcluding'] ) {
+            return version_compare( $installed_version, (string) $row['versionEndExcluding'], '<' );
+        }
+        if ( isset( $row['versionImpact'] ) && '' !== $row['versionImpact'] ) {
+            return version_compare( $installed_version, (string) $row['versionImpact'], '<=' );
+        }
+        return false;
+    }
+
+    /**
+     * Build a stable fingerprint for a vulnerability result set (email mute key).
+     *
+     * @param array $vulns Vulnerability results.
+     * @return string MD5 fingerprint.
+     */
+    public static function get_vulnerability_email_fingerprint( $vulns ) {
+        $parts = array();
+        if ( !is_array( $vulns ) ) {
+            return md5( '' );
+        }
+        foreach ( array('plugins', 'themes', 'wordpress') as $type ) {
+            if ( empty( $vulns[$type] ) || !is_array( $vulns[$type] ) ) {
+                continue;
+            }
+            foreach ( $vulns[$type] as $slug => $row ) {
+                $cve = ( is_array( $row ) && isset( $row['CVE_ID'] ) ? (string) $row['CVE_ID'] : '' );
+                $parts[] = $type . '|' . $slug . '|' . $cve;
+            }
+        }
+        sort( $parts );
+        return md5( implode( "\n", $parts ) );
+    }
+
+    /**
+     * Whether the same CVE set was already emailed within the last 24 hours.
+     *
+     * @param array $vulns Pruned vulnerability results.
+     * @return bool True when the email should be skipped.
+     */
+    public static function should_mute_vulnerability_email( $vulns ) {
+        $fingerprint = self::get_vulnerability_email_fingerprint( $vulns );
+        $stored = get_option( 'wf_sn_vu_last_email_hash', false );
+        if ( !is_array( $stored ) || empty( $stored['fingerprint'] ) ) {
+            return false;
+        }
+        if ( (string) $stored['fingerprint'] !== $fingerprint ) {
+            return false;
+        }
+        $sent_at = ( isset( $stored['sent_at'] ) ? (int) $stored['sent_at'] : 0 );
+        if ( $sent_at <= 0 ) {
+            return false;
+        }
+        return time() - $sent_at < DAY_IN_SECONDS;
+    }
+
+    /**
+     * Persist last-email timestamp and fingerprint after a warning is sent.
+     *
+     * @param array $vulns Vulnerability results that were emailed.
+     * @return void
+     */
+    public static function record_vulnerability_email_sent( $vulns ) {
+        update_option( 'wf_sn_vu_last_email', current_time( 'mysql' ), false );
+        update_option( 'wf_sn_vu_last_email_hash', array(
+            'fingerprint' => self::get_vulnerability_email_fingerprint( $vulns ),
+            'sent_at'     => time(),
+        ), false );
     }
 
     /**
@@ -925,7 +1116,7 @@ class Wf_Sn_Vu {
      * Get canonical local path to a gzipped vulnerability JSONL file in uploads.
      *
      * @since   v5.263
-     * @param   string $type File type: 'plugins', 'themes', or 'wordpress'.
+     * @param   string $type File type: 'plugins', 'themes', or 'WordPress'.
      * @return  string|false Local file path on success, false on invalid type.
      */
     private static function get_vuln_jsonl_file_path( $type ) {
@@ -951,7 +1142,7 @@ class Wf_Sn_Vu {
      * Kept for migration fallback until the next successful gzipped download.
      *
      * @since   v5.294
-     * @param   string $type File type: 'plugins', 'themes', or 'wordpress'.
+     * @param   string $type File type: 'plugins', 'themes', or 'WordPress'.
      * @return  string|false Local file path on success, false on invalid type.
      */
     private static function get_vuln_legacy_jsonl_file_path( $type ) {
@@ -977,7 +1168,7 @@ class Wf_Sn_Vu {
      * 5.294+ used sanitize_file_name() which saved *.jsonl_.gz. Sites that have
      * not re-downloaded yet still have that name. Canonical is *.jsonl.gz.
      *
-     * @param string $type File type: 'plugins', 'themes', or 'wordpress'.
+     * @param string $type File type: 'plugins', 'themes', or 'WordPress'.
      * @return string[] Absolute paths, preferred first.
      */
     private static function get_vuln_candidate_paths( $type ) {
@@ -1004,7 +1195,7 @@ class Wf_Sn_Vu {
      * 5.294+, and legacy plaintext. Does not require gzopen().
      *
      * @since   v5.294
-     * @param   string $type File type: 'plugins', 'themes', or 'wordpress'.
+     * @param   string $type File type: 'plugins', 'themes', or 'WordPress'.
      * @return  string|false Absolute path if a readable file exists, false otherwise.
      */
     private static function resolve_vuln_jsonl_file_path( $type ) {
@@ -1083,7 +1274,7 @@ class Wf_Sn_Vu {
      * Corrupt gzip is removed so legacy plaintext can be resolved on the next check.
      *
      * @since   v5.294
-     * @param   string $type File type: 'plugins', 'themes', or 'wordpress'.
+     * @param   string $type File type: 'plugins', 'themes', or 'WordPress'.
      * @return  bool True when a usable local file is available.
      */
     private static function ensure_vuln_db_usable( $type ) {
@@ -1250,7 +1441,7 @@ class Wf_Sn_Vu {
     /**
      * Stored vulnerability database record counts (non-autoload option).
      *
-     * @return array{plugins:int,themes:int,wordpress:int}
+     * @return array{plugins:int,themes:int,WordPress:int}
      */
     private static function get_known_vuln_db_counts() {
         $counts = get_option( 'wf_sn_known_vuln_db_counts', false );
@@ -1271,7 +1462,7 @@ class Wf_Sn_Vu {
     /**
      * Stream-count local JSONL files and persist counts (autoload=false).
      *
-     * @return array{plugins:int,themes:int,wordpress:int}
+     * @return array{plugins:int,themes:int,WordPress:int}
      */
     private static function refresh_known_vuln_db_counts() {
         $counts = array(
@@ -1511,7 +1702,10 @@ class Wf_Sn_Vu {
         }
         // Ready to send email
         $email_notice_recipient = self::$options['email_notice_recipient'];
-        $recipients = array_map( 'trim', explode( ',', $email_notice_recipient ) );
+        $recipients = array_filter( array_map( 'trim', explode( ',', (string) $email_notice_recipient ) ), 'is_email' );
+        if ( empty( $recipients ) ) {
+            return;
+        }
         $message_content_html = '';
         $message_content_html .= '<p>' . sprintf( 
             // translators: %1$s is the site name
@@ -1551,6 +1745,7 @@ class Wf_Sn_Vu {
         $subject = esc_html__( 'Vulnerabilities detected on', 'security-ninja' ) . ' ' . $domain;
         $headers = array('Content-Type: text/html; charset=UTF-8');
         add_filter( 'wp_mail_content_type', array(__CLASS__, 'set_html_content_type') );
+        $email_sent = false;
         foreach ( $recipients as $recipient ) {
             $sendresult = wp_mail(
                 $recipient,
@@ -1569,6 +1764,7 @@ class Wf_Sn_Vu {
                     esc_html( $error_message )
                  ) );
             } else {
+                $email_sent = true;
                 Wf_Sn_El_Modules::log_event( 'security_ninja', 'vulnerabilities', sprintf( 
                     /* translators: %s: recipient email address */
                     __( 'Vulnerabilities detected - Email warning sent to %s', 'security-ninja' ),
@@ -1577,7 +1773,9 @@ class Wf_Sn_Vu {
             }
         }
         remove_filter( 'wp_mail_content_type', array(__CLASS__, 'set_html_content_type') );
-        update_option( 'wf_sn_vu_last_email', current_time( 'mysql' ), false );
+        if ( $email_sent ) {
+            self::record_vulnerability_email_sent( $vulns );
+        }
     }
 
     /**
@@ -1628,19 +1826,34 @@ class Wf_Sn_Vu {
      * @version v1.0.0  Friday, January 1st, 2021.
      * @version v1.0.1  Friday, May 13th, 2022.
      * @version v1.0.2  Tuesday, July 28th, 2026. Cache-only by default; force for explicit scans.
+     * @version v1.0.3  Tuesday, September 8th, 2026. Optional respect_lock for email path.
      * @param   array $args {
      *     Optional. Arguments.
-     *     @type bool $force When true, run a scan now instead of reading cache.
+     *     @type bool $force        When true, run a scan now instead of reading cache.
+     *     @type bool $respect_lock When true with force, do not clear a running lock.
+     *                              Returns false if the lock is held (skip signal for email).
      * }
      * @return  array|false
      */
     public static function return_vulnerabilities( $args = array() ) {
         $force = false;
-        if ( is_array( $args ) && !empty( $args['force'] ) ) {
-            $force = true;
+        $respect_lock = false;
+        if ( is_array( $args ) ) {
+            if ( !empty( $args['force'] ) ) {
+                $force = true;
+            }
+            if ( !empty( $args['respect_lock'] ) ) {
+                $respect_lock = true;
+            }
         }
         if ( $force ) {
-            // Explicit scans (manual AJAX / daily email) must run even if a prior lock was left behind.
+            if ( $respect_lock ) {
+                if ( get_transient( 'secnin_vuln_scan_running' ) ) {
+                    return false;
+                }
+                return self::run_vulnerability_scan();
+            }
+            // Manual AJAX and other force paths may clear a stuck lock and run now.
             delete_transient( 'secnin_vuln_scan_running' );
             return self::run_vulnerability_scan();
         }
@@ -1697,6 +1910,9 @@ class Wf_Sn_Vu {
             if ( !function_exists( 'get_plugins' ) ) {
                 require_once ABSPATH . 'wp-admin/includes/plugin.php';
             }
+            // Refresh install lists without wiping WordPress.org update caches (false = keep update_*).
+            wp_clean_plugins_cache( false );
+            wp_clean_themes_cache( false );
             $installed_plugins = get_plugins();
             // Use memory-efficient plugin vulnerability checking
             if ( $installed_plugins ) {
@@ -1781,13 +1997,13 @@ class Wf_Sn_Vu {
                             $findtheme = array_search( $key, array_column( $vuln_theme_arr, 'slug' ), true );
                             if ( false !== $findtheme ) {
                                 $matched = $vuln_theme_arr[$findtheme];
-                                if ( isset( $matched['versionEndExcluding'] ) && '' !== $vuln_theme_arr[$findtheme]['versionEndExcluding'] ) {
-                                    $matched['versionEndExcluding'] = rtrim( $matched['versionEndExcluding'], '.0' );
-                                    if ( version_compare( $ap['Version'], $matched['versionEndExcluding'], '<' ) ) {
-                                        $desc = '';
-                                        if ( isset( $matched['description'] ) ) {
-                                            $desc = $matched['description'];
-                                        }
+                                // Same rule as streaming themes + plugins: EndExcluding exclusive, else Impact.
+                                if ( self::installed_version_still_vulnerable( $ap['Version'], $matched ) ) {
+                                    $desc = '';
+                                    if ( isset( $matched['description'] ) ) {
+                                        $desc = $matched['description'];
+                                    }
+                                    if ( isset( $matched['versionEndExcluding'] ) && '' !== $matched['versionEndExcluding'] ) {
                                         $theme_vulnerabilities[$key] = array(
                                             'name'                => $ap['Name'],
                                             'desc'                => $desc,
@@ -1796,6 +2012,18 @@ class Wf_Sn_Vu {
                                             'CVE_ID'              => $matched['CVE_ID'],
                                             'refs'                => $matched['refs'],
                                         );
+                                    } else {
+                                        $theme_vulnerabilities[$key] = array(
+                                            'name'             => $ap['Name'],
+                                            'desc'             => $desc,
+                                            'installedVersion' => $ap['Version'],
+                                            'versionImpact'    => $matched['versionImpact'],
+                                            'CVE_ID'           => $matched['CVE_ID'],
+                                            'refs'             => $matched['refs'],
+                                        );
+                                        if ( isset( $matched['recommendation'] ) ) {
+                                            $theme_vulnerabilities[$key]['recommendation'] = $matched['recommendation'];
+                                        }
                                     }
                                 }
                             }
@@ -1817,10 +2045,10 @@ class Wf_Sn_Vu {
             $wp_vulnerabilities_found = 0;
             $lookup_id = 0;
             try {
-                if ( !self::ensure_vuln_db_usable( 'wordpress' ) ) {
+                if ( !self::ensure_vuln_db_usable( 'WordPress' ) ) {
                     self::ensure_vulns_directory();
                 } else {
-                    $wp_file_path = self::resolve_vuln_jsonl_file_path( 'wordpress' );
+                    $wp_file_path = self::resolve_vuln_jsonl_file_path( 'WordPress' );
                     if ( empty( $wp_file_path ) ) {
                         self::ensure_vulns_directory();
                     } else {
@@ -1828,8 +2056,7 @@ class Wf_Sn_Vu {
                             if ( empty( $wpvuln['versionEndExcluding'] ) || empty( $wpvuln['CVE_ID'] ) ) {
                                 continue;
                             }
-                            $version_end_excluding = rtrim( $wpvuln['versionEndExcluding'], '.0' );
-                            // Trim trailing .0s for comparing.
+                            $version_end_excluding = (string) $wpvuln['versionEndExcluding'];
                             if ( version_compare( $wp_version, $version_end_excluding, '<' ) ) {
                                 $found_vulnerabilities['wordpress'][$lookup_id] = array(
                                     'desc'                => ( isset( $wpvuln['description'] ) ? $wpvuln['description'] : '' ),
@@ -1860,12 +2087,11 @@ class Wf_Sn_Vu {
                         if ( empty( $wpvuln['versionEndExcluding'] ) || empty( $wpvuln['CVE_ID'] ) ) {
                             continue;
                         }
-                        $wpvuln['versionEndExcluding'] = rtrim( $wpvuln['versionEndExcluding'], '.0' );
-                        // Trim trailing .0s for comparing.
-                        if ( version_compare( $wp_version, $wpvuln['versionEndExcluding'], '<' ) ) {
+                        $version_end_excluding = (string) $wpvuln['versionEndExcluding'];
+                        if ( version_compare( $wp_version, $version_end_excluding, '<' ) ) {
                             $found_vulnerabilities['wordpress'][$lookup_id] = array(
                                 'desc'                => ( isset( $wpvuln['description'] ) ? $wpvuln['description'] : '' ),
-                                'versionEndExcluding' => $wpvuln['versionEndExcluding'],
+                                'versionEndExcluding' => $version_end_excluding,
                                 'CVE_ID'              => $wpvuln['CVE_ID'],
                             );
                             if ( isset( $wpvuln['recommendation'] ) ) {
@@ -2113,7 +2339,7 @@ class Wf_Sn_Vu {
         ?></h3>
 										<p class="description">
 											<?php 
-        esc_html_e( 'Who should get the warning? The system will send an email when a vulnerability is detected. Maximum one email per day.', 'security-ninja' );
+        esc_html_e( 'Who should get the warning? The system will send an email when a vulnerability is detected. The same findings are not emailed again within 24 hours; a new distinct set can send another email the same day.', 'security-ninja' );
         ?>
 										</p>
 									</label></th>
@@ -2415,8 +2641,13 @@ class Wf_Sn_Vu {
      * @return  void
      */
     public static function deactivate() {
-        $centraloptions = Wf_Sn::get_options();
-        if ( !isset( $centraloptions['remove_settings_deactivate'] ) ) {
+        wp_clear_scheduled_hook( 'secnin_scan_vulnerabilities' );
+        wp_clear_scheduled_hook( 'secnin_update_vuln_list' );
+        wp_clear_scheduled_hook( 'secnin_mainwp_update_vuln_list' );
+        wp_clear_scheduled_hook( 'secnin_daily_vulnerability_warning_check' );
+        delete_transient( 'secnin_vuln_scan_running' );
+        delete_transient( 'secnin_vuln_email_retry_scheduled' );
+        if ( !\WPSecurityNinja\Plugin\Utils::should_remove_settings_on_deactivate() ) {
             return;
         }
         delete_option( 'wf_sn_vu_settings_group' );
@@ -2425,12 +2656,13 @@ class Wf_Sn_Vu {
         delete_option( 'wf_sn_vu_settings' );
         delete_option( 'wf_sn_vu_vulns_notice' );
         delete_option( 'wf_sn_vu_last_email' );
+        delete_option( 'wf_sn_vu_last_email_hash' );
         delete_option( 'wf_sn_vulnerabilities_cache' );
         delete_option( 'wf_sn_vulnerabilities_cache_timestamp' );
         delete_option( 'wf_sn_vuln_count' );
         delete_option( 'wf_sn_scan_summary' );
-        wp_clear_scheduled_hook( 'secnin_scan_vulnerabilities' );
-        delete_transient( 'secnin_vuln_scan_running' );
+        delete_option( 'wf_sn_known_vuln_db_counts' );
+        delete_option( 'wf_sn_vu_last_update' );
         // Clean up validator options for all file types.
         foreach ( self::$api_urls as $type => $url ) {
             delete_option( 'wf_sn_vu_file_validators_' . $type );
@@ -2589,38 +2821,36 @@ class Wf_Sn_Vu {
                 continue;
             }
             $findplugin = array_search( $lookup_id, array_column( $vuln_plugin_arr, 'slug' ), true );
-            if ( $findplugin ) {
-                if ( isset( $vuln_plugin_arr[$findplugin]['versionEndExcluding'] ) && '' !== $vuln_plugin_arr[$findplugin]['versionEndExcluding'] ) {
-                    // check #1 - versionEndExcluding
-                    if ( version_compare( $ap['Version'], $vuln_plugin_arr[$findplugin]['versionEndExcluding'], '<' ) ) {
-                        $description = '';
-                        if ( isset( $vuln_plugin_arr[$findplugin]['description'] ) ) {
-                            $description = $vuln_plugin_arr[$findplugin]['description'];
-                        }
-                        $found_vulnerabilities[$lookup_id] = array(
-                            'name'                => $ap['Name'],
-                            'desc'                => $description,
-                            'installedVersion'    => $ap['Version'],
-                            'versionEndExcluding' => $vuln_plugin_arr[$findplugin]['versionEndExcluding'],
-                            'CVE_ID'              => $vuln_plugin_arr[$findplugin]['CVE_ID'],
-                            'refs'                => $vuln_plugin_arr[$findplugin]['refs'],
-                        );
-                    }
+            if ( false !== $findplugin ) {
+                $row = $vuln_plugin_arr[$findplugin];
+                // Same rule as streaming scan + email prune: EndExcluding exclusive, else Impact.
+                if ( !self::installed_version_still_vulnerable( $ap['Version'], $row ) ) {
+                    continue;
                 }
-                // Checks via the versionImpact method
-                if ( isset( $vuln_plugin_arr[$findplugin]['versionImpact'] ) && '' !== $vuln_plugin_arr[$findplugin]['versionImpact'] ) {
-                    if ( version_compare( $ap['Version'], $vuln_plugin_arr[$findplugin]['versionImpact'], '<=' ) ) {
-                        $found_vulnerabilities[$lookup_id] = array(
-                            'name'             => $ap['Name'],
-                            'desc'             => $vuln_plugin_arr[$findplugin]['description'],
-                            'installedVersion' => $ap['Version'],
-                            'versionImpact'    => $vuln_plugin_arr[$findplugin]['versionImpact'],
-                            'CVE_ID'           => $vuln_plugin_arr[$findplugin]['CVE_ID'],
-                            'refs'             => $vuln_plugin_arr[$findplugin]['refs'],
-                        );
-                        if ( isset( $vuln_plugin_arr[$findplugin]['recommendation'] ) ) {
-                            $found_vulnerabilities[$lookup_id]['recommendation'] = $vuln_plugin_arr[$findplugin]['recommendation'];
-                        }
+                $description = '';
+                if ( isset( $row['description'] ) ) {
+                    $description = $row['description'];
+                }
+                if ( isset( $row['versionEndExcluding'] ) && '' !== $row['versionEndExcluding'] ) {
+                    $found_vulnerabilities[$lookup_id] = array(
+                        'name'                => $ap['Name'],
+                        'desc'                => $description,
+                        'installedVersion'    => $ap['Version'],
+                        'versionEndExcluding' => $row['versionEndExcluding'],
+                        'CVE_ID'              => $row['CVE_ID'],
+                        'refs'                => $row['refs'],
+                    );
+                } else {
+                    $found_vulnerabilities[$lookup_id] = array(
+                        'name'             => $ap['Name'],
+                        'desc'             => $description,
+                        'installedVersion' => $ap['Version'],
+                        'versionImpact'    => $row['versionImpact'],
+                        'CVE_ID'           => $row['CVE_ID'],
+                        'refs'             => $row['refs'],
+                    );
+                    if ( isset( $row['recommendation'] ) ) {
+                        $found_vulnerabilities[$lookup_id]['recommendation'] = $row['recommendation'];
                     }
                 }
             }
@@ -2911,13 +3141,12 @@ class Wf_Sn_Vu {
                 continue;
             }
             ++$scan_stats['themes_checked'];
-            // Check for vulnerabilities
+            // Check for vulnerabilities (same rule as plugins: EndExcluding exclusive, else Impact).
             $is_vulnerable = false;
             $vulnerability_data = array();
-            // Check versionEndExcluding
+            // Check versionEndExcluding (raw compare; never rtrim character-class '.0').
             if ( isset( $decoded_line['versionEndExcluding'] ) && '' !== $decoded_line['versionEndExcluding'] ) {
-                $decoded_line['versionEndExcluding'] = rtrim( $decoded_line['versionEndExcluding'], '.0' );
-                if ( version_compare( $installed_theme['Version'], $decoded_line['versionEndExcluding'], '<' ) ) {
+                if ( version_compare( $installed_theme['Version'], (string) $decoded_line['versionEndExcluding'], '<' ) ) {
                     $is_vulnerable = true;
                     $vulnerability_data = array(
                         'name'                => $installed_theme['Name'],
@@ -2927,6 +3156,23 @@ class Wf_Sn_Vu {
                         'CVE_ID'              => $decoded_line['CVE_ID'],
                         'refs'                => ( isset( $decoded_line['refs'] ) ? $decoded_line['refs'] : array() ),
                     );
+                }
+            }
+            // Check versionImpact only when EndExcluding did not already match.
+            if ( !$is_vulnerable && isset( $decoded_line['versionImpact'] ) && '' !== $decoded_line['versionImpact'] ) {
+                if ( version_compare( $installed_theme['Version'], (string) $decoded_line['versionImpact'], '<=' ) ) {
+                    $is_vulnerable = true;
+                    $vulnerability_data = array(
+                        'name'             => $installed_theme['Name'],
+                        'desc'             => ( isset( $decoded_line['description'] ) ? $decoded_line['description'] : '' ),
+                        'installedVersion' => $installed_theme['Version'],
+                        'versionImpact'    => $decoded_line['versionImpact'],
+                        'CVE_ID'           => $decoded_line['CVE_ID'],
+                        'refs'             => ( isset( $decoded_line['refs'] ) ? $decoded_line['refs'] : array() ),
+                    );
+                    if ( isset( $decoded_line['recommendation'] ) ) {
+                        $vulnerability_data['recommendation'] = $decoded_line['recommendation'];
+                    }
                 }
             }
             if ( $is_vulnerable ) {

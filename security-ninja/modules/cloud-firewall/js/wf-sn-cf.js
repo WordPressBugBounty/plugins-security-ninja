@@ -42,6 +42,14 @@ jQuery(document).ready(function ($) {
     $('#wf_sn_cf_blocked_countries').trigger('change');
   });
 
+  $('#wf_sn_cf_ip_source').on('change', function () {
+    var $selected = $(this).find('option:selected');
+    var desc = $selected.data('desc') || '';
+    $('#wf_sn_cf_ip_source_desc').text(desc);
+    $('.sn-cf-ip-source-preview-table tbody tr').removeClass('is-selected');
+    $('.sn-cf-ip-source-preview-table tbody tr').eq(this.selectedIndex).addClass('is-selected');
+  });
+
   $('#sn_cf').on('click', '.testresults h3', function (e) {
     e.preventDefault();
     $(this).parents('.testresults').toggleClass('opened').find('table');

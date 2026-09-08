@@ -23,6 +23,8 @@ class Wf_Sn_El {
 
     private static $watching_actions = false;
 
+    private static $admin_notification_attempted = array();
+
     /**
      * init plugin
      *
@@ -35,53 +37,76 @@ class Wf_Sn_El {
     public static function init() {
         self::$options = get_option( 'wf_sn_el' );
         self::default_settings( false );
-        // Register settings earlier in the init process
+        self::$options = get_option( 'wf_sn_el', array() );
+        if ( !empty( self::$options['notify_new_admin'] ) && !get_option( 'secnin_admin_notify_baseline_v1', false ) ) {
+            self::baseline_admin_notification_state();
+        }
+        // Settings and UI always register so the Events tab stays usable.
         add_action( 'admin_init', array(__CLASS__, 'register_settings') );
         add_action( 'wp_ajax_get_events_data', array(__CLASS__, 'ajax_get_events_data') );
         add_action( 'wp_ajax_get_events_actions', array(__CLASS__, 'ajax_get_events_actions') );
-        // Add the monitor for new admin users
-        add_action( 'user_register', array(__CLASS__, 'monitor_new_admin_creation') );
-        // Schedule hourly check for direct database admin creations
-        if ( !wp_next_scheduled( 'secnin_check_direct_admin_creation' ) ) {
-            wp_schedule_event( time(), 'hourly', 'secnin_check_direct_admin_creation' );
-        }
-        add_action( 'secnin_check_direct_admin_creation', array(__CLASS__, 'check_direct_admin_creation') );
-        if ( is_null( self::$is_active ) ) {
-            self::$is_active = self::is_active();
-        }
+        add_action( 'secnin_prune_logs_cron', array(__NAMESPACE__ . '\\Wf_Sn_El', 'do_cron_prune_logs') );
         if ( is_admin() ) {
-            // add tab to Security Ninja tabs
             add_filter( 'sn_tabs', array(__NAMESPACE__ . '\\Wf_Sn_El', 'sn_tabs') );
             add_action( 'admin_enqueue_scripts', array(__NAMESPACE__ . '\\Wf_Sn_El', 'enqueue_scripts') );
             add_action( 'wp_ajax_sn_el_truncate_log', array(__NAMESPACE__ . '\\Wf_Sn_El', 'ajax_truncate_log') );
-            add_action( 'secnin_prune_logs_cron', array(__NAMESPACE__ . '\\Wf_Sn_El', 'do_cron_prune_logs') );
-            if ( self::$is_active ) {
-                add_action(
-                    'all',
-                    array(__NAMESPACE__ . '\\Wf_Sn_El', 'watch_actions'),
-                    9,
-                    10
-                );
-            }
         }
-        // REST API logging hooks
-        add_filter( 'rest_authentication_errors', array(__CLASS__, 'rest_log_auth_errors'), 999 );
-        add_filter( 'determine_current_user', array(__CLASS__, 'rest_log_determine_user'), 99 );
-        add_filter(
-            'rest_pre_dispatch',
-            array(__CLASS__, 'rest_log_pre_dispatch'),
-            999,
-            3
-        );
-        add_filter(
-            'rest_post_dispatch',
-            array(__CLASS__, 'rest_log_post_dispatch'),
-            999,
-            3
-        );
-        // Schedule the cron job to run twice daily
         if ( !wp_next_scheduled( 'secnin_prune_logs_cron' ) ) {
             wp_schedule_event( time(), 'daily', 'secnin_prune_logs_cron' );
+        }
+        $notify_enabled = self::is_admin_notification_enabled();
+        self::$is_active = self::is_active();
+        // Admin-creation monitors serve two jobs:
+        // 1) Pro email warnings (independent of the master logging switch)
+        // 2) admin_created / role-change rows when Events Logger is on
+        if ( $notify_enabled || self::$is_active ) {
+            add_action( 'user_register', array(__CLASS__, 'monitor_new_admin_creation') );
+            add_action(
+                'set_user_role',
+                array(__CLASS__, 'monitor_admin_role_change'),
+                10,
+                3
+            );
+            add_action(
+                'add_user_role',
+                array(__CLASS__, 'monitor_admin_role_added'),
+                10,
+                2
+            );
+            add_action(
+                'remove_user_role',
+                array(__CLASS__, 'monitor_admin_role_removed'),
+                10,
+                2
+            );
+        }
+        if ( $notify_enabled ) {
+            if ( !wp_next_scheduled( 'secnin_check_direct_admin_creation' ) ) {
+                wp_schedule_event( time(), 'hourly', 'secnin_check_direct_admin_creation' );
+            }
+            add_action( 'secnin_check_direct_admin_creation', array(__CLASS__, 'check_direct_admin_creation') );
+        } else {
+            wp_clear_scheduled_hook( 'secnin_check_direct_admin_creation' );
+        }
+        if ( !self::$is_active ) {
+            return;
+        }
+        // Login failures and many audited events happen outside wp-admin (wp-login.php).
+        // The master switch already gates this; do not also limit it to is_admin().
+        add_action(
+            'all',
+            array(__NAMESPACE__ . '\\Wf_Sn_El', 'watch_actions'),
+            9,
+            10
+        );
+        if ( self::is_rest_error_logging_enabled() ) {
+            add_filter( 'rest_authentication_errors', array(__CLASS__, 'rest_log_auth_errors'), 999 );
+            add_filter(
+                'rest_post_dispatch',
+                array(__CLASS__, 'rest_log_post_dispatch'),
+                999,
+                3
+            );
         }
     }
 
@@ -93,15 +118,10 @@ class Wf_Sn_El {
      */
     public static function monitor_new_admin_creation( $user_id ) {
         $user = get_userdata( $user_id );
-        if ( !$user || !in_array( 'administrator', (array) $user->roles ) ) {
+        if ( !$user || !in_array( 'administrator', (array) $user->roles, true ) ) {
             return;
         }
-        if ( !self::$options['notify_new_admin'] ) {
-            return;
-        }
-        // self::send_admin_notification($user, false); // @todo - when activating this feature, mark existing admins to prevent notifications for existing admin accounts.
-        // Update the last checked ID immediately when a legitimate admin is created
-        update_option( 'secnin_last_checked_admin_id', $user_id );
+        self::maybe_notify_new_administrator( $user_id, false );
         // Log the legitimate creation
         wf_sn_el_modules::log_event(
             'security_ninja',
@@ -115,6 +135,54 @@ class Wf_Sn_El {
                 'user_id' => $user_id,
             )
         );
+    }
+
+    /**
+     * Monitor promotion of an existing user to administrator.
+     *
+     * @param int      $user_id   User ID.
+     * @param string   $role      New role.
+     * @param string[] $old_roles Previous roles.
+     * @return void
+     */
+    public static function monitor_admin_role_change( $user_id, $role, $old_roles ) {
+        $was_administrator = in_array( 'administrator', $old_roles, true );
+        if ( $was_administrator && 'administrator' !== $role ) {
+            self::mark_administrator_unknown( $user_id );
+            return;
+        }
+        if ( 'administrator' !== $role || $was_administrator ) {
+            return;
+        }
+        self::maybe_notify_new_administrator( $user_id, false );
+    }
+
+    /**
+     * Stop treating a user as known when the administrator role is removed.
+     *
+     * @param int    $user_id User ID.
+     * @param string $role    Removed role.
+     * @return void
+     */
+    public static function monitor_admin_role_removed( $user_id, $role ) {
+        if ( 'administrator' !== $role ) {
+            return;
+        }
+        self::mark_administrator_unknown( $user_id );
+    }
+
+    /**
+     * Monitor an administrator role added without replacing existing roles.
+     *
+     * @param int    $user_id User ID.
+     * @param string $role    Added role.
+     * @return void
+     */
+    public static function monitor_admin_role_added( $user_id, $role ) {
+        if ( 'administrator' !== $role ) {
+            return;
+        }
+        self::maybe_notify_new_administrator( $user_id, false );
     }
 
     /**
@@ -145,29 +213,7 @@ class Wf_Sn_El {
     }
 
     /**
-     * Log resolved user during REST requests
-     *
-     * @param int|false $user_id
-     * @return int|false
-     */
-    public static function rest_log_determine_user( $user_id ) {
-        return $user_id;
-    }
-
-    /**
-     * Log pre-dispatch REST errors (short-circuits)
-     *
-     * @param mixed           $result
-     * @param \WP_REST_Server $server
-     * @param \WP_REST_Request $request
-     * @return mixed
-     */
-    public static function rest_log_pre_dispatch( $result, $server, $request ) {
-        return $result;
-    }
-
-    /**
-     * Log REST final error responses and successful post creations
+     * Log REST final error responses
      *
      * @param mixed            $result
      * @param \WP_REST_Server  $server
@@ -212,37 +258,158 @@ class Wf_Sn_El {
      */
     public static function check_direct_admin_creation() {
         global $wpdb;
-        $last_checked_id = get_option( 'secnin_last_checked_admin_id', 0 );
+        if ( !self::is_admin_notification_enabled() ) {
+            return;
+        }
+        if ( !get_option( 'secnin_admin_notify_baseline_v1', false ) ) {
+            self::baseline_admin_notification_state();
+            return;
+        }
         $query = $wpdb->prepare(
-            "SELECT DISTINCT u.ID, u.user_login, u.user_email, u.user_registered \n\t\t\t FROM {$wpdb->users} u \n\t\t\t INNER JOIN {$wpdb->usermeta} um ON u.ID = um.user_id \n\t\t\t WHERE um.meta_key = %s \n\t\t\t AND (\n\t\t\t\t um.meta_value LIKE %s \n\t\t\t\t OR um.meta_value LIKE %s\n\t\t\t\t OR um.meta_value LIKE %s\n\t\t\t )\n\t\t\t AND u.ID > %d",
+            "SELECT DISTINCT u.ID, u.user_login, u.user_email, u.user_registered \n\t\t\t FROM {$wpdb->users} u \n\t\t\t INNER JOIN {$wpdb->usermeta} um ON u.ID = um.user_id \n\t\t\t WHERE um.meta_key = %s \n\t\t\t AND (\n\t\t\t\t um.meta_value LIKE %s \n\t\t\t\t OR um.meta_value LIKE %s\n\t\t\t\t OR um.meta_value LIKE %s\n\t\t\t )\n\t\t\t ORDER BY u.ID ASC",
             $wpdb->prefix . 'capabilities',
             '%administrator%',
             '%s:13:"administrator"%',
-            '%a:1:{s:13:"administrator";b:1}%',
-            $last_checked_id
+            '%a:1:{s:13:"administrator";b:1}%'
         );
+        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Query is prepared above.
         $new_admins = $wpdb->get_results( $query );
         if ( !empty( $new_admins ) ) {
             foreach ( $new_admins as $admin ) {
                 // Check if this admin was created through WordPress (has an action log)
                 $was_created_normally = $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$wpdb->prefix}wf_sn_el \n\t\t\t\t\t WHERE action = %s \n\t\t\t\t\t AND description LIKE %s \n\t\t\t\t\t AND timestamp > DATE_SUB(NOW(), INTERVAL 5 MINUTE)", 'admin_created', '%' . $admin->user_login . '%' ) );
-                // @todo - what if user was created before plugin install
-                // @todo - what if user
                 // Only notify if it wasn't created through WordPress
-                // if (!$was_created_normally) {
-                //  if (isset(self::$options['notify_new_admin']) && self::$options['notify_new_admin']) {
-                //      self::send_admin_notification($admin, true);
-                //  }
-                //  wf_sn_el_modules::log_event(
-                //      'security_ninja',
-                //      'direct_admin_created',
-                //      sprintf(__('WARNING: Administrator account created directly in database: %s', 'security-ninja'), $admin->user_login),
-                //      array('user_id' => $admin->ID)
-                //  );
-                // }
-                update_option( 'secnin_last_checked_admin_id', $admin->ID );
+                if ( !$was_created_normally ) {
+                    if ( self::maybe_notify_new_administrator( $admin->ID, true ) ) {
+                        wf_sn_el_modules::log_event(
+                            'security_ninja',
+                            'direct_admin_created',
+                            sprintf( 
+                                /* translators: %s: administrator username */
+                                __( 'WARNING: Administrator account created directly in database: %s', 'security-ninja' ),
+                                $admin->user_login
+                             ),
+                            array(
+                                'user_id' => $admin->ID,
+                            )
+                        );
+                    }
+                } else {
+                    self::mark_administrator_known( $admin->ID );
+                }
             }
         }
+    }
+
+    /**
+     * Record existing administrators so enabling notifications does not alert on them.
+     *
+     * @since 5.303
+     * @return void
+     */
+    private static function baseline_admin_notification_state() {
+        $admin_ids = self::get_administrator_ids();
+        $max_id = ( !empty( $admin_ids ) ? max( $admin_ids ) : 0 );
+        $options = get_option( 'wf_sn_el', array() );
+        $options = ( is_array( $options ) ? $options : array() );
+        $options['known_admin_ids'] = $admin_ids;
+        self::$options = $options;
+        update_option( 'wf_sn_el', $options );
+        update_option( 'secnin_last_checked_admin_id', $max_id, false );
+        update_option( 'secnin_admin_notify_baseline_v1', 1, false );
+    }
+
+    /**
+     * Get administrator IDs for the current site.
+     *
+     * @return int[]
+     */
+    private static function get_administrator_ids() {
+        $admin_ids = get_users( array(
+            'role'   => 'administrator',
+            'fields' => 'ID',
+        ) );
+        return array_values( array_unique( array_map( 'absint', $admin_ids ) ) );
+    }
+
+    /**
+     * Check whether premium admin notifications are configured.
+     *
+     * @return bool
+     */
+    private static function is_admin_notification_enabled() {
+        $enabled = false;
+        return $enabled;
+    }
+
+    /**
+     * Send one notification for an administrator not already known to the site.
+     *
+     * @param int  $user_id   User ID.
+     * @param bool $is_direct Whether the account appears to have bypassed WordPress.
+     * @return bool True when a notification was attempted.
+     */
+    private static function maybe_notify_new_administrator( $user_id, $is_direct ) {
+        $user_id = absint( $user_id );
+        if ( !$user_id || !self::is_admin_notification_enabled() ) {
+            return false;
+        }
+        $user = get_userdata( $user_id );
+        if ( !$user || !in_array( 'administrator', (array) $user->roles, true ) ) {
+            return false;
+        }
+        $known_ids = ( isset( self::$options['known_admin_ids'] ) ? array_map( 'absint', (array) self::$options['known_admin_ids'] ) : array() );
+        if ( in_array( $user_id, $known_ids, true ) || isset( self::$admin_notification_attempted[$user_id] ) ) {
+            return false;
+        }
+        self::$admin_notification_attempted[$user_id] = true;
+        self::send_admin_notification( $user, $is_direct );
+        self::mark_administrator_known( $user_id );
+        return true;
+    }
+
+    /**
+     * Add an administrator to the persistent notification baseline.
+     *
+     * @param int $user_id User ID.
+     * @return void
+     */
+    private static function mark_administrator_known( $user_id ) {
+        $user_id = absint( $user_id );
+        if ( !$user_id ) {
+            return;
+        }
+        $options = get_option( 'wf_sn_el', array() );
+        $options = ( is_array( $options ) ? $options : array() );
+        $known_ids = ( isset( $options['known_admin_ids'] ) ? array_map( 'absint', (array) $options['known_admin_ids'] ) : array() );
+        if ( !in_array( $user_id, $known_ids, true ) ) {
+            $known_ids[] = $user_id;
+        }
+        $options['known_admin_ids'] = array_values( array_unique( $known_ids ) );
+        self::$options = $options;
+        update_option( 'wf_sn_el', $options );
+        update_option( 'secnin_last_checked_admin_id', max( $known_ids ), false );
+    }
+
+    /**
+     * Remove a user from the persistent notification baseline.
+     *
+     * @param int $user_id User ID.
+     * @return void
+     */
+    private static function mark_administrator_unknown( $user_id ) {
+        $user_id = absint( $user_id );
+        $options = get_option( 'wf_sn_el', array() );
+        if ( !$user_id || !is_array( $options ) || empty( $options['known_admin_ids'] ) ) {
+            return;
+        }
+        $known_ids = array_map( 'absint', (array) $options['known_admin_ids'] );
+        $known_ids = array_values( array_diff( $known_ids, array($user_id) ) );
+        $options['known_admin_ids'] = $known_ids;
+        self::$options = $options;
+        unset(self::$admin_notification_attempted[$user_id]);
+        update_option( 'wf_sn_el', $options );
+        update_option( 'secnin_last_checked_admin_id', ( empty( $known_ids ) ? 0 : max( $known_ids ) ), false );
     }
 
     /**
@@ -259,7 +426,7 @@ class Wf_Sn_El {
         $headers = array('Content-Type: text/html; charset=UTF-8');
         try {
             add_filter( 'wp_mail_content_type', array(__NAMESPACE__ . '\\Wf_Sn_El', 'sn_set_html_mail_content_type') );
-            $is_whitelabel = class_exists( '\\WPSecurityNinja\\Plugin\\Wf_Sn_Wl' ) && 1 === \WPSecurityNinja\Plugin\Wf_Sn_Wl::is_active();
+            $is_whitelabel = false;
             // Set subject based on creation type and white label status
             if ( $is_direct_creation ) {
                 $subject = ( $is_whitelabel ? sprintf( 
@@ -394,8 +561,12 @@ class Wf_Sn_El {
         }
         // Get DataTables parameters
         $draw = intval( $_POST['draw'] );
-        $start = intval( $_POST['start'] );
+        $start = max( 0, intval( $_POST['start'] ) );
         $length = intval( $_POST['length'] );
+        $max_length = 500;
+        if ( $length < 0 || $length > $max_length ) {
+            $length = $max_length;
+        }
         $search = sanitize_text_field( $_POST['search']['value'] ?? '' );
         $action_filter = sanitize_text_field( $_POST['action_filter'] ?? '' );
         $order = $_POST['order'] ?? array();
@@ -597,6 +768,24 @@ class Wf_Sn_El {
     }
 
     /**
+     * Whether broad REST API error logging is enabled.
+     *
+     * Requires the global Events Logger switch to be on.
+     *
+     * @since 5.303
+     * @return bool
+     */
+    public static function is_rest_error_logging_enabled() {
+        if ( !self::is_active() ) {
+            return false;
+        }
+        if ( !is_array( self::$options ) ) {
+            self::$options = get_option( 'wf_sn_el', array() );
+        }
+        return !empty( self::$options['rest_error_logging'] );
+    }
+
+    /**
      * enqueue CSS and JS scripts on plugin's admin page
      *
      * @author  Lars Koudal
@@ -689,6 +878,7 @@ class Wf_Sn_El {
     public static function get_baseline_options() {
         $options = array(
             'active'                       => 1,
+            'rest_error_logging'           => 0,
             'email_reports'                => '',
             'email_modules'                => array(
                 'users',
@@ -706,11 +896,11 @@ class Wf_Sn_El {
             ),
             'email_to'                     => get_option( 'admin_email' ),
             'retention'                    => 'day-7',
-            'remove_settings_deactivate'   => 0,
             'notify_new_admin'             => 0,
             'new_admin_notification_email' => get_option( 'admin_email' ),
+            'known_admin_ids'              => array(),
         );
-        if ( function_exists( 'secnin_fs' ) && is_object( secnin_fs() ) ) {
+        if ( function_exists( __NAMESPACE__ . '\\secnin_fs' ) && is_object( secnin_fs() ) ) {
         }
         return $options;
     }
@@ -766,8 +956,8 @@ class Wf_Sn_El {
                 $old_options = array();
             }
             // Normalize existing boolean values
-            $boolean_keys = array('active', 'notify_new_admin');
-            if ( function_exists( 'secnin_fs' ) && is_object( secnin_fs() ) ) {
+            $boolean_keys = array('active', 'rest_error_logging', 'notify_new_admin');
+            if ( function_exists( __NAMESPACE__ . '\\secnin_fs' ) && is_object( secnin_fs() ) ) {
             }
             foreach ( $boolean_keys as $key ) {
                 if ( isset( $old_options[$key] ) ) {
@@ -781,9 +971,12 @@ class Wf_Sn_El {
             $old_options = array();
         }
         $new_options = $old_options;
+        $can_notify = false;
+        if ( function_exists( __NAMESPACE__ . '\\secnin_fs' ) && is_object( secnin_fs() ) ) {
+        }
         // Add to boolean_keys array
-        $boolean_keys = array('active', 'notify_new_admin');
-        if ( function_exists( 'secnin_fs' ) && is_object( secnin_fs() ) ) {
+        $boolean_keys = array('active', 'rest_error_logging', 'notify_new_admin');
+        if ( function_exists( __NAMESPACE__ . '\\secnin_fs' ) && is_object( secnin_fs() ) ) {
         }
         // Ensure all boolean keys are normalized to 0/1, defaulting to 0 if not present
         foreach ( $boolean_keys as $key ) {
@@ -799,11 +992,12 @@ class Wf_Sn_El {
             switch ( $key ) {
                 case 'retention':
                 case 'email_reports':
-                case 'email_to':
-                case 'remove_settings_deactivate':
-                case 'new_admin_notification_email':
                     // Sanitize text fields
                     $new_options[$key] = sanitize_text_field( $value );
+                    break;
+                case 'email_to':
+                case 'new_admin_notification_email':
+                    $new_options[$key] = sanitize_email( $value );
                     break;
                 case 'email_modules':
                     // Ensure array values are sanitized
@@ -813,11 +1007,117 @@ class Wf_Sn_El {
                     break;
             }
         }
-        if ( function_exists( 'secnin_fs' ) && is_object( secnin_fs() ) ) {
+        if ( function_exists( __NAMESPACE__ . '\\secnin_fs' ) && is_object( secnin_fs() ) ) {
         }
         // Optional: Check and initialize missing fields if necessary
         $new_options['email_modules'] = $new_options['email_modules'] ?? array();
+        if ( !$can_notify ) {
+            $new_options['notify_new_admin'] = 0;
+        }
+        $was_enabled = !empty( $old_options['notify_new_admin'] );
+        $is_enabled = !empty( $new_options['notify_new_admin'] );
+        if ( !$was_enabled && $is_enabled ) {
+            $admin_ids = self::get_administrator_ids();
+            $new_options['known_admin_ids'] = $admin_ids;
+            update_option( 'secnin_last_checked_admin_id', ( empty( $admin_ids ) ? 0 : max( $admin_ids ) ), false );
+            update_option( 'secnin_admin_notify_baseline_v1', 1, false );
+        }
         return $new_options;
+    }
+
+    /**
+     * Sanitize Events Logger options from Tools import / remote sync payloads.
+     *
+     * Unlike sanitize_settings(), this does not merge missing booleans from the
+     * destination site. Site-local keys (known admin IDs, last reported event)
+     * are stripped. Older exports without rest_error_logging default it to off.
+     *
+     * @since 5.303
+     * @param mixed $values Raw imported options.
+     * @return array<string, mixed>
+     */
+    public static function sanitize_imported_settings( $values ) {
+        $baseline = self::get_baseline_options();
+        if ( !is_array( $values ) ) {
+            return $baseline;
+        }
+        unset($values['known_admin_ids'], $values['last_reported_event']);
+        if ( !array_key_exists( 'rest_error_logging', $values ) ) {
+            $values['rest_error_logging'] = 0;
+        }
+        $options = array_merge( $baseline, $values );
+        unset($options['known_admin_ids'], $options['last_reported_event']);
+        $boolean_keys = array('active', 'rest_error_logging', 'notify_new_admin');
+        if ( function_exists( __NAMESPACE__ . '\\secnin_fs' ) && is_object( secnin_fs() ) ) {
+        }
+        foreach ( $boolean_keys as $key ) {
+            if ( array_key_exists( $key, $options ) ) {
+                $options[$key] = \WPSecurityNinja\Plugin\Utils::normalize_flag( $options[$key] );
+            }
+        }
+        if ( isset( $options['retention'] ) ) {
+            $options['retention'] = sanitize_text_field( $options['retention'] );
+        }
+        if ( isset( $options['email_reports'] ) ) {
+            $options['email_reports'] = sanitize_text_field( $options['email_reports'] );
+        }
+        if ( isset( $options['email_to'] ) ) {
+            $options['email_to'] = sanitize_email( $options['email_to'] );
+        }
+        if ( isset( $options['new_admin_notification_email'] ) ) {
+            $options['new_admin_notification_email'] = sanitize_email( $options['new_admin_notification_email'] );
+        }
+        if ( isset( $options['email_modules'] ) && is_array( $options['email_modules'] ) ) {
+            $options['email_modules'] = array_map( 'sanitize_text_field', $options['email_modules'] );
+        } else {
+            $options['email_modules'] = ( isset( $baseline['email_modules'] ) ? $baseline['email_modules'] : array() );
+        }
+        if ( function_exists( __NAMESPACE__ . '\\secnin_fs' ) && is_object( secnin_fs() ) ) {
+        }
+        return $options;
+    }
+
+    /**
+     * Sanitize and validate a webhook URL (HTTPS only, no SSRF targets).
+     *
+     * @param mixed $url Raw URL.
+     * @return string Empty string when invalid.
+     */
+    public static function sanitize_webhook_url( $url ) {
+        $url = esc_url_raw( trim( (string) $url ) );
+        if ( '' === $url ) {
+            return '';
+        }
+        if ( !self::is_safe_webhook_url( $url ) ) {
+            return '';
+        }
+        return $url;
+    }
+
+    /**
+     * Whether a webhook URL is safe to request (public HTTPS endpoint).
+     *
+     * @param string $url Validated URL.
+     * @return bool
+     */
+    public static function is_safe_webhook_url( $url ) {
+        if ( !is_string( $url ) || '' === $url ) {
+            return false;
+        }
+        if ( !filter_var( $url, FILTER_VALIDATE_URL ) ) {
+            return false;
+        }
+        $parts = wp_parse_url( $url );
+        if ( empty( $parts['scheme'] ) || 'https' !== strtolower( $parts['scheme'] ) ) {
+            return false;
+        }
+        if ( empty( $parts['host'] ) ) {
+            return false;
+        }
+        if ( function_exists( 'wp_http_validate_url' ) ) {
+            return (bool) wp_http_validate_url( $url );
+        }
+        return true;
     }
 
     /**
@@ -1092,6 +1392,14 @@ class Wf_Sn_El {
         $options = get_option( 'wf_sn_el' );
         $options['last_reported_event'] = 0;
         update_option( 'wf_sn_el', $options, false );
+        wf_sn_el_modules::log_event(
+            'security_ninja',
+            'events_log_cleared',
+            __( 'Events log truncated by administrator.', 'security-ninja' ),
+            array(
+                'user_id' => get_current_user_id(),
+            )
+        );
         $wpdb->query( 'TRUNCATE TABLE ' . $wpdb->prefix . 'wf_sn_el' );
         wp_send_json_success( array(
             'message' => __( 'Emptied the log.', 'security-ninja' ),
@@ -1494,15 +1802,30 @@ class Wf_Sn_El {
 													<p class="description"><?php 
         esc_html_e( 'If enabled events happening on your website will be logged here.', 'security-ninja' );
         ?></p>
-													<p class="description"><?php 
-        esc_html_e( 'Note - Some important events will still be logged here.', 'security-ninja' );
-        ?></p>
 												</label></th>
 											<td class="sn-cf-options">
 												<?php 
         \WPSecurityNinja\Plugin\Utils::create_toggle_switch( 'wf_sn_el_active', array(
             'saved_value' => self::$options['active'],
             'option_key'  => 'wf_sn_el[active]',
+        ) );
+        ?>
+											</td>
+										</tr>
+										<tr valign="top">
+											<th scope="row"><label for="wf_sn_el_rest_error_logging">
+													<h3><?php 
+        esc_html_e( 'Log REST API errors', 'security-ninja' );
+        ?></h3>
+													<p class="description"><?php 
+        esc_html_e( 'When enabled, REST authentication failures and HTTP 400+ responses are written to the Events log. Keep this off on API-heavy sites unless you need those diagnostics.', 'security-ninja' );
+        ?></p>
+												</label></th>
+											<td class="sn-cf-options">
+												<?php 
+        \WPSecurityNinja\Plugin\Utils::create_toggle_switch( 'wf_sn_el_rest_error_logging', array(
+            'saved_value' => ( isset( self::$options['rest_error_logging'] ) ? self::$options['rest_error_logging'] : 0 ),
+            'option_key'  => 'wf_sn_el[rest_error_logging]',
         ) );
         ?>
 											</td>
@@ -1624,17 +1947,18 @@ class Wf_Sn_El {
      * @return  void
      */
     public static function deactivate() {
-        if ( !isset( self::$options['remove_settings_deactivate'] ) ) {
-            return;
-        }
-        if ( self::$options['remove_settings_deactivate'] ) {
-            global $wpdb;
-            delete_option( 'wf_sn_el' );
-            $wpdb->query( 'DROP TABLE IF EXISTS ' . $wpdb->prefix . 'wf_sn_el' );
-        }
         // Clear both old and new cron jobs
         wp_clear_scheduled_hook( 'wf_sn_check_new_admins' );
         wp_clear_scheduled_hook( 'secnin_check_direct_admin_creation' );
+        wp_clear_scheduled_hook( 'secnin_prune_logs_cron' );
+        if ( !\WPSecurityNinja\Plugin\Utils::should_remove_settings_on_deactivate() ) {
+            return;
+        }
+        global $wpdb;
+        delete_option( 'wf_sn_el' );
+        delete_option( 'secnin_last_checked_admin_id' );
+        delete_option( 'secnin_admin_notify_baseline_v1' );
+        $wpdb->query( 'DROP TABLE IF EXISTS ' . $wpdb->prefix . 'wf_sn_el' );
     }
 
 }

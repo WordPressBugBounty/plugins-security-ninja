@@ -87,6 +87,9 @@ class Wf_Sn_Dashboard_Widget {
      * @return  void
      */
     public static function add_dashboard_widgets() {
+        if ( !current_user_can( 'manage_options' ) ) {
+            return;
+        }
         $widget_title = 'WP Security Ninja';
         wp_add_dashboard_widget( 'wpsn_dashboard_widget', $widget_title, array(__NAMESPACE__ . '\\Wf_Sn_Dashboard_Widget', 'wpsn_dashboard_widget_render') );
     }
@@ -101,6 +104,9 @@ class Wf_Sn_Dashboard_Widget {
      * @return  void
      */
     public static function wpsn_dashboard_widget_render() {
+        if ( !current_user_can( 'manage_options' ) ) {
+            return;
+        }
         // Check if whitelabel is active
         echo '<div class="secnin-dashboard-widget">';
         // Render updates section

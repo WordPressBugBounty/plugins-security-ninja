@@ -428,6 +428,14 @@ class Utils {
             switch ( $post_data['action'] ) {
                 // *** Run all tests
                 case 'run_all_tests':
+                    $rate_limit = self::mainwp_rate_limit_action( 'run_all_tests', 60 );
+                    if ( is_wp_error( $rate_limit ) ) {
+                        $info['secnin_run_all_tests'] = array(
+                            'ran'     => false,
+                            'message' => $rate_limit->get_error_message(),
+                        );
+                        break;
+                    }
                     do_action( 'secnin_run_tests_event' );
                     $info['secnin_run_all_tests'] = array(
                         'ran'     => true,
@@ -505,6 +513,11 @@ class Utils {
             'success' => false,
             'message' => '',
         );
+        $rate_limit = self::mainwp_rate_limit_action( 'update_vulnerabilities', 60 );
+        if ( is_wp_error( $rate_limit ) ) {
+            $response['message'] = $rate_limit->get_error_message();
+            return $response;
+        }
         if ( !class_exists( __NAMESPACE__ . '\\wf_sn_vu' ) ) {
             $response['message'] = __( 'Vulnerability Scanner is not available on this site.', 'security-ninja' );
             return $response;
@@ -564,6 +577,11 @@ class Utils {
         $allow = self::get_mainwp_settings_allowlist();
         $map = self::get_mainwp_settings_option_map();
         $whole_option = self::get_mainwp_whole_option_modules();
+        $fixes_option_key = ( isset( $map['fixes'] ) ? $map['fixes'] : 'wf_sn_fixes' );
+        $previous_fixes = get_option( $fixes_option_key, array() );
+        if ( !is_array( $previous_fixes ) ) {
+            $previous_fixes = array();
+        }
         foreach ( $patch as $module => $keys ) {
             $module = sanitize_key( $module );
             if ( !is_array( $keys ) || !isset( $map[$module] ) ) {
@@ -635,11 +653,13 @@ class Utils {
             }
             update_option( $option_key, $existing, false );
         }
+        $applied_count = count( $response['applied'] );
+        $response['success'] = $applied_count > 0;
+        if ( $applied_count > 0 ) {
+        }
         if ( class_exists( __NAMESPACE__ . '\\wf_sn' ) && method_exists( __NAMESPACE__ . '\\wf_sn', 'return_global_options__premium_only' ) ) {
             $response['options'] = \WPSecurityNinja\Plugin\wf_sn::return_global_options__premium_only();
         }
-        $applied_count = count( $response['applied'] );
-        $response['success'] = $applied_count > 0;
         if ( $applied_count > 0 ) {
             $response['message'] = sprintf( 
                 /* translators: %d: number of settings */
@@ -669,12 +689,33 @@ class Utils {
                     'source'        => 'mainwp',
                     'changed_count' => $applied_count,
                     'applied_keys'  => $applied_keys,
+                    'skipped_keys'  => ( isset( $response['skipped'] ) ? $response['skipped'] : array() ),
                 )
             );
         } else {
             $response['message'] = __( 'No settings were updated.', 'security-ninja' );
         }
         return $response;
+    }
+
+    /**
+     * Light rate limit for MainWP remote actions (per site).
+     *
+     * @param string $action Action slug.
+     * @param int    $seconds Window in seconds.
+     * @return true|\WP_Error
+     */
+    public static function mainwp_rate_limit_action( $action, $seconds = 60 ) {
+        $action = sanitize_key( (string) $action );
+        if ( '' === $action ) {
+            return true;
+        }
+        $key = 'secnin_mainwp_rl_' . $action;
+        if ( get_transient( $key ) ) {
+            return new \WP_Error('secnin_mainwp_rate_limited', __( 'This action was requested too recently. Please wait a minute and try again.', 'security-ninja' ));
+        }
+        set_transient( $key, 1, max( 1, (int) $seconds ) );
+        return true;
     }
 
     /**
@@ -724,6 +765,21 @@ class Utils {
         $firewall['404guard_window'] = 'int';
         $firewall['404guard_block_time'] = 'int';
         $firewall['blocked_countries'] = 'country_codes';
+        $firewall['2fa_grace_period'] = 'int';
+        $firewall['2fa_intro'] = 'text';
+        $firewall['2fa_enter_code'] = 'text';
+        $firewall['satellite_soft_asns'] = 'asn_list';
+        $firewall['woo_checkout_rate_limit'] = 'int';
+        $firewall['woo_checkout_window'] = 'int';
+        $firewall['woo_add_to_cart_limit'] = 'int';
+        $firewall['woo_add_to_cart_window'] = 'int';
+        $firewall['woo_order_rate_limit'] = 'int';
+        $firewall['woo_order_window'] = 'int';
+        $firewall['woo_coupon_failed_attempts'] = 'int';
+        $firewall['woo_coupon_window'] = 'int';
+        $firewall['woo_coupon_ban_time'] = 'int';
+        $firewall['ip_source'] = 'ip_source';
+        $firewall['trusted_proxy_cidrs'] = 'cidr_list';
         $vulns = array(
             'enable_vulns'              => 'bool',
             'enable_admin_notification' => 'bool',
@@ -734,6 +790,7 @@ class Utils {
         );
         $eventslogger = array(
             'active'                       => 'bool',
+            'rest_error_logging'           => 'bool',
             'email_reports'                => 'text',
             'webhook_active'               => 'bool',
             'webhook_firewall_events'      => 'bool',
@@ -854,9 +911,78 @@ class Utils {
                 return self::sanitize_mainwp_path_list( $value );
             case 'malware_whitelist':
                 return self::sanitize_mainwp_malware_whitelist( $value );
+            case 'asn_list':
+                return self::sanitize_mainwp_asn_list( $value );
+            case 'ip_source':
+                if ( class_exists( __NAMESPACE__ . '\\Wf_sn_cf' ) ) {
+                    return \WPSecurityNinja\Plugin\Wf_sn_cf::normalize_ip_source( $value );
+                }
+                $source = ( is_string( $value ) ? sanitize_key( $value ) : 'auto' );
+                return ( in_array( $source, array(
+                    'auto',
+                    'remote_addr',
+                    'cf_connecting_ip',
+                    'x_forwarded_for',
+                    'x_real_ip'
+                ), true ) ? $source : 'auto' );
+            case 'cidr_list':
+                if ( class_exists( __NAMESPACE__ . '\\Wf_sn_cf' ) ) {
+                    return \WPSecurityNinja\Plugin\Wf_sn_cf::sanitize_trusted_proxy_cidrs( $value );
+                }
+                return self::sanitize_mainwp_cidr_list( $value );
             default:
                 return sanitize_text_field( (string) $value );
         }
+    }
+
+    /**
+     * Sanitize trusted proxy CIDR list for MainWP settings apply.
+     *
+     * @param mixed $value Raw value (array or newline string).
+     * @return string[]
+     */
+    public static function sanitize_mainwp_cidr_list( $value ) {
+        if ( class_exists( __NAMESPACE__ . '\\Wf_sn_cf' ) ) {
+            return \WPSecurityNinja\Plugin\Wf_sn_cf::sanitize_trusted_proxy_cidrs( $value );
+        }
+        if ( is_string( $value ) ) {
+            $value = preg_split( '/\\r\\n|\\r|\\n/', $value );
+        }
+        if ( !is_array( $value ) ) {
+            return array();
+        }
+        return array_values( array_unique( array_map( 'sanitize_text_field', $value ) ) );
+    }
+
+    /**
+     * Sanitize satellite/ASN numbers for MainWP settings apply.
+     *
+     * @param mixed $value Raw value (array, comma/space string).
+     * @return string[]
+     */
+    public static function sanitize_mainwp_asn_list( $value ) {
+        if ( is_string( $value ) ) {
+            $value = preg_split(
+                '/[\\s,]+/',
+                $value,
+                -1,
+                PREG_SPLIT_NO_EMPTY
+            );
+        }
+        if ( !is_array( $value ) ) {
+            return array('14593');
+        }
+        $out = array();
+        foreach ( $value as $part ) {
+            $part = trim( (string) $part );
+            if ( preg_match( '/^\\d+$/', $part ) ) {
+                $out[] = $part;
+            }
+        }
+        if ( empty( $out ) ) {
+            return array('14593');
+        }
+        return array_values( array_unique( $out ) );
     }
 
     /**
@@ -1700,6 +1826,172 @@ class Utils {
         }
         // For any other type, use truthiness check
         return ( $value ? 1 : 0 );
+    }
+
+    /**
+     * Whether plugin data should be removed during deactivation.
+     *
+     * The main Security Ninja option is the single source of truth for every
+     * module. Deactivation hooks must use this helper before deleting options,
+     * tables, user data, or files.
+     *
+     * @since 5.303
+     * @return bool
+     */
+    public static function should_remove_settings_on_deactivate() {
+        $options = get_option( 'wf_sn_options', array() );
+        return is_array( $options ) && isset( $options['remove_settings_deactivate'] ) && 1 === self::normalize_flag( $options['remove_settings_deactivate'] );
+    }
+
+    /**
+     * Remove Security Ninja data for deactivation or uninstall.
+     *
+     * Deactivation preserves the Freemius license state. Uninstall removes it.
+     * The central option is deleted last so module deactivation callbacks can
+     * still read the user's cleanup preference.
+     *
+     * @since 5.303
+     * @param string $context Either deactivate or uninstall.
+     * @return void
+     */
+    public static function remove_plugin_data( $context ) {
+        if ( !in_array( $context, array('deactivate', 'uninstall'), true ) ) {
+            return;
+        }
+        global $wpdb;
+        if ( class_exists( '\\WPSecurityNinja\\Plugin\\AiAdvisor\\Wf_Sn_Ai_Advisor', false ) ) {
+            \WPSecurityNinja\Plugin\AiAdvisor\Wf_Sn_Ai_Advisor::clear_history();
+        }
+        $table_names = array(
+            $wpdb->prefix . 'wf_sn_tests',
+            $wpdb->prefix . 'wf_sn_el',
+            $wpdb->prefix . 'wf_sn_cf_bl_ips',
+            $wpdb->prefix . 'wf_sn_cf_vl',
+            $wpdb->prefix . 'wf_sn_ss_log',
+            $wpdb->prefix . 'wf_sn_ai_reports'
+        );
+        foreach ( $table_names as $table_name ) {
+            // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Names use the trusted WordPress table prefix.
+            $wpdb->query( 'DROP TABLE IF EXISTS ' . $table_name );
+        }
+        $option_names = array(
+            'wf_sn_results',
+            'wf_sn_active_plugins',
+            'wf_sn_review_notice',
+            'wf_sn_tests',
+            'wf_sn_db_version',
+            'wf_sn_cf_ip_lookup_cleanup',
+            'wf_sn_settings_migrated',
+            'wf_sn_api_allowed_origins',
+            'wf_sn_api_access_logs',
+            'wf_sn_encryption_key',
+            'wf_sn_encryption_key_old',
+            'wf_sn_site_id',
+            'wf_sn_ai_advisor',
+            'wf_sn_ai_reevaluate_pending',
+            'wf_sn_cf',
+            'wf_sn_cf_ips',
+            'wf_sn_cf_vl',
+            'wf_sn_cf_bl_ips',
+            'wf_sn_cf_blocked_count',
+            'wf_sn_cf_blocked_today',
+            'wf_sn_banned_ips',
+            'wf_sn_cf_validated_crawlers',
+            'wf_sn_cf_ai_crawler_ranges',
+            'wf_sn_el',
+            'secnin_last_checked_admin_id',
+            'secnin_notify_new_admin_since',
+            'secnin_admin_notify_baseline_v1',
+            'wf_sn_vu_settings_group',
+            'wf_sn_vu_vulns',
+            'wf_sn_vu_outdated',
+            'wf_sn_vu_settings',
+            'wf_sn_vu_vulns_notice',
+            'wf_sn_vu_last_email',
+            'wf_sn_vu_last_email_hash',
+            'wf_sn_vulnerabilities_cache',
+            'wf_sn_vulnerabilities_cache_timestamp',
+            'wf_sn_vuln_count',
+            'wf_sn_scan_summary',
+            'wf_sn_known_vuln_db_counts',
+            'wf_sn_vu_last_update',
+            'wf_sn_vu_file_validators_plugins',
+            'wf_sn_vu_file_validators_themes',
+            'wf_sn_vu_file_validators_wordpress',
+            'wf_sn_ms_options',
+            'wf_sn_ms_results',
+            'wf_sn_ms_integrity_results',
+            'wf_sn_ms_cache',
+            'wf_sn_ms_whitelist',
+            'wf_sn_ms_deletelist',
+            'wf_sn_ms_scan_total_time',
+            'wf_sn_ms_sk',
+            'wf_sn_ms_iv',
+            'wf_sn_ms_last_pattern_update',
+            'wf_sn_ss',
+            'wf_sn_af',
+            'wf_sn_fixes',
+            'wf_sn_wl',
+            'secnin_2fa_passphrase',
+            'secnin_activation_redirect',
+            'secnin_license_activation_redirect',
+            'secnin_fs_migrated2fs'
+        );
+        foreach ( $option_names as $option_name ) {
+            delete_option( $option_name );
+        }
+        delete_transient( 'wf_sn_ai_advisor_pending_snapshot' );
+        delete_transient( 'wf_sn_ai_advisor_pending_meta' );
+        delete_transient( 'secnin_vuln_scan_running' );
+        delete_transient( 'secnin_vuln_email_retry_scheduled' );
+        $user_meta_keys = array(
+            'sn_last_login',
+            'secnin_2fa_secret',
+            'secnin_2fa_setup_complete',
+            'secnin_2fa_code_validated',
+            'secnin_2fa_session_validated',
+            'secnin_2fa_optin',
+            'secnin_2fa_method'
+        );
+        foreach ( $user_meta_keys as $user_meta_key ) {
+            delete_metadata(
+                'user',
+                0,
+                $user_meta_key,
+                '',
+                true
+            );
+        }
+        if ( class_exists( __NAMESPACE__ . '\\Wf_sn_cf', false ) ) {
+            \WPSecurityNinja\Plugin\Wf_sn_cf::delete_all_ip_lookup_transients();
+        }
+        if ( class_exists( __NAMESPACE__ . '\\Wf_sn_cs', false ) ) {
+            \WPSecurityNinja\Plugin\Wf_sn_cs::load_utils();
+            if ( is_multisite() && !is_main_site() ) {
+                delete_option( \WPSecurityNinja\Plugin\Wf_Sn_Cs_Utils::RESULTS_OPTION );
+                delete_option( \WPSecurityNinja\Plugin\Wf_Sn_Cs_Utils::USER_IGNORE_OPTION );
+            } else {
+                \WPSecurityNinja\Plugin\Wf_Sn_Cs_Utils::delete_scan_results();
+                \WPSecurityNinja\Plugin\Wf_Sn_Cs_Utils::delete_user_ignored_files();
+                if ( is_multisite() ) {
+                    delete_option( \WPSecurityNinja\Plugin\Wf_Sn_Cs_Utils::RESULTS_OPTION );
+                    delete_option( \WPSecurityNinja\Plugin\Wf_Sn_Cs_Utils::USER_IGNORE_OPTION );
+                }
+            }
+        }
+        if ( !function_exists( 'WP_Filesystem' ) ) {
+            require_once ABSPATH . 'wp-admin/includes/file.php';
+        }
+        WP_Filesystem();
+        global $wp_filesystem;
+        $upload_dir = wp_upload_dir();
+        if ( $wp_filesystem && empty( $upload_dir['error'] ) ) {
+            $wp_filesystem->delete( trailingslashit( $upload_dir['basedir'] ) . 'security-ninja', true );
+        }
+        if ( 'uninstall' === $context ) {
+            delete_option( 'wfsn_freemius_state' );
+        }
+        delete_option( 'wf_sn_options' );
     }
 
 }
