@@ -302,15 +302,21 @@ class Wf_Sn_Dashboard_Widget {
             $state = (int) $cached['state'];
             $last_reviewed = ( isset( $cached['last_reviewed'] ) ? $cached['last_reviewed'] : '' );
             $teaser = ( isset( $cached['teaser'] ) ? $cached['teaser'] : '' );
+            $schedule_enabled = !empty( $cached['schedule_enabled'] );
+            $schedule_status = ( isset( $cached['schedule_status'] ) ? $cached['schedule_status'] : '' );
         } else {
             $ai = \WPSecurityNinja\Plugin\AiAdvisor\Wf_Sn_Ai_Advisor::get_card_state();
             $state = (int) $ai['state'];
             $last_reviewed = $ai['last_reviewed'];
             $teaser = $ai['teaser'];
+            $schedule_enabled = !empty( $ai['schedule_enabled'] );
+            $schedule_status = ( isset( $ai['schedule_status'] ) ? $ai['schedule_status'] : '' );
             set_transient( $cache_key, array(
-                'state'         => $state,
-                'last_reviewed' => $last_reviewed,
-                'teaser'        => $teaser,
+                'state'            => $state,
+                'last_reviewed'    => $last_reviewed,
+                'teaser'           => $teaser,
+                'schedule_enabled' => $schedule_enabled,
+                'schedule_status'  => $schedule_status,
             ), 5 * MINUTE_IN_SECONDS );
         }
         $advisor_url = admin_url( 'admin.php?page=wf-sn-advisor' );
@@ -352,7 +358,13 @@ class Wf_Sn_Dashboard_Widget {
         }
         ?>
 					<?php 
-        if ( 2 === $state ) {
+        if ( 2 === $state && $schedule_enabled && '' !== $schedule_status ) {
+            ?>
+						<p class="description secnin-advisor-hint" style="margin: 0.5em 0 0; font-size: 12px;"><?php 
+            echo esc_html( $schedule_status );
+            ?></p>
+					<?php 
+        } elseif ( 2 === $state && !$last_reviewed ) {
             ?>
 						<p class="description secnin-advisor-hint" style="margin: 0.5em 0 0; font-size: 12px;"><?php 
             esc_html_e( 'Run Security Tests first, then generate for latest results.', 'security-ninja' );
@@ -374,7 +386,7 @@ class Wf_Sn_Dashboard_Widget {
             ?>" class="secnin-card-link secnin-card-link--advisor">
 							<?php 
             if ( 2 === $state && $last_reviewed ) {
-                esc_html_e( 'Ask AI what to fix first', 'security-ninja' );
+                esc_html_e( 'View latest review', 'security-ninja' );
             } elseif ( 2 === $state ) {
                 esc_html_e( 'Generate AI review', 'security-ninja' );
             } else {

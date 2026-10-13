@@ -66,7 +66,7 @@ class Wf_Sn_Cs {
         $directory = rtrim( wp_normalize_path( $directory ), '/' );
         $filepath = wp_normalize_path( $filepath );
         $prefix = $directory . '/';
-        return str_starts_with( $filepath, $prefix );
+        return 0 === strpos( $filepath, $prefix );
     }
 
     /**
@@ -1824,7 +1824,7 @@ class Wf_Sn_Cs {
 			<div class="sn-cs-primary-actions">
 				<input type="button" value="<?php 
         echo esc_attr__( 'Scan Core Files', 'security-ninja' );
-        ?>" id="sn-run-core-scan" class="button button-primary button-large button-hero sn-cs-run-scan" data-issue-count="<?php 
+        ?>" id="sn-run-core-scan" class="button button-primary button-large button-hero sn-cta sn-cs-run-scan" data-issue-count="<?php 
         echo esc_attr( (string) $issue_count );
         ?>" />
 				<span class="spinner sn-cs-scan-spinner"></span>

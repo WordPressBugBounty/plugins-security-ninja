@@ -10,6 +10,12 @@ define( 'WF_SN_CF_OPTIONS_KEY', 'wf_sn_cf' );
 if ( !defined( 'WF_SN_CF_VALIDATED_CRAWLERS' ) ) {
     define( 'WF_SN_CF_VALIDATED_CRAWLERS', 'wf_sn_cf_validated_crawlers' );
 }
+if ( !defined( 'WF_SN_CF_NETWORK_REPORT_QUEUE' ) ) {
+    define( 'WF_SN_CF_NETWORK_REPORT_QUEUE', 'wf_sn_cf_network_report_queue' );
+}
+if ( !defined( 'WF_SN_CF_NETWORK_REPORT_BACKOFF' ) ) {
+    define( 'WF_SN_CF_NETWORK_REPORT_BACKOFF', 'wf_sn_cf_network_report_backoff' );
+}
 class Wf_sn_cf {
     /**
      * Cached visitor IP for the current request.
@@ -81,7 +87,7 @@ class Wf_sn_cf {
      */
     private static $cloud_ips_cache = null;
 
-    public static $central_api_url = 'https://api.securityninjawp.com/wp-json/secnin/v1/';
+    public static $central_api_url = 'https://api.wpsecurityninja.com/api/';
 
     public static function init() {
         // Load options if not already loaded
@@ -97,6 +103,43 @@ class Wf_sn_cf {
         add_action( 'init', array(__NAMESPACE__ . '\\wf_sn_cf', 'do_init_action'), 1 );
         add_action( 'init', array(__CLASS__, 'maybe_schedule_ip_lookup_cache_cleanup'), 20 );
         add_action( 'secnin_prune_ip_lookup_transients', array(__CLASS__, 'prune_ip_lookup_transients') );
+        add_action( 'security_ninja_firewall_settings_saved', array(__NAMESPACE__ . '\\Secnin_Waf_Config', 'sync_all') );
+        add_action(
+            'update_option_wf_sn_cf',
+            array(__NAMESPACE__ . '\\Secnin_Waf_Config', 'sync_all'),
+            10,
+            3
+        );
+        add_action(
+            'update_option_wf_sn_banned_ips',
+            array(__NAMESPACE__ . '\\Secnin_Waf_Config', 'sync_all'),
+            10,
+            3
+        );
+        add_action(
+            'update_option_wf_sn_cf_ips',
+            array(__NAMESPACE__ . '\\Secnin_Waf_Config', 'sync_all'),
+            10,
+            3
+        );
+        add_action(
+            'activated_plugin',
+            array(__NAMESPACE__ . '\\Secnin_Waf_Config', 'sync_all_void'),
+            10,
+            0
+        );
+        add_action(
+            'deactivated_plugin',
+            array(__NAMESPACE__ . '\\Secnin_Waf_Config', 'sync_all_void'),
+            10,
+            0
+        );
+        add_action( 'init', array(__NAMESPACE__ . '\\Secnin_Waf_Config', 'consume_unlock_pending'), 0 );
+        add_action( 'init', array(__NAMESPACE__ . '\\Secnin_Waf_Recorder', 'maybe_import_early_queue'), 1 );
+        add_action( 'init', array(__NAMESPACE__ . '\\Secnin_Waf_Config', 'maybe_set_admin_cookie'), 20 );
+        add_action( 'admin_notices', array(__NAMESPACE__ . '\\Secnin_Waf_Lifecycle', 'maybe_admin_notice') );
+        add_action( 'secnin_update_cloud_firewall', array(__NAMESPACE__ . '\\Secnin_Waf_Config', 'sync_all') );
+        add_action( 'secnin_prune_banned', array(__NAMESPACE__ . '\\Secnin_Waf_Config', 'sync_all') );
         // Basic login/failed login logging for all versions
         add_action(
             'wp_login',
@@ -106,6 +149,7 @@ class Wf_sn_cf {
         );
         add_action( 'wp_login_failed', array(__NAMESPACE__ . '\\wf_sn_cf', 'failed_login') );
         if ( is_admin() ) {
+            require_once WF_SN_PLUGIN_DIR . 'modules/cloud-firewall/class-wf-sn-cf-admin.php';
             // add tab to Security Ninja tabs
             add_filter( 'sn_tabs', array(__NAMESPACE__ . '\\wf_sn_cf', 'sn_tabs') );
             // Register settings
@@ -116,7 +160,7 @@ class Wf_sn_cf {
             add_action( 'wp_ajax_sn_send_unblock_email', array(__NAMESPACE__ . '\\wf_sn_cf', 'ajax_send_unblock_email') );
             add_action( 'admin_post_sn_save_login_settings', array(__NAMESPACE__ . '\\wf_sn_cf', 'save_login_settings') );
             // Enqueue scripts and styles
-            add_action( 'admin_enqueue_scripts', array(__NAMESPACE__ . '\\wf_sn_cf', 'enqueue_scripts') );
+            add_action( 'admin_enqueue_scripts', array(__NAMESPACE__ . '\\wf_sn_cf', 'enqueue_scripts'), 100 );
         }
     }
 
@@ -137,7 +181,9 @@ class Wf_sn_cf {
         }
         // Check for safe URL unlock parameter BEFORE checking bans
         // This allows blocked visitors to whitelist their IP using the secret access URL
-        if ( isset( $_REQUEST['snf'] ) && sanitize_key( wp_unslash( $_REQUEST['snf'] ) ) === self::$options['unblock_url'] ) {
+        $snf_given = ( isset( $_REQUEST['snf'] ) ? sanitize_key( wp_unslash( $_REQUEST['snf'] ) ) : '' );
+        $snf_stored = ( isset( self::$options['unblock_url'] ) ? (string) self::$options['unblock_url'] : '' );
+        if ( '' !== $snf_stored && '' !== $snf_given && strlen( $snf_given ) === strlen( $snf_stored ) && hash_equals( $snf_stored, $snf_given ) ) {
             $current_user_ip = self::get_user_ip();
             $local_whitelist = self::$options['whitelist'];
             if ( !is_array( $local_whitelist ) ) {
@@ -165,15 +211,44 @@ class Wf_sn_cf {
         if ( 1 !== self::is_active() ) {
             return;
         }
+        // Early Firewall: skip only capabilities proven complete for this request.
+        $skip_ban_enforcement = false;
+        if ( class_exists( __NAMESPACE__ . '\\Secnin_Waf_Extended' ) && Secnin_Waf_Extended::is_active() ) {
+            $skip_ban = Secnin_Waf_Extended::early_capability_complete( 'local_bans' ) && Secnin_Waf_Extended::early_capability_complete( 'cloud_ips' );
+            $skip_8g = Secnin_Waf_Extended::early_capability_complete( 'query_filter' );
+            if ( $skip_ban && $skip_8g ) {
+                return;
+            }
+            if ( $skip_ban ) {
+                $skip_ban_enforcement = true;
+            }
+        }
         $current_user_ip = self::get_user_ip();
         // Skip expensive ban checks for logged-in admins (all contexts including front-end and REST).
         // (Secret unlock, cron/CLI, and inactive firewall already returned above.)
-        $skip_ban_enforcement = self::should_skip_ban_enforcement();
+        if ( !$skip_ban_enforcement ) {
+            $skip_ban_enforcement = self::should_skip_ban_enforcement();
+        }
         $reason = false;
         if ( !$skip_ban_enforcement ) {
             $reason = self::is_banned_ip( $current_user_ip );
         }
         if ( $reason ) {
+            // SureCart cloud webhooks must not be killed by visitor IP/country bans.
+            $sc_helper = WF_SN_PLUGIN_DIR . 'modules/cloud-firewall/waf/class-secnin-waf-surecart-payment-surface.php';
+            if ( !class_exists( '\\Secnin_Waf_Surecart_Payment_Surface', false ) && is_readable( $sc_helper ) ) {
+                require_once $sc_helper;
+            }
+            if ( class_exists( '\\Secnin_Waf_Surecart_Payment_Surface', false ) ) {
+                $sc_ctx = \Secnin_Waf_Surecart_Payment_Surface::context_from_server( 
+                    $_SERVER,
+                    // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Detection only.
+                    defined( 'SURECART_PLUGIN_FILE' )
+                 );
+                if ( \Secnin_Waf_Surecart_Payment_Surface::is_webhook_request( $sc_ctx ) ) {
+                    return;
+                }
+            }
             self::update_blocked_count( $current_user_ip );
             $ua_string = '';
             if ( isset( $_SERVER['HTTP_USER_AGENT'] ) ) {
@@ -398,7 +473,7 @@ class Wf_sn_cf {
      * @param   string $ip IP address.
      * @return  string Lowercase hostname, or the IP on lookup failure (matches gethostbyaddr behavior).
      */
-    private static function get_visitor_hostname( $ip ) {
+    public static function get_visitor_hostname( $ip ) {
         if ( !is_string( $ip ) || '' === $ip ) {
             return '';
         }
@@ -571,303 +646,14 @@ class Wf_sn_cf {
         return $result;
     }
 
-    /**
-     * Validate a crawler IP against published ranges or reverse-DNS.
-     *
-     * Order: remembered list, AI UA + CIDR (no PTR), classic crawler UA then PTR +
-     * forward confirm. Generic browsers never trigger reverse-DNS.
-     *
-     * @author  Lars Koudal
-     * @since   v5.123
-     * @version v1.0.0  Monday, August 30th, 2021.
-     * @version v1.0.1  Monday, June 3rd, 2024.
-     * @version v1.0.2  Monday, August 31st, 2026. UA-first; no PTR for generic UAs.
-     * @access  private static
-     * @param   mixed       $testip Client IP.
-     * @param   string|null $ua     User-Agent string; null reads HTTP_USER_AGENT when present.
-     * @return  boolean
-     */
     public static function validate_crawler_ip( $testip, $ua = null ) {
-        if ( !is_string( $testip ) || '' === $testip || !filter_var( $testip, FILTER_VALIDATE_IP ) ) {
-            return false;
-        }
-        if ( Wf_sn_cf_Utils::is_non_public_ip( $testip ) ) {
-            return false;
-        }
-        $validated_crawlers = get_option( WF_SN_CF_VALIDATED_CRAWLERS );
-        if ( is_array( $validated_crawlers ) && in_array( $testip, $validated_crawlers, true ) ) {
-            return true;
-        }
-        if ( null === $ua ) {
-            $ua = '';
-            if ( isset( $_SERVER['HTTP_USER_AGENT'] ) ) {
-                $ua = sanitize_text_field( wp_unslash( $_SERVER['HTTP_USER_AGENT'] ) );
-            }
-        } elseif ( !is_string( $ua ) ) {
-            $ua = '';
-        }
-        // Verified AI crawlers: UA token + IP in provider-published ranges (no PTR).
-        $ai_feed_urls = Wf_sn_cf_Utils::get_ai_crawler_feed_urls_for_ua( $ua );
-        if ( !empty( $ai_feed_urls ) ) {
-            foreach ( $ai_feed_urls as $feed_url ) {
-                $cidrs = Wf_sn_cf_Utils::get_ai_crawler_cidrs_for_feed_url( $feed_url );
-                foreach ( $cidrs as $cidr ) {
-                    if ( Wf_sn_cf_Utils::ipCIDRMatch( $testip, $cidr ) ) {
-                        Wf_sn_cf_Utils::remember_validated_crawler( $testip );
-                        wf_sn_el_modules::log_event(
-                            'security_ninja',
-                            'validated_crawler_ip',
-                            __( 'Valid AI crawler (published IP ranges)', 'security-ninja' ),
-                            array(
-                                'feed' => $feed_url,
-                                'ua'   => $ua,
-                            ),
-                            null,
-                            $testip
-                        );
-                        return true;
-                    }
-                }
-            }
-            // AI UA did not match published ranges; do not fall through to PTR.
-            return false;
-        }
-        // Classic crawlers: only reverse-DNS when UA claims to be one.
-        if ( !Wf_sn_cf_Utils::ua_looks_like_classic_crawler( $ua ) ) {
-            return false;
-        }
-        $hostname = self::get_visitor_hostname( $testip );
-        $valid_host_names = Wf_sn_cf_Utils::get_classic_crawler_host_suffixes();
-        foreach ( $valid_host_names as $valid_host ) {
-            if ( Wf_sn_cf_Utils::string_ends_with( $hostname, $valid_host ) ) {
-                $returned_ip = gethostbyname( $hostname );
-                if ( $returned_ip === $testip ) {
-                    Wf_sn_cf_Utils::remember_validated_crawler( $testip );
-                    wf_sn_el_modules::log_event(
-                        'security_ninja',
-                        'validated_crawler_ip',
-                        'Valid Crawler' . esc_attr( $hostname ),
-                        '',
-                        '',
-                        esc_attr( $testip )
-                    );
-                    return true;
-                }
-            }
-        }
-        return false;
+        require_once WF_SN_PLUGIN_DIR . 'modules/cloud-firewall/class-wf-sn-cf-service-whitelist.php';
+        return Wf_Sn_Cf_Service_Whitelist::validate_crawler_ip( $testip, $ua );
     }
 
-    /**
-     * Checks if an IP is from a service that has been enabled
-     *
-     * This method checks if the given IP address is whitelisted for services such as Broken Link Checker, GetTerms, WP Rocket, ManageWP, UptimeRobot, WP Compress, and MonSpark.
-     * It also checks for IP ranges (CIDR) in the whitelist.
-     *
-     * @author  Lars Koudal
-     * @since   v0.0.1
-     * @version v1.0.0  Wednesday, May 8th, 2024.
-     * @access  public static
-     * @param   mixed   $current_user_ip    The IP address to check against the whitelist.
-     * @return  boolean                 Returns true if the IP is whitelisted, false otherwise.
-     */
     public static function is_whitelisted_service( $current_user_ip ) {
-        $whitelist_brokenlink = array(
-            '94.231.107.9',
-            // Broken Link Checker
-            '54.191.137.17',
-        );
-        // GetTerms cookie scanner — always whitelisted (getterms.io).
-        $whitelist_getterms = array('45.55.125.144');
-        $whitelist_wprocket = array();
-        if ( isset( self::$options['whitelist_wprocket'] ) && self::$options['whitelist_wprocket'] ) {
-            $whitelist_wprocket = array(
-                '109.234.160.58',
-                // WP Rocket - Load CSS async
-                '51.83.15.135',
-                // WP Rocket - Load CSS async
-                '51.210.39.196',
-                // WP Rocket - Load CSS async
-                '146.59.192.120',
-                // WP Rocket - license validation
-                '135.125.83.227',
-                // WP Rocket - Remove unused CSS
-                '146.59.251.59',
-            );
-        }
-        $extra_whitelist = array(
-            // Divi Dash
-            '67.227.164.200',
-            '67.227.164.201',
-            '67.227.164.202',
-            // Fastpixel
-            '23.88.6.90',
-            '136.243.103.55',
-            '176.9.77.187',
-            '5.161.48.189',
-            // WPMU Dev
-            '18.204.159.253',
-            '54.227.51.40',
-            '18.219.56.14',
-            '45.55.78.242',
-            '35.171.56.101',
-            '34.196.51.17',
-            '35.157.144.199',
-            '165.227.251.117',
-            '165.227.251.120',
-            '140.82.60.49',
-            '45.63.10.140',
-            '18.219.161.157',
-            '165.227.127.103',
-            '64.176.196.23',
-            '144.202.86.106',
-            '3.93.131.0',
-            '167.71.93.101',
-            '167.71.179.192',
-        );
-        // Keep this as a static list. Reverse-DNS matching here would add a DNS
-        // lookup to ordinary visitor requests on sites without an object cache.
-        $whitelist_wpcompress = array(
-            '168.119.147.46',
-            '71.19.240.35',
-            '216.52.183.178',
-            '167.160.91.242',
-            '51.79.230.163',
-            '51.161.208.134',
-            '213.133.103.23',
-            '162.55.161.208',
-            '213.239.197.231',
-            '88.99.209.68',
-            '109.224.229.186',
-            '109.224.229.188',
-            '109.224.229.192',
-            '109.224.229.241',
-            '109.224.230.12',
-            '109.224.230.19',
-            '2a01:4f8:251:a11::/64',
-            '2605:9f80:c000:240::2/64',
-            '2605:9f80:1000:461::2/64',
-            '2402:1f00:8001:11a3::/64',
-            '2402:1f00:8201:486::/64',
-            '2a01:4f8:a0:90d5::/64',
-            '2a01:4f8:c012:bb07::/64',
-            '2a01:4f8:222:1059::/64',
-            '2a01:4f8:10a:3a47::/64'
-        );
-        // Hardcoded, not an option - always whitelisted.
-        $whitelist_modulards = array(
-            '54.220.170.248/32',
-            '34.249.165.39/32',
-            '63.34.51.157/32',
-            '54.73.153.210/32',
-            '52.210.126.224/32'
-        );
-        // MonSpark uptime monitoring — always whitelisted (see docs.monspark.com IP whitelisting).
-        $whitelist_monspark = array(
-            '51.15.238.191',
-            // EU
-            '51.15.192.231',
-            // EU
-            '85.111.66.59',
-            // EU
-            '15.235.41.103',
-            // US
-            '148.113.138.118',
-            // US
-            '51.79.143.61',
-            // APAC
-            '135.125.246.37',
-            // EU (legacy)
-            '57.129.32.158',
-        );
-        $whitelist_managewp = array();
-        if ( isset( self::$options['whitelist_managewp'] ) && self::$options['whitelist_managewp'] ) {
-            $whitelist_managewp = self::load_ip_whitelist( 'whitelist-managewp.json' );
-        }
-        $whitelist_uptimia = array();
-        if ( isset( self::$options['whitelist_uptimia'] ) && self::$options['whitelist_uptimia'] ) {
-            $whitelist_uptimia = self::load_ip_whitelist( 'whitelist-uptimia.json' );
-        }
-        $whitelist_uptimerobot = array();
-        if ( isset( self::$options['whitelist_uptimerobot'] ) && self::$options['whitelist_uptimerobot'] ) {
-            $whitelist_uptimerobot = self::load_ip_whitelist( 'whitelist-uptimerobot.json' );
-        }
-        $whitelist = array_merge(
-            $whitelist_brokenlink,
-            $whitelist_getterms,
-            $whitelist_wprocket,
-            $whitelist_managewp,
-            $whitelist_uptimia,
-            $whitelist_wpcompress,
-            $extra_whitelist,
-            $whitelist_uptimerobot,
-            $whitelist_modulards,
-            $whitelist_monspark
-        );
-        foreach ( $whitelist as $whitelist_item ) {
-            // Check if the current whitelist item is an IP range (CIDR)
-            if ( strpos( $whitelist_item, '/' ) !== false ) {
-                // Use the proper CIDR matching function
-                if ( Wf_sn_cf_Utils::ipCIDRMatch( $current_user_ip, $whitelist_item ) ) {
-                    return true;
-                    // IP is whitelisted
-                }
-            } elseif ( $current_user_ip === $whitelist_item ) {
-                return true;
-                // IP is whitelisted
-            }
-        }
-        return false;
-        // IP is not whitelisted
-    }
-
-    /**
-     * Loads an IP whitelist from a bundled JSON data file.
-     *
-     * The service whitelist data files (ManageWP, UptimeRobot, Uptimia) contain a
-     * plain JSON array of IP addresses and CIDR ranges. They are shipped as JSON
-     * data rather than executable PHP so that security scanners do not mistake a
-     * static list of IPs for obfuscated/concealed code.
-     *
-     * @author  Lars Koudal
-     * @since   v5.290
-     * @access  private static
-     * @param   string $filename  Filename of the JSON file inside modules/cloud-firewall/.
-     * @return  array             Array of IP/CIDR strings, or empty array on failure.
-     */
-    private static function load_ip_whitelist( $filename ) {
-        static $cache = array();
-        $filename = basename( $filename );
-        if ( isset( $cache[$filename] ) ) {
-            return $cache[$filename];
-        }
-        $path = WF_SN_PLUGIN_DIR . 'modules/cloud-firewall/' . $filename;
-        if ( !is_readable( $path ) ) {
-            $cache[$filename] = array();
-            return $cache[$filename];
-        }
-        $contents = file_get_contents( $path );
-        if ( false === $contents || '' === $contents ) {
-            $cache[$filename] = array();
-            return $cache[$filename];
-        }
-        $decoded = json_decode( $contents, true );
-        if ( !is_array( $decoded ) ) {
-            $cache[$filename] = array();
-            return $cache[$filename];
-        }
-        $ips = array();
-        foreach ( $decoded as $entry ) {
-            if ( !is_string( $entry ) ) {
-                continue;
-            }
-            $entry = trim( $entry );
-            if ( '' !== $entry ) {
-                $ips[] = $entry;
-            }
-        }
-        $cache[$filename] = $ips;
-        return $cache[$filename];
+        require_once WF_SN_PLUGIN_DIR . 'modules/cloud-firewall/class-wf-sn-cf-service-whitelist.php';
+        return Wf_Sn_Cf_Service_Whitelist::is_whitelisted_service( $current_user_ip );
     }
 
     /**
@@ -877,7 +663,7 @@ class Wf_sn_cf {
      *
      * @return string Server IP or empty string on failure.
      */
-    private static function get_server_ip() {
+    public static function get_server_ip() {
         static $server_ip = null;
         if ( null !== $server_ip ) {
             return $server_ip;
@@ -917,7 +703,7 @@ class Wf_sn_cf {
      *
      * @return void
      */
-    private static function clear_cloud_ips_cache() {
+    public static function clear_cloud_ips_cache() {
         self::$cloud_ips_cache = null;
     }
 
@@ -977,8 +763,9 @@ class Wf_sn_cf {
             // Validated crawler
             $whitelisted_user = true;
         }
-        // Check if an IP is banned and blocks
-        if ( !$whitelisted_user && 1 === (int) self::$options['active'] ) {
+        // Check if an IP is banned and blocks (skip when Extended WAF already ran).
+        $skip_early_waf_dup = class_exists( __NAMESPACE__ . '\\Secnin_Waf_Extended' ) && Secnin_Waf_Extended::is_active() && Secnin_Waf_Extended::early_capability_complete( 'local_bans' ) && Secnin_Waf_Extended::early_capability_complete( 'cloud_ips' );
+        if ( !$whitelisted_user && 1 === (int) self::$options['active'] && !$skip_early_waf_dup ) {
             $ban_reason = self::is_banned_ip( $current_user_ip );
             if ( $ban_reason ) {
                 // Free build: when global is OFF, block here (free has no login-only helper).
@@ -1044,152 +831,22 @@ class Wf_sn_cf {
         if ( apply_filters( 'wf_sn_cf_skip_bad_query_check', false ) ) {
             return false;
         }
-        $request_uri_array = apply_filters( 'request_uri_items', array(
-            '3commas'             => ',{3,}',
-            '7_or_more_hyphens'   => '-{7,}',
-            'caret_backtick'      => '[\\^`<>\\|]',
-            'alnum_long'          => '[a-z0-9]{2000,}',
-            'eq_backslash'        => '=?\\\\(\'|%27)/?\\.',
-            'special_chars'       => '/(\\*|"|\'|\\.|,|&|&amp;?)/?$',
-            'php_file'            => '\\.(php)(\\()?([0-9]+)(\\))?(/)?$',
-            'header_cookie'       => '/(.*)(header:|set-cookie:)(.*)=',
-            'ftp_config_files'    => '\\.(s?ftp-?)config|(s?ftp-?)config\\.',
-            'file_editors'        => '/(f?ckfinder|fck/|f?ckeditor|fullclick)',
-            'download_framework'  => '/((force-)?download|framework/main)(\\.php)',
-            'misc_chars'          => '\\{0\\}|"0"="0|/\\(/\\|\\.\\.\\.|\\+\\+\\+|\\\\"',
-            'vbulletin'           => '/(vbull(etin)?|boards|vbforum|vbweb|webvb)(/)?',
-            'permalink'           => '(\\.|20)(get|the)(_)(permalink|posts_page_url)\\(',
-            'complex_injections'  => '///|\\?\\?|/&&|/\\*(.*)\\*/|/:/|\\\\|0x00|%00|%0d%0a',
-            'alfa_cgi'            => '(/)(cgi_?)?alfa(_?cgiapi|_?data|_?v[0-9]+)?(\\.php)',
-            'thumbnail_php'       => '(thumbs?(_editor|open)?|tim(thumbs?)?)((\\.|%2e)php)',
-            'admin_php'           => '(/)((boot)?_?admin(er|istrator|s)(_events)?)(\\.php)',
-            'sensitive_user_dirs' => '(/%7e)(root|ftp|bin|nobody|named|guest|logs|sshd)(/)',
-            'backup_files'        => '(archive|backup|db|master|sql|wp|www|wwwroot)\\.(gz|zip)',
-            'shell_scripts'       => '(/)(\\.?mad|alpha|c99|php|web)?sh(3|e)ll([0-9]+|\\w)(\\.php)',
-            'upload_scripts'      => '(/)(admin-?|file-?)(upload)(bg|_?file|ify|svu|ye)?(\\.php)',
-            'sensitive_dirs'      => '(/)(etc|var)(/)(hidden|secret|shadow|ninja|passwd|tmp)(/)?',
-            'url_manipulation'    => '(s)?(ftp|inurl|php)(s)?(:(/|%2f|%u2215)(/|%2f|%u2215))',
-            'query_manipulation'  => '(/)(=|\\$&?|&?(pws|rk)=0|_mm|_vti_|cgi(\\.|-)?|(=|/|;|,)nt\\.)',
-            'sensitive_files'     => '(\\.)(ds_store|htaccess|htpasswd|init?|mysql-select-db)(/)?',
-            'bin_commands'        => '(/)(bin)(/)(cc|chmod|chsh|cpp|echo|id|kill|mail|nasm|perl|ping|ps|python|tclsh)(/)?',
-            'obfuscated_js'       => '(/)?j(\\s+)?a(\\s+)?v(\\s+)?a(\\s+)?s(\\s+)?c(\\s+)?r(\\s+)?i(\\s+)?p(\\s+)?t(\\s+)?(%3a|:)',
-            'server_dirs'         => '(/)(filemanager|htdocs|httpdocs|https?|mailman|mailto|msoffice|undefined|usage|var|vhosts|webmaster|www)(/)',
-            'injection_attempts'  => '(\\(null\\)|\\{\\$itemURL\\}|cast\\(0x|echo(.*)kae|etc/passwd|eval\\(|null(.*)null|open_basedir|self/environ|\\+union\\+all\\+select)',
-            'config_files'        => '(/)(db-?|j-?|my(sql)?-?|setup-?|web-?|wp-?)?(admin-?)?(setup-?)?(conf\\b|conf(ig)?)(uration)?(\\.?bak|\\.inc)?(\\.inc|\\.old|\\.php|\\.txt)',
-            'exploit_paths'       => '(/)((.*)crlf-?injection|(.*)xss-?protection|__(inc|jsc)|administrator|author-panel|cgi-bin|database|downloader|(db|mysql)-?admin)(/)',
-            'malicious_php'       => '(/)(haders|head|helpear|incahe|includes?|indo(sec)?|infos?|install|ioptimizes?|jmail|js|king|kiss|kodox|kro|legion|libsoft)(\\.php)',
-            'info_leak_paths'     => '(/)(awstats|document_root|dologin\\.action|error.log|extension/ext|htaccess\\.|lib/php|listinfo|phpunit/php|remoteview|server/php|www\\.root\\.)',
-            'code_execution'      => '(base64_(en|de)code|benchmark|curl_exec|e?chr|eval\\(|function|fwrite|(f|p)open|html|leak|passthru|p?fsockopen|phpinfo)(.*)(\\(|%28)(.*)(\\)|%29)',
-            'process_management'  => '(posix_(kill|mkfifo|setpgid|setsid|setuid)|(child|proc)_(close|get_status|nice|open|terminate)|(shell_)?exec|system)(.*)(\\(|%28)(.*)(\\)|%29)',
-            'remote_admin_tools'  => '(/)((c99|php|web)?shell|crossdomain|fileditor|locus7|nstview|php(get|remoteview|writer)|r57|remview|sshphp|storm7|webadmin)(.*)(\\.|%2e|\\(|%28)',
-            'wp_paths'            => '/((wp-)((201\\d|202\\d|[0-9]{2})|ad|admin(fx|rss|setup)|booking|confirm|crons|data|file|mail|one|plugins?|readindex|reset|setups?|story))(\\.php)',
-            'various_php'         => '(/)(^$|-|\\!|\\w|\\.(.*)|100|123|([^iI])?ndex|index\\.php/index|7yn|90sec|aill|ajs\\.delivery|al277|alexuse?|ali|allwrite)(\\.php)',
-            'site_management'     => '(/)(analyser|apache|apikey|apismtp|authenticat(e|ing)|autoload_classmap|backup(_index)?|bakup|bkht|black|bogel|bookmark|bypass|cachee?)(\\.php)',
-            'cleanup_scripts'     => '(/)(clean|cm(d|s)|con|connector\\.minimal|contexmini|contral|curl(test)?|data(base)?|db|db-cache|db-safe-mode|defau11|defau1t|dompdf|dst)(\\.php)',
-            'exploit_scripts'     => '(/)(elements|emails?|error.log|ecscache|edit-form|eval-stdin|export|evil|fbrrchive|filemga|filenetworks?|f0x|gank(\\.php)?|gass|gel|guide)(\\.php)',
-            'custom_scripts'      => '(/)(logo_img|lufix|mage|marg|mass|mide|moon|mssqli|mybak|myshe|mysql|mytag_js?|nasgor|newfile|news|nf_?tracking|nginx|ngoi|ohayo|old-?index)(\\.php)',
-            'diagnostic_scripts'  => '(/)(olux|owl|pekok|petx|php-?info|phpping|popup-pomo|priv|r3x|radio|rahma|randominit|readindex|readmy|reads|repair-?bak|robot(s\\.txt)?|root)(\\.php)',
-            'system_control'      => '(/)(router|savepng|semayan|shell|shootme|sky|socket(c|i|iasrgasf)ontrol|sql(bak|_?dump)?|sym403|sys|system_log|tmp-?(uploads)?)(\\.php)',
-            'admin_tools'         => '(/)(traffic-advice|u2p|udd|ukauka|up__uzegp|up14|upa?|upxx?|vega|vip|vu(ln)?(\\w)?|webroot|weki|wikindex|wp_logns?|wp_wrong_datlib)(\\.php)',
-            'cms_scripts'         => '(/)((wp-?)?install(ation)?|wp(3|4|5|6)|wpfootes|wpzip|ws0|wsdl|wso(\\w)?|www|(uploads|wp-admin)?xleet(-shell)?|xmlsrpc|xup|xxu|zibi|zipy)(\\.php)',
-            'malware_signatures'  => '(bkv74|cachedsimilar|core-stab|crgrvnkb|ctivrc|deadcode|deathshop|e7xue|eqxafaj90zir|exploits|ffmkpcal|filellli7|(fox|sid)wso|gel4y|goog1es|gvqqpinc)',
-            'common_exploits'     => '(@md5|00\\.temp00|0byte|0d4y|0xor|wso1337|1h6j5|40dd1d|4price|70bex?|a57bze893|abbrevsprl|abruzi|adminer|aqbmkwwx|archivarix|beez5|bgvzc29)',
-            'exploit_keywords'    => '(handler_to_code|hax(0|o)r|hmei7|hnap1|home_url=|ibqyiove|icxbsx|indoxploi|jahat|jijle3|kcrew|laobiao|lock360|mod_(aratic|ariimag))',
-            'exploit_tools'       => '(mobiquo|muiebl|nessus|osbxamip|priv8|qcmpecgy|r3vn330|racrew|raiz0|reportserver|r00t|respectmus|rom2823|roseleif|sh3ll|site((.){0,2})copier|sqlpatch|sux0r)',
-            'exploit_signatures'  => '(sym403|telerik|uddatasql|utchiha|visualfrontend|w0rm|wangdafa|wpyii2|wsoyanzo|x5cv|xattack|xbaner|xertive|xiaolei|xltavrat|xorz|xsamxad|xsvip|xxxs?s?|zabbix|zebda)',
-        ) );
-        $query_string_array = apply_filters( 'query_string_items', array(
-            'start_hyphen'           => '^(-|%2d)[^=]+$',
-            'long_alnum'             => '[a-z0-9]{4000,}',
-            'url_obfuscate'          => '(/|%2f)(:|%3a)(/|%2f)',
-            'sensitive_files'        => 'etc/(hosts|motd|shadow)',
-            'sql_injection_order'    => 'order(\\s|%20)by(\\s|%20)1--',
-            'asterisk_injection'     => '(/|%2f)(\\*|%2a)(\\*|%2a)(/|%2f)',
-            'special_chars'          => '(`|<|>|\\^|\\||0x00|%00|%0d%0a)',
-            'file_tools'             => '(f?ckfinder|f?ckeditor|fullclick)',
-            'header_manipulation'    => '((.*)header:|(.*)set-cookie:(.*)=)',
-            'local_ip'               => '(localhost|127(\\.|%2e)0(\\.|%2e)0(\\.|%2e)1)',
-            'cmd_injection'          => '(cmd|command)(=|%3d)(chdir|mkdir)(.*)(x20)',
-            'php_globals'            => '(^|&)(globals|mosconfig[a-z_]{1,22}|request)(=|\\[)',
-            'wp_config_access'       => '(/|%2f)((wp-)?config)((\\.|%2e)inc)?((\\.|%2e)php)',
-            'thumb_exploit'          => '(thumbs?(_editor|open)?|tim(thumbs?)?)((\\.|%2e)php)',
-            'dir_path_manipulation'  => '(absolute_|base|root_)(dir|path)(=|%3d)(ftp|https?)',
-            'url_injection'          => '(s)?(ftp|inurl|php)(s)?(:(/|%2f|%u2215)(/|%2f|%u2215))',
-            'wp_permalink_injection' => '(\\.|20)(get|the)(_|%5f)(permalink|posts_page_url)(\\(|%28)',
-            'critical_file_access'   => '((boot|win)((\\.|%2e)ini)|etc(/|%2f)passwd|self(/|%2f)environ)',
-            'path_traversal'         => '(((/|%2f){3,})|((\\.|%2e){3,})|((\\.|%2e){2,})(/|%2f|%u2215))',
-            'code_exec_injection'    => '(benchmark|char|exec|fopen|function|html)(.*)(\\(|%28)(.*)(\\)|%29)',
-            'php_object_injection'   => '(php)([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})',
-            'eval_injection'         => '(e|%65|%45)(v|%76|%56)(a|%61|%31)(l|%6c|%4c)(.*)(\\(|%28)(.*)(\\)|%29)',
-            'various_injections'     => '(/|%2f)(=|%3d|$&|_mm|cgi(\\.|\\-)|inurl(:|%3a)(/|%2f)|(mod|path)(=|%3d)(\\.|%2e))',
-            'html_embed'             => '(<|%3c)(.*)(e|%65|%45)(m|%6d|%4d)(b|%62|%42)(e|%65|%45)(d|%64|%44)(.*)(>|%3e)',
-            'iframe_injection'       => '(<|%3c)(.*)(i|%69|%49)(f|%66|%46)(r|%72|%52)(a|%61|%41)(m|%6d|%4d)(e|%65|%45)(.*)(>|%3e)',
-            'object_injection'       => '(<|%3c)(.*)(o|%4f|%6f)(b|%62|%42)(j|%4a|%6a)(e|%65|%45)(c|%63|%43)(t|%74|%54)(.*)(>|%3e)',
-            'script_injection'       => '(<|%3c)(.*)(s|%73|%53)(c|%63|%43)(r|%72|%52)(i|%69|%49)(p|%70|%50)(t|%74|%54)(.*)(>|%3e)',
-            'space_delete'           => '(\\+|%2b|%20)(d|%64|%44)(e|%65|%45)(l|%6c|%4c)(e|%65|%45)(t|%74|%54)(e|%65|%45)(\\+|%2b|%20)',
-            'space_insert'           => '(\\+|%2b|%20)(i|%69|%49)(n|%6e|%4e)(s|%73|%53)(e|%65|%45)(r|%72|%52)(t|%74|%54)(\\+|%2b|%20)',
-            'space_select'           => '(\\+|%2b|%20)(s|%73|%53)(e|%65|%45)(l|%6c|%4c)(e|%65|%45)(c|%63|%43)(t|%74|%54)(\\+|%2b|%20)',
-            'space_update'           => '(\\+|%2b|%20)(u|%75|%55)(p|%70|%50)(d|%64|%44)(a|%61|%41)(t|%74|%54)(e|%65|%45)(\\+|%2b|%20)',
-            'sql_null_byte'          => '(\\\\x00|(\\"|%22|\'|%27)?0(\\"|%22|\'|%27)?(=|%3d)(\\"|%22|\'|%27)?0|cast(\\(|%28)0x|or%201(=|%3d)1)',
-            'php_globals_access'     => '(^|&)(g|%67|%47)(l|%6c|%4c)(o|%6f|%4f)(b|%62|%42)(a|%61|%41)(l|%6c|%4c)(s|%73|%53)(=|\\[|%[0-9A-Z]{0,2})',
-            'request_array_access'   => '(_|%5f)(r|%72|%52)(e|%65|%45)(q|%71|%51)(u|%75|%55)(e|%65|%45)(s|%73|%53)(t|%74|%54)(=|\\[|%[0-9A-Z]{2,})',
-            'js_protocol_injection'  => '(j|%6a|%4a)(a|%61|%41)(v|%76|%56)(a|%61|%31)(s|%73|%53)(c|%63|%43)(r|%72|%52)(i|%69|%49)(p|%70|%50)(t|%74|%54)(:|%3a)(.*)(;|%3b|\\)|%29)',
-            'base64_encode_attempt'  => '(b|%62|%42)(a|%61|%41)(s|%73|%53)(e|%65|%45)(6|%36)(4|%34)(_|%5f)(d|%64|%44)(e|%65|%45|n|%6e|%4e)(c|%63|%43)(o|%6f|%4f)(d|%64|%44)(e|%65|%45)(.*)(\\()(.*)(\\))',
-        ) );
-        $user_agent_array = apply_filters( 'user_agent_items', array(
-            'ua_long_alnum'       => '[a-z0-9]{2000,}',
-            'ua_encoded_entities' => '(&lt;|%0a|%0d|%27|%3c|%3e|%00|0x00|\\\\x22)',
-            'ua_scraping_tools'   => '(curl|libwww-perl|pycurl|scan)',
-            'ua_malicious_tools'  => '(oppo\\sa33|(c99|php|web)shell|site((.){0,2})copier)',
-            'ua_command_exec'     => '(base64_decode|bin/bash|disconnect|eval|unserializ)',
-            'ua_bots_1'           => '(acapbot|acoonbot|alexibot|asterias|attackbot|awario|backdor|becomebot|binlar|blackwidow|blekkobot|blex|blowfish|bullseye|bunnys|butterfly|careerbot|casper)',
-            'ua_bots_2'           => '(checkpriv|cheesebot|cherrypick|chinaclaw|choppy|clshttp|cmsworld|copernic|copyrightcheck|cosmos|crescent|datacha|\\bdemon\\b|diavol|discobot|dittospyder)',
-            'ua_bots_3'           => '(dotbot|dotnetdotcom|dumbot|econtext|emailcollector|emailsiphon|emailwolf|eolasbot|eventures|extract|eyenetie|feedfinder|flaming|flashget|flicky|foobot|fuck)',
-            'ua_bots_4'           => '(g00g1e|getright|gigabot|go-ahead-got|gozilla|grabnet|grafula|harvest|heritrix|httracks?|icarus6j|jetbot|jetcar|jikespider|kmccrew|leechftp|libweb|liebaofast)',
-            'ua_bots_5'           => '(linkscan|linkwalker|loader|lwp-download|majestic|masscan|miner|mechanize|mj12bot|morfeus|moveoverbot|netmechanic|netspider|nicerspro|nikto|nominet|nutch)',
-            'ua_bots_6'           => '(octopus|pagegrabber|petalbot|planetwork|postrank|proximic|purebot|queryn|queryseeker|radian6|radiation|realdownload|remoteview|rogerbot|scan|scooter|seekerspid)',
-            'ua_bots_7'           => '(semalt|siclab|sindice|sistrix|sitebot|siteexplorer|sitesnagger|skygrid|smartdownload|snoopy|sosospider|spankbot|spbot|sqlmap|stackrambler|stripper|sucker|surftbot)',
-            'ua_bots_8'           => '(sux0r|suzukacz|suzuran|takeout|telesoft|true_robots|turingos|turnit|vampire|vikspider|voideye|webleacher|webreaper|webstripper|webvac|webviewer|webwhacker)',
-            'ua_bots_9'           => '(winhttp|wwwoffle|woxbot|xaldon|xxxyy|yamanalab|yioopbot|youda|zeus|zmeu|zune|zyborg)',
-        ) );
-        $referrer_array = apply_filters( 'referrer_items', array(
-            'ref_100dollars'      => '100dollars',
-            'ref_unlink'          => '@unlink',
-            'ref_assert'          => 'assert\\(',
-            'ref_best_seo'        => 'best-seo',
-            'ref_blue_pill'       => 'blue\\s?pill',
-            'ref_cocaine'         => 'cocaine',
-            'ref_ejaculat'        => 'ejaculat',
-            'ref_erectile'        => 'erectile',
-            'ref_erections'       => 'erections',
-            'ref_hoodia'          => 'hoodia',
-            'ref_huronriveracres' => 'huronriveracres',
-            'ref_impotence'       => 'impotence',
-            'ref_levitra'         => 'levitra',
-            'ref_libido'          => 'libido',
-            'ref_lipitor'         => 'lipitor',
-            'ref_mopub'           => 'mopub\\.com',
-            'ref_order_by'        => 'order(\\s|%20)by(\\s|%20)1--',
-            'ref_phentermin'      => 'phentermin',
-            'ref_pornhelm'        => 'pornhelm',
-            'ref_print_r'         => 'print_r\\(',
-            'ref_prozac'          => 'pro[sz]ac',
-            'ref_sandyauer'       => 'sandyauer',
-            'ref_semalt'          => 'semalt\\.com',
-            'ref_social_buttons'  => 'social-buttions',
-            'ref_todaperfeita'    => 'todaperfeita',
-            'ref_tramadol'        => 'tramadol',
-            'ref_troyhamby'       => 'troyhamby',
-            'ref_ultram'          => 'ultram',
-            'ref_unicauca'        => 'unicauca',
-            'ref_valium'          => 'valium',
-            'ref_viagra'          => 'viagra',
-            'ref_vicodin'         => 'vicodin',
-            'ref_x00'             => 'x00',
-            'ref_xanax'           => 'xanax',
-            'ref_xbshell'         => 'xbshell',
-            'ref_ypxaieo'         => 'ypxaieo',
-        ) );
+        $helper_file = WF_SN_PLUGIN_DIR . 'modules/cloud-firewall/waf/class-secnin-waf-woo-payment-surface.php';
+        if ( !class_exists( '\\Secnin_Waf_Woo_Payment_Surface', false ) && is_readable( $helper_file ) ) {
+            require_once $helper_file;
+        }
+        $sc_helper = WF_SN_PLUGIN_DIR . 'modules/cloud-firewall/waf/class-secnin-waf-surecart-payment-surface.php';
+        if ( !class_exists( '\\Secnin_Waf_Surecart_Payment_Surface', false ) && is_readable( $sc_helper ) ) {
+            require_once $sc_helper;
+        }
+        $rules_8g = (include WF_SN_PLUGIN_DIR . 'modules/cloud-firewall/waf/rules-8g.php');
+        if ( !is_array( $rules_8g ) ) {
+            $rules_8g = array();
+        }
+        $request_uri_array = apply_filters( 'request_uri_items', ( isset( $rules_8g['request_uri'] ) && is_array( $rules_8g['request_uri'] ) ? $rules_8g['request_uri'] : array() ) );
+        $query_string_array = apply_filters( 'query_string_items', ( isset( $rules_8g['query_string'] ) && is_array( $rules_8g['query_string'] ) ? $rules_8g['query_string'] : array() ) );
+        $user_agent_array = apply_filters( 'user_agent_items', ( isset( $rules_8g['user_agent'] ) && is_array( $rules_8g['user_agent'] ) ? $rules_8g['user_agent'] : array() ) );
+        $referrer_array = apply_filters( 'referrer_items', ( isset( $rules_8g['referrer'] ) && is_array( $rules_8g['referrer'] ) ? $rules_8g['referrer'] : array() ) );
         $request_uri_string = false;
         $query_string_string = false;
         $user_agent_string = false;
@@ -1210,6 +867,34 @@ class Wf_sn_cf {
         if ( !$request_uri_string && !$query_string_string && !$user_agent_string && !$referrer_string && !$has_remote_addr ) {
             return false;
         }
+        if ( $request_uri_string ) {
+            if ( !function_exists( 'secnin_waf_request_path' ) ) {
+                $login_related = WF_SN_PLUGIN_DIR . 'modules/cloud-firewall/waf/secnin-waf-login-related.php';
+                if ( is_readable( $login_related ) ) {
+                    require_once $login_related;
+                }
+            }
+            if ( function_exists( 'secnin_waf_request_path' ) ) {
+                $request_uri_string = secnin_waf_request_path( $request_uri_string );
+            }
+        }
+        $payment = false;
+        if ( class_exists( '\\Secnin_Waf_Woo_Payment_Surface', false ) ) {
+            $payment_ctx = \Secnin_Waf_Woo_Payment_Surface::context_from_server( 
+                $_SERVER,
+                // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Detection only; values are not stored.
+                class_exists( 'WooCommerce' )
+             );
+            $payment = \Secnin_Waf_Woo_Payment_Surface::is_payment_request( $payment_ctx );
+        }
+        if ( !$payment && class_exists( '\\Secnin_Waf_Surecart_Payment_Surface', false ) ) {
+            $sc_ctx = \Secnin_Waf_Surecart_Payment_Surface::context_from_server( 
+                $_SERVER,
+                // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Detection only; values are not stored.
+                defined( 'SURECART_PLUGIN_FILE' )
+             );
+            $payment = \Secnin_Waf_Surecart_Payment_Surface::is_payment_request( $sc_ctx );
+        }
         $response = array();
         if ( $request_uri_string ) {
             foreach ( $request_uri_array as $key => $pattern ) {
@@ -1226,6 +911,10 @@ class Wf_sn_cf {
         }
         if ( empty( $response ) && $query_string_string ) {
             foreach ( $query_string_array as $key => $item ) {
+                $skip_q = $payment && (class_exists( '\\Secnin_Waf_Woo_Payment_Surface', false ) && \Secnin_Waf_Woo_Payment_Surface::should_skip_query_rule( $key ) || class_exists( '\\Secnin_Waf_Surecart_Payment_Surface', false ) && \Secnin_Waf_Surecart_Payment_Surface::should_skip_query_rule( $key ));
+                if ( $skip_q ) {
+                    continue;
+                }
                 // Directly use the pattern without preg_quote() for regex matching
                 if ( preg_match( '#' . $item . '#i', $query_string_string, $query_matches ) ) {
                     $response = array(
@@ -1240,6 +929,13 @@ class Wf_sn_cf {
         }
         if ( empty( $response ) && $user_agent_string ) {
             foreach ( $user_agent_array as $key => $item ) {
+                if ( $payment ) {
+                    if ( class_exists( '\\Secnin_Waf_Woo_Payment_Surface', false ) ) {
+                        $item = \Secnin_Waf_Woo_Payment_Surface::ua_pattern_for_surface( $key, $item );
+                    } elseif ( class_exists( '\\Secnin_Waf_Surecart_Payment_Surface', false ) ) {
+                        $item = \Secnin_Waf_Surecart_Payment_Surface::ua_pattern_for_surface( $key, $item );
+                    }
+                }
                 // Using '#' as delimiter to avoid conflicts with common characters in user agents
                 if ( preg_match( '#' . $item . '#i', $user_agent_string, $ua_matches ) ) {
                     $response = array(
@@ -1254,7 +950,7 @@ class Wf_sn_cf {
         }
         if ( empty( $response ) && $referrer_string ) {
             foreach ( $referrer_array as $key => $item ) {
-                if ( preg_match( '/' . preg_quote( $item, '/' ) . '/i', $referrer_string, $rf_matches ) ) {
+                if ( preg_match( '#' . $item . '#i', $referrer_string, $rf_matches ) ) {
                     $response = array(
                         'referrer'        => esc_html( $rf_matches[0] ),
                         'referrer_string' => esc_html( $referrer_string ),
@@ -1325,277 +1021,14 @@ class Wf_sn_cf {
         return $blocked_hosts_array;
     }
 
-    /**
-     * Check if current request is a temporary login link from a supported plugin.
-     *
-     * Detects temporary login links from plugins like "Temporary Login Without Password",
-     * "One Time Login", "Magic Login", and "Login Links". Only bypasses checks if the
-     * corresponding plugin is active to prevent abuse.
-     *
-     * @author  Lars Koudal
-     * @since   5.270
-     * @return  bool True if temporary login link detected and plugin is active, false otherwise.
-     */
     public static function is_temporary_login_link() {
-        // Allow filter to override detection entirely
-        $request_uri = ( isset( $_SERVER['REQUEST_URI'] ) ? $_SERVER['REQUEST_URI'] : '' );
-        $query_string = ( isset( $_SERVER['QUERY_STRING'] ) ? $_SERVER['QUERY_STRING'] : '' );
-        $is_temporary_login = apply_filters(
-            'securityninja_is_temporary_login_link',
-            null,
-            $request_uri,
-            $query_string
-        );
-        // If filter explicitly returns true/false, use that
-        if ( $is_temporary_login === true ) {
-            // Log detection for audit purposes
-            $current_user_ip = self::get_user_ip();
-            wf_sn_el_modules::log_event(
-                'security_ninja',
-                'temporary_login_link_detected',
-                __( 'Temporary login link detected (filter override)', 'security-ninja' ),
-                array(
-                    'ip'          => $current_user_ip,
-                    'request_uri' => $request_uri,
-                )
-            );
-            return true;
-        }
-        if ( $is_temporary_login === false ) {
-            return false;
-        }
-        // Default detection: check known temporary login parameters
-        $default_params = array(
-            array(
-                'param'       => 'wtlwp_token',
-                'plugin_file' => 'temporary-login-without-password/temporary-login-without-password.php',
-            ),
-            array(
-                'param'       => 'one_time_login_token',
-                'plugin_file' => 'one-time-login/one-time-login.php',
-            ),
-            array(
-                'param'       => 'magic-login',
-                'plugin_file' => 'magic-login/plugin.php',
-                'requires'    => array('user_id', 'token'),
-            ),
-            array(
-                'param'       => 'll',
-                'plugin_file' => 'login-links/login-links.php',
-                'prefix'      => true,
-            )
-        );
-        $params = apply_filters( 'securityninja_temporary_login_params', $default_params );
-        if ( !is_array( $params ) || empty( $params ) ) {
-            return false;
-        }
-        // Ensure plugin.php is loaded for is_plugin_active()
-        if ( !function_exists( 'is_plugin_active' ) ) {
-            require_once ABSPATH . 'wp-admin/includes/plugin.php';
-        }
-        foreach ( $params as $param_config ) {
-            if ( !is_array( $param_config ) || empty( $param_config['param'] ) || empty( $param_config['plugin_file'] ) ) {
-                continue;
-            }
-            $param_name = $param_config['param'];
-            $plugin_file = $param_config['plugin_file'];
-            $requires = ( isset( $param_config['requires'] ) && is_array( $param_config['requires'] ) ? $param_config['requires'] : array() );
-            $is_prefix = isset( $param_config['prefix'] ) && $param_config['prefix'] === true;
-            // Check if plugin is active before checking parameters
-            if ( !is_plugin_active( $plugin_file ) ) {
-                continue;
-            }
-            // Check for prefix pattern (e.g., Login Links uses 'll' + token)
-            if ( $is_prefix ) {
-                foreach ( $_GET as $key => $value ) {
-                    if ( strpos( $key, $param_name ) === 0 && strlen( $key ) > strlen( $param_name ) ) {
-                        // Found parameter starting with prefix
-                        $current_user_ip = self::get_user_ip();
-                        wf_sn_el_modules::log_event(
-                            'security_ninja',
-                            'temporary_login_link_detected',
-                            sprintf( __( 'Temporary login link detected: %1$s (plugin: %2$s)', 'security-ninja' ), esc_html( $key ), esc_html( $plugin_file ) ),
-                            array(
-                                'ip'     => $current_user_ip,
-                                'param'  => $key,
-                                'plugin' => $plugin_file,
-                            )
-                        );
-                        return true;
-                    }
-                }
-                continue;
-            }
-            // Check for simple parameter
-            if ( isset( $_GET[$param_name] ) ) {
-                // If requires additional parameters, check they exist
-                if ( !empty( $requires ) ) {
-                    $all_required_present = true;
-                    foreach ( $requires as $required_param ) {
-                        if ( !isset( $_GET[$required_param] ) ) {
-                            $all_required_present = false;
-                            break;
-                        }
-                    }
-                    if ( !$all_required_present ) {
-                        continue;
-                    }
-                }
-                // Found matching parameter and plugin is active
-                $current_user_ip = self::get_user_ip();
-                wf_sn_el_modules::log_event(
-                    'security_ninja',
-                    'temporary_login_link_detected',
-                    sprintf( __( 'Temporary login link detected: %1$s (plugin: %2$s)', 'security-ninja' ), esc_html( $param_name ), esc_html( $plugin_file ) ),
-                    array(
-                        'ip'     => $current_user_ip,
-                        'param'  => $param_name,
-                        'plugin' => $plugin_file,
-                    )
-                );
-                return true;
-            }
-        }
-        return false;
+        require_once WF_SN_PLUGIN_DIR . 'modules/cloud-firewall/class-wf-sn-cf-temp-login.php';
+        return Wf_Sn_Cf_Temp_Login::is_temporary_login_link();
     }
 
-    /**
-     * Get the name of the temporary login plugin used in current request, if any.
-     *
-     * Returns the plugin name if a temporary login link is detected, false otherwise.
-     * Used for logging purposes to identify which plugin was used for login.
-     * Checks both current query parameters and HTTP referrer as fallback.
-     *
-     * @author  Lars Koudal
-     * @since   5.270
-     * @return  string|false Plugin name if temporary login detected, false otherwise.
-     */
     public static function get_temporary_login_plugin_name() {
-        $request_uri = ( isset( $_SERVER['REQUEST_URI'] ) ? $_SERVER['REQUEST_URI'] : '' );
-        $query_string = ( isset( $_SERVER['QUERY_STRING'] ) ? $_SERVER['QUERY_STRING'] : '' );
-        $http_referer = ( isset( $_SERVER['HTTP_REFERER'] ) ? $_SERVER['HTTP_REFERER'] : '' );
-        // Check filter override first
-        $is_temporary_login = apply_filters(
-            'securityninja_is_temporary_login_link',
-            null,
-            $request_uri,
-            $query_string
-        );
-        if ( $is_temporary_login === true ) {
-            return __( 'Temporary Login (filter override)', 'security-ninja' );
-        }
-        if ( $is_temporary_login === false ) {
-            return false;
-        }
-        // Map plugin files to readable names
-        $plugin_names = array(
-            'temporary-login-without-password/temporary-login-without-password.php' => 'Temporary Login Without Password',
-            'one-time-login/one-time-login.php'                                     => 'One Time Login',
-            'magic-login/plugin.php'                                                => 'Magic Login',
-            'login-links/login-links.php'                                           => 'Login Links',
-        );
-        $default_params = array(
-            array(
-                'param'       => 'wtlwp_token',
-                'plugin_file' => 'temporary-login-without-password/temporary-login-without-password.php',
-            ),
-            array(
-                'param'       => 'one_time_login_token',
-                'plugin_file' => 'one-time-login/one-time-login.php',
-            ),
-            array(
-                'param'       => 'magic-login',
-                'plugin_file' => 'magic-login/plugin.php',
-                'requires'    => array('user_id', 'token'),
-            ),
-            array(
-                'param'       => 'll',
-                'plugin_file' => 'login-links/login-links.php',
-                'prefix'      => true,
-            )
-        );
-        $params = apply_filters( 'securityninja_temporary_login_params', $default_params );
-        if ( !is_array( $params ) || empty( $params ) ) {
-            return false;
-        }
-        // Ensure plugin.php is loaded for is_plugin_active()
-        if ( !function_exists( 'is_plugin_active' ) ) {
-            require_once ABSPATH . 'wp-admin/includes/plugin.php';
-        }
-        // Check current query parameters first
-        foreach ( $params as $param_config ) {
-            if ( !is_array( $param_config ) || empty( $param_config['param'] ) || empty( $param_config['plugin_file'] ) ) {
-                continue;
-            }
-            $param_name = $param_config['param'];
-            $plugin_file = $param_config['plugin_file'];
-            $requires = ( isset( $param_config['requires'] ) && is_array( $param_config['requires'] ) ? $param_config['requires'] : array() );
-            $is_prefix = isset( $param_config['prefix'] ) && $param_config['prefix'] === true;
-            // Check if plugin is active
-            if ( !is_plugin_active( $plugin_file ) ) {
-                continue;
-            }
-            // Check for prefix pattern
-            if ( $is_prefix ) {
-                foreach ( $_GET as $key => $value ) {
-                    if ( strpos( $key, $param_name ) === 0 && strlen( $key ) > strlen( $param_name ) ) {
-                        return ( isset( $plugin_names[$plugin_file] ) ? $plugin_names[$plugin_file] : $plugin_file );
-                    }
-                }
-                // Also check referrer as fallback
-                if ( !empty( $http_referer ) && strpos( $http_referer, $param_name ) !== false ) {
-                    return ( isset( $plugin_names[$plugin_file] ) ? $plugin_names[$plugin_file] : $plugin_file );
-                }
-                continue;
-            }
-            // Check for simple parameter
-            if ( isset( $_GET[$param_name] ) ) {
-                // If requires additional parameters, check they exist
-                if ( !empty( $requires ) ) {
-                    $all_required_present = true;
-                    foreach ( $requires as $required_param ) {
-                        if ( !isset( $_GET[$required_param] ) ) {
-                            $all_required_present = false;
-                            break;
-                        }
-                    }
-                    if ( !$all_required_present ) {
-                        continue;
-                    }
-                }
-                return ( isset( $plugin_names[$plugin_file] ) ? $plugin_names[$plugin_file] : $plugin_file );
-            }
-            // Fallback: check referrer URL for parameter
-            if ( !empty( $http_referer ) ) {
-                $referer_has_param = false;
-                if ( $is_prefix ) {
-                    // For prefix patterns, check if referrer contains the prefix
-                    if ( strpos( $http_referer, $param_name ) !== false ) {
-                        $referer_has_param = true;
-                    }
-                } elseif ( strpos( $http_referer, $param_name . '=' ) !== false || strpos( $http_referer, $param_name . '&' ) !== false ) {
-                    // For simple parameters, check if referrer contains param= or param&
-                    $referer_has_param = true;
-                }
-                if ( $referer_has_param ) {
-                    // If requires additional parameters, check referrer for them too
-                    if ( !empty( $requires ) ) {
-                        $all_required_present = true;
-                        foreach ( $requires as $required_param ) {
-                            if ( strpos( $http_referer, $required_param . '=' ) === false && strpos( $http_referer, $required_param . '&' ) === false ) {
-                                $all_required_present = false;
-                                break;
-                            }
-                        }
-                        if ( !$all_required_present ) {
-                            continue;
-                        }
-                    }
-                    return ( isset( $plugin_names[$plugin_file] ) ? $plugin_names[$plugin_file] : $plugin_file );
-                }
-            }
-        }
-        return false;
+        require_once WF_SN_PLUGIN_DIR . 'modules/cloud-firewall/class-wf-sn-cf-temp-login.php';
+        return Wf_Sn_Cf_Temp_Login::get_temporary_login_plugin_name();
     }
 
     /**
@@ -1656,7 +1089,7 @@ class Wf_sn_cf {
         // and that creates a PHP warning.
         remove_filter( 'wp_robots', 'wp_robots_noindex_search' );
         remove_filter( 'wp_robots', 'wp_robots_noindex_embeds' );
-        wp_die( $message, 'Blocked', array(
+        wp_die( wp_kses_post( $message ), esc_html__( 'Blocked', 'security-ninja' ), array(
             'response' => 403,
         ) );
     }
@@ -1725,76 +1158,40 @@ class Wf_sn_cf {
         return ( isset( $blocked_today['count'] ) ? (int) $blocked_today['count'] : 0 );
     }
 
-    /**
-     * Prune events log table
-     *
-     * @author  Lars Koudal
-     * @since   v0.0.1
-     * @version v1.0.0  Monday, December 21st, 2020.
-     * @access  public static
-     * @param   boolean $force  Default: false
-     * @return  boolean
-     */
     public static function prune_visitor_log( $force = false ) {
-        global $wpdb;
-        $trackvisits_howlong = absint( self::$options['trackvisits_howlong'] );
-        if ( !$trackvisits_howlong ) {
-            $trackvisits_howlong = 2;
-            // in days
-        }
-        $table_name = $wpdb->prefix . 'wf_sn_cf_vl';
-        if ( $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $table_name ) ) === $table_name ) {
-            $wpdb->query( $wpdb->prepare( 'DELETE FROM ' . $wpdb->prefix . 'wf_sn_cf_vl WHERE timestamp < DATE_SUB(NOW(), INTERVAL %d DAY)', $trackvisits_howlong ) );
-            $max_records = 5000;
-            // Sane limit for visitor log entries
-            $remaining_count = $wpdb->get_var( "SELECT COUNT(*) FROM {$table_name}" );
-            if ( $remaining_count > $max_records ) {
-                // Find the timestamp of the record that would be the $max_records-th newest
-                $cutoff_data = $wpdb->get_row( $wpdb->prepare( "SELECT timestamp, id FROM {$table_name} \n\t\t\t\t\tORDER BY timestamp DESC, id DESC \n\t\t\t\t\tLIMIT 1 OFFSET %d", $max_records - 1 ) );
-                if ( $cutoff_data ) {
-                    // For records with the same timestamp, delete those with lower IDs
-                    $wpdb->query( $wpdb->prepare(
-                        "DELETE FROM {$table_name} \n\t\t\t\t\t\tWHERE timestamp < %s \n\t\t\t\t\t\tOR (timestamp = %s AND id < %d)",
-                        $cutoff_data->timestamp,
-                        $cutoff_data->timestamp,
-                        $cutoff_data->id
-                    ) );
-                }
-                \WPSecurityNinja\Plugin\wf_sn_el_modules::log_event(
-                    'security_ninja',
-                    'pruned_visitor_log',
-                    sprintf(
-                        esc_html__( 'Pruned firewall visitors log - %1$s days, then reduced to %2$s entries (was %3$s).', 'security-ninja' ),
-                        $trackvisits_howlong,
-                        $max_records,
-                        $remaining_count
-                    ),
-                    ''
-                );
-            } else {
-                \WPSecurityNinja\Plugin\wf_sn_el_modules::log_event(
-                    'security_ninja',
-                    'pruned_visitor_log',
-                    sprintf( esc_html__( 'Pruned firewall visitors log - %1$s days.', 'security-ninja' ), $trackvisits_howlong ),
-                    ''
-                );
-            }
-        }
-        return true;
+        require_once WF_SN_PLUGIN_DIR . 'modules/cloud-firewall/class-wf-sn-cf-cron.php';
+        return Wf_Sn_Cf_Cron::prune_visitor_log( $force );
     }
 
     /**
-     * Delete all firewall visitor log entries.
+     * Table name built from the WordPress prefix and a fixed suffix.
      *
-     * @return bool
+     * %i identifiers need WordPress 6.2. This plugin still supports 4.7, so callers
+     * interpolate this only after the name matches [A-Za-z0-9_].
+     *
+     * @param string $suffix Table name without the prefix.
+     * @return string Empty when the name is not a safe identifier.
      */
+    private static function validated_table( $suffix ) {
+        global $wpdb;
+        $name = $wpdb->prefix . $suffix;
+        if ( !is_string( $name ) || !preg_match( '/^[A-Za-z0-9_]+$/', $name ) ) {
+            return '';
+        }
+        return $name;
+    }
+
     public static function clear_visitor_log() {
         global $wpdb;
-        $table_name = $wpdb->prefix . 'wf_sn_cf_vl';
+        $table_name = self::validated_table( 'wf_sn_cf_vl' );
+        if ( '' === $table_name ) {
+            return false;
+        }
         if ( $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $table_name ) ) !== $table_name ) {
             return false;
         }
-        $wpdb->query( 'TRUNCATE TABLE ' . $table_name );
+        // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- identifier from validated_table().
+        $wpdb->query( "TRUNCATE TABLE `{$table_name}`" );
         if ( class_exists( __NAMESPACE__ . '\\wf_sn_el_modules' ) ) {
             wf_sn_el_modules::log_event(
                 'security_ninja',
@@ -1818,18 +1215,24 @@ class Wf_sn_cf {
      * @return  void
      */
     public static function deactivate() {
+        // Staged Early Firewall cleanup: remove owned markers; keep proxy until PHP stops prepend.
+        if ( class_exists( __NAMESPACE__ . '\\Secnin_Waf_Lifecycle' ) ) {
+            Secnin_Waf_Lifecycle::safe_deactivate_cleanup();
+        }
         $cron_hooks = array(
             'secnin_update_geoip',
             'secnin_update_cloud_firewall',
             'secnin_prune_visitor_log',
             'secnin_prune_banned',
             'secnin_update_blocked_ips',
+            'secnin_flush_network_reports',
             'secnin_prune_ip_lookup_transients',
             'secnin_geoip_updater'
         );
         foreach ( $cron_hooks as $cron_hook ) {
             wp_clear_scheduled_hook( $cron_hook );
         }
+        delete_option( WF_SN_CF_NETWORK_REPORT_QUEUE );
         if ( !\WPSecurityNinja\Plugin\Utils::should_remove_settings_on_deactivate() ) {
             return;
         }
@@ -1844,6 +1247,13 @@ class Wf_sn_cf {
         delete_option( 'wf_sn_cf_blocked_today' );
         delete_option( WF_SN_CF_OPTIONS_KEY );
         delete_option( 'wf_sn_cf_ips' );
+        delete_option( 'wf_sn_cf_extended' );
+        delete_option( 'wf_sn_cf_waf_cookie_key' );
+        delete_option( 'wf_sn_cf_waf_recovery' );
+        delete_option( 'wf_sn_cf_waf_event_receipts' );
+        if ( class_exists( __NAMESPACE__ . '\\Secnin_Waf_Lifecycle' ) ) {
+            Secnin_Waf_Lifecycle::wipe_data_dir_if_safe();
+        }
         self::clear_cloud_ips_cache();
         self::delete_all_ip_lookup_transients();
         delete_option( 'wf_sn_banned_ips' );
@@ -1851,105 +1261,33 @@ class Wf_sn_cf {
     }
 
     /**
-     * Schedule cron jobs
+     * Refresh Early Firewall runtime after plugin update / version mismatch.
      *
-     * @author  Lars Koudal
-     * @since   v0.0.1
-     * @version v1.0.0  Monday, December 21st, 2020.
-     * @version v1.0.1  Thursday, January 14th, 2021.
-     * @access  public static
-     * @return  void
+     * @return void
      */
+    public static function maybe_refresh_waf_runtime_bundle() {
+    }
+
+    /**
+     * After Security Ninja plugin upgrade, republish Early Firewall runtime.
+     *
+     * @param \WP_Upgrader $upgrader Upgrader.
+     * @param array        $options  Options.
+     * @return void
+     */
+    public static function on_plugin_upgrader_complete( $upgrader, $options ) {
+    }
+
     public static function schedule_cron_jobs() {
+        require_once WF_SN_PLUGIN_DIR . 'modules/cloud-firewall/class-wf-sn-cf-cron.php';
+        return Wf_Sn_Cf_Cron::schedule_cron_jobs();
     }
 
-    /**
-     * Enqueues JS and CSS needed for Firewall tab
-     *
-     * @author  Lars Koudal
-     * @since   v0.0.1
-     * @version v1.0.0  Monday, December 21st, 2020.
-     * @access  public static
-     * @return  void
-     */
     public static function enqueue_scripts() {
-        if ( !Wf_Sn::is_plugin_page() ) {
-            return;
-        }
-        wp_enqueue_style(
-            'select2',
-            WF_SN_PLUGIN_URL . 'modules/cloud-firewall/select2/css/select2.css',
-            array(),
-            filemtime( WF_SN_PLUGIN_DIR . 'modules/cloud-firewall/select2/css/select2.css' )
-        );
-        wp_enqueue_script(
-            'select2',
-            WF_SN_PLUGIN_URL . 'modules/cloud-firewall/select2/js/select2.js',
-            array('jquery'),
-            filemtime( WF_SN_PLUGIN_DIR . 'modules/cloud-firewall/select2/js/select2.js' )
-        );
-        wp_enqueue_style( 'dashicons' );
-        wp_enqueue_style(
-            'sn-cf-css',
-            WF_SN_PLUGIN_URL . 'modules/cloud-firewall/css/wf-sn-cf.css',
-            array('dashicons'),
-            filemtime( WF_SN_PLUGIN_DIR . 'modules/cloud-firewall/css/wf-sn-cf.css' )
-        );
-        wp_register_script(
-            'sn-cf-js',
-            WF_SN_PLUGIN_URL . 'modules/cloud-firewall/js/wf-sn-cf.js',
-            array('select2', 'sn-dialog'),
-            filemtime( WF_SN_PLUGIN_DIR . 'modules/cloud-firewall/js/wf-sn-cf.js' )
-        );
-        $js_vars = array(
-            'nonce'         => wp_create_nonce( 'wf_sn_cf' ),
-            'sn_plugin_url' => WF_SN_PLUGIN_URL,
-            'site_host'     => wp_parse_url( home_url(), PHP_URL_HOST ),
-            'strings'       => array(
-                'copy_blacklisted'    => __( 'Copy blacklisted IPs', 'security-ninja' ),
-                'copy_whitelisted'    => __( 'Copy whitelisted IPs', 'security-ninja' ),
-                'copied'              => __( 'Copied to clipboard.', 'security-ninja' ),
-                'copy_failed'         => __( 'Could not copy to clipboard.', 'security-ninja' ),
-                'confirm_remove_ip'   => __( 'Remove your current IP from the whitelist? You may lock yourself out.', 'security-ninja' ),
-                'no_entries'          => __( 'No IP entries match your filters.', 'security-ninja' ),
-                'remove'              => __( 'Remove', 'security-ninja' ),
-                'copy'                => __( 'Copy', 'security-ninja' ),
-                'prev'                => __( 'Prev', 'security-ninja' ),
-                'next'                => __( 'Next', 'security-ninja' ),
-                'copy_ip'             => __( 'Copy IP', 'security-ninja' ),
-                'cancel'              => __( 'Cancel', 'security-ninja' ),
-                'list_blacklist'      => __( 'blacklist', 'security-ninja' ),
-                'list_whitelist'      => __( 'whitelist', 'security-ninja' ),
-                'remove_confirm'      => __( 'Remove %1$s from the %2$s?', 'security-ninja' ),
-                'source_label'        => __( 'Source:', 'security-ninja' ),
-                'expires_label'       => __( 'Expires:', 'security-ninja' ),
-                'last_visit_label'    => __( 'Last visit:', 'security-ninja' ),
-                'note_label'          => __( 'Note:', 'security-ninja' ),
-                'status_whitelisted'  => __( 'Whitelisted', 'security-ninja' ),
-                'status_blacklisted'  => __( 'Blacklisted', 'security-ninja' ),
-                'add_rule'            => __( 'Add IP rule', 'security-ninja' ),
-                'edit_rule'           => __( 'Edit IP rule', 'security-ninja' ),
-                'edit'                => __( 'Edit', 'security-ninja' ),
-                'save'                => __( 'Save', 'security-ninja' ),
-                'add_success'         => __( 'IP rule added.', 'security-ninja' ),
-                'edit_success'        => __( 'IP rule updated.', 'security-ninja' ),
-                'list_type_blacklist' => __( 'Blacklist', 'security-ninja' ),
-                'list_type_whitelist' => __( 'Whitelist', 'security-ninja' ),
-            ),
-        );
-        wp_localize_script( 'sn-cf-js', 'wf_sn_cf', $js_vars );
-        wp_enqueue_script( 'sn-cf-js' );
+        require_once WF_SN_PLUGIN_DIR . 'modules/cloud-firewall/class-wf-sn-cf-admin.php';
+        return Wf_Sn_Cf_Admin::enqueue_scripts();
     }
 
-    /**
-     * Return firewall options
-     *
-     * @author  Lars Koudal
-     * @since   v0.0.1
-     * @version v1.0.0  Monday, December 21st, 2020.
-     * @access  public static
-     * @return  mixed
-     */
     public static function get_options() {
         if ( !is_null( self::$options ) ) {
             return self::$options;
@@ -1960,7 +1298,7 @@ class Wf_sn_cf {
             'globalbannetwork'              => 1,
             'global'                        => 0,
             'filterqueries'                 => 1,
-            'trackvisits'                   => 1,
+            'trackvisits'                   => 0,
             'trackvisits_howlong'           => 7,
             'usecloud'                      => 1,
             'protect_login_form'            => 1,
@@ -2063,78 +1401,21 @@ class Wf_sn_cf {
         self::$options = null;
     }
 
-    /**
-     * Keep only role slugs that exist in WordPress.
-     *
-     * @param mixed $raw Roles from option (array, string, or other).
-     * @return string[] Unique valid role slugs.
-     */
     public static function sanitize_2fa_required_role_slugs( $raw ) {
-        $wp_roles = ( function_exists( 'wp_roles' ) ? wp_roles() : null );
-        $valid = ( is_object( $wp_roles ) && isset( $wp_roles->roles ) ? array_keys( $wp_roles->roles ) : array() );
-        if ( is_string( $raw ) && '' !== $raw ) {
-            $raw = array($raw);
-        } elseif ( !is_array( $raw ) ) {
-            $raw = array();
-        }
-        $out = array();
-        foreach ( $raw as $slug ) {
-            $slug = sanitize_text_field( (string) $slug );
-            if ( '' === $slug ) {
-                continue;
-            }
-            if ( empty( $valid ) ) {
-                // wp_roles() unavailable (very early); accept nothing so callers can fall back safely.
-                continue;
-            }
-            if ( in_array( $slug, $valid, true ) ) {
-                $out[] = $slug;
-            }
-        }
-        return array_values( array_unique( $out ) );
+        require_once WF_SN_PLUGIN_DIR . 'modules/cloud-firewall/class-wf-sn-cf-admin.php';
+        return Wf_Sn_Cf_Admin::sanitize_2fa_required_role_slugs( $raw );
     }
 
-    /**
-     * Normalize 2FA required roles: valid slugs only (may be empty for opt-in-only mode).
-     *
-     * @param mixed $raw             Stored or submitted roles.
-     * @param bool  $two_fa_enabled  Whether 2FA is enabled (unused; kept for callers).
-     * @return string[]
-     */
     public static function normalize_2fa_required_roles( $raw, $two_fa_enabled ) {
         unset($two_fa_enabled);
         return self::sanitize_2fa_required_role_slugs( $raw );
     }
 
-    /**
-     * Sanitize allowed 2FA methods from submitted values (may be empty).
-     *
-     * @param mixed $raw Stored or submitted methods.
-     * @return string[]
-     */
     public static function sanitize_2fa_methods_list( $raw ) {
-        $allowed = array('app', 'email');
-        if ( is_string( $raw ) && '' !== $raw ) {
-            $raw = array($raw);
-        } elseif ( !is_array( $raw ) ) {
-            $raw = array();
-        }
-        $out = array();
-        foreach ( $raw as $method ) {
-            $method = sanitize_text_field( (string) $method );
-            if ( in_array( $method, $allowed, true ) ) {
-                $out[] = $method;
-            }
-        }
-        return array_values( array_unique( $out ) );
+        require_once WF_SN_PLUGIN_DIR . 'modules/cloud-firewall/class-wf-sn-cf-admin.php';
+        return Wf_Sn_Cf_Admin::sanitize_2fa_methods_list( $raw );
     }
 
-    /**
-     * Normalize allowed 2FA methods (app and/or email); defaults to app when empty on read.
-     *
-     * @param mixed $raw Stored or submitted methods.
-     * @return string[]
-     */
     public static function normalize_2fa_methods( $raw ) {
         $out = self::sanitize_2fa_methods_list( $raw );
         if ( empty( $out ) ) {
@@ -2148,7 +1429,7 @@ class Wf_sn_cf {
      *
      * @return void
      */
-    private static function clear_2fa_user_meta_on_first_enable() {
+    public static function clear_2fa_user_meta_on_first_enable() {
         $users = get_users();
         foreach ( $users as $user ) {
             if ( '1' === get_user_meta( $user->ID, 'secnin_2fa_optin', true ) ) {
@@ -2162,118 +1443,21 @@ class Wf_sn_cf {
         }
     }
 
-    /**
-     * Enables the firewall - via AJAX
-     *
-     * @author  Lars Koudal
-     * @since   v0.0.1
-     * @version v1.0.0  Monday, December 21st, 2020.
-     * @version v1.0.1  Monday, February 6th, 2023.
-     * @access  public static
-     * @return  void
-     */
     public static function ajax_enable_firewall() {
-        check_ajax_referer( 'wf_sn_cf' );
-        if ( !current_user_can( 'manage_options' ) ) {
-            wp_send_json_error( array(
-                'message' => __( 'Failed.', 'security-ninja' ),
-            ) );
-        }
-        self::$options['active'] = 1;
-        update_option( WF_SN_CF_OPTIONS_KEY, self::$options, false );
-        if ( class_exists( __NAMESPACE__ . '\\SN_Geolocation' ) ) {
-            \WPSecurityNinja\Plugin\SN_Geolocation::update_database();
-            // updates the geoip when turning on firewall + via cron afterwards.
-        }
-        // Add notice about whitelist management
-        add_settings_error(
-            'wf_sn_cf',
-            'firewall_activated',
-            __( 'Firewall activated. For security best practices, remember to manually review and manage your IP whitelist.', 'security-ninja' ),
-            'info'
-        );
-        wp_send_json_success( array(
-            'message' => __( 'Firewall activated successfully.', 'security-ninja' ),
-            'notices' => get_settings_errors( 'wf_sn_cf' ),
-        ) );
+        require_once WF_SN_PLUGIN_DIR . 'modules/cloud-firewall/class-wf-sn-cf-admin.php';
+        return Wf_Sn_Cf_Admin::ajax_enable_firewall();
     }
 
-    /**
-     * Tests if an IP is banned, via AJAX
-     *
-     * @author  Lars Koudal
-     * @since   v0.0.1
-     * @version v1.0.0  Monday, December 21st, 2020.
-     * @access  public static
-     * @return  string
-     */
+    public static function ajax_disable_firewall() {
+        require_once WF_SN_PLUGIN_DIR . 'modules/cloud-firewall/class-wf-sn-cf-admin.php';
+        return Wf_Sn_Cf_Admin::ajax_disable_firewall();
+    }
+
     public static function ajax_test_ip() {
-        check_ajax_referer( 'wf_sn_cf' );
-        self::require_premium_ip_management_ajax();
-        if ( !current_user_can( 'manage_options' ) ) {
-            wp_send_json_error( array(
-                'message' => __( 'Failed.', 'security-ninja' ),
-            ) );
-        }
-        if ( !isset( $_POST['ip'] ) ) {
-            wp_send_json_error( array(
-                'message' => __( 'Missing IP.', 'security-ninja' ),
-            ) );
-        }
-        $ip = sanitize_text_field( wp_unslash( $_POST['ip'] ) );
-        if ( !filter_var( $ip, FILTER_VALIDATE_IP ) ) {
-            wp_send_json_success( __( 'Please enter a valid IP address to test.', 'security-ninja' ) );
-        }
-        if ( class_exists( __NAMESPACE__ . '\\Wf_Sn_Cf_Ip_Management' ) ) {
-            $check = Wf_Sn_Cf_Ip_Management::get_block_reasons_for_ip( $ip );
-            if ( !empty( $check['whitelisted'] ) && empty( $check['blocked'] ) ) {
-                wp_send_json_success( sprintf( 
-                    /* translators: %s: IP address */
-                    __( '%s is whitelisted and will not be blocked.', 'security-ninja' ),
-                    esc_html( $ip )
-                 ) );
-            }
-            if ( !empty( $check['blocked'] ) && !empty( $check['reasons'] ) ) {
-                wp_send_json_success( sprintf( 
-                    /* translators: 1: IP address, 2: comma-separated block reasons */
-                    __( '%1$s is blocked. Reasons: %2$s', 'security-ninja' ),
-                    esc_html( $ip ),
-                    esc_html( implode( '; ', $check['reasons'] ) )
-                 ) );
-            }
-            wp_send_json_success( sprintf( 
-                /* translators: %s: IP address */
-                __( '%s is NOT blocked.', 'security-ninja' ),
-                esc_html( $ip )
-             ) );
-        }
-        if ( $reason = self::is_banned_ip( $ip ) ) {
-            wp_send_json_success( sprintf( 
-                /* translators: 1: IP - 2: The reason, leave as is. */
-                __( '%1$s is banned. %2$s', 'security-ninja' ),
-                esc_html( $ip ),
-                esc_html( $reason )
-             ) );
-        }
-        wp_send_json_success( sprintf( 
-            /* translators: %s: IP address */
-            __( '%s is NOT banned.', 'security-ninja' ),
-            esc_html( $ip )
-         ) );
+        require_once WF_SN_PLUGIN_DIR . 'modules/cloud-firewall/class-wf-sn-cf-admin.php';
+        return Wf_Sn_Cf_Admin::ajax_test_ip();
     }
 
-    /**
-     * Return domain from full parsed URL
-     *
-     * https://stackoverflow.com/a/18560043/452515
-     *
-     * @author  Lars Koudal
-     * @since   v0.0.1
-     * @version v1.0.0  Monday, December 21st, 2020.
-     * @access  public static
-     * @param   mixed   $url
-     * @return  mixed
-     */
     public static function url_to_domain( $url ) {
         return implode( array_slice( explode( '/', preg_replace( '/https?:\\/\\/(www\\.)?/', '', $url ) ), 0, 1 ) );
     }
@@ -2283,7 +1467,7 @@ class Wf_sn_cf {
      *
      * @return void
      */
-    private static function require_premium_ip_management_ajax() {
+    public static function require_premium_ip_management_ajax() {
         $denied = true;
         if ( $denied ) {
             wp_send_json_error( array(
@@ -2292,213 +1476,32 @@ class Wf_sn_cf {
         }
     }
 
-    /**
-     * Add manual blacklist/whitelist rule via AJAX.
-     *
-     * @return void
-     */
     public static function ajax_add_ip_rule() {
-        check_ajax_referer( 'wf_sn_cf' );
-        self::require_premium_ip_management_ajax();
-        if ( !current_user_can( 'manage_options' ) ) {
-            wp_send_json_error( array(
-                'message' => __( 'Failed.', 'security-ninja' ),
-            ) );
-        }
-        if ( !isset( $_POST['ip'], $_POST['list_type'] ) ) {
-            wp_send_json_error( array(
-                'message' => __( 'Missing required fields.', 'security-ninja' ),
-            ) );
-        }
-        $ip = sanitize_text_field( wp_unslash( $_POST['ip'] ) );
-        $list_type = sanitize_key( wp_unslash( $_POST['list_type'] ) );
-        if ( !class_exists( __NAMESPACE__ . '\\Wf_Sn_Cf_Ip_Management' ) ) {
-            wp_send_json_error( array(
-                'message' => __( 'IP Management is not available.', 'security-ninja' ),
-            ) );
-        }
-        $note = ( isset( $_POST['note'] ) ? Wf_Sn_Cf_Ip_Management::sanitize_note( wp_unslash( $_POST['note'] ) ) : '' );
-        $result = Wf_Sn_Cf_Ip_Management::add_manual_rule( $ip, $list_type, $note );
-        if ( is_wp_error( $result ) ) {
-            wp_send_json_error( array(
-                'message' => $result->get_error_message(),
-            ) );
-        }
-        wp_send_json_success( array(
-            'message' => __( 'IP rule added.', 'security-ninja' ),
-            'data'    => $result,
-        ) );
+        require_once WF_SN_PLUGIN_DIR . 'modules/cloud-firewall/class-wf-sn-cf-admin.php';
+        return Wf_Sn_Cf_Admin::ajax_add_ip_rule();
     }
 
-    /**
-     * Edit manual blacklist/whitelist rule via AJAX.
-     *
-     * @return void
-     */
     public static function ajax_edit_ip_rule() {
-        check_ajax_referer( 'wf_sn_cf' );
-        self::require_premium_ip_management_ajax();
-        if ( !current_user_can( 'manage_options' ) ) {
-            wp_send_json_error( array(
-                'message' => __( 'Failed.', 'security-ninja' ),
-            ) );
-        }
-        if ( !isset( $_POST['old_ip'], $_POST['ip'], $_POST['list_type'] ) ) {
-            wp_send_json_error( array(
-                'message' => __( 'Missing required fields.', 'security-ninja' ),
-            ) );
-        }
-        $old_ip = sanitize_text_field( wp_unslash( $_POST['old_ip'] ) );
-        $ip = sanitize_text_field( wp_unslash( $_POST['ip'] ) );
-        $list_type = sanitize_key( wp_unslash( $_POST['list_type'] ) );
-        if ( !class_exists( __NAMESPACE__ . '\\Wf_Sn_Cf_Ip_Management' ) ) {
-            wp_send_json_error( array(
-                'message' => __( 'IP Management is not available.', 'security-ninja' ),
-            ) );
-        }
-        $note = ( isset( $_POST['note'] ) ? Wf_Sn_Cf_Ip_Management::sanitize_note( wp_unslash( $_POST['note'] ) ) : '' );
-        $result = Wf_Sn_Cf_Ip_Management::edit_manual_rule(
-            $old_ip,
-            $ip,
-            $list_type,
-            $note
-        );
-        if ( is_wp_error( $result ) ) {
-            wp_send_json_error( array(
-                'message' => $result->get_error_message(),
-            ) );
-        }
-        wp_send_json_success( array(
-            'message' => __( 'IP rule updated.', 'security-ninja' ),
-            'data'    => $result,
-        ) );
+        require_once WF_SN_PLUGIN_DIR . 'modules/cloud-firewall/class-wf-sn-cf-admin.php';
+        return Wf_Sn_Cf_Admin::ajax_edit_ip_rule();
     }
 
-    /**
-     * Remove manual blacklist/whitelist rule via AJAX.
-     *
-     * @return void
-     */
     public static function ajax_remove_ip_rule() {
-        check_ajax_referer( 'wf_sn_cf' );
-        self::require_premium_ip_management_ajax();
-        if ( !current_user_can( 'manage_options' ) ) {
-            wp_send_json_error( array(
-                'message' => __( 'Failed.', 'security-ninja' ),
-            ) );
-        }
-        if ( !isset( $_POST['ip'], $_POST['list_type'] ) ) {
-            wp_send_json_error( array(
-                'message' => __( 'Missing required fields.', 'security-ninja' ),
-            ) );
-        }
-        $ip = sanitize_text_field( wp_unslash( $_POST['ip'] ) );
-        $list_type = sanitize_key( wp_unslash( $_POST['list_type'] ) );
-        if ( !class_exists( __NAMESPACE__ . '\\Wf_Sn_Cf_Ip_Management' ) ) {
-            wp_send_json_error( array(
-                'message' => __( 'IP Management is not available.', 'security-ninja' ),
-            ) );
-        }
-        $result = Wf_Sn_Cf_Ip_Management::remove_manual_rule( $ip, $list_type );
-        if ( is_wp_error( $result ) ) {
-            wp_send_json_error( array(
-                'message' => $result->get_error_message(),
-            ) );
-        }
-        wp_send_json_success( array(
-            'message' => __( 'IP rule removed.', 'security-ninja' ),
-            'data'    => $result,
-        ) );
+        require_once WF_SN_PLUGIN_DIR . 'modules/cloud-firewall/class-wf-sn-cf-admin.php';
+        return Wf_Sn_Cf_Admin::ajax_remove_ip_rule();
     }
 
-    /**
-     * Bulk-add manual blacklist/whitelist rules via AJAX.
-     *
-     * @return void
-     */
     public static function ajax_bulk_add_ip_rules() {
-        check_ajax_referer( 'wf_sn_cf' );
-        self::require_premium_ip_management_ajax();
-        if ( !current_user_can( 'manage_options' ) ) {
-            wp_send_json_error( array(
-                'message' => __( 'Failed.', 'security-ninja' ),
-            ) );
-        }
-        if ( !isset( $_POST['ips'], $_POST['list_type'] ) ) {
-            wp_send_json_error( array(
-                'message' => __( 'Missing required fields.', 'security-ninja' ),
-            ) );
-        }
-        $ips = wp_unslash( $_POST['ips'] );
-        $list_type = sanitize_key( wp_unslash( $_POST['list_type'] ) );
-        if ( !class_exists( __NAMESPACE__ . '\\Wf_Sn_Cf_Ip_Management' ) ) {
-            wp_send_json_error( array(
-                'message' => __( 'IP Management is not available.', 'security-ninja' ),
-            ) );
-        }
-        $note = ( isset( $_POST['note'] ) ? Wf_Sn_Cf_Ip_Management::sanitize_note( wp_unslash( $_POST['note'] ) ) : '' );
-        $result = Wf_Sn_Cf_Ip_Management::add_manual_rules_bulk( $ips, $list_type, $note );
-        if ( is_wp_error( $result ) ) {
-            wp_send_json_error( array(
-                'message' => $result->get_error_message(),
-            ) );
-        }
-        $summary = ( isset( $result['summary'] ) ? $result['summary'] : array() );
-        unset($result['summary']);
-        $added = ( isset( $summary['added'] ) ? (int) $summary['added'] : 0 );
-        $invalid = ( isset( $summary['invalid'] ) ? (int) $summary['invalid'] : 0 );
-        $skipped = ( isset( $summary['skipped_duplicate'] ) ? (int) $summary['skipped_duplicate'] : 0 );
-        $message = sprintf( 
-            /* translators: %d: number of IP rules added */
-            _n(
-                'Added %d IP rule.',
-                'Added %d IP rules.',
-                $added,
-                'security-ninja'
-            ),
-            $added
-         );
-        if ( $invalid > 0 ) {
-            $message .= ' ' . sprintf( 
-                /* translators: %d: number of invalid lines skipped */
-                _n(
-                    '%d invalid line skipped.',
-                    '%d invalid lines skipped.',
-                    $invalid,
-                    'security-ninja'
-                ),
-                $invalid
-             );
-        }
-        if ( $skipped > 0 ) {
-            $message .= ' ' . sprintf( 
-                /* translators: %d: number of duplicate IPs skipped */
-                _n(
-                    '%d duplicate skipped.',
-                    '%d duplicates skipped.',
-                    $skipped,
-                    'security-ninja'
-                ),
-                $skipped
-             );
-        }
-        wp_send_json_success( array(
-            'message' => trim( $message ),
-            'data'    => $result,
-        ) );
+        require_once WF_SN_PLUGIN_DIR . 'modules/cloud-firewall/class-wf-sn-cf-admin.php';
+        return Wf_Sn_Cf_Admin::ajax_bulk_add_ip_rules();
     }
 
-    /**
-     * get_banned_ips.
-     *
-     * @author  Lars Koudal
-     * @since   v0.0.1
-     * @version v1.0.0  Wednesday, June 5th, 2024.
-     * @access  public static
-     * @return  mixed
-     */
     public static function get_banned_ips() {
         if ( !is_null( self::$banned_ips ) ) {
+            return self::$banned_ips;
+        }
+        if ( class_exists( __NAMESPACE__ . '\\Secnin_Waf_Ban_Clock' ) ) {
+            self::$banned_ips = Secnin_Waf_Ban_Clock::maybe_migrate();
             return self::$banned_ips;
         }
         // get the option wf_sn_banned_ips
@@ -2507,283 +1510,19 @@ class Wf_sn_cf {
         return self::$banned_ips;
     }
 
-    /**
-     * Function to send email with unblock link via AJAX
-     *
-     * Moved email sending to seperate function March 2022 - send_secret_access_unblock_url()
-     *
-     * @author  Lars Koudal
-     * @since   v0.0.1
-     * @version v1.0.0  Monday, December 21st, 2020.
-     * @version v1.0.1  Wednesday, March 16th, 2022.
-     * @access  public static
-     * @return  void
-     */
     public static function ajax_send_unblock_email() {
-        check_ajax_referer( 'wf_sn_cf' );
-        if ( !current_user_can( 'manage_options' ) ) {
-            wp_send_json_error( array(
-                'message' => __( 'Failed.', 'security-ninja' ),
-            ) );
-        }
-        if ( !isset( $_POST['email'] ) ) {
-            $error = new \WP_Error('001', 'No email?');
-            wp_send_json_error( $error );
-        }
-        $sanitized_email = sanitize_email( wp_unslash( $_POST['email'] ) );
-        if ( false === is_email( $sanitized_email ) ) {
-            $error = new \WP_Error('002', 'Not a valid email!');
-            wp_send_json_error( $error );
-        }
-        if ( !array_key_exists( 'unblock_url', self::$options ) ) {
-            self::$options['unblock_url'] = md5( time() );
-            update_option( WF_SN_CF_OPTIONS_KEY, self::$options, false );
-        }
-        $sendresult = self::send_secret_access_unblock_url( $sanitized_email );
-        if ( $sendresult ) {
-            wp_send_json_success( array(
-                'message' => __( 'Email sent.', 'security-ninja' ),
-            ) );
-        } else {
-            wp_send_json_error( array(
-                'message' => __( 'Email could not be sent.', 'security-ninja' ),
-            ) );
-        }
-        die;
+        require_once WF_SN_PLUGIN_DIR . 'modules/cloud-firewall/class-wf-sn-cf-admin.php';
+        return Wf_Sn_Cf_Admin::ajax_send_unblock_email();
     }
 
-    /**
-     * send_secret_access_unblock_url.
-     *
-     * @author  Unknown
-     * @since   v0.0.1
-     * @version v1.0.0  Wednesday, March 16th, 2022.
-     * @access  public static
-     * @param   mixed   $email
-     * @return  boolean
-     */
     public static function send_secret_access_unblock_url( $email ) {
-        if ( !$email ) {
-            return false;
-        }
-        $sanitized_email = sanitize_email( $email );
-        if ( false === is_email( $sanitized_email ) ) {
-            $error = new \WP_Error('002', 'Not a valid email!');
-            wp_send_json_error( $error );
-        }
-        $subject = __( 'Security Ninja Firewall secret access link', 'security-ninja' );
-        $body = '<p>' . esc_html__( 'Thank you for installing.', 'security-ninja' ) . '</p>';
-        $body .= '<p>' . esc_html__( 'Please keep this email for your records.', 'security-ninja' ) . '</p>';
-        $body .= '<p>' . esc_html__( 'In the unlikely situation that your IP gets banned, you will need the secret access link.', 'security-ninja' ) . '</p>';
-        $body .= '<p><strong>' . sprintf( esc_html__( 'Your secret access link is %s', 'security-ninja' ), self::get_unblock_url() ) . '</strong></p>';
-        $body .= '<p>' . esc_html__( 'Copy-paste this URL to your browser to whitelist your IP, allowing you to log back in.', 'security-ninja' ) . '</p>';
-        $body .= '<p>' . esc_html__( 'Please keep it safe and do not share it with others. Use it only if you get blocked by the firewall.', 'security-ninja' ) . '</p>';
-        $show_docs_link = true;
-        if ( $show_docs_link ) {
-            $sal_email_link = Utils::generate_sn_web_link( 'email_secret_access', '/docs/firewall-protection/secret-access-link/', array(
-                'utm_medium' => 'email',
-            ) );
-            $body .= '<p><a href="' . $sal_email_link . '" target="_blank" rel="noopener">Documentation for Secret Access Link</a></p>';
-        }
-        $headers = array('Content-Type: text/html; charset=UTF-8');
-        $emailintrotext = 'Save your secret access link for ' . self::url_to_domain( site_url() );
-        $dashboardlink = admin_url( '?page=wf-sn' );
-        $dashboardlinkanchor = 'Settings';
-        $body .= '<p><a href="' . $dashboardlink . '" target="_blank" rel="noopener">' . $dashboardlinkanchor . '</a></p>';
-        $my_replacements = array(
-            '%%emailintrotext%%'      => $emailintrotext,
-            '%%websitedomain%%'       => site_url(),
-            '%%dashboardlink%%'       => $dashboardlink,
-            '%%dashboardlinkanchor%%' => $dashboardlinkanchor,
-            '%%secninlogourl%%'       => WF_SN_PLUGIN_URL . 'images/security-ninja-logo.png',
-            '%%emailtitle%%'          => $subject,
-            '%%sentfromtext%%'        => 'This email was sent from ' . self::url_to_domain( site_url() ),
-            '%%emailcontent%%'        => nl2br( $body ),
-        );
-        $template_path = WF_SN_PLUGIN_DIR . 'includes/email-default.php';
-        // Use secure file reading with validation
-        $html = Wf_Sn_Security_Utils::secure_file_get_contents( $template_path, array(
-            'check_readable'     => true,
-            'check_size'         => true,
-            'max_size'           => 1024 * 1024,
-            'check_type'         => true,
-            'allowed_extensions' => array('php'),
-            'check_mime'         => false,
-            'check_path'         => true,
-            'allowed_dirs'       => array(WF_SN_PLUGIN_DIR),
-        ) );
-        if ( $html === false ) {
-            // Handle error - template not found
-            $html = '<p>Email template not found.</p>';
-        }
-        foreach ( $my_replacements as $needle => $replacement ) {
-            $html = str_replace( $needle, $replacement, $html );
-        }
-        $sendresult = wp_mail(
-            $sanitized_email,
-            $subject,
-            $html,
-            $headers
-        );
-        wf_sn_el_modules::log_event( 'security_ninja', 'install_wizard', 'Sent unblock URL to email ' . $sanitized_email );
-        return $sendresult;
+        require_once WF_SN_PLUGIN_DIR . 'modules/cloud-firewall/class-wf-sn-cf-mail.php';
+        return Wf_Sn_Cf_Mail::send_secret_access_unblock_url( $email );
     }
 
-    /**
-     * Send failed login warning email to administrator
-     *
-     * @author  Lars Koudal
-     * @since   v0.0.1
-     * @version v1.0.0  Tuesday, January 14th, 2025.
-     * @access  public static
-     * @param   string $username   Username that was attempted
-     * @param   string $ip         IP address of the attempt
-     * @param   string $user_agent User agent string
-     * @return  bool True on success, false on failure
-     */
     public static function send_failed_login_warning_email( $username, $ip, $user_agent ) {
-        // Check if setting is enabled
-        if ( empty( self::$options['failed_login_email_warning'] ) ) {
-            return false;
-        }
-        // Validate username
-        if ( empty( $username ) ) {
-            return false;
-        }
-        // Check rate limiting - prevent multiple emails for same username within 15 minutes
-        $rate_limit_key = 'wf_sn_failed_login_email_' . md5( $username );
-        $last_email_time = get_transient( $rate_limit_key );
-        if ( $last_email_time && time() - $last_email_time < 900 ) {
-            // Email was sent recently, skip
-            return false;
-        }
-        // Get user by username
-        $user = get_user_by( 'login', $username );
-        // Check if user exists and is administrator
-        if ( !$user || !in_array( 'administrator', (array) $user->roles, true ) ) {
-            return false;
-        }
-        // Get user email
-        $user_email = $user->user_email;
-        if ( !is_email( $user_email ) ) {
-            return false;
-        }
-        // Build email subject
-        $subject = __( 'Was that you trying to log in?', 'security-ninja' );
-        // Build email body
-        $body = '<p>' . sprintf( 
-            /* translators: 1: Username */
-            __( 'Someone just tried to log in to your account with username: %s', 'security-ninja' ),
-            esc_html( $username )
-         ) . '</p>';
-        $body .= '<p><strong>' . __( 'Details:', 'security-ninja' ) . '</strong></p>';
-        $body .= '<ul>';
-        $body .= '<li>' . sprintf( 
-            /* translators: 1: IP address */
-            __( 'IP Address: %s', 'security-ninja' ),
-            esc_html( $ip )
-         ) . '</li>';
-        if ( !empty( $user_agent ) ) {
-            $body .= '<li>' . sprintf( 
-                /* translators: 1: User agent */
-                __( 'User Agent: %s', 'security-ninja' ),
-                esc_html( $user_agent )
-             ) . '</li>';
-        }
-        $body .= '<li>' . sprintf( 
-            /* translators: 1: Timestamp */
-            __( 'Time: %s', 'security-ninja' ),
-            date_i18n( get_option( 'date_format' ) . ' ' . get_option( 'time_format' ), current_time( 'timestamp' ) )
-         ) . '</li>';
-        $body .= '</ul>';
-        $body .= '<p>' . __( 'If this was you, you can ignore this email. If this was not you, we recommend:', 'security-ninja' ) . '</p>';
-        $body .= '<ul>';
-        $body .= '<li>' . __( 'Change your password immediately', 'security-ninja' ) . '</li>';
-        $body .= '<li>' . __( 'Review your account security settings', 'security-ninja' ) . '</li>';
-        $body .= '<li>' . __( 'Enable two-factor authentication if available', 'security-ninja' ) . '</li>';
-        $body .= '</ul>';
-        $dashboardlink = admin_url( '?page=wf-sn' );
-        $dashboardlinkanchor = __( 'Security Settings', 'security-ninja' );
-        $body .= '<p><a href="' . esc_url( $dashboardlink ) . '" target="_blank" rel="noopener">' . esc_html( $dashboardlinkanchor ) . '</a></p>';
-        $headers = array('Content-Type: text/html; charset=UTF-8');
-        $emailintrotext = sprintf( 
-            /* translators: 1: Site domain */
-            __( 'Failed login attempt for %s', 'security-ninja' ),
-            self::url_to_domain( site_url() )
-         );
-        $my_replacements = array(
-            '%%emailintrotext%%'      => $emailintrotext,
-            '%%websitedomain%%'       => site_url(),
-            '%%dashboardlink%%'       => $dashboardlink,
-            '%%dashboardlinkanchor%%' => $dashboardlinkanchor,
-            '%%secninlogourl%%'       => WF_SN_PLUGIN_URL . 'images/security-ninja-logo.png',
-            '%%emailtitle%%'          => $subject,
-            '%%sentfromtext%%'        => 'This email was sent from ' . self::url_to_domain( site_url() ),
-            '%%emailcontent%%'        => nl2br( $body ),
-        );
-        $template_path = WF_SN_PLUGIN_DIR . 'includes/email-default.php';
-        // Use secure file reading with validation
-        $html = Wf_Sn_Security_Utils::secure_file_get_contents( $template_path, array(
-            'check_readable'     => true,
-            'check_size'         => true,
-            'max_size'           => 1024 * 1024,
-            'check_type'         => true,
-            'allowed_extensions' => array('php'),
-            'check_mime'         => false,
-            'check_path'         => true,
-            'allowed_dirs'       => array(WF_SN_PLUGIN_DIR),
-        ) );
-        if ( $html === false ) {
-            // Handle error - template not found
-            $html = '<p>Email template not found.</p>';
-        }
-        foreach ( $my_replacements as $needle => $replacement ) {
-            $html = str_replace( $needle, $replacement, $html );
-        }
-        $sendresult = wp_mail(
-            $user_email,
-            $subject,
-            $html,
-            $headers
-        );
-        // Log the email sending event
-        if ( $sendresult ) {
-            wf_sn_el_modules::log_event(
-                'security_ninja',
-                'failed_login_email_sent',
-                sprintf( 
-                    /* translators: 1: Username, 2: Email address */
-                    __( 'Failed login warning email sent to %1$s (%2$s)', 'security-ninja' ),
-                    esc_html( $username ),
-                    esc_html( $user_email )
-                 ),
-                array(
-                    'username'   => $username,
-                    'email'      => $user_email,
-                    'ip'         => $ip,
-                    'user_agent' => $user_agent,
-                )
-            );
-            // Set rate limiting transient
-            set_transient( $rate_limit_key, time(), 900 );
-        } else {
-            wf_sn_el_modules::log_event(
-                'security_ninja',
-                'failed_login_email_failed',
-                sprintf( 
-                    /* translators: 1: Username, 2: Email address */
-                    __( 'Failed to send failed login warning email to %1$s (%2$s)', 'security-ninja' ),
-                    esc_html( $username ),
-                    esc_html( $user_email )
-                 ),
-                array(
-                    'username' => $username,
-                    'email'    => $user_email,
-                    'ip'       => $ip,
-                )
-            );
-        }
-        return $sendresult;
+        require_once WF_SN_PLUGIN_DIR . 'modules/cloud-firewall/class-wf-sn-cf-mail.php';
+        return Wf_Sn_Cf_Mail::send_failed_login_warning_email( $username, $ip, $user_agent );
     }
 
     /**
@@ -2881,50 +1620,11 @@ class Wf_sn_cf {
         self::$banned_ips = $new_list;
     }
 
-    /**
-     * Prune banned ips
-     *
-     * @author  Lars Koudal
-     * @since   v0.0.1
-     * @version v1.0.0  Monday, December 21st, 2020.
-     * @access  public static
-     * @return  void
-     */
     public static function prune_banned() {
-        $update = false;
-        $banned_ips = self::get_banned_ips();
-        if ( $banned_ips ) {
-            foreach ( $banned_ips as $ip => $time ) {
-                if ( $time < current_time( 'timestamp' ) ) {
-                    unset($banned_ips[$ip]);
-                    $update = true;
-                }
-            }
-        }
-        if ( $update ) {
-            self::update_banned_ips( $banned_ips );
-            if ( class_exists( __NAMESPACE__ . '\\wf_sn_el_modules' ) ) {
-                wf_sn_el_modules::log_event(
-                    'security_ninja',
-                    'pruned_banned_ips',
-                    'Pruned Firewall local banned IPs.',
-                    ''
-                );
-            }
-        }
+        require_once WF_SN_PLUGIN_DIR . 'modules/cloud-firewall/class-wf-sn-cf-cron.php';
+        return Wf_Sn_Cf_Cron::prune_banned();
     }
 
-    /**
-     * Handle failed login - basic logging for free, advanced protection for premium
-     *
-     * @author  Lars Koudal
-     * @since   v0.0.1
-     * @version v1.0.0  Monday, December 21st, 2020.
-     * @version v1.0.1  Tuesday, January 14th, 2025 - Consolidated free and premium logic
-     * @access  public static
-     * @param   mixed   $username
-     * @return  void
-     */
     public static function failed_login( $username ) {
         if ( !is_string( $username ) ) {
             $username = '';
@@ -2980,15 +1680,18 @@ class Wf_sn_cf {
             // Get the current count before logging this attempt
             $current_user_ip = self::get_user_ip();
             global $wpdb;
-            $date = date( 'Y-m-d H:i:m', current_time( 'timestamp' ) );
-            $query = $wpdb->prepare(
-                'SELECT COUNT(id) FROM ' . $wpdb->prefix . 'wf_sn_el WHERE ip = %s AND action = %s AND timestamp >= DATE_SUB(%s, INTERVAL %s MINUTE)',
-                $current_user_ip,
-                'wp_lost_password_failed',
-                $date,
-                self::$options['max_login_attempts_time']
-            );
-            $previous_attempts = intval( $wpdb->get_var( $query ) );
+            $events_table = self::validated_table( 'wf_sn_el' );
+            $previous_attempts = 0;
+            if ( '' !== $events_table ) {
+                $previous_attempts = (int) $wpdb->get_var( $wpdb->prepare(
+                    "SELECT COUNT(id) FROM `{$events_table}` WHERE ip = %s AND action = %s AND timestamp >= DATE_SUB(%s, INTERVAL %d MINUTE)",
+                    // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- identifier from validated_table().
+                    $current_user_ip,
+                    'wp_lost_password_failed',
+                    current_time( 'mysql' ),
+                    (int) self::$options['max_login_attempts_time']
+                ) );
+            }
             // Log the failed attempt (this will increment the count)
             self::failed_lost_password( $user_login );
             // Create structured data for the event with the correct count
@@ -3038,17 +1741,20 @@ class Wf_sn_cf {
         }
         // Count lost password attempts for this IP in the specified time window
         // Uses the same settings as login protection
-        $date = date( 'Y-m-d H:i:m', current_time( 'timestamp' ) );
-        $query = $wpdb->prepare(
-            'SELECT COUNT(id) FROM ' . $wpdb->prefix . 'wf_sn_el WHERE ip = %s AND action = %s AND timestamp >= DATE_SUB(%s, INTERVAL %s MINUTE)',
-            $current_user_ip,
-            'wp_lost_password_failed',
-            $date,
-            self::$options['max_login_attempts_time']
-        );
-        $lost_password_attempts = intval( $wpdb->get_var( $query ) );
+        $events_table = self::validated_table( 'wf_sn_el' );
+        $lost_password_attempts = 0;
+        if ( '' !== $events_table ) {
+            $lost_password_attempts = (int) $wpdb->get_var( $wpdb->prepare(
+                "SELECT COUNT(id) FROM `{$events_table}` WHERE ip = %s AND action = %s AND timestamp >= DATE_SUB(%s, INTERVAL %d MINUTE)",
+                // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- identifier from validated_table().
+                $current_user_ip,
+                'wp_lost_password_failed',
+                current_time( 'mysql' ),
+                (int) self::$options['max_login_attempts_time']
+            ) );
+        }
         if ( $lost_password_attempts >= intval( self::$options['max_login_attempts'] ) && !isset( $my_banned_ips[$current_user_ip] ) ) {
-            $my_banned_ips[$current_user_ip] = current_time( 'timestamp' ) + self::$options['bruteforce_ban_time'] * 60;
+            $my_banned_ips[$current_user_ip] = Secnin_Waf_Ban_Clock::expiry_from_minutes( self::$options['bruteforce_ban_time'] );
             self::update_banned_ips( $my_banned_ips );
             // Translators: 1: User IP address, 2: Number of lost password attempts, 3: Time in minutes
             $block_details = sprintf(
@@ -3269,7 +1975,7 @@ class Wf_sn_cf {
         $banned_ips = self::get_banned_ips();
         if ( array_key_exists( $current_user_ip, $banned_ips ) ) {
             $expiry = $banned_ips[$current_user_ip];
-            if ( $expiry > current_time( 'timestamp' ) ) {
+            if ( $expiry > Secnin_Waf_Ban_Clock::now() ) {
                 return 'Local blacklist.';
             }
             $updated = $banned_ips;
@@ -3291,32 +1997,22 @@ class Wf_sn_cf {
         }
         // Checks if included in SecNin Global Block network
         global $wpdb;
-        $table_name = $wpdb->prefix . 'wf_sn_cf_bl_ips';
-        $answer = $wpdb->get_var( $wpdb->prepare( "SELECT tid FROM `{$table_name}` WHERE ip = %s", $ip ) );
+        $table_name = self::validated_table( 'wf_sn_cf_bl_ips' );
+        $answer = false;
+        if ( '' !== $table_name ) {
+            $answer = $wpdb->get_var( $wpdb->prepare( "SELECT tid FROM `{$table_name}` WHERE ip = %s", $current_user_ip ) );
+        }
         if ( $answer ) {
             return 'SecNin Global Block network.';
         }
         return false;
     }
 
-    /**
-     * Register module settings.
-     *
-     * @author  Lars Koudal
-     * @since   v0.0.1
-     * @version v1.0.0  Monday, December 21st, 2020.
-     * @access  public static
-     * @return  void
-     */
     public static function register_settings() {
-        register_setting( WF_SN_CF_OPTIONS_KEY, 'wf_sn_cf', array(__NAMESPACE__ . '\\wf_sn_cf', 'sanitize_settings') );
+        require_once WF_SN_PLUGIN_DIR . 'modules/cloud-firewall/class-wf-sn-cf-admin.php';
+        return Wf_Sn_Cf_Admin::register_settings();
     }
 
-    /**
-     * Valid visitor IP source modes (stored in wf_sn_cf['ip_source']).
-     *
-     * @return string[]
-     */
     public static function get_ip_source_modes() {
         return array(
             'auto',
@@ -3417,15 +2113,27 @@ class Wf_sn_cf {
                 break;
             case 'cf_connecting_ip':
                 $cf_ip = self::get_server_ip_from_key( 'HTTP_CF_CONNECTING_IP' );
-                $resolved = ( false !== $cf_ip ? $cf_ip : $remote_addr );
+                if ( false !== $cf_ip && Wf_sn_cf_Utils::is_cloudflare_proxy_ip( $remote_addr ) ) {
+                    $resolved = $cf_ip;
+                } else {
+                    $resolved = $remote_addr;
+                }
                 break;
             case 'x_forwarded_for':
                 $xff = self::get_server_ip_from_key( 'HTTP_X_FORWARDED_FOR' );
-                $resolved = ( false !== $xff ? $xff : $remote_addr );
+                if ( false !== $xff && Wf_sn_cf_Utils::peer_may_forward_client_ip( $remote_addr, $user_proxy_cidrs ) ) {
+                    $resolved = $xff;
+                } else {
+                    $resolved = $remote_addr;
+                }
                 break;
             case 'x_real_ip':
                 $xri = self::get_server_ip_from_key( 'HTTP_X_REAL_IP' );
-                $resolved = ( false !== $xri ? $xri : $remote_addr );
+                if ( false !== $xri && Wf_sn_cf_Utils::peer_may_forward_client_ip( $remote_addr, $user_proxy_cidrs ) ) {
+                    $resolved = $xri;
+                } else {
+                    $resolved = $remote_addr;
+                }
                 break;
             case 'auto':
             default:
@@ -3602,7 +2310,7 @@ class Wf_sn_cf {
      * @param   mixed   $cidr
      * @return  boolean
      */
-    private static function isValidCIDR( $cidr ) {
+    public static function isValidCIDR( $cidr ) {
         $parts = explode( '/', $cidr );
         if ( count( $parts ) !== 2 ) {
             return false;
@@ -3617,661 +2325,39 @@ class Wf_sn_cf {
         return false;
     }
 
-    /**
-     * sanitize settings on save
-     *
-     * @author  Lars Koudal
-     * @author  Unknown
-     * @since   v0.0.1
-     * @version v1.0.0  Monday, December 21st, 2020.
-     * @version v1.0.1  Friday, May 31st, 2024.
-     * @access  public static
-     * @param   mixed   $values
-     * @return  mixed
-     */
     public static function sanitize_settings( $values ) {
-        // Handle null or non-array values (WordPress may call this with null)
-        if ( !is_array( $values ) ) {
-            // Return existing options normalized
-            $old_options = get_option( 'wf_sn_cf', array() );
-            if ( !is_array( $old_options ) ) {
-                $old_options = array();
-            }
-            // Normalize existing boolean values
-            $boolean_keys = array(
-                'active',
-                'globalbannetwork',
-                'global',
-                'filterqueries',
-                'trackvisits',
-                'usecloud',
-                'protect_login_form',
-                'hide_login_errors',
-                'failed_login_email_warning',
-                'countryblock_loginonly',
-                'whitelist_managewp',
-                'whitelist_uptimerobot',
-                'whitelist_wprocket',
-                'whitelist_uptimia',
-                '2fa_enabled',
-                '2fa_backup_codes_enabled',
-                '404guard_enabled',
-                'woo_rate_limiting_enabled',
-                'woo_coupon_protection_enabled',
-                'change_login_url',
-                'blockadminlogin'
-            );
-            foreach ( $boolean_keys as $key ) {
-                if ( isset( $old_options[$key] ) ) {
-                    $old_options[$key] = \WPSecurityNinja\Plugin\Utils::normalize_flag( $old_options[$key] );
-                }
-            }
-            return $old_options;
-        }
-        // Get existing options first (like Events Logger does)
-        $old_options = get_option( 'wf_sn_cf', array() );
-        if ( !is_array( $old_options ) ) {
-            $old_options = array();
-        }
-        // Start with existing options, then merge with form values
-        $new_options = $old_options;
-        $defaults = array(
-            'active'                        => 0,
-            'globalbannetwork'              => 1,
-            'global'                        => 1,
-            'filterqueries'                 => 1,
-            'trackvisits'                   => 1,
-            'trackvisits_howlong'           => 7,
-            'usecloud'                      => 1,
-            'protect_login_form'            => 1,
-            'hide_login_errors'             => 1,
-            'failed_login_email_warning'    => 0,
-            'blocked_countries'             => array(),
-            'countryblock_loginonly'        => 0,
-            'blacklist'                     => array(),
-            'whitelist'                     => array(self::get_user_ip()),
-            'blacklist_notes'               => array(),
-            'whitelist_notes'               => array(),
-            'whitelist_managewp'            => 1,
-            'whitelist_wprocket'            => 0,
-            'whitelist_uptimia'             => 0,
-            'whitelist_uptimerobot'         => 0,
-            'max_login_attempts'            => 5,
-            'max_login_attempts_time'       => 5,
-            'bruteforce_ban_time'           => 120,
-            'login_msg'                     => __( 'Warning: Multiple failed login attempts will get you locked out temporarily.', 'security-ninja' ),
-            'login_error_msg'               => __( 'Something went wrong', 'security-ninja' ),
-            'message'                       => __( 'You are not allowed to visit this website.', 'security-ninja' ),
-            'redirect_url'                  => '',
-            'blockadminlogin'               => 0,
-            'change_login_url'              => 0,
-            'new_login_url'                 => 'my-login',
-            'unblock_url'                   => '',
-            '2fa_required_roles'            => array(),
-            '2fa_methods'                   => array(),
-            '2fa_enabled'                   => 0,
-            '2fa_enabled_timestamp'         => '',
-            '2fa_backup_codes_enabled'      => 0,
-            '2fa_grace_period'              => 14,
-            '2fa_intro'                     => '',
-            '2fa_enter_code'                => '',
-            '404guard_enabled'              => 1,
-            '404guard_threshold'            => 10,
-            '404guard_window'               => 300,
-            '404guard_block_time'           => 600,
-            'woo_rate_limiting_enabled'     => 0,
-            'woo_checkout_rate_limit'       => 3,
-            'woo_checkout_window'           => 300,
-            'woo_add_to_cart_limit'         => 10,
-            'woo_add_to_cart_window'        => 60,
-            'woo_order_rate_limit'          => 2,
-            'woo_order_window'              => 600,
-            'woo_coupon_protection_enabled' => 0,
-            'woo_coupon_failed_attempts'    => 5,
-            'woo_coupon_window'             => 300,
-            'woo_coupon_ban_time'           => 900,
-            'satellite_soft_enabled'        => 1,
-            'satellite_soft_asns'           => array('14593'),
-            'ip_source'                     => 'auto',
-            'trusted_proxy_cidrs'           => array(),
-        );
-        $current_options = self::get_options();
-        $old_2fa_status = $current_options['2fa_enabled'];
-        // List of all boolean/flag settings that should be normalized to 0/1
-        $boolean_keys = array(
-            'active',
-            'globalbannetwork',
-            'global',
-            'filterqueries',
-            'trackvisits',
-            'usecloud',
-            'protect_login_form',
-            'hide_login_errors',
-            'failed_login_email_warning',
-            'countryblock_loginonly',
-            'satellite_soft_enabled',
-            'whitelist_managewp',
-            'whitelist_uptimerobot',
-            'whitelist_wprocket',
-            'whitelist_uptimia',
-            'whitelist_uptimerobot',
-            '2fa_enabled',
-            '2fa_backup_codes_enabled',
-            '404guard_enabled',
-            'woo_rate_limiting_enabled',
-            'woo_coupon_protection_enabled',
-            'change_login_url',
-            'blockadminlogin'
-        );
-        // Handle boolean keys
-        // Fields that are always in the form (free features): filterqueries
-        // If these are missing from form submission, they're unchecked = 0
-        // Premium-only fields might not be in form for free users, so preserve existing
-        $always_in_form_keys = array('filterqueries');
-        // Free features / always-in-form toggles (failed_login_email_warning moved to Login tab)
-        foreach ( $boolean_keys as $key ) {
-            if ( isset( $values[$key] ) ) {
-                // Value is in form submission - normalize it
-                $new_options[$key] = \WPSecurityNinja\Plugin\Utils::normalize_flag( $values[$key] );
-            } elseif ( 'active' === $key ) {
-                // 'active' is a hidden field - preserve existing value if not in form
-                $new_options[$key] = ( isset( $old_options[$key] ) ? \WPSecurityNinja\Plugin\Utils::normalize_flag( $old_options[$key] ) : (( isset( $defaults[$key] ) ? $defaults[$key] : 0 )) );
-            } elseif ( in_array( $key, $always_in_form_keys, true ) ) {
-                // Field is always in form - missing = unchecked = 0
-                $new_options[$key] = 0;
-            } else {
-                // Premium-only field or field that might not be in form - preserve existing
-                $new_options[$key] = ( isset( $old_options[$key] ) ? \WPSecurityNinja\Plugin\Utils::normalize_flag( $old_options[$key] ) : (( isset( $defaults[$key] ) ? $defaults[$key] : 0 )) );
-            }
-        }
-        // Process all other form values (non-boolean)
-        foreach ( $values as $key => $value ) {
-            // Skip boolean keys as they're already handled above
-            if ( in_array( $key, $boolean_keys, true ) ) {
-                continue;
-            }
-            if ( array_key_exists( $key, $defaults ) ) {
-                switch ( $key ) {
-                    case '2fa_required_roles':
-                    case '2fa_methods':
-                    case 'blocked_countries':
-                        if ( is_array( $value ) ) {
-                            $new_options[$key] = array_map( 'sanitize_text_field', $value );
-                        } else {
-                            $new_options[$key] = sanitize_text_field( $value );
-                        }
-                        break;
-                    case 'blacklist':
-                    case 'whitelist':
-                        if ( !is_array( $value ) && is_string( $value ) ) {
-                            // Split the string into an array by line breaks
-                            $ips = explode( "\n", $value );
-                            // Trim whitespace, sanitize each IP address or CIDR, and ensure uniqueness
-                            $new_options[$key] = array_unique( array_filter( array_map( function ( $ip ) {
-                                $sanitized_ip = sanitize_text_field( trim( $ip ) );
-                                if ( filter_var( $sanitized_ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4 ) || filter_var( $sanitized_ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV6 ) ) {
-                                    return $sanitized_ip;
-                                }
-                                if ( strpos( $sanitized_ip, '/' ) !== false && self::isValidCIDR( $sanitized_ip ) ) {
-                                    return $sanitized_ip;
-                                }
-                                // Return null if invalid to filter it out
-                                return null;
-                            }, $ips ), function ( $ip ) {
-                                return !is_null( $ip );
-                            } ) );
-                        } elseif ( is_array( $value ) ) {
-                            // If it's already an array, sanitize and validate each entry
-                            $new_options[$key] = array_unique( array_filter( array_map( function ( $ip ) {
-                                $sanitized_ip = sanitize_text_field( trim( $ip ) );
-                                // Validate IP or CIDR using your existing function
-                                if ( filter_var( $sanitized_ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4 ) || filter_var( $sanitized_ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV6 ) || strpos( $sanitized_ip, '/' ) !== false && self::isValidCIDR( $sanitized_ip ) ) {
-                                    return $sanitized_ip;
-                                }
-                                return null;
-                            }, $value ), function ( $ip ) {
-                                return !is_null( $ip );
-                            } ) );
-                        } else {
-                            // If the value is neither a string nor an array, set an empty array
-                            $new_options[$key] = array();
-                        }
-                        break;
-                    case '2fa_grace_period':
-                    case 'max_login_attempts':
-                    case 'max_login_attempts_time':
-                    case 'bruteforce_ban_time':
-                    case 'trackvisits_howlong':
-                        // number of days to track visits
-                        $new_options[$key] = intval( $value );
-                        break;
-                    case '404guard_threshold':
-                        $new_options[$key] = intval( $value );
-                        // Sanity check: minimum 5, maximum 50
-                        if ( $new_options[$key] < 5 ) {
-                            $new_options[$key] = 5;
-                        } elseif ( $new_options[$key] > 50 ) {
-                            $new_options[$key] = 50;
-                        }
-                        break;
-                    case '404guard_window':
-                        $new_options[$key] = intval( $value );
-                        // Sanity check: minimum 60 seconds (1 minute), maximum 3600 seconds (1 hour)
-                        if ( $new_options[$key] < 60 ) {
-                            $new_options[$key] = 60;
-                        } elseif ( $new_options[$key] > 3600 ) {
-                            $new_options[$key] = 3600;
-                        }
-                        break;
-                    case '404guard_block_time':
-                        $new_options[$key] = intval( $value );
-                        // Sanity check: minimum 300 seconds (5 minutes), maximum 86400 seconds (24 hours)
-                        if ( $new_options[$key] < 300 ) {
-                            $new_options[$key] = 300;
-                        } elseif ( $new_options[$key] > 86400 ) {
-                            $new_options[$key] = 86400;
-                        }
-                        break;
-                    // WooCommerce protection options
-                    case 'woo_rate_limiting_enabled':
-                    case 'woo_coupon_protection_enabled':
-                        // These are boolean keys, already handled above - skip
-                        break;
-                    case 'woo_checkout_rate_limit':
-                        $new_options[$key] = intval( $value );
-                        // Sanity check: minimum 2, maximum 10
-                        if ( $new_options[$key] < 2 ) {
-                            $new_options[$key] = 2;
-                        } elseif ( $new_options[$key] > 10 ) {
-                            $new_options[$key] = 10;
-                        }
-                        break;
-                    case 'woo_checkout_window':
-                        $new_options[$key] = intval( $value );
-                        // Sanity check: minimum 180 seconds (3 minutes), maximum 1800 seconds (30 minutes)
-                        if ( $new_options[$key] < 180 ) {
-                            $new_options[$key] = 180;
-                        } elseif ( $new_options[$key] > 1800 ) {
-                            $new_options[$key] = 1800;
-                        }
-                        break;
-                    case 'woo_add_to_cart_limit':
-                        $new_options[$key] = intval( $value );
-                        // Sanity check: minimum 5, maximum 20
-                        if ( $new_options[$key] < 5 ) {
-                            $new_options[$key] = 5;
-                        } elseif ( $new_options[$key] > 20 ) {
-                            $new_options[$key] = 20;
-                        }
-                        break;
-                    case 'woo_add_to_cart_window':
-                        $new_options[$key] = intval( $value );
-                        // Sanity check: minimum 30 seconds, maximum 300 seconds (5 minutes)
-                        if ( $new_options[$key] < 30 ) {
-                            $new_options[$key] = 30;
-                        } elseif ( $new_options[$key] > 300 ) {
-                            $new_options[$key] = 300;
-                        }
-                        break;
-                    case 'woo_order_rate_limit':
-                        $new_options[$key] = intval( $value );
-                        // Sanity check: minimum 1, maximum 5
-                        if ( $new_options[$key] < 1 ) {
-                            $new_options[$key] = 1;
-                        } elseif ( $new_options[$key] > 5 ) {
-                            $new_options[$key] = 5;
-                        }
-                        break;
-                    case 'woo_order_window':
-                        $new_options[$key] = intval( $value );
-                        // Sanity check: minimum 300 seconds (5 minutes), maximum 3600 seconds (1 hour)
-                        if ( $new_options[$key] < 300 ) {
-                            $new_options[$key] = 300;
-                        } elseif ( $new_options[$key] > 3600 ) {
-                            $new_options[$key] = 3600;
-                        }
-                        break;
-                    // Coupon protection options
-                    case 'woo_coupon_failed_attempts':
-                        $new_options[$key] = intval( $value );
-                        // Sanity check: minimum 3, maximum 15
-                        if ( $new_options[$key] < 3 ) {
-                            $new_options[$key] = 3;
-                        } elseif ( $new_options[$key] > 15 ) {
-                            $new_options[$key] = 15;
-                        }
-                        break;
-                    case 'woo_coupon_window':
-                        $new_options[$key] = intval( $value );
-                        // Sanity check: minimum 180 seconds (3 minutes), maximum 1800 seconds (30 minutes)
-                        if ( $new_options[$key] < 180 ) {
-                            $new_options[$key] = 180;
-                        } elseif ( $new_options[$key] > 1800 ) {
-                            $new_options[$key] = 1800;
-                        }
-                        break;
-                    case 'woo_coupon_ban_time':
-                        $new_options[$key] = intval( $value );
-                        // Sanity check: minimum 300 seconds (5 minutes), maximum 3600 seconds (1 hour)
-                        if ( $new_options[$key] < 300 ) {
-                            $new_options[$key] = 300;
-                        } elseif ( $new_options[$key] > 3600 ) {
-                            $new_options[$key] = 3600;
-                        }
-                        break;
-                    case '2fa_intro':
-                    case '2fa_enter_code':
-                    case '2fa_enabled_timestamp':
-                    case 'login_msg':
-                    case 'login_error_msg':
-                    case 'message':
-                    case 'new_login_url':
-                        $new_options[$key] = sanitize_text_field( $value );
-                        break;
-                    case 'redirect_url':
-                        $new_options[$key] = esc_url_raw( $value );
-                        break;
-                    case 'satellite_soft_asns':
-                        $raw = ( is_string( $value ) ? $value : '' );
-                        $parts = preg_split(
-                            '/[\\s,]+/',
-                            $raw,
-                            -1,
-                            PREG_SPLIT_NO_EMPTY
-                        );
-                        $out = array();
-                        foreach ( $parts as $p ) {
-                            $p = trim( $p );
-                            if ( preg_match( '/^\\d+$/', $p ) ) {
-                                $out[] = $p;
-                            }
-                        }
-                        if ( empty( $out ) ) {
-                            $out = array('14593');
-                        }
-                        $new_options['satellite_soft_asns'] = array_unique( $out );
-                        break;
-                    case 'ip_source':
-                        $new_options['ip_source'] = self::normalize_ip_source( $value );
-                        break;
-                    case 'trusted_proxy_cidrs':
-                        $new_options['trusted_proxy_cidrs'] = self::sanitize_trusted_proxy_cidrs( $value );
-                        break;
-                    default:
-                        $new_options[$key] = sanitize_text_field( $value );
-                        break;
-                }
-            }
-            // Keys not in defaults are ignored (not added to new_options).
-        }
-        // // Check for user IP whitelisting if the firewall is active
-        // $user_ip = self::get_user_ip();
-        // if (isset($new_options['active']) && $new_options['active'] && !in_array($user_ip, $new_options['whitelist'], true)) {
-        //  $new_options['whitelist'][] = $user_ip;
-        // }
-        // Handle 404 Guard status changes
-        $old_404guard_status = (int) ($current_options['404guard_enabled'] ?? 0);
-        $new_404guard_status = (int) ($new_options['404guard_enabled'] ?? 0);
-        $current_twofa_status = (int) ($current_options['2fa_enabled'] ?? 0);
-        // If the 2fa_enabled is set to 1 and it used to be 0, set the timestamp '2fa_enabled_timestamp' to the current time
-        $old_2fa_status = $current_twofa_status;
-        // Check if 2FA was just enabled
-        if ( isset( $new_options['2fa_enabled'] ) && (int) $new_options['2fa_enabled'] === 1 && $old_2fa_status === 0 ) {
-            $new_options['2fa_enabled_timestamp'] = current_time( 'timestamp' );
-            self::clear_2fa_user_meta_on_first_enable();
-        }
-        // Ensure a non-empty login URL if the change login URL feature is active
-        if ( class_exists( __NAMESPACE__ . '\\SecNin_Rename_WP_Login' ) && isset( $new_options['change_login_url'] ) && $new_options['change_login_url'] && '' === ($new_options['new_login_url'] ?? '') ) {
-            $new_options['new_login_url'] = \WPSecurityNinja\Plugin\SecNin_Rename_WP_Login::$default_login_url;
-        }
-        // Merge sanitized values with defaults to ensure all settings are complete and valid
-        // Use $new_options which already has existing values preserved for missing keys
-        $merged = array_merge( $defaults, $new_options );
-        $two_fa_on = !empty( $merged['2fa_enabled'] );
-        $merged['2fa_required_roles'] = self::normalize_2fa_required_roles( $merged['2fa_required_roles'] ?? array(), $two_fa_on );
-        $merged['2fa_methods'] = self::normalize_2fa_methods( $merged['2fa_methods'] ?? array() );
-        return $merged;
+        require_once WF_SN_PLUGIN_DIR . 'modules/cloud-firewall/class-wf-sn-cf-admin.php';
+        return Wf_Sn_Cf_Admin::sanitize_settings( $values );
     }
 
-    /**
-     * add new tab
-     *
-     * @author  Lars Koudal
-     * @since   v0.0.1
-     * @version v1.0.0  Monday, December 21st, 2020.
-     * @access  public static
-     * @param   mixed   $tabs
-     * @return  mixed
-     */
     public static function sn_tabs( $tabs ) {
-        $core_tab = array(
-            'id'       => 'sn_cf',
-            'class'    => '',
-            'label'    => 'Firewall',
-            'callback' => array(__NAMESPACE__ . '\\wf_sn_cf', 'do_page'),
-        );
-        $done = 0;
-        $tabs_count = count( $tabs );
-        for ($i = 0; $i < $tabs_count; $i++) {
-            if ( 'sn_cf' === $tabs[$i]['id'] ) {
-                $tabs[$i] = $core_tab;
-                $done = 1;
-                break;
-            }
-        }
-        if ( !$done ) {
-            $tabs[] = $core_tab;
-        }
-        $login_tab_class = 'profeature';
-        $login_tab = array(
-            'id'       => 'sn_login',
-            'class'    => $login_tab_class,
-            'label'    => esc_html__( 'Login', 'security-ninja' ),
-            'callback' => array(__NAMESPACE__ . '\\wf_sn_cf', 'do_login_page'),
-        );
-        $inserted = false;
-        foreach ( $tabs as $idx => $tab ) {
-            if ( isset( $tab['id'] ) && $tab['id'] === 'sn_cf' ) {
-                array_splice(
-                    $tabs,
-                    $idx + 1,
-                    0,
-                    array($login_tab)
-                );
-                $inserted = true;
-                break;
-            }
-        }
-        if ( !$inserted ) {
-            $tabs[] = $login_tab;
-        }
-        return $tabs;
+        require_once WF_SN_PLUGIN_DIR . 'modules/cloud-firewall/class-wf-sn-cf-admin.php';
+        return Wf_Sn_Cf_Admin::sn_tabs( $tabs );
     }
 
-    /**
-     * Renders the Login top-level tab (login protection settings or upgrade notice).
-     *
-     * @author  Lars Koudal
-     * @since   v0.0.1
-     * @version v1.0.0  Monday, March 10th, 2025.
-     * @access  public static
-     * @return  void
-     */
     public static function do_login_page() {
-        if ( is_null( self::$options ) ) {
-            self::$options = self::get_options();
-        }
-        if ( get_transient( 'secnin_2fa_optin_only_notice' ) ) {
-            delete_transient( 'secnin_2fa_optin_only_notice' );
-            echo '<div class="notice notice-warning is-dismissible"><p>' . esc_html__( 'Two-factor authentication is enabled but no roles are required. Users can opt in from their profile; nobody will be forced to set up 2FA.', 'security-ninja' ) . '</p></div>';
-        }
-        if ( get_transient( 'secnin_2fa_methods_empty_notice' ) ) {
-            delete_transient( 'secnin_2fa_methods_empty_notice' );
-            echo '<div class="notice notice-warning is-dismissible"><p>' . esc_html__( 'At least one 2FA method must be selected. Your previous method settings were kept.', 'security-ninja' ) . '</p></div>';
-        }
-        ?>
-		<div class="sncard settings-card">
-			<h2><span class="dashicons dashicons-lock"></span> <?php 
-        esc_html_e( 'Login', 'security-ninja' );
-        ?></h2>
-			<p><?php 
-        esc_html_e( 'Protect your login page from brute force attacks, enable 2FA, and customize your login URL.', 'security-ninja' );
-        ?></p>
-		<?php 
-        ?>
-			<div class="sncard infobox">
-				<div class="inner">
-					<h3>Upgrade to Pro for Login Protection</h3>
-					<p>Upgrade to Security Ninja Pro to unlock powerful login protection features:</p>
-					<ul style="list-style: disc; margin-left: 20px; margin-top: 10px;">
-						<li>Advanced login form protection with brute force detection</li>
-						<li>Auto-ban rules for failed login attempts</li>
-						<li>Block "admin" username login attempts</li>
-						<li>Hide login errors to prevent username enumeration</li>
-						<li>Email warnings for failed login attempts</li>
-						<li>Change login URL to hide wp-login.php</li>
-						<li>Two-Factor Authentication (2FA) for enhanced security</li>
-					</ul>
-					<p style="margin-top: 15px;">
-						<a href="<?php 
-        echo esc_url( \WPSecurityNinja\Plugin\Utils::generate_sn_web_link( 'firewall_upgrade', '/upgrade/' ) );
-        ?>" class="button button-primary button-small" target="_blank" rel="noopener"><?php 
-        esc_html_e( 'Upgrade to Pro', 'security-ninja' );
-        ?></a>
-					</p>
-				</div>
-			</div>
-			<?php 
-        echo '</div>';
+        require_once WF_SN_PLUGIN_DIR . 'modules/cloud-firewall/class-wf-sn-cf-admin.php';
+        return Wf_Sn_Cf_Admin::do_login_page();
     }
 
-    /**
-     * Handles saving of login protection settings (admin_post handler).
-     *
-     * @author  Lars Koudal
-     * @since   v0.0.1
-     * @version v1.0.0  Monday, March 10th, 2025.
-     * @access  public static
-     * @return  void
-     */
     public static function save_login_settings() {
-        if ( !isset( $_POST['sn_login_nonce'] ) || !wp_verify_nonce( sanitize_key( wp_unslash( $_POST['sn_login_nonce'] ) ), 'sn_save_login_settings' ) ) {
-            wp_die( 'Security check failed.' );
-        }
-        if ( !current_user_can( 'manage_options' ) ) {
-            wp_die( 'You do not have sufficient permissions.' );
-        }
-        $values = ( isset( $_POST['wf_sn_cf'] ) && is_array( $_POST['wf_sn_cf'] ) ? wp_unslash( $_POST['wf_sn_cf'] ) : array() );
-        $existing = get_option( 'wf_sn_cf', array() );
-        if ( !is_array( $existing ) ) {
-            $existing = array();
-        }
-        $boolean_keys = array(
-            'protect_login_form',
-            'hide_login_errors',
-            'failed_login_email_warning',
-            'change_login_url',
-            'blockadminlogin',
-            '2fa_enabled',
-            '2fa_backup_codes_enabled'
-        );
-        foreach ( $boolean_keys as $key ) {
-            $existing[$key] = ( isset( $values[$key] ) ? \WPSecurityNinja\Plugin\Utils::normalize_flag( $values[$key] ) : 0 );
-        }
-        $int_keys = array(
-            'max_login_attempts'      => array(1, 100),
-            'max_login_attempts_time' => array(1, 60),
-            'bruteforce_ban_time'     => array(2, 5256000),
-            '2fa_grace_period'        => array(0, 90),
-        );
-        foreach ( $int_keys as $key => $bounds ) {
-            if ( isset( $values[$key] ) ) {
-                $v = intval( $values[$key] );
-                $existing[$key] = max( $bounds[0], min( $bounds[1], $v ) );
-            }
-        }
-        $text_keys = array(
-            'login_msg',
-            'login_error_msg',
-            'new_login_url',
-            '2fa_intro',
-            '2fa_enter_code'
-        );
-        foreach ( $text_keys as $key ) {
-            if ( array_key_exists( $key, $values ) ) {
-                $existing[$key] = sanitize_text_field( $values[$key] );
-            }
-        }
-        if ( !empty( $values['2fa_required_roles_present'] ) ) {
-            if ( isset( $values['2fa_required_roles'] ) && is_array( $values['2fa_required_roles'] ) ) {
-                $existing['2fa_required_roles'] = array_map( 'sanitize_text_field', $values['2fa_required_roles'] );
-            } else {
-                $existing['2fa_required_roles'] = array();
-            }
-        }
-        if ( !empty( $values['2fa_methods_present'] ) ) {
-            $methods = self::sanitize_2fa_methods_list( $values['2fa_methods'] ?? array() );
-            if ( empty( $methods ) ) {
-                set_transient( 'secnin_2fa_methods_empty_notice', 1, MINUTE_IN_SECONDS );
-            } else {
-                $existing['2fa_methods'] = $methods;
-            }
-        } elseif ( isset( $values['2fa_methods'] ) ) {
-            $existing['2fa_methods'] = self::normalize_2fa_methods( $values['2fa_methods'] );
-        }
-        $current_options = self::get_options();
-        $old_2fa = (int) (( isset( $current_options['2fa_enabled'] ) ? $current_options['2fa_enabled'] : 0 ));
-        if ( isset( $existing['2fa_enabled'] ) && (int) $existing['2fa_enabled'] === 1 && $old_2fa === 0 ) {
-            $existing['2fa_enabled_timestamp'] = (string) current_time( 'timestamp' );
-            self::clear_2fa_user_meta_on_first_enable();
-        }
-        if ( !empty( $existing['change_login_url'] ) && '' === ($existing['new_login_url'] ?? '') ) {
-            $existing['new_login_url'] = ( class_exists( __NAMESPACE__ . '\\SecNin_Rename_WP_Login' ) ? \WPSecurityNinja\Plugin\SecNin_Rename_WP_Login::$default_login_url : 'my-login' );
-        }
-        if ( isset( $existing['new_login_url'] ) && $existing['new_login_url'] !== '' ) {
-            $existing['new_login_url'] = preg_replace( '/[^a-zA-Z0-9_-]/', '', $existing['new_login_url'] );
-            if ( $existing['new_login_url'] === '' ) {
-                $existing['new_login_url'] = 'my-login';
-            }
-        }
-        if ( isset( $current_options['unblock_url'] ) && $current_options['unblock_url'] !== '' ) {
-            $existing['unblock_url'] = $current_options['unblock_url'];
-        }
-        $two_fa_on = !empty( $existing['2fa_enabled'] );
-        $existing['2fa_required_roles'] = self::normalize_2fa_required_roles( $existing['2fa_required_roles'] ?? array(), $two_fa_on );
-        $existing['2fa_methods'] = self::normalize_2fa_methods( $existing['2fa_methods'] ?? array() );
-        if ( $two_fa_on && empty( $existing['2fa_required_roles'] ) ) {
-            set_transient( 'secnin_2fa_optin_only_notice', 1, MINUTE_IN_SECONDS );
-        }
-        update_option( 'wf_sn_cf', $existing, false );
-        do_action( 'security_ninja_firewall_settings_saved' );
-        self::$options = null;
-        wp_safe_redirect( admin_url( 'admin.php?page=wf-sn&settings-updated=1#sn_login' ) );
-        exit;
+        require_once WF_SN_PLUGIN_DIR . 'modules/cloud-firewall/class-wf-sn-cf-admin.php';
+        return Wf_Sn_Cf_Admin::save_login_settings();
     }
 
-    /**
-     * add custom message to overlay
-     *
-     * @author  Lars Koudal
-     * @since   v0.0.1
-     * @version v1.0.0  Monday, December 21st, 2020.
-     * @access  public static
-     * @return  void
-     */
     public static function overlay_content() {
         echo '<div id="sn-cloud-firewall" style="display: none; text-align:center;">';
-        echo '<h2 style="font-weight: bold;">' . __( 'Important! Please READ!', 'security-ninja' ) . '</h2>';
-        echo '<p>' . __( 'In the unlikely situation that your IP gets banned, you will not be able to login or access the site. In that case you need the secret access link.', 'security-ninja' ) . '</p>';
-        echo '<p>' . __( 'It whitelists your IP and enables access. Please store the link in a safe place or use the form below to get it sent to your email address.', 'security-ninja' ) . '</p>';
-        echo '<p><code>' . self::get_unblock_url() . '</code></p>';
-        echo '<div id="sn-firewall-status">' . __( 'Enabling firewall, please wait', 'security-ninja' ) . '</p><p class="spinner is-active"></div>';
-        echo '<p>' . __( 'Enter your email below to receive the secret access link in case you get locked out', 'security-ninja' ) . '</p>';
-        echo '<input style="width: 250px;" type="text" id="sn-ublock-email" name="sn-ublock-email" value="' . get_option( 'admin_email' ) . '" placeholder="john@example.com"><br />
-																									<p id="sn-unblock-message"></p>';
+        echo '<h2 style="font-weight: bold;">' . esc_html__( 'Important! Please READ!', 'security-ninja' ) . '</h2>';
+        echo '<p>' . esc_html__( 'In the unlikely situation that your IP gets banned, you will not be able to login or access the site. In that case you need the secret access link.', 'security-ninja' ) . '</p>';
+        echo '<p>' . esc_html__( 'It whitelists your IP and enables access. Please store the link in a safe place or use the form below to get it sent to your email address.', 'security-ninja' ) . '</p>';
+        echo '<p><code>' . esc_html( self::get_unblock_url() ) . '</code></p>';
+        echo '<div id="sn-firewall-status">' . esc_html__( 'Enabling firewall, please wait', 'security-ninja' ) . '<span class="spinner is-active"></span></div>';
+        echo '<p>' . esc_html__( 'Enter your email below to receive the secret access link in case you get locked out', 'security-ninja' ) . '</p>';
+        echo '<input style="width: 250px;" type="text" id="sn-ublock-email" name="sn-ublock-email" value="' . esc_attr( (string) get_option( 'admin_email' ) ) . '" placeholder="john@example.com"><br />';
+        echo '<p id="sn-unblock-message"></p>';
         ?>
 		<input type="button" value="<?php 
-        esc_html_e( 'Send secret access link', 'security-ninja' );
+        esc_attr_e( 'Send secret access link', 'security-ninja' );
         ?>" id="sn-send-unlock-code" class="input-button button button-secondary" />
 		<?php 
         echo '<p><br><input type="button" value="Close (3)" id="sn-close-firewall" class="input-button button-primary" /></p>';
@@ -4377,6 +2463,17 @@ class Wf_sn_cf {
     }
 
     /**
+     * Cryptographically random unblock token for ?snf= (32 hex chars).
+     *
+     * Existing stored tokens are never rotated by this helper. Only create/reset paths call it.
+     *
+     * @return string
+     */
+    public static function generate_unblock_token() {
+        return bin2hex( random_bytes( 16 ) );
+    }
+
+    /**
      * get_unblock_url.
      *
      * @author  Lars Koudal
@@ -4393,7 +2490,7 @@ class Wf_sn_cf {
         }
         // check if already set
         if ( !$unblock_url ) {
-            $my_options['unblock_url'] = md5( time() );
+            $my_options['unblock_url'] = self::generate_unblock_token();
             update_option( WF_SN_CF_OPTIONS_KEY, $my_options, false );
         }
         $outurl = add_query_arg( array(
@@ -4403,362 +2500,152 @@ class Wf_sn_cf {
     }
 
     /**
-     * display results
+     * True when an IP is safe to share on the block list.
      *
-     * @author  Lars Koudal
-     * @since   v0.0.1
-     * @version v1.0.0  Monday, December 21st, 2020.
-     * @access  public static
-     * @return  void
+     * @param string $ip IP address.
+     * @return bool
      */
-    public static function do_page() {
-        global $wpdb;
-        $ips = get_option( 'wf_sn_cf_ips' );
-        if ( $ips && !array_key_exists( 'total', $ips ) ) {
-            $total_ips = 0;
-            if ( isset( $ips['subnets'] ) ) {
-                foreach ( $ips['subnets'] as $prefix => $subnet ) {
-                    foreach ( $subnet as $sub ) {
-                        $mask = explode( '/', str_replace( '\'', '', $sub ) );
-                        $total_ips += pow( 2, 32 - $mask[1] ) - 2;
-                    }
+    public static function is_shared_network_ip( $ip ) {
+        $ip = (string) $ip;
+        if ( !filter_var( $ip, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE ) ) {
+            return false;
+        }
+        if ( !filter_var( $ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4 ) ) {
+            return true;
+        }
+        $long = ip2long( $ip );
+        if ( false === $long ) {
+            return false;
+        }
+        $unsigned = (int) sprintf( '%u', $long );
+        $first = $unsigned >> 24 & 255;
+        if ( $first >= 224 ) {
+            return false;
+        }
+        $start = (int) sprintf( '%u', ip2long( '100.64.0.0' ) );
+        $end = (int) sprintf( '%u', ip2long( '100.127.255.255' ) );
+        if ( $unsigned >= $start && $unsigned <= $end ) {
+            return false;
+        }
+        return true;
+    }
+
+    /**
+     * Authorization header for a reportip write. Covers the exact body bytes.
+     *
+     * @param string $secret    Site secret.
+     * @param int    $timestamp Unix time.
+     * @param string $body      Raw JSON body.
+     * @return string
+     */
+    public static function build_network_write_authorization( $secret, $timestamp, $body ) {
+        $timestamp = (string) $timestamp;
+        $body_hash = hash( 'sha256', (string) $body );
+        $signed = hash( 'sha512', (string) $secret . '|' . $timestamp . '|' . $body_hash );
+        return base64_encode( $signed . '|' . $timestamp . '|' . $body_hash );
+    }
+
+    /**
+     * Decide which queued IPs to drop after a batch response.
+     *
+     * @param array<string, mixed>    $queue    Full queue.
+     * @param array<int, string>      $sent_ips IPs included in this POST.
+     * @param int                     $http_code Response status.
+     * @param mixed                   $decoded Decoded JSON body.
+     * @param int                     $now     Unix time.
+     * @return array{queue: array<string, mixed>, backoff_until: int|null, event: array{name: string, message: string}|null, ok: bool}
+     */
+    public static function interpret_network_report_response(
+        $queue,
+        $sent_ips,
+        $http_code,
+        $decoded,
+        $now
+    ) {
+        $queue = ( is_array( $queue ) ? $queue : array() );
+        $sent = array();
+        foreach ( (array) $sent_ips as $sent_ip ) {
+            $sent[(string) $sent_ip] = true;
+        }
+        $code = (int) $http_code;
+        $now = (int) $now;
+        $result = array(
+            'queue'         => $queue,
+            'backoff_until' => null,
+            'event'         => null,
+            'ok'            => false,
+        );
+        if ( in_array( $code, array(
+            400,
+            401,
+            403,
+            404
+        ), true ) ) {
+            $result['backoff_until'] = $now + 6 * HOUR_IN_SECONDS;
+            $result['event'] = array(
+                'name'    => 'ip_network_submit_error',
+                'message' => sprintf( 'Block network rejected the batch (HTTP %d). Will retry in 6 hours.', $code ),
+            );
+            return $result;
+        }
+        if ( $code < 200 || $code >= 300 ) {
+            $result['event'] = array(
+                'name'    => 'ip_network_submit_error',
+                'message' => sprintf( 'Error submitting IP batch to network (HTTP %d). Will retry.', $code ),
+            );
+            return $result;
+        }
+        if ( !is_array( $decoded ) || !isset( $decoded['accepted_ips'] ) || !is_array( $decoded['accepted_ips'] ) ) {
+            $result['event'] = array(
+                'name'    => 'ip_network_submit_error',
+                'message' => 'Block network response did not confirm which IPs were accepted. Will retry.',
+            );
+            return $result;
+        }
+        $accepted = array();
+        foreach ( $decoded['accepted_ips'] as $ip ) {
+            $accepted[(string) $ip] = true;
+        }
+        $rejected = array();
+        if ( isset( $decoded['rejected'] ) && is_array( $decoded['rejected'] ) ) {
+            foreach ( $decoded['rejected'] as $row ) {
+                if ( is_array( $row ) && isset( $row['ban_ip'] ) ) {
+                    $rejected[(string) $row['ban_ip']] = true;
                 }
             }
-            $total_ips = ( isset( $total_ips ) ? intval( $total_ips ) : 0 );
-            $banned_ips = self::get_banned_ips();
-            $banned_ips_count = ( is_array( $banned_ips ) ? count( $banned_ips ) : 0 );
-            $ips['total'] = $total_ips + count( $ips['ips'] ) + $banned_ips_count;
-            // update_option('wf_sn_cf_ips', $ips, false);
         }
-        ?>
-		<div class="sncard settings-card">
-			<h2><span class="dashicons dashicons-shield-alt"></span> <?php 
-        esc_html_e( 'Firewall', 'security-ninja' );
-        ?></h2>
-			<p>Protect your website from malicious traffic and attacks</p>
-
-			<div id="snfwtop">
-				<div class="col left">
-					<?php 
-        $blocked_count = get_option( 'wf_sn_cf_blocked_count' );
-        if ( $blocked_count ) {
-            ?>
-						<div class="snfw-blocked-count">Total Blocked Visits <div class="val"><?php 
-            echo number_format_i18n( $blocked_count );
-            ?></div>
-						</div>
-						<?php 
+        $accepted_count = 0;
+        $accepted_hits = 0;
+        foreach ( array_keys( $sent ) as $ip ) {
+            if ( !isset( $queue[$ip] ) ) {
+                continue;
+            }
+            $was_accepted = isset( $accepted[$ip] );
+            $was_rejected = isset( $rejected[$ip] );
+            if ( !$was_accepted && !$was_rejected ) {
+                continue;
+            }
+            if ( $was_accepted && is_array( $queue[$ip] ) ) {
+                ++$accepted_count;
+                $accepted_hits += ( isset( $queue[$ip]['count'] ) ? absint( $queue[$ip]['count'] ) : 1 );
+            }
+            unset($queue[$ip]);
         }
-        if ( 1 === self::is_active() ) {
-            echo '<input type="button" value="' . __( 'Disable Firewall', 'security-ninja' ) . '" id="sn-disable-firewall" class="button snbutton" />';
-        } else {
-            echo '<input type="button" value="' . __( 'Enable Firewall', 'security-ninja' ) . '" id="sn-enable-firewall-overlay" class="button button-primary button-hero"/>';
+        $result['queue'] = $queue;
+        $result['backoff_until'] = 0;
+        $result['ok'] = true;
+        if ( $accepted_count > 0 ) {
+            $result['event'] = array(
+                'name'    => 'ip_network_submit_success',
+                'message' => sprintf( 'Submitted %d IPs to the block network (%d local hits).', $accepted_count, $accepted_hits ),
+            );
         }
-        ?>
+        return $result;
+    }
 
-				</div>
-				<div class="col right">
-				<?php 
-        if ( 1 === self::is_active() ) {
-            echo '<h3>' . esc_html__( 'Secret Access URL', 'security-ninja' ) . '</h3>';
-            ?>
-						<input type="text" id="sn-unblock-url" value="<?php 
-            echo esc_url( self::get_unblock_url() );
-            ?>" disabled>
-						<?php 
-            echo '<p class="description">' . esc_html__( 'Do not share this URL! Use it only to access your website if your IP gets banned.', 'security-ninja' ) . '</p>';
-        } else {
-            echo '<h3>' . esc_html__( 'Firewall is not active', 'security-ninja' ) . '</h3>';
-            echo '<p>' . esc_html__( 'Activating the firewall enables protection against outside threats trying to access your website.', 'security-ninja' ) . '</p>';
-        }
-        ?>
-				</div>
-			</div>
-
-
-			<?php 
-        global $secnin_fs;
-        if ( 1 === self::is_active() ) {
-            echo '</div>';
-            echo '<div class="sncard settings-card">';
-            echo '<form action="options.php" id="sn-firewall-settings-form" method="post">';
-            settings_fields( 'wf_sn_cf' );
-            ?>
-		<div class="wf-sn-tab-content">
-			<div class="nav-tab-wrapper" id="wf-sn-cf-subtabs">
-				<a href="#sn_cf_settings" class="nav-tab nav-tab-active">Settings</a>
-				<?php 
-            $can_use_premium = false;
-            $pro_class = ( $can_use_premium ? '' : ' profeature' );
-            ?>
-				<a href="#sn_cf_visitors" class="nav-tab<?php 
-            echo esc_attr( $pro_class );
-            ?>">Visitor Logging</a>
-				<a href="#sn_cf_ip" class="nav-tab<?php 
-            echo esc_attr( $pro_class );
-            ?>">IP Management</a>
-				<a href="#sn_cf_404guard" class="nav-tab<?php 
-            echo esc_attr( $pro_class );
-            ?>">404 Guard</a>
-				<a href="#sn_cf_woocommerce" class="nav-tab<?php 
-            echo esc_attr( $pro_class );
-            ?>">WooCommerce</a>
-			</div>
-
-			<div id="sn_cf_settings" class="wf-sn-subtab">
-				<?php 
-            // Include settings content from separate file
-            $settings_file = WF_SN_PLUGIN_DIR . 'modules/cloud-firewall/tabs/settings.php';
-            if ( file_exists( $settings_file ) ) {
-                require_once $settings_file;
-                wf_sn_cf_render_settings_content( self::$options, $ips );
-            }
-            ?>
-			</div>
-
-			<div id="sn_cf_visitors" class="wf-sn-subtab">
-				<?php 
-            $sn_cf_show_visitor_upgrade = true;
-            if ( $sn_cf_show_visitor_upgrade ) {
-                ?>
-					<table class="form-table">
-						<tbody>
-							<tr>
-								<td colspan="2">
-									<div class="sncard infobox">
-										<div class="inner">
-											<h3>Upgrade to Pro for Visitor Logging</h3>
-											<p>The free version provides basic firewall protection. Upgrade to Security Ninja Pro to unlock visitor logging features:</p>
-											<ul style="list-style: disc; margin-left: 20px; margin-top: 10px;">
-												<li>Track all visitors and page requests</li>
-												<li>Visitor logging with geolocation data</li>
-												<li>Detailed visitor analytics and insights</li>
-												<li>Customizable log retention periods</li>
-											</ul>
-											<p style="margin-top: 15px;">
-												<a href="<?php 
-                echo esc_url( \WPSecurityNinja\Plugin\Utils::generate_sn_web_link( 'firewall_upgrade', '/upgrade/' ) );
-                ?>" class="button button-primary button-small" target="_blank" rel="noopener"><?php 
-                esc_html_e( 'Upgrade to Pro', 'security-ninja' );
-                ?></a>
-											</p>
-										</div>
-									</div>
-								</td>
-							</tr>
-						</tbody>
-					</table>
-					<?php 
-            }
-            ?>
-			</div>
-
-			<div id="sn_cf_ip" class="wf-sn-subtab">
-				<?php 
-            $sn_cf_show_ip_upgrade = true;
-            if ( $sn_cf_show_ip_upgrade ) {
-                ?>
-					<table class="form-table">
-						<tbody>
-							<tr>
-								<td colspan="2">
-									<div class="sncard infobox">
-										<div class="inner">
-											<h3>Upgrade to Pro for IP Management</h3>
-											<p>The free version provides basic firewall protection. Upgrade to Security Ninja Pro to unlock advanced IP management features:</p>
-											<ul style="list-style: disc; margin-left: 20px; margin-top: 10px;">
-												<li>Manual IP blacklist and whitelist management</li>
-												<li>Automatic whitelisting for WP Rocket, Uptimia, UptimeRobot, and ManageWP</li>
-												<li>View and manage locally banned IPs</li>
-												<li>Test IP addresses to check ban status</li>
-												<li>Clear banned IP lists with one click</li>
-											</ul>
-											<p style="margin-top: 15px;">
-												<a href="<?php 
-                echo esc_url( \WPSecurityNinja\Plugin\Utils::generate_sn_web_link( 'firewall_upgrade', '/upgrade/' ) );
-                ?>" class="button button-primary button-small" target="_blank" rel="noopener"><?php 
-                esc_html_e( 'Upgrade to Pro', 'security-ninja' );
-                ?></a>
-											</p>
-										</div>
-									</div>
-								</td>
-							</tr>
-						</tbody>
-					</table>
-					<?php 
-            }
-            ?>
-			</div>
-
-			<div id="sn_cf_404guard" class="wf-sn-subtab">
-				<?php 
-            $sn_cf_show_404guard_upgrade = true;
-            if ( $sn_cf_show_404guard_upgrade ) {
-                ?>
-					<table class="form-table">
-						<tbody>
-							<tr>
-								<td colspan="2">
-									<div class="sncard infobox">
-										<div class="inner">
-											<h3>Upgrade to Pro for 404 Guard</h3>
-											<p>The free version provides basic firewall protection. Upgrade to Security Ninja Pro to unlock 404 Guard features:</p>
-											<ul style="list-style: disc; margin-left: 20px; margin-top: 10px;">
-												<li>Block IPs that generate excessive 404 errors</li>
-												<li>Prevent bots from scanning your site for vulnerabilities</li>
-												<li>Configurable threshold and time window settings</li>
-												<li>Automatic whitelisting of search engines and crawlers</li>
-												<li>Temporary blocks that automatically expire</li>
-												<li>Comprehensive logging of all blocked IPs</li>
-											</ul>
-											<p style="margin-top: 15px;">
-												<a href="<?php 
-                echo esc_url( \WPSecurityNinja\Plugin\Utils::generate_sn_web_link( 'firewall_upgrade', '/upgrade/' ) );
-                ?>" class="button button-primary button-small" target="_blank" rel="noopener"><?php 
-                esc_html_e( 'Upgrade to Pro', 'security-ninja' );
-                ?></a>
-											</p>
-										</div>
-									</div>
-								</td>
-							</tr>
-						</tbody>
-					</table>
-					<?php 
-            }
-            ?>
-			</div>
-
-			<div id="sn_cf_woocommerce" class="wf-sn-subtab">
-				<?php 
-            $sn_cf_show_woocommerce_upgrade = true;
-            if ( $sn_cf_show_woocommerce_upgrade ) {
-                ?>
-					<table class="form-table">
-						<tbody>
-							<tr>
-								<td colspan="2">
-									<div class="sncard infobox">
-										<div class="inner">
-											<h3>Upgrade to Pro for WooCommerce Protection</h3>
-											<p>Upgrade to Security Ninja Pro to unlock WooCommerce protection features:</p>
-											<ul style="list-style: disc; margin-left: 20px; margin-top: 10px;">
-												<li>Rate limiting for checkout, add to cart, and order placement</li>
-												<li>Coupon code brute force protection with temporary bans</li>
-												<li>Automatic blocking of suspicious IPs</li>
-												<li>Comprehensive logging of all security events</li>
-												<li>Safe for legitimate customers with conservative default settings</li>
-												<li>Configurable thresholds for different store sizes</li>
-											</ul>
-											<p style="margin-top: 15px;">
-												<a href="<?php 
-                echo esc_url( \WPSecurityNinja\Plugin\Utils::generate_sn_web_link( 'firewall_upgrade', '/upgrade/' ) );
-                ?>" class="button button-primary button-small" target="_blank" rel="noopener"><?php 
-                esc_html_e( 'Upgrade to Pro', 'security-ninja' );
-                ?></a>
-											</p>
-										</div>
-									</div>
-								</td>
-							</tr>
-						</tbody>
-					</table>
-					<?php 
-            }
-            ?>
-			</div>
-		</div>
-
-
-		<p class="submit"><br><input type="submit" value="<?php 
-            echo esc_html__( 'Save Changes', 'security-ninja' );
-            ?>" class="input-button button-primary" name="Submit" /></p>
-		</form>
-		</div>
-				<?php 
-        } else {
-            $sn_cf_show_inactive_upgrade = true;
-            if ( $sn_cf_show_inactive_upgrade ) {
-                ?>
-				<div class="sncard infobox">
-					<div class="inner">
-						<h3>Upgrade to Pro for Advanced Firewall Features</h3>
-						<p>The free version provides basic firewall protection with 8G rules. Upgrade to Security Ninja Pro to unlock powerful advanced features:</p>
-						<ul style="list-style: disc; margin-left: 20px; margin-top: 10px;">
-							<li>Control how banned IPs are handled - block completely or only from login</li>
-							<li>Cloud Firewall with 600+ million known bad IPs, automatically updated</li>
-							<li>Participate in global IP threat network and share threat intelligence</li>
-							<li>Block entire countries from accessing your website</li>
-							<li>Customize messages shown to blocked visitors</li>
-							<li>Redirect blocked visitors to any URL using 301 redirects</li>
-						</ul>
-						<p style="margin-top: 15px;">
-							<a href="<?php 
-                echo esc_url( \WPSecurityNinja\Plugin\Utils::generate_sn_web_link( 'firewall_upgrade', '/upgrade/' ) );
-                ?>" class="button button-primary button-small" target="_blank" rel="noopener"><?php 
-                esc_html_e( 'Upgrade to Pro', 'security-ninja' );
-                ?></a>
-						</p>
-					</div>
-				</div>
-					<?php 
-            }
-            ?>
-		</div>
-				<?php 
-        }
-        // Only show modal if firewall is not active
-        if ( 1 !== self::is_active() ) {
-            ?>
-	<div id="sn-firewall-modal" class="sn-modal">
-		<div class="sn-modal-content">
-			<h2><?php 
-            esc_html_e( 'Enable Firewall', 'security-ninja' );
-            ?></h2>
-			<p><?php 
-            esc_html_e( 'To ensure you can regain access to your website if you get blocked, please enter your email address. You will be sent a secret access URL to help you regain access.', 'security-ninja' );
-            ?></p>
-
-			<div class="sn-input-container">
-				<input
-					type="email"
-					id="sn-firewall-email"
-					autocomplete="off"
-					placeholder="<?php 
-            esc_attr_e( 'Enter your email', 'security-ninja' );
-            ?>"
-					value="<?php 
-            echo esc_attr( wp_get_current_user()->user_email );
-            ?>"
-					required
-					data-1p-ignore
-					data-lpignore="true">
-				<div class="sn-buttons">
-					<a href="#" id="sn-modal-continue" class="button button-large button-primary">
-						<?php 
-            esc_html_e( 'Send email', 'security-ninja' );
-            ?>
-					</a>
-					<a href="#" id="sn-modal-skip" class="button button-large button-secondary">
-						<?php 
-            esc_html_e( 'Activate, but no email', 'security-ninja' );
-            ?>
-					</a>
-				</div>
-			</div>
-
-
-			<div id="sn-unblock-message"></div>
-			<div id="sn-firewall-status"></div>
-		</div>
-	</div>
-				<?php 
-        }
-        ?>
-
-
-		<?php 
+    public static function do_page() {
+        require_once WF_SN_PLUGIN_DIR . 'modules/cloud-firewall/class-wf-sn-cf-admin.php';
+        return Wf_Sn_Cf_Admin::do_page();
     }
 
 }

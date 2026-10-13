@@ -107,6 +107,20 @@ class Wf_Sn_Ai_Advisor_Readiness {
 	}
 
 	/**
+	 * Whether security tests have never been run.
+	 *
+	 * @return bool
+	 */
+	public static function is_security_tests_missing() {
+		foreach ( self::get_items() as $item ) {
+			if ( 'security_tests' === $item['key'] && 'missing' === $item['status'] ) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	/**
 	 * Whether any critical data source is missing.
 	 *
 	 * @return bool

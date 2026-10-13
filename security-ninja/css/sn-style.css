@@ -17,7 +17,7 @@
   display: none;
 }
 
-/* Primary action buttons — shared tokens (Wizard yellow, 4px radius) */
+/* Brand yellow CTAs only — do not hijack WordPress .button-primary (Save / dialogs stay WP blue). */
 .secnin_content_wrapper,
 .wrap.secnin-wizard-page {
   --sn-action-bg: #ffb82e;
@@ -27,16 +27,14 @@
   --sn-action-focus-ring: 0 0 0 2px #ffffff, 0 0 0 4px #f6ad1a;
 }
 
-.secnin_content_wrapper .button.button-primary,
-.secnin_content_wrapper .button-primary,
-.secnin_content_wrapper input[type="submit"].button-primary,
-.secnin_content_wrapper input[type="button"].button-primary,
-.secnin_content_wrapper .input-button.button-primary,
 .secnin_content_wrapper .wf-sn-button,
-.wrap.secnin-wizard-page .button.button-primary,
-.wrap.secnin-wizard-page .button-primary,
-.wrap.secnin-wizard-page input[type="submit"].button-primary,
-.wrap.secnin-wizard-page input[type="button"].button-primary {
+.secnin_content_wrapper .sn-cta,
+.secnin_content_wrapper .button.wf-sn-button,
+.secnin_content_wrapper .button.sn-cta,
+.wrap.secnin-wizard-page .wf-sn-button,
+.wrap.secnin-wizard-page .sn-cta,
+.wrap.secnin-wizard-page .button.wf-sn-button,
+.wrap.secnin-wizard-page .button.sn-cta {
   float: none;
   background-color: var(--sn-action-bg);
   border: 1px solid var(--sn-action-bg);
@@ -52,69 +50,46 @@
   text-decoration: none;
 }
 
-.secnin_content_wrapper .button.button-primary:hover,
-.secnin_content_wrapper .button.button-primary:focus,
-.secnin_content_wrapper .button-primary:hover,
-.secnin_content_wrapper .button-primary:focus,
-.secnin_content_wrapper input[type="submit"].button-primary:hover,
-.secnin_content_wrapper input[type="submit"].button-primary:focus,
-.secnin_content_wrapper input[type="button"].button-primary:hover,
-.secnin_content_wrapper input[type="button"].button-primary:focus,
-.secnin_content_wrapper .input-button.button-primary:hover,
-.secnin_content_wrapper .input-button.button-primary:focus,
 .secnin_content_wrapper .wf-sn-button:hover,
 .secnin_content_wrapper .wf-sn-button:focus,
-.wrap.secnin-wizard-page .button.button-primary:hover,
-.wrap.secnin-wizard-page .button.button-primary:focus,
-.wrap.secnin-wizard-page .button-primary:hover,
-.wrap.secnin-wizard-page .button-primary:focus,
-.wrap.secnin-wizard-page input[type="submit"].button-primary:hover,
-.wrap.secnin-wizard-page input[type="submit"].button-primary:focus,
-.wrap.secnin-wizard-page input[type="button"].button-primary:hover,
-.wrap.secnin-wizard-page input[type="button"].button-primary:focus {
+.secnin_content_wrapper .sn-cta:hover,
+.secnin_content_wrapper .sn-cta:focus,
+.wrap.secnin-wizard-page .wf-sn-button:hover,
+.wrap.secnin-wizard-page .wf-sn-button:focus,
+.wrap.secnin-wizard-page .sn-cta:hover,
+.wrap.secnin-wizard-page .sn-cta:focus {
   background-color: var(--sn-action-bg-hover);
   border-color: var(--sn-action-bg-hover);
   color: var(--sn-action-text);
   box-shadow: none;
 }
 
-.secnin_content_wrapper .button.button-primary:focus-visible,
-.secnin_content_wrapper .button-primary:focus-visible,
-.secnin_content_wrapper input[type="submit"].button-primary:focus-visible,
-.secnin_content_wrapper input[type="button"].button-primary:focus-visible,
-.secnin_content_wrapper .input-button.button-primary:focus-visible,
 .secnin_content_wrapper .wf-sn-button:focus-visible,
-.wrap.secnin-wizard-page .button.button-primary:focus-visible,
-.wrap.secnin-wizard-page .button-primary:focus-visible,
-.wrap.secnin-wizard-page input[type="submit"].button-primary:focus-visible,
-.wrap.secnin-wizard-page input[type="button"].button-primary:focus-visible {
+.secnin_content_wrapper .sn-cta:focus-visible,
+.wrap.secnin-wizard-page .wf-sn-button:focus-visible,
+.wrap.secnin-wizard-page .sn-cta:focus-visible {
   outline: none;
   box-shadow: var(--sn-action-focus-ring);
 }
 
-.secnin_content_wrapper .button.button-primary:disabled,
-.secnin_content_wrapper .button-primary:disabled,
-.secnin_content_wrapper input[type="submit"].button-primary:disabled,
-.secnin_content_wrapper input[type="button"].button-primary:disabled,
-.wrap.secnin-wizard-page .button.button-primary:disabled,
-.wrap.secnin-wizard-page .button-primary:disabled,
-.wrap.secnin-wizard-page input[type="submit"].button-primary:disabled,
-.wrap.secnin-wizard-page input[type="button"].button-primary:disabled {
+.secnin_content_wrapper .wf-sn-button:disabled,
+.secnin_content_wrapper .sn-cta:disabled,
+.wrap.secnin-wizard-page .wf-sn-button:disabled,
+.wrap.secnin-wizard-page .sn-cta:disabled {
   opacity: 0.65;
 }
 
-.secnin_content_wrapper .button-hero.button-primary,
-.secnin_content_wrapper .button-primary.button-hero,
-.wrap.secnin-wizard-page .button-hero.button-primary,
-.wrap.secnin-wizard-page .button-primary.button-hero {
+.secnin_content_wrapper .wf-sn-button.button-hero,
+.secnin_content_wrapper .sn-cta.button-hero,
+.wrap.secnin-wizard-page .wf-sn-button.button-hero,
+.wrap.secnin-wizard-page .sn-cta.button-hero {
   font-size: 18px;
 }
 
-.secnin_content_wrapper .button-small.button-primary,
-.secnin_content_wrapper .button-primary.button-small,
 .secnin_content_wrapper .wf-sn-button.button-small,
-.wrap.secnin-wizard-page .button-small.button-primary,
-.wrap.secnin-wizard-page .button-primary.button-small {
+.secnin_content_wrapper .sn-cta.button-small,
+.wrap.secnin-wizard-page .wf-sn-button.button-small,
+.wrap.secnin-wizard-page .sn-cta.button-small {
   font-size: 13px;
   padding: 4px 12px;
   line-height: 1.5;
@@ -417,7 +392,7 @@ table#sn-el-datatable {
     --bc: var(--active);
     --d-o: .3s;
     --d-t: .6s;
-    --d-t-e: cubic-bezier(.2, .85, .32, 1.2);
+    --d-t-e: cubic-bezier(0.22, 1, 0.36, 1);
   }
   .sncard.settings-card input[type=checkbox]:checked:before {
     content: "";
@@ -578,21 +553,6 @@ table#sn-el-datatable {
   box-sizing: inherit;
 }
 
-.sncard.settings-card body {
-  min-height: 100vh;
-  font-family: "Inter", Arial, sans-serif;
-  color: #8A91B4;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  background: #F6F8FF;
-}
-
-@media (max-width: 800px) {
-  .sncard.settings-card body {
-    padding: 20px;
-  }
-}
 .testresults .nvdlink {
   font-size: 1em;
 }
@@ -659,12 +619,22 @@ a.extlink::after {
   box-shadow: 0px 2px 4px 3px rgba(0, 0, 0, 0.0705882353);
 }
 
+.sncard.settings-card .form-table {
+  width: 100%;
+}
+
+.sncard.settings-card .form-table th,
 .sncard.settings-card .form-table td.sn-cf-options {
-  float: right;
+  float: none;
 }
 
 .sncard.settings-card .form-table th {
-  width: initial;
+  width: 62%;
+}
+
+.sncard.settings-card .form-table td.sn-cf-options {
+  width: 38%;
+  text-align: right;
 }
 
 .sncard.settings-card .description {
@@ -893,13 +863,19 @@ a.extlink::after {
 }
 
 .wrap-collabsible .collapsible-content {
-  max-height: 0;
+  display: grid;
+  grid-template-rows: 0fr;
   overflow: hidden;
-  transition: max-height 0.25s ease-in-out;
+  transition: grid-template-rows 0.25s ease-out;
+}
+
+.wrap-collabsible .collapsible-content > .content-inner {
+  min-height: 0;
+  overflow: hidden;
 }
 
 .wrap-collabsible .toggle:checked + .lbl-toggle + .collapsible-content {
-  max-height: 100vh;
+  grid-template-rows: 1fr;
   margin-bottom: 10px;
 }
 
@@ -910,10 +886,17 @@ a.extlink::after {
 
 .wrap-collabsible .collapsible-content .content-inner {
   background: #ffffff;
-  padding: 10px;
-  border-left: 1px solid #ccd0d4;
-  border-right: 1px solid #ccd0d4;
-  border-bottom: 1px solid #ccd0d4;
+  padding: 0 10px;
+  border-style: solid;
+  border-color: transparent;
+  border-width: 0 1px 0;
+}
+
+.wrap-collabsible .toggle:checked + .lbl-toggle + .collapsible-content > .content-inner {
+  padding-top: 10px;
+  padding-bottom: 10px;
+  border-color: #ccd0d4;
+  border-bottom-width: 1px;
 }
 
 #security-ninja .testing {
@@ -927,26 +910,24 @@ a.extlink::after {
 }
 
 #secninja-tests-quickselect {
-  float: left;
-  clear: both;
-  width: 100%;
-}
-
-#secninja-tests-quickselect span {
-  float: left;
-  margin-right: 10px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 10px;
 }
 
 #secninja-tests-quickselect ul {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
   list-style-type: none;
-  float: left;
-  margin-top: 0px;
-  margin-bottom: 0px;
+  margin: 0;
+  padding: 0;
 }
 
-#secninja-tests-quickselect ul li {
-  float: left;
-  margin-right: 10px;
+#secninja-tests-quickselect .secnin-expand-all-wrap {
+  margin-left: 6px;
 }
 
 #secninja-tests-quickselect ul li a {
@@ -1508,32 +1489,13 @@ Hide "see details" from tables in responsive mode
     display: none;
   }
 }
-@media screen and (max-width: 1024px) {
-  .wrap .secnin_content_cell,
-  .secnin_content_wrapper {
-    display: block;
-    height: auto;
-  }
-  #secnin_content_top {
+@media screen and (max-width: 782px) {
+  .sncard.settings-card .form-table th,
+  .sncard.settings-card .form-table td.sn-cf-options,
+  .wf-sn-tab-content .form-table td.alignright {
     display: block;
     width: auto;
-    gap: 0;
-  }
-  .secnin_content_wrapper {
-    padding: 0;
-  }
-  #sn_tabscont {
-    display: block;
-    flex: none;
-    width: auto;
-    padding-right: 0;
-  }
-  .wrap #sidebar-container {
-    width: auto;
-    flex: none;
-    padding: 0;
-    margin-top: 20px;
-    display: block;
+    text-align: left;
   }
 }
 .toplevel_page_wf-sn .sn-malware-title {
@@ -1629,25 +1591,15 @@ Hide "see details" from tables in responsive mode
   background: #f8fafc;
 }
 
-#sidebar-container.secnin_content_cell {
-  width: 260px;
-  flex: 0 0 260px;
-  max-width: 260px;
-  min-width: 0;
-  display: block;
-  box-sizing: border-box;
-  overflow: hidden;
-  padding-right: 4px;
-}
-
+#sidebar-container.secnin_content_cell,
 #sidebar-container {
   width: 260px;
-  flex: 0 0 260px;
-  max-width: 260px;
+  flex: 0 1 260px;
+  max-width: 100%;
   min-width: 0;
   display: block;
   box-sizing: border-box;
-  overflow: hidden;
+  overflow: visible;
   padding-right: 4px;
 }
 
@@ -1657,7 +1609,7 @@ Hide "see details" from tables in responsive mode
   max-width: 100%;
   min-width: 0;
   box-sizing: border-box;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
 }
 
 .toplevel_page_wf-sn h2.warning {
@@ -1723,12 +1675,47 @@ border-top-left-radius: 10px;
   margin: 0;
   padding: 0 4px 0 0;
   vertical-align: top;
-  flex: 1 1 0;
+  flex: 1 1 560px;
   min-width: 0;
   max-width: 100%;
   display: block;
   width: auto;
   box-sizing: border-box;
+}
+
+@media screen and (max-width: 1024px) {
+  .wrap .secnin_content_cell,
+  .secnin_content_wrapper {
+    display: block;
+    height: auto;
+  }
+  #secnin_content_top.secnin_content_cell,
+  #secnin_content_top {
+    display: block;
+    width: auto;
+    gap: 0;
+  }
+  .secnin_content_wrapper {
+    padding: 0;
+  }
+  #sn_tabscont {
+    display: block;
+    flex: none;
+    width: 100%;
+    max-width: 100%;
+    padding-right: 0;
+  }
+  #sidebar-container.secnin_content_cell,
+  #sidebar-container,
+  .wrap #sidebar-container {
+    width: 100%;
+    max-width: 100%;
+    flex: none;
+    padding: 0;
+    margin-top: 20px;
+    display: block;
+    overflow: visible;
+  }
 }
 
 .wf-sn-tab {
@@ -2217,8 +2204,8 @@ html.sn-overlay-active {
   margin: 0;
 }
 
-.security-ninja_page_wf-sn-tools .sncard.settings-card .sn-tools-action a.button,
-.security-ninja_page_wf-sn-tools .sncard.settings-card .sn-tools-action .button,
+.security-ninja_page_wf-sn-tools .sncard.settings-card .sn-tools-action a.button-secondary,
+.security-ninja_page_wf-sn-tools .sncard.settings-card .sn-tools-action .button-secondary,
 .security-ninja_page_wf-sn-tools .sncard.settings-card .sn-tools-action input[type="submit"].button-secondary {
   float: none;
   display: inline-block;
@@ -2232,8 +2219,8 @@ html.sn-overlay-active {
   text-decoration: none;
 }
 
-.security-ninja_page_wf-sn-tools .sncard.settings-card .sn-tools-action a.button:hover,
-.security-ninja_page_wf-sn-tools .sncard.settings-card .sn-tools-action .button:hover,
+.security-ninja_page_wf-sn-tools .sncard.settings-card .sn-tools-action a.button-secondary:hover,
+.security-ninja_page_wf-sn-tools .sncard.settings-card .sn-tools-action .button-secondary:hover,
 .security-ninja_page_wf-sn-tools .sncard.settings-card .sn-tools-action input[type="submit"].button-secondary:hover {
   background-color: #f6f7f7;
   border-color: #c3c4c7;
@@ -3345,6 +3332,14 @@ body.wf-sn_page_security-ninja-wizard #wpfooter {
   margin-right: 10px;
   padding: 10px;
   display: flex;
+}
+
+/* Core admin notice anchor — invisible; common.js inserts notices after this. */
+hr.wp-header-end {
+  border: 0;
+  margin: 0;
+  height: 0;
+  visibility: hidden;
 }
 
 #sntopbar h1 {

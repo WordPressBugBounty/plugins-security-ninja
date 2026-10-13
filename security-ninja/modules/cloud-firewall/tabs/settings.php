@@ -37,15 +37,15 @@ function wf_sn_cf_render_ip_source_settings(  $options  ) {
         ),
         'cf_connecting_ip' => array(
             'title' => __( 'Cloudflare CF-Connecting-IP', 'security-ninja' ),
-            'desc'  => __( 'Trust the Cloudflare visitor header. Falls back to REMOTE_ADDR.', 'security-ninja' ),
+            'desc'  => __( 'Use the Cloudflare visitor header only when REMOTE_ADDR is a Cloudflare IP. Falls back to REMOTE_ADDR otherwise.', 'security-ninja' ),
         ),
         'x_forwarded_for'  => array(
             'title' => __( 'X-Forwarded-For', 'security-ninja' ),
-            'desc'  => __( 'First valid IP in the X-Forwarded-For header. Falls back to REMOTE_ADDR.', 'security-ninja' ),
+            'desc'  => __( 'First valid IP in X-Forwarded-For, only when the connection is from a private/local proxy, Cloudflare, or a Trusted proxy CIDR. Falls back to REMOTE_ADDR. If a public load balancer shows as every visitor, add its IP under Trusted proxy CIDRs.', 'security-ninja' ),
         ),
         'x_real_ip'        => array(
             'title' => __( 'X-Real-IP', 'security-ninja' ),
-            'desc'  => __( 'Trust the X-Real-IP header. Falls back to REMOTE_ADDR.', 'security-ninja' ),
+            'desc'  => __( 'Trust X-Real-IP only when the connection is from a private/local proxy, Cloudflare, or a Trusted proxy CIDR. Falls back to REMOTE_ADDR. If a public load balancer shows as every visitor, add its IP under Trusted proxy CIDRs.', 'security-ninja' ),
         ),
     );
     $current_desc = ( isset( $ip_source_labels[$ip_source]['desc'] ) ? $ip_source_labels[$ip_source]['desc'] : '' );
@@ -289,7 +289,7 @@ function wf_sn_cf_render_settings_content(  $options, $ips = array()  ) {
                 printf( 
                     /* translators: %s: number of bad IPs blocked (may be wrapped in <strong>) */
                     esc_html__( '%s bad IPs blocked from logging in.', 'security-ninja' ),
-                    '<strong>' . esc_html( number_format_i18n( $ips['total'] ) ) . '</strong>'
+                    '<strong>' . esc_html( number_format_i18n( ( isset( $ips['total'] ) ? $ips['total'] : 0 ) ) ) . '</strong>'
                  );
                 ?>
 											</p>
@@ -367,12 +367,14 @@ function wf_sn_cf_render_settings_content(  $options, $ips = array()  ) {
         echo '</th><td></td></tr>';
         echo '<tr><td class="fullwidth" colspan="2">';
         $geoip_countrylist = \WPSecurityNinja\Plugin\Utils::get_country_list();
+        $blocked_countries = \WPSecurityNinja\Plugin\wf_sn_cf::get_blocked_countries();
         // Sentinel: HTML multi-select with zero selections sends no blocked_countries keys; sanitize_settings uses this to persist [].
+        // blocked_countries_confirm_all stays 0 until Select All is confirmed in wf-sn-cf.js.
         ?>
 						<input type="hidden" name="wf_sn_cf[blocked_countries_present]" value="1" />
+						<input type="hidden" name="wf_sn_cf[blocked_countries_confirm_all]" id="wf_sn_cf_blocked_countries_confirm_all" value="0" />
 						<select name="wf_sn_cf[blocked_countries][]" id="wf_sn_cf_blocked_countries" multiple="multiple" style="width:100%;" class="">
 							<?php 
-        $blocked_countries = \WPSecurityNinja\Plugin\wf_sn_cf::get_blocked_countries();
         if ( $geoip_countrylist ) {
             foreach ( $geoip_countrylist as $key => $gc ) {
                 $selected = ( in_array( $key, $blocked_countries, true ) ? ' selected="selected" ' : '' );
@@ -389,10 +391,10 @@ function wf_sn_cf_render_settings_content(  $options, $ips = array()  ) {
         }
         ?>
 						</select>
-						<button id="select_all_countries" class="button button-secondary button-small alignright"><?php 
+						<button type="button" id="select_all_countries" class="button button-secondary button-small alignright"><?php 
         esc_html_e( 'Select All', 'security-ninja' );
         ?></button>
-						<button id="select_no_countries" class="button button-secondary button-small alignright"><?php 
+						<button type="button" id="select_no_countries" class="button button-secondary button-small alignright"><?php 
         esc_html_e( 'Select None', 'security-ninja' );
         ?></button>
 						</td>
@@ -487,7 +489,6 @@ function wf_sn_cf_render_settings_content(  $options, $ips = array()  ) {
         ?>
 							<?php 
     }
-    // End premium content block
     ?>
 					</tbody>
 				</table>

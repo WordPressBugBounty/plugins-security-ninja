@@ -65,7 +65,8 @@
 
 
 
-.sn-cf-options .select2-selection {
+#sn_cf_settings .sn-cf-options .select2-selection,
+#sn-firewall-settings-form .sn-cf-options .select2-selection {
   box-shadow: 0 0 0 transparent;
   border-radius: 4px;
   border: 1px solid #7e8993;
@@ -119,9 +120,17 @@
   color: #444;
 }
 
-.select2-container .selection .select2-selection {
+#sn_cf_settings .select2-container .selection .select2-selection,
+#sn-firewall-settings-form .select2-container .selection .select2-selection {
   border-radius: 0px;
   margin-bottom: 10px;
+  max-width: 100%;
+}
+
+#sn_cf_settings .select2-container,
+#sn-firewall-settings-form .select2-container {
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 #sn-cf-options span.description {
@@ -276,7 +285,8 @@
   margin: 8px 0;
   padding: 8px 12px;
   background: #d4edda;
-  border-left: 4px solid #28a745;
+  border: 1px solid #c3e6cb;
+  border-radius: 4px;
   color: #155724;
 }
 
@@ -286,7 +296,7 @@
 
 .sn-cf-ip-notice.sn-cf-ip-notice-error {
   background: #f8d7da;
-  border-left-color: #dc3545;
+  border-color: #f5c6cb;
   color: #721c24;
 }
 
@@ -580,4 +590,87 @@
   float: none;
   margin: 0;
   vertical-align: middle;
+}
+
+/* Early Firewall status panel */
+.secnin-waf-panel {
+  max-width: 720px;
+}
+
+#secnin-early-firewall [hidden] {
+  display: none !important;
+}
+
+.secnin-waf-panel__title {
+  margin: 0.5em 0 0.4em;
+  font-size: 1.15em;
+}
+
+.secnin-waf-status {
+  width: 100%;
+  max-width: 720px;
+  margin: 12px 0;
+  border-collapse: collapse;
+  border: 1px solid #c3c4c7;
+  background: #fff;
+  box-shadow: 0 1px 1px rgba(0, 0, 0, 0.04);
+}
+
+.secnin-waf-status th,
+.secnin-waf-status td {
+  padding: 10px 12px;
+  text-align: left;
+  vertical-align: top;
+  border-bottom: 1px solid #dcdcde;
+}
+
+.secnin-waf-status tr:last-child th,
+.secnin-waf-status tr:last-child td {
+  border-bottom: 0;
+}
+
+.secnin-waf-status th {
+  width: 180px;
+  font-weight: 600;
+  color: #1d2327;
+  background: #f6f7f7;
+}
+
+.secnin-waf-status__path {
+  display: block;
+  max-width: 100%;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  line-height: 1.45;
+}
+
+.secnin-waf-status__sep {
+  margin: 0 0.25em;
+  color: #646970;
+}
+
+.secnin-waf-status .description {
+  margin: 6px 0 0;
+}
+
+.secnin-waf-panel__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.secnin-waf-panel__actions .spinner {
+  float: none;
+  margin: 0;
+  visibility: hidden;
+}
+
+.secnin-waf-panel__actions .spinner.is-active {
+  visibility: visible;
+}
+
+#secnin-waf-extended-msg {
+  margin-top: 8px;
 }

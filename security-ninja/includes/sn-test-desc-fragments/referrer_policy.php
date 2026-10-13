@@ -12,7 +12,15 @@ defined( 'ABSPATH' ) || exit;
 
 				<p><?php esc_html_e( "Fixing is very easy. Open your theme's functions.php file and add the following:", 'security-ninja' ); ?></p>
 
-				<pre>header('Referrer-Policy: strict-origin-when-cross-origin');</pre>
+<pre>add_filter( 'wp_headers', function ( $headers ) {
+	if ( is_admin() ) {
+		return $headers;
+	}
+
+	$headers['Referrer-Policy'] = 'strict-origin-when-cross-origin';
+
+	return $headers;
+} );</pre>
 				<p><?php esc_html_e( 'You can also add this to your .htaccess file', 'security-ninja' ); ?></p>
 				<p><strong><?php esc_html_e( 'LiteSpeed servers:', 'security-ninja' ); ?></strong> <?php esc_html_e( 'The PHP header interface may not work correctly on LiteSpeed. If this header is not appearing in your response, add it directly to your .htaccess file using the example below.', 'security-ninja' ); ?></p>
 

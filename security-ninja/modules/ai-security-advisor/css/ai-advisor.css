@@ -1289,18 +1289,23 @@
 	font-style: normal;
 }
 
-/* Two-column workspace: audit (left) + follow-ups (right) */
-.wf-sn-ai-advisor-page .wf-sn-ai-workspace-columns {
+/* Single-column workspace: report first, follow-ups below */
+.wf-sn-ai-advisor-page .wf-sn-ai-workspace-columns,
+.wf-sn-ai-advisor-page .wf-sn-ai-workspace-columns--single {
 	display: grid;
 	grid-template-columns: 1fr;
 	gap: 20px;
-	align-items: stretch;
-	max-width: 1200px;
+	align-items: start;
+	max-width: 860px;
 }
-@media (min-width: 960px) {
-	.wf-sn-ai-advisor-page .wf-sn-ai-workspace-columns:not(.wf-sn-ai-workspace-columns--no-chat) {
-		grid-template-columns: minmax(0, 1fr) minmax(280px, 38%);
-	}
+.wf-sn-ai-status-line {
+	margin: 8px 0 0;
+	font-size: 13px;
+	line-height: 1.5;
+	color: var(--wf-sn-ai-text-muted);
+}
+.wf-sn-ai-generate-secondary-wrap {
+	margin: 16px 0 0;
 }
 .wf-sn-ai-advisor-page .wf-sn-ai-section.wf-sn-ai-panel--interact {
 	border: none;
@@ -1330,8 +1335,7 @@
 .wf-sn-ai-advisor-page .wf-sn-ai-chat-column-inner {
 	display: flex;
 	flex-direction: column;
-	min-height: 440px;
-	height: 100%;
+	min-height: 0;
 }
 .wf-sn-ai-advisor-page .wf-sn-ai-chat-column__head {
 	margin-bottom: 8px;

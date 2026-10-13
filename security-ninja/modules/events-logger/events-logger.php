@@ -51,8 +51,16 @@ class Wf_Sn_El {
             add_action( 'admin_enqueue_scripts', array(__NAMESPACE__ . '\\Wf_Sn_El', 'enqueue_scripts') );
             add_action( 'wp_ajax_sn_el_truncate_log', array(__NAMESPACE__ . '\\Wf_Sn_El', 'ajax_truncate_log') );
         }
-        if ( !wp_next_scheduled( 'secnin_prune_logs_cron' ) ) {
-            wp_schedule_event( time(), 'daily', 'secnin_prune_logs_cron' );
+        // Schedule prune once; throttle the cron-array lookup on anonymous frontends.
+        $should_check_prune = is_admin() || wp_doing_cron() || false === get_transient( 'secnin_el_prune_cron_checked' );
+        if ( $should_check_prune ) {
+            $prune_scheduled = wp_next_scheduled( 'secnin_prune_logs_cron' );
+            if ( !$prune_scheduled ) {
+                $prune_scheduled = wp_schedule_event( time(), 'daily', 'secnin_prune_logs_cron' );
+            }
+            if ( $prune_scheduled && !is_admin() && !wp_doing_cron() ) {
+                set_transient( 'secnin_el_prune_cron_checked', 1, DAY_IN_SECONDS );
+            }
         }
         $notify_enabled = self::is_admin_notification_enabled();
         self::$is_active = self::is_active();
@@ -675,8 +683,10 @@ class Wf_Sn_El {
                             }
                             $details_output .= '</dd>';
                         } else {
-                            // Process normally if it's not an error, object, or array
-                            $details_output .= '<dt>' . esc_html( $key ) . '</dt><dd>' . esc_html( $value ) . '</dd>';
+                            // Scalars only. Casting an array here prints an HTML warning
+                            // that prefixes the JSON and makes the table parser fail.
+                            $detail_value = ( is_scalar( $value ) || null === $value ? (string) $value : '' );
+                            $details_output .= '<dt>' . esc_html( (string) $key ) . '</dt><dd>' . esc_html( $detail_value ) . '</dd>';
                         }
                     }
                 } elseif ( is_wp_error( $raw_data ) ) {
@@ -704,15 +714,38 @@ class Wf_Sn_El {
                 'details'     => $details_output,
             );
         }
-        // Return JSON response
+        // Return JSON response.
+        // JSON_HEX_* keeps a raw "<" out of the body. The cells still contain
+        // HTML after parse (time, flag, details).
         $response = array(
             'draw'            => $draw,
-            'recordsTotal'    => $total_records,
-            'recordsFiltered' => $total_filtered,
+            'recordsTotal'    => (int) $total_records,
+            'recordsFiltered' => (int) $total_filtered,
             'data'            => $data,
         );
-        wp_send_json( $response );
-        wp_die();
+        while ( ob_get_level() > 0 ) {
+            ob_end_clean();
+        }
+        $json_flags = JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT;
+        if ( defined( 'JSON_INVALID_UTF8_SUBSTITUTE' ) ) {
+            $json_flags |= JSON_INVALID_UTF8_SUBSTITUTE;
+        }
+        // wp_send_json() only forwards encode flags from WordPress 5.6.
+        if ( isset( $GLOBALS['wp_version'] ) && version_compare( $GLOBALS['wp_version'], '5.6', '>=' ) ) {
+            wp_send_json( $response, null, $json_flags );
+        }
+        if ( !headers_sent() ) {
+            header( 'Content-Type: application/json; charset=' . get_option( 'blog_charset' ) );
+        }
+        $json = wp_json_encode( $response, $json_flags );
+        if ( !is_string( $json ) ) {
+            $json = '{"draw":0,"recordsTotal":0,"recordsFiltered":0,"data":[]}';
+        }
+        // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- JSON response body.
+        echo $json;
+        wp_die( '', '', array(
+            'response' => null,
+        ) );
     }
 
     /**
@@ -922,8 +955,17 @@ class Wf_Sn_El {
         } else {
             $existing = get_option( 'wf_sn_el', array() );
             if ( is_array( $existing ) && !empty( $existing ) ) {
-                $merged = array_merge( $options, $existing );
-                update_option( 'wf_sn_el', $merged );
+                $needs_merge = false;
+                foreach ( $options as $key => $default_value ) {
+                    if ( !array_key_exists( $key, $existing ) ) {
+                        $needs_merge = true;
+                        break;
+                    }
+                }
+                // Avoid rewriting wf_sn_el on every plugins_loaded when nothing is missing.
+                if ( $needs_merge ) {
+                    update_option( 'wf_sn_el', array_merge( $options, $existing ) );
+                }
             } else {
                 add_option(
                     'wf_sn_el',
@@ -1431,25 +1473,35 @@ class Wf_Sn_El {
             'blocked_ip_banned',
             'blocked_ip_suspicious_request',
             'blocked_ip_country_ban',
+            'blocked_ip_country_ban_login',
             'login_denied_banned_IP',
-            'firewall_ip_banned'
+            'firewall_ip_banned',
+            'firewall_ip_banned_lost_password',
+            'firewall_block'
         );
         // Prepare placeholders for protected actions
         $placeholders = implode( ', ', array_fill( 0, count( $protected_actions ), '%s' ) );
         // Prepare the base query with placeholders for dynamic values
-        $base_query = "DELETE FROM {$wpdb->prefix}wf_sn_el WHERE (action NOT IN ({$placeholders}) OR (action IN ({$placeholders}) AND timestamp < DATE_SUB(NOW(), INTERVAL 2 YEAR)))";
-        // Determine retention strategy
+        $base_query = "DELETE FROM {$wpdb->prefix}wf_sn_el WHERE (action NOT IN ({$placeholders}) OR (action IN ({$placeholders}) AND timestamp < DATE_SUB(NOW(), INTERVAL 90 DAY)))";
+        // Determine retention strategy.
+        // Option keys are day-N or records-N (legacy cnt-N accepted).
         $tmp = explode( '-', self::$options['retention'] );
-        $retention_value = (int) $tmp[1];
-        if ( 'cnt' === $tmp[0] ) {
+        $retention_kind = ( isset( $tmp[0] ) ? $tmp[0] : '' );
+        $retention_value = ( isset( $tmp[1] ) ? (int) $tmp[1] : 0 );
+        if ( $retention_value < 1 ) {
+            return false;
+        }
+        if ( 'records' === $retention_kind || 'cnt' === $retention_kind ) {
             $id = $wpdb->get_var( $wpdb->prepare( "SELECT id FROM {$wpdb->prefix}wf_sn_el ORDER BY id DESC LIMIT %d, 1", $retention_value ) );
             if ( $id ) {
                 $query = $wpdb->prepare( $base_query . ' AND id < %d', array_merge( $protected_actions, $protected_actions, array($id) ) );
                 $wpdb->query( $query );
             }
-        } else {
+        } elseif ( 'day' === $retention_kind ) {
             $query = $wpdb->prepare( $base_query . ' AND timestamp < DATE_SUB(NOW(), INTERVAL %d DAY)', array_merge( $protected_actions, $protected_actions, array($retention_value) ) );
             $wpdb->query( $query );
+        } else {
+            return false;
         }
         $deleted_rows = $wpdb->rows_affected;
         if ( $deleted_rows > 0 ) {
@@ -1734,6 +1786,8 @@ class Wf_Sn_El {
 								<button type="button" id="sn-el-reset-filter" class="button button-secondary"><?php 
         esc_html_e( 'Reset', 'security-ninja' );
         ?></button>
+								<?php 
+        ?>
 							</div>
 							
 							<table class="wp-list-table widefat fixed table-view-list" id="sn-el-datatable" style="border-spacing: 0;">
@@ -1861,6 +1915,7 @@ class Wf_Sn_El {
 										<h3>Upgrade to Pro for Advanced Event Auditing</h3>
 										<p>The free version of Events Logger provides basic event auditing for your website, including login and failed login tracking. Upgrade to Security Ninja Pro to unlock powerful features:</p>
 										<ul style="list-style: disc; margin-left: 20px; margin-top: 10px;">
+											<li>Download the event log as CSV</li>
 											<li>Email reports with customizable frequency and module selection</li>
 											<li>Advanced log retention policies for long-term auditing</li>
 											<li>Webhook integrations for real-time event notifications</li>

@@ -248,6 +248,47 @@ class Utils {
     }
 
     /**
+     * Dismissible Pro notice: Early Firewall available on existing sites (not auto-install).
+     *
+     * @return void
+     */
+    public static function maybe_show_early_firewall_notice() {
+        $current_screen = get_current_screen();
+        if ( !$current_screen || false !== strpos( (string) $current_screen->id, 'page_security-ninja-wizard' ) ) {
+            return;
+        }
+        // Existing site only: firewall options already stored (updates), not a brand-new empty install.
+        $stored_cf = get_option( 'wf_sn_cf', null );
+        if ( null === $stored_cf || false === $stored_cf ) {
+            return;
+        }
+        if ( class_exists( __NAMESPACE__ . '\\Secnin_Waf_Extended' ) && Secnin_Waf_Extended::is_installed() ) {
+            return;
+        }
+        if ( !class_exists( '\\PAnD' ) || !\PAnD::is_admin_notice_active( 'secnin-early-firewall-notice-forever' ) ) {
+            return;
+        }
+        $settings_url = admin_url( 'admin.php?page=wf-sn#secnin-early-firewall' );
+        ?>
+		<div data-dismissible="secnin-early-firewall-notice-forever" class="notice notice-info is-dismissible secnin-notice">
+			<p>
+				<strong><?php 
+        esc_html_e( 'Early Firewall is available (beta)', 'security-ninja' );
+        ?></strong>
+				<?php 
+        esc_html_e( 'It can run the firewall before WordPress loads. Optional, and this setting stays on this site only.', 'security-ninja' );
+        ?>
+				<a href="<?php 
+        echo esc_url( $settings_url );
+        ?>"><?php 
+        esc_html_e( 'Open Firewall settings', 'security-ninja' );
+        ?></a>
+			</p>
+		</div>
+		<?php 
+    }
+
+    /**
      * Add last login column
      *
      * @author  Unknown
@@ -303,57 +344,124 @@ class Utils {
     }
 
     /**
-     * Checks for and migrates old license system to Freemius automatically.
+     * Run license_key.txt activation on MainWP child requests (not only admin_init).
+     *
+     * @since 5.304
+     * @return void
+     */
+    public static function maybe_secnin_fs_license_key_migration_mainwp() {
+        // phpcs:ignore WordPress.Security.NonceVerification.Recommended,WordPress.Security.NonceVerification.Missing -- Detection only.
+        if ( !isset( $_POST['mainwpsignature'] ) && !isset( $_GET['mainwpsignature'] ) ) {
+            return;
+        }
+        self::secnin_fs_license_key_migration();
+    }
+
+    /**
+     * Parse a Freemius license key from license_key.txt (first line).
+     *
+     * Strips a UTF-8 BOM, trims whitespace, requires an sk_ prefix, and uses the
+     * first 32 characters when the line is longer (Freemius migration pattern).
+     *
+     * @since 5.304
+     * @param string $path Absolute path to the license file.
+     * @return string Valid key, or empty string when missing/invalid.
+     */
+    public static function parse_license_key_from_file( $path ) {
+        if ( empty( $path ) || !is_string( $path ) || !is_readable( $path ) ) {
+            return '';
+        }
+        $file_contents = file( $path, FILE_IGNORE_NEW_LINES );
+        if ( false === $file_contents || empty( $file_contents[0] ) ) {
+            return '';
+        }
+        $license_key = $file_contents[0];
+        // Strip UTF-8 BOM if Notepad or similar saved the file.
+        if ( 0 === strpos( $license_key, "﻿" ) ) {
+            $license_key = substr( $license_key, 3 );
+        }
+        $license_key = trim( $license_key );
+        if ( empty( $license_key ) || 0 !== strpos( $license_key, 'sk_' ) ) {
+            return '';
+        }
+        if ( strlen( $license_key ) > 32 ) {
+            $license_key = substr( $license_key, 0, 32 );
+        }
+        if ( strlen( $license_key ) !== 32 ) {
+            return '';
+        }
+        return $license_key;
+    }
+
+    /**
+     * Whether this request should skip a post-activation redirect.
+     *
+     * MainWP child pings, AJAX, and cron must not receive wp_safe_redirect.
+     *
+     * @since 5.304
+     * @return bool
+     */
+    private static function should_skip_license_file_redirect() {
+        if ( wp_doing_ajax() || wp_doing_cron() ) {
+            return true;
+        }
+        // phpcs:ignore WordPress.Security.NonceVerification.Recommended,WordPress.Security.NonceVerification.Missing -- Detection only.
+        if ( isset( $_POST['mainwpsignature'] ) || isset( $_GET['mainwpsignature'] ) ) {
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * Auto-activate from license_key.txt (deploy ZIP) and legacy Freemius migration.
+     *
+     * From 5.304 the file is read before opt-in / "no_license_key" stamps, so Free
+     * sites upgraded via a custom ZIP (e.g. MainWP) still activate. Empty-key
+     * Freemius calls stay one-shot to avoid opt-in email loops.
      *
      * @author  Lars Koudal
      * @since   v0.0.1
-     * @version v1.0.1  Thursday, September 21st, 2023.
+     * @version v1.0.2  Wednesday, September 9th, 2026.
      * @access  public static
      * @return  void
      */
     public static function secnin_fs_license_key_migration() {
-        $has_api_connectivity = false;
-        if ( secnin_fs()->has_api_connectivity() ) {
-            $has_api_connectivity = true;
-        }
-        $is_registered = false;
-        if ( secnin_fs()->is_registered() ) {
-            $is_registered = true;
-        }
-        if ( false === $has_api_connectivity || $is_registered ) {
-            // No connectivity OR the user already opted-in to Freemius.
+        if ( !secnin_fs()->has_api_connectivity() ) {
             return;
         }
-        if ( 'pending' !== get_option( 'secnin_fs_migrated2fs', 'pending' ) ) {
-            return;
-        }
-        // Check if license_key.txt exists in the plugin directory and use it to activate the license
         $license_file = WF_SN_PLUGIN_DIR . 'license_key.txt';
-        $license_key = '';
-        if ( file_exists( $license_file ) ) {
-            $file_contents = file( $license_file, FILE_IGNORE_NEW_LINES );
-            if ( false !== $file_contents ) {
-                $license_key = trim( $file_contents[0] );
-                if ( empty( $license_key ) || strlen( $license_key ) !== 32 || strpos( $license_key, 'sk_' ) !== 0 ) {
-                    $license_key = '';
-                }
+        // Already licensed: remove leftover deploy file and stop.
+        if ( secnin_fs()->can_use_premium_code() ) {
+            if ( file_exists( $license_file ) ) {
+                wp_delete_file( $license_file );
             }
-        }
-        // No legacy license key to migrate — stop so we never retry activate_migrated_license().
-        if ( empty( $license_key ) ) {
-            update_option( 'secnin_fs_migrated2fs', 'no_license_key', false );
             return;
         }
+        $license_key = self::parse_license_key_from_file( $license_file );
+        // No valid file: never call activate_migrated_license() empty (email-loop fix).
+        if ( empty( $license_key ) ) {
+            if ( 'pending' === get_option( 'secnin_fs_migrated2fs', 'pending' ) ) {
+                update_option( 'secnin_fs_migrated2fs', 'no_license_key', false );
+            }
+            return;
+        }
+        // Valid file present: ignore prior no_license_key / failed / is_registered.
+        if ( get_transient( 'secnin_fs_license_file_attempt' ) ) {
+            return;
+        }
+        $next_page = null;
         try {
             $next_page = secnin_fs()->activate_migrated_license( $license_key );
         } catch ( \Exception $e ) {
             update_option( 'secnin_fs_migrated2fs', 'unexpected_error', false );
+            set_transient( 'secnin_fs_license_file_attempt', 1, HOUR_IN_SECONDS );
             return;
         }
         // Freemius-safe: no else/negation on can_use_premium_code__premium_only().
         $migration_failed = true;
         if ( $migration_failed ) {
             update_option( 'secnin_fs_migrated2fs', 'failed', false );
+            set_transient( 'secnin_fs_license_file_attempt', 1, HOUR_IN_SECONDS );
         }
     }
 
@@ -638,7 +746,15 @@ class Utils {
                     $module,
                     $key
                 );
-                if ( 'firewall' === $module && in_array( $key, array('unblock_url', 'unblock_url_hash'), true ) ) {
+                if ( 'firewall' === $module && in_array( $key, array(
+                    'unblock_url',
+                    'unblock_url_hash',
+                    'firewall_mode',
+                    'firewall_extended_status',
+                    'mode',
+                    'status',
+                    'prepend_path'
+                ), true ) ) {
                     $response['skipped'][] = $module . '.' . $key;
                     continue;
                 }
@@ -1277,7 +1393,7 @@ class Utils {
      *
      * @param string $placement utm_content placement key.
      * @param string $page      Path on wpsecurityninja.com (default home).
-     * @param array  $params    Extra query args (e.g. trial=free, utm_medium=email).
+     * @param array  $params    Extra query args (e.g. trial=paid, utm_medium=email).
      * @return string Full URL with UTM parameters.
      */
     public static function generate_sn_web_link( $placement = '', $page = '/', $params = array() ) {
@@ -1634,6 +1750,8 @@ class Utils {
         $topbar .= '<div class="links">' . $menu_links . '</div>';
         $topbar .= '</div>';
         echo wp_kses_post( $topbar );
+        // Anchor for core admin notice relocation (common.js). Without this, notices latch onto the first tab h2.
+        echo '<hr class="wp-header-end">';
     }
 
     /**
@@ -1898,6 +2016,10 @@ class Utils {
             'wf_sn_banned_ips',
             'wf_sn_cf_validated_crawlers',
             'wf_sn_cf_ai_crawler_ranges',
+            'wf_sn_cf_extended',
+            'wf_sn_cf_waf_recovery',
+            'wf_sn_cf_waf_cookie_key',
+            'wf_sn_cf_waf_event_receipts',
             'wf_sn_el',
             'secnin_last_checked_admin_id',
             'secnin_notify_new_admin_since',
@@ -1987,6 +2109,19 @@ class Utils {
         $upload_dir = wp_upload_dir();
         if ( $wp_filesystem && empty( $upload_dir['error'] ) ) {
             $wp_filesystem->delete( trailingslashit( $upload_dir['basedir'] ) . 'security-ninja', true );
+        }
+        if ( class_exists( __NAMESPACE__ . '\\Secnin_Waf_Lifecycle', false ) ) {
+            \WPSecurityNinja\Plugin\Secnin_Waf_Lifecycle::wipe_data_dir_if_safe();
+            \WPSecurityNinja\Plugin\Secnin_Waf_Lifecycle::delete_waf_options();
+        } else {
+            $lifecycle = ( defined( 'WF_SN_PLUGIN_DIR' ) ? WF_SN_PLUGIN_DIR . 'modules/cloud-firewall/waf/class-secnin-waf-lifecycle.php' : '' );
+            if ( $lifecycle && is_readable( $lifecycle ) ) {
+                require_once $lifecycle;
+                if ( class_exists( __NAMESPACE__ . '\\Secnin_Waf_Lifecycle', false ) ) {
+                    \WPSecurityNinja\Plugin\Secnin_Waf_Lifecycle::wipe_data_dir_if_safe();
+                    \WPSecurityNinja\Plugin\Secnin_Waf_Lifecycle::delete_waf_options();
+                }
+            }
         }
         if ( 'uninstall' === $context ) {
             delete_option( 'wfsn_freemius_state' );

@@ -154,14 +154,16 @@ if ( function_exists( 'secnin_fs' ) ) {
         ?></li>
 				</ul>
 				<p><strong><?php 
-        echo esc_html( 'Try the Pro version free for 14 days!' );
-        ?></strong></p>
+        esc_html_e( 'Try Pro for 14 days.', 'security-ninja' );
+        ?></strong> <?php 
+        esc_html_e( 'Card or PayPal required. You are not charged today.', 'security-ninja' );
+        ?></p>
 				<a href="<?php 
         echo esc_url( Utils::generate_sn_web_link( 'sidebar_trial', '/upgrade/', array(
-            'trial' => 'free',
+            'trial' => 'paid',
         ) ) );
         ?>" class="button button-primary trial-button" target="_blank" rel="noopener"><?php 
-        esc_html_e( 'Get started', 'security-ninja' );
+        esc_html_e( 'Start 14-day trial', 'security-ninja' );
         ?></a>
 				<div class="wrap-collabsible">
 					<input id="collapsible-payment-details" class="toggle" type="checkbox">

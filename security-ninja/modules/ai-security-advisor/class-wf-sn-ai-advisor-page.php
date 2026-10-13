@@ -114,6 +114,21 @@ class Wf_Sn_Ai_Advisor_Page {
         $connectors_for_ui = Wf_Sn_Ai_Advisor_Provider_Wp_Connectors::get_connectors_for_ui();
         $selected_meta = Wf_Sn_Ai_Advisor_Provider_Wp_Connectors::get_selected_connector_metadata();
         $history_counts = Wf_Sn_Ai_Advisor_Reports::count_all();
+        $connection_state = Wf_Sn_Ai_Advisor_Schedule_Policy::get_connection_state();
+        $scheduler_url = \WPSecurityNinja\Plugin\Wf_Sn_Admin_Links::url( 'scheduler' );
+        $schedule_enabled = self::is_scheduled_report_enabled();
+        $schedule_interval = self::get_scheduled_report_interval();
+        $scheduler_state = ( class_exists( __NAMESPACE__ . '\\Wf_Sn_Ai_Advisor_Scheduler' ) ? Wf_Sn_Ai_Advisor_Scheduler::get_scheduler_state() : array(
+            'timestamp' => 0,
+            'backend'   => 'none',
+        ) );
+        $schedule_status = ( class_exists( __NAMESPACE__ . '\\Wf_Sn_Ai_Advisor_Scheduler' ) ? Wf_Sn_Ai_Advisor_Scheduler::get_status_line(
+            $schedule_enabled,
+            $connection_state,
+            $schedule_interval,
+            $scheduler_state
+        ) : '' );
+        $has_report = null !== $latest_report_data;
         ?>
 		<div class="wrap">
 		<?php 
@@ -137,7 +152,15 @@ class Wf_Sn_Ai_Advisor_Page {
          ) );
         ?></p>
 								<?php 
-        self::render_connector_badge( $has_connectors, $selected_meta, $connectors_url );
+        self::render_status_line(
+            $has_connectors,
+            $selected_meta,
+            $connectors_url,
+            $has_report,
+            $latest_report_data,
+            $schedule_status,
+            $scheduler_url
+        );
         ?>
 								<p class="description wf-sn-ai-privacy-line"><?php 
         esc_html_e( 'Only scan results, event counts, and security summaries are sent to your selected AI provider. No personal data is sent.', 'security-ninja' );
@@ -149,39 +172,31 @@ class Wf_Sn_Ai_Advisor_Page {
 					<div class="wf-sn-ai-section wf-sn-ai-panel--interact" id="wf_sn_ai_section_full_report" data-request-type="full_report" data-ui-locale="<?php 
         echo esc_attr( $effective_locale );
         ?>">
-						<div class="wf-sn-ai-workspace-columns<?php 
-        echo ( $has_connectors ? '' : ' wf-sn-ai-workspace-columns--no-chat' );
-        ?>">
+						<div class="wf-sn-ai-workspace-columns wf-sn-ai-workspace-columns--single">
 							<div class="wf-sn-ai-report-column">
 								<div class="wf-sn-ai-card wf-sn-ai-report-column-card">
 									<div class="wf-sn-ai-card-inner">
 										<?php 
-        self::render_readiness_compact();
+        $readiness_issues = array();
+        foreach ( Wf_Sn_Ai_Advisor_Readiness::get_items() as $item ) {
+            if ( 'ready' !== $item['status'] ) {
+                $readiness_issues[] = $item;
+            }
+        }
+        if ( !empty( $readiness_issues ) ) {
+            self::render_readiness_compact();
+        }
         ?>
-										<p class="description wf-sn-ai-generate-lead"><?php 
-        echo esc_html( sprintf( 
-            /* translators: %s: plugin display name */
-            __( 'Generate a fresh AI review from your latest %s scan data.', 'security-ninja' ),
-            $plugin_name
-         ) );
-        ?></p>
+
 										<?php 
-        if ( !$has_connectors ) {
+        if ( Wf_Sn_Ai_Advisor_Schedule_Policy::STATE_NO_CONNECTOR === $connection_state ) {
             ?>
 											<div class="wf-sn-ai-onboarding-steps" role="region" aria-label="<?php 
             esc_attr_e( 'Getting started with AI connectors', 'security-ninja' );
             ?>">
-												<ol class="wf-sn-ai-onboarding-steps__list">
-													<li><?php 
-            esc_html_e( 'Connect an AI provider under Settings → Connectors.', 'security-ninja' );
-            ?></li>
-													<li><?php 
-            esc_html_e( 'Return to Security Advisor and choose your connector in AI settings.', 'security-ninja' );
-            ?></li>
-													<li><?php 
-            esc_html_e( 'Generate your first AI security review.', 'security-ninja' );
-            ?></li>
-												</ol>
+												<p><?php 
+            esc_html_e( 'Connect an AI provider under Settings → Connectors, then generate your first review here.', 'security-ninja' );
+            ?></p>
 												<p class="wf-sn-ai-onboarding-steps__actions">
 													<a href="<?php 
             echo esc_url( $connectors_url );
@@ -191,40 +206,63 @@ class Wf_Sn_Ai_Advisor_Page {
 												</p>
 											</div>
 										<?php 
-        }
-        ?>
-
-										<div class="wf-sn-ai-generate-primary-wrap">
-											<button type="button" class="button button-primary button-large wf-sn-ai-trigger wf-sn-ai-generate-btn" data-request-type="full_report" <?php 
-        disabled( !$has_connectors );
-        ?>>
-												<?php 
-        esc_html_e( 'Generate fresh AI review', 'security-ninja' );
-        ?>
-											</button>
-										</div>
-
-										<p class="wf-sn-ai-preview-data-row description">
-											<a href="#" class="wf-sn-ai-preview-data-link" data-request-type="full_report" aria-describedby="wf_sn_ai_preview_modal_title"><?php 
-        esc_html_e( 'Preview data sent to AI', 'security-ninja' );
-        ?></a>
-										</p>
-										<p class="wf-sn-ai-what-happens description">
-											<?php 
-        esc_html_e( 'We send test results and event counts to the AI provider. No personal data.', 'security-ninja' );
-        ?>
-											<?php 
-        if ( $show_docs_link ) {
+        } elseif ( Wf_Sn_Ai_Advisor_Schedule_Policy::STATE_NOT_SELECTED === $connection_state ) {
             ?>
-											<a href="<?php 
-            echo esc_url( $docs_url );
-            ?>" target="_blank" rel="noopener"><?php 
-            esc_html_e( 'Learn more', 'security-ninja' );
-            ?></a>
-											<?php 
+											<div class="wf-sn-ai-onboarding-steps" role="region">
+												<p><?php 
+            esc_html_e( 'Choose which AI connector to use in AI connection below, then generate a review.', 'security-ninja' );
+            ?></p>
+											</div>
+										<?php 
         }
         ?>
-										</p>
+
+										<?php 
+        if ( !$has_report ) {
+            ?>
+											<p class="description wf-sn-ai-generate-lead"><?php 
+            echo esc_html( sprintf( 
+                /* translators: %s: plugin display name */
+                __( 'Generate your first AI review from the latest %s scan data.', 'security-ninja' ),
+                $plugin_name
+             ) );
+            ?></p>
+											<div class="wf-sn-ai-generate-primary-wrap">
+												<button type="button" class="button button-primary button-large wf-sn-ai-trigger wf-sn-ai-generate-btn" data-request-type="full_report" <?php 
+            disabled( !$has_connectors );
+            ?>>
+													<?php 
+            esc_html_e( 'Generate your first review', 'security-ninja' );
+            ?>
+												</button>
+											</div>
+										<?php 
+        }
+        ?>
+
+										<?php 
+        if ( $has_connectors ) {
+            ?>
+											<p class="wf-sn-ai-preview-data-row description">
+												<a href="#" class="wf-sn-ai-preview-data-link" data-request-type="full_report" aria-describedby="wf_sn_ai_preview_modal_title"><?php 
+            esc_html_e( 'Preview data sent to AI', 'security-ninja' );
+            ?></a>
+												<?php 
+            if ( $show_docs_link ) {
+                ?>
+													<a href="<?php 
+                echo esc_url( $docs_url );
+                ?>" target="_blank" rel="noopener"><?php 
+                esc_html_e( 'Learn more', 'security-ninja' );
+                ?></a>
+												<?php 
+            }
+            ?>
+											</p>
+										<?php 
+        }
+        ?>
+
 										<div class="wf-sn-ai-result-wrapper" style="display: none;">
 											<div class="wf-sn-ai-result-stage" aria-live="polite"></div>
 											<p class="wf-sn-ai-result-stats description" hidden></p>
@@ -237,7 +275,7 @@ class Wf_Sn_Ai_Advisor_Page {
 										</div>
 
 										<div id="wf_sn_ai_latest_report_card" class="wf-sn-ai-latest-report<?php 
-        echo ( null === $latest_report_data ? ' wf-sn-ai-latest-report--empty' : '' );
+        echo ( $has_report ? '' : ' wf-sn-ai-latest-report--empty' );
         ?>"
 											data-current-7d="<?php 
         echo esc_attr( (string) $counts_7d['current_7d_total'] );
@@ -246,14 +284,14 @@ class Wf_Sn_Ai_Advisor_Page {
         echo esc_attr( (string) $counts_7d['prev_7d_total'] );
         ?>"
 											data-parent-report-id="<?php 
-        echo ( null !== $latest_report_data && !empty( $latest_report_data['row_id'] ) ? esc_attr( (string) (int) $latest_report_data['row_id'] ) : '0' );
+        echo ( $has_report && !empty( $latest_report_data['row_id'] ) ? esc_attr( (string) (int) $latest_report_data['row_id'] ) : '0' );
         ?>"
 											data-report-json="<?php 
-        echo ( null !== $latest_report_data ? esc_attr( $latest_report_data['report_json'] ) : '' );
+        echo ( $has_report ? esc_attr( $latest_report_data['report_json'] ) : '' );
         ?>">
 											<div class="wf-sn-ai-latest-report-primary" id="wf_sn_ai_latest_report_primary">
 												<?php 
-        if ( null !== $latest_report_data ) {
+        if ( $has_report ) {
             ?>
 													<div class="wf-sn-ai-latest-report-header">
 														<h2 class="wf-sn-ai-section-title"><?php 
@@ -358,13 +396,26 @@ class Wf_Sn_Ai_Advisor_Page {
 										</div>
 
 										<?php 
-        if ( $history_counts['full_report'] > 0 ) {
+        if ( $has_report ) {
+            ?>
+											<div class="wf-sn-ai-generate-secondary-wrap">
+												<button type="button" class="button button-secondary wf-sn-ai-trigger wf-sn-ai-generate-btn" data-request-type="full_report" <?php 
+            disabled( !$has_connectors );
+            ?>>
+													<?php 
+            esc_html_e( 'Generate a new review now', 'security-ninja' );
+            ?>
+												</button>
+											</div>
+										<?php 
+        }
+        ?>
+
+										<?php 
+        if ( $history_counts['full_report'] > 1 ) {
             ?>
 											<?php 
             self::render_what_changed_panel();
-            ?>
-											<?php 
-            self::render_top_priorities_panel();
             ?>
 										<?php 
         }
@@ -375,169 +426,114 @@ class Wf_Sn_Ai_Advisor_Page {
 							</div>
 
 							<?php 
-        if ( $has_connectors ) {
-            ?>
-							<?php 
-            $followup_enabled_chips = Wf_Sn_Ai_Advisor_Chips::get_enabled_chips_for_ui();
-            $followup_toolbar_active = !empty( $followup_enabled_chips );
-            $followup_comparison_locked = Wf_Sn_Ai_Advisor_Chips::get_locked_comparison_chips_for_ui();
-            $followup_chip_definitions = Wf_Sn_Ai_Advisor_Chips::definitions();
-            ?>
+        $followup_enabled_chips = Wf_Sn_Ai_Advisor_Chips::get_enabled_chips_for_ui();
+        $followup_toolbar_active = $has_report && !empty( $followup_enabled_chips );
+        $followup_comparison_chips = array();
+        foreach ( Wf_Sn_Ai_Advisor_Chips::get_enabled_chips_for_ui() as $chip ) {
+            if ( in_array( $chip['id'], Wf_Sn_Ai_Advisor_Chips::comparison_prompt_ids(), true ) ) {
+                $followup_comparison_chips[] = $chip;
+            }
+        }
+        $followup_primary_chips = array();
+        foreach ( $followup_enabled_chips as $chip ) {
+            if ( in_array( $chip['id'], Wf_Sn_Ai_Advisor_Chips::PRIMARY_PROMPT_IDS, true ) ) {
+                $followup_primary_chips[] = $chip;
+            }
+        }
+        ?>
 							<div class="wf-sn-ai-chat-column" id="wf_sn_ai_chat_column" data-followup-ready="<?php 
-            echo ( $followup_toolbar_active ? '1' : '0' );
-            ?>">
+        echo ( $followup_toolbar_active ? '1' : '0' );
+        ?>"<?php 
+        echo ( $has_connectors ? '' : ' hidden' );
+        ?>>
 								<div class="wf-sn-ai-card wf-sn-ai-chat-column-card">
 									<div class="wf-sn-ai-card-inner wf-sn-ai-chat-column-inner">
 										<div class="wf-sn-ai-chat-column__head">
 											<h2 class="wf-sn-ai-section-title"><?php 
-            esc_html_e( 'Follow-ups', 'security-ninja' );
-            ?></h2>
+        esc_html_e( 'Follow-ups', 'security-ninja' );
+        ?></h2>
 											<p class="description wf-sn-ai-convo-intro wf-sn-ai-convo-intro--active"<?php 
-            echo ( $followup_toolbar_active ? '' : ' hidden' );
-            ?>>
+        echo ( $followup_toolbar_active ? '' : ' hidden' );
+        ?>>
 												<?php 
-            echo esc_html( sprintf( 
-                /* translators: %s: plugin display name */
-                __( 'Choose a guided question. Answers are limited to your %s scan results and recent security activity.', 'security-ninja' ),
-                $plugin_name
-             ) );
-            ?>
-											</p>
-											<p class="description wf-sn-ai-convo-intro wf-sn-ai-convo-intro--locked"<?php 
-            echo ( $followup_toolbar_active ? ' hidden' : '' );
-            ?>>
-												<?php 
-            esc_html_e( 'Guided follow-up questions unlock after your first AI security report is saved.', 'security-ninja' );
-            ?>
+        echo esc_html( sprintf( 
+            /* translators: %s: plugin display name */
+            __( 'Ask a guided question. Answers stay limited to your %s scan results and recent security activity.', 'security-ninja' ),
+            $plugin_name
+         ) );
+        ?>
 											</p>
 										</div>
 										<div class="wf-sn-ai-chat-column__convo-wrap">
 											<div class="wf-sn-ai-assistant-output wf-sn-ai-result-canvas wf-sn-ai-assistant-output--convo" id="wf_sn_ai_assistant_output" aria-live="polite">
-												<div class="wf-sn-ai-convo-loading" id="wf_sn_ai_convo_loading" role="status" aria-live="polite">
+												<div class="wf-sn-ai-convo-loading" id="wf_sn_ai_convo_loading" role="status" aria-live="polite"<?php 
+        echo ( $followup_toolbar_active ? '' : ' hidden' );
+        ?>>
 													<span class="spinner is-active" aria-hidden="true"></span>
 													<span class="wf-sn-ai-convo-loading__text"><?php 
-            esc_html_e( 'Loading messages…', 'security-ninja' );
-            ?></span>
+        esc_html_e( 'Loading messages…', 'security-ninja' );
+        ?></span>
 												</div>
 												<div class="wf-sn-ai-convo" id="wf_sn_ai_convo" role="log" aria-label="<?php 
-            esc_attr_e( 'Assistant conversation', 'security-ninja' );
-            ?>" hidden>
+        esc_attr_e( 'Assistant conversation', 'security-ninja' );
+        ?>" hidden>
 													<div class="wf-sn-ai-convo__load-wrap" id="wf_sn_ai_convo_load_wrap" hidden>
 														<button type="button" class="button button-link wf-sn-ai-convo__load-older" id="wf_sn_ai_convo_load_older"><?php 
-            esc_html_e( 'Load older messages', 'security-ninja' );
-            ?></button>
+        esc_html_e( 'Load older messages', 'security-ninja' );
+        ?></button>
 													</div>
 													<div class="wf-sn-ai-convo__turns" id="wf_sn_ai_convo_turns"></div>
 												</div>
-												<div class="wf-sn-ai-followup-journey" id="wf_sn_ai_followup_journey"<?php 
-            echo ( $followup_toolbar_active ? ' hidden' : '' );
-            ?>>
-													<p class="wf-sn-ai-followup-journey__badge"><?php 
-            esc_html_e( 'Next step', 'security-ninja' );
-            ?></p>
-													<p class="wf-sn-ai-followup-journey__title"><?php 
-            esc_html_e( 'Generate your first AI review on the left', 'security-ninja' );
-            ?></p>
-													<p class="description wf-sn-ai-followup-journey__text"><?php 
-            echo esc_html( sprintf( 
-                /* translators: %s: plugin display name */
-                __( 'After %s saves your report, guided follow-up questions appear here — for example what to fix first or how to explain issues to a client.', 'security-ninja' ),
-                $plugin_name
-             ) );
-            ?></p>
-												</div>
 												<p class="description wf-sn-ai-empty-state" id="wf_sn_ai_assistant_empty" hidden><?php 
-            esc_html_e( 'No messages yet. Pick a guided question below.', 'security-ninja' );
-            ?></p>
+        esc_html_e( 'No messages yet. Pick a guided question below.', 'security-ninja' );
+        ?></p>
 											</div>
 											<p class="description wf-sn-ai-chip-status" id="wf_sn_ai_chip_status" hidden></p>
 										</div>
-										<div class="wf-sn-ai-followup-locked" id="wf_sn_ai_followup_locked"<?php 
-            echo ( $followup_toolbar_active ? ' hidden' : '' );
-            ?>>
-											<details class="wf-sn-ai-followup-preview-details">
-												<summary class="wf-sn-ai-followup-preview-details__summary"><?php 
-            esc_html_e( 'Preview: questions you can ask after your first report', 'security-ninja' );
-            ?></summary>
-												<ul class="wf-sn-ai-followup-preview-list">
-													<?php 
-            foreach ( Wf_Sn_Ai_Advisor_Chips::PROMPT_IDS as $prompt_id ) {
-                ?>
-														<?php 
-                if ( !isset( $followup_chip_definitions[$prompt_id]['label'] ) ) {
-                    ?>
-															<?php 
-                    continue;
-                    ?>
-														<?php 
-                }
-                ?>
-														<li><?php 
-                echo esc_html( $followup_chip_definitions[$prompt_id]['label'] );
-                ?></li>
-													<?php 
-            }
-            ?>
-												</ul>
-											</details>
-										</div>
 										<div class="wf-sn-ai-chat-column__chips wf-sn-ai-followup-active" id="wf_sn_ai_followup_active" role="toolbar" aria-label="<?php 
-            esc_attr_e( 'Suggested prompts', 'security-ninja' );
-            ?>"<?php 
-            echo ( $followup_toolbar_active ? '' : ' hidden' );
-            ?>>
+        esc_attr_e( 'Suggested prompts', 'security-ninja' );
+        ?>"<?php 
+        echo ( $followup_toolbar_active ? '' : ' hidden' );
+        ?>>
 											<p class="description wf-sn-ai-chip-hint"><?php 
-            esc_html_e( 'Choose a guided question', 'security-ninja' );
-            ?></p>
+        esc_html_e( 'Choose a guided question', 'security-ninja' );
+        ?></p>
 											<div class="wf-sn-ai-chip-row wf-sn-ai-chip-row--footer" id="wf_sn_ai_chip_row">
 												<?php 
-            foreach ( $followup_enabled_chips as $chip ) {
-                ?>
+        foreach ( $followup_primary_chips as $chip ) {
+            ?>
 													<div class="wf-sn-ai-chip-wrap">
 														<button type="button" class="button wf-sn-ai-chip" data-prompt-id="<?php 
-                echo esc_attr( $chip['id'] );
-                ?>">
+            echo esc_attr( $chip['id'] );
+            ?>">
 															<?php 
-                echo esc_html( $chip['label'] );
-                ?>
+            echo esc_html( $chip['label'] );
+            ?>
 														</button>
 													</div>
 												<?php 
-            }
+        }
+        ?>
+												<?php 
+        foreach ( $followup_comparison_chips as $chip ) {
             ?>
+													<div class="wf-sn-ai-chip-wrap">
+														<button type="button" class="button wf-sn-ai-chip" data-prompt-id="<?php 
+            echo esc_attr( $chip['id'] );
+            ?>">
+															<?php 
+            echo esc_html( $chip['label'] );
+            ?>
+														</button>
+													</div>
+												<?php 
+        }
+        ?>
 											</div>
-											<?php 
-            if ( !empty( $followup_comparison_locked ) ) {
-                ?>
-												<details class="wf-sn-ai-followup-comparison-details" id="wf_sn_ai_followup_comparison">
-													<summary class="wf-sn-ai-followup-comparison-details__summary"><?php 
-                esc_html_e( 'Compare across reports (unlocks after a second report)', 'security-ninja' );
-                ?></summary>
-													<p class="description"><?php 
-                esc_html_e( 'Generate another AI review later to unlock change-over-time questions.', 'security-ninja' );
-                ?></p>
-													<ul class="wf-sn-ai-followup-preview-list">
-														<?php 
-                foreach ( $followup_comparison_locked as $chip ) {
-                    ?>
-															<li><?php 
-                    echo esc_html( $chip['label'] );
-                    ?></li>
-														<?php 
-                }
-                ?>
-													</ul>
-												</details>
-											<?php 
-            }
-            ?>
 										</div>
 									</div>
 								</div>
 							</div>
-							<?php 
-        }
-        ?>
 
 						</div>
 					</div>
@@ -565,19 +561,19 @@ class Wf_Sn_Ai_Advisor_Page {
         $abilities_exposed = Wf_Sn_Ai_Advisor_Abilities::is_exposed_enabled();
         $abilities_for_ui = Wf_Sn_Ai_Advisor_Abilities::get_definitions_for_ui();
         ?>
-					<details class="wf-sn-ai-card wf-sn-ai-settings-card wf-sn-ai-settings-card--footer sncard settings-card" open>
-						<summary class="wf-sn-ai-section-title wf-sn-ai-settings-summary"><?php 
-        esc_html_e( 'AI settings', 'security-ninja' );
-        ?></summary>
+					<div class="wf-sn-ai-card wf-sn-ai-settings-card wf-sn-ai-connection-card sncard settings-card">
 						<div class="wf-sn-ai-card-inner">
+							<h2 class="wf-sn-ai-section-title"><?php 
+        esc_html_e( 'AI connection', 'security-ninja' );
+        ?></h2>
 							<p class="description"><?php 
-        esc_html_e( 'Connectors are configured in WordPress under Settings → Connectors. Here you choose which AI connector Security Advisor uses to generate reports.', 'security-ninja' );
+        esc_html_e( 'Connectors are configured in WordPress under Settings → Connectors. Here you choose which one Security Advisor uses.', 'security-ninja' );
         ?></p>
 							<?php 
         if ( empty( $configured_connectors ) ) {
             ?>
 								<p><?php 
-            esc_html_e( 'No AI connectors are configured yet. Add and configure a connector under Settings → Connectors to use the Security Advisor.', 'security-ninja' );
+            esc_html_e( 'No AI connectors are configured yet.', 'security-ninja' );
             ?></p>
 								<p><a href="<?php 
             echo esc_url( $connectors_url );
@@ -607,7 +603,7 @@ class Wf_Sn_Ai_Advisor_Page {
             esc_html_e( 'AI connector', 'security-ninja' );
             ?></h3>
 														<p class="description"><?php 
-            esc_html_e( 'Which configured WordPress AI connector Security Advisor uses to generate reports and follow-ups.', 'security-ninja' );
+            esc_html_e( 'Used for reviews and follow-ups on this page, and for automatic reviews from the Scheduler.', 'security-ninja' );
             ?></p>
 													</label>
 												</div>
@@ -639,82 +635,104 @@ class Wf_Sn_Ai_Advisor_Page {
 									<?php 
         }
         ?>
+									<div class="wf-sn-ai-settings-actions">
+										<button type="submit" class="button button-primary input-button"><?php 
+        esc_html_e( 'Save Changes', 'security-ninja' );
+        ?></button>
+									</div>
+								</div>
+							</form>
+						</div>
+					</div>
 
-									<section class="wf-sn-ai-settings-group wf-sn-ai-settings-group--abilities">
-										<div class="wf-sn-ai-settings-row wf-sn-ai-settings-row--toggle">
-											<div class="wf-sn-ai-settings-row__content">
-												<label for="wf_sn_ai_advisor_abilities_exposed">
-													<h3><?php 
+					<details class="wf-sn-ai-card wf-sn-ai-settings-card wf-sn-ai-settings-card--footer sncard settings-card">
+						<summary class="wf-sn-ai-section-title wf-sn-ai-settings-summary"><?php 
+        esc_html_e( 'Advanced', 'security-ninja' );
+        ?></summary>
+						<div class="wf-sn-ai-card-inner">
+							<form method="post" action="<?php 
+        echo esc_url( admin_url( 'admin-post.php' ) );
+        ?>" class="wf-sn-ai-settings-form">
+								<input type="hidden" name="action" value="wf_sn_ai_advisor_save_settings" />
+								<?php 
+        wp_nonce_field( 'wf_sn_ai_advisor_save_settings', 'wf_sn_ai_advisor_nonce' );
+        ?>
+								<input type="hidden" name="wf_sn_ai_advisor_provider" value="wordpress_connectors" />
+								<?php 
+        if ( !empty( $configured_connectors ) && $current_connector ) {
+            ?>
+									<input type="hidden" name="wf_sn_ai_advisor_connector" value="<?php 
+            echo esc_attr( $current_connector );
+            ?>" />
+								<?php 
+        }
+        ?>
+								<section class="wf-sn-ai-settings-group wf-sn-ai-settings-group--abilities">
+									<div class="wf-sn-ai-settings-row wf-sn-ai-settings-row--toggle">
+										<div class="wf-sn-ai-settings-row__content">
+											<label for="wf_sn_ai_advisor_abilities_exposed">
+												<h3><?php 
         esc_html_e( 'Expose data to WordPress AI abilities', 'security-ninja' );
         ?></h3>
-													<p class="description"><?php 
+												<p class="description"><?php 
         echo esc_html( sprintf( 
             /* translators: %s: plugin display name */
             __( 'Lets other WordPress AI tools read %s summaries when enabled. Report generation and follow-ups on this page are not affected.', 'security-ninja' ),
             $plugin_name
          ) );
         ?></p>
-												</label>
-											</div>
-											<div class="wf-sn-ai-settings-row__control">
-												<?php 
+											</label>
+										</div>
+										<div class="wf-sn-ai-settings-row__control">
+											<?php 
         \WPSecurityNinja\Plugin\Utils::create_toggle_switch( 'wf_sn_ai_advisor_abilities_exposed', array(
             'value'       => 1,
             'saved_value' => Wf_Sn_Ai_Advisor_Abilities::get_exposed_saved_value(),
             'option_key'  => 'wf_sn_ai_advisor_abilities_exposed',
         ) );
         ?>
-											</div>
 										</div>
-										<div class="wf-sn-ai-abilities-list" aria-labelledby="wf_sn_ai_abilities_list_title">
-											<h4 id="wf_sn_ai_abilities_list_title" class="wf-sn-ai-abilities-list__title"><?php 
+									</div>
+									<div class="wf-sn-ai-abilities-list" aria-labelledby="wf_sn_ai_abilities_list_title">
+										<h4 id="wf_sn_ai_abilities_list_title" class="wf-sn-ai-abilities-list__title"><?php 
         esc_html_e( 'Available abilities', 'security-ninja' );
         ?></h4>
-											<p class="description wf-sn-ai-abilities-list__intro"><?php 
+										<p class="description wf-sn-ai-abilities-list__intro"><?php 
         esc_html_e( 'When exposure is enabled, other WordPress AI tools on this site can use these read-only abilities:', 'security-ninja' );
         ?></p>
-											<?php 
+										<?php 
         if ( !$abilities_exposed ) {
             ?>
-												<div class="wf-sn-ai-abilities-notice notice notice-warning inline">
-													<p><?php 
+											<div class="wf-sn-ai-abilities-notice notice notice-warning inline">
+												<p><?php 
             esc_html_e( 'Not exposed to WordPress AI clients until you enable the setting above and save.', 'security-ninja' );
             ?></p>
-												</div>
+											</div>
+										<?php 
+        }
+        ?>
+										<ul class="wf-sn-ai-abilities-list__items">
+											<?php 
+        foreach ( $abilities_for_ui as $ability ) {
+            ?>
+												<li class="wf-sn-ai-abilities-list__item">
+													<strong class="wf-sn-ai-abilities-list__label"><?php 
+            echo esc_html( $ability['label'] );
+            ?></strong>
+													<span class="wf-sn-ai-abilities-list__summary"><?php 
+            echo esc_html( $ability['summary'] );
+            ?></span>
+												</li>
 											<?php 
         }
         ?>
-											<ul class="wf-sn-ai-abilities-list__items">
-												<?php 
-        foreach ( $abilities_for_ui as $ability ) {
-            ?>
-													<li class="wf-sn-ai-abilities-list__item">
-														<strong class="wf-sn-ai-abilities-list__label"><?php 
-            echo esc_html( $ability['label'] );
-            ?></strong>
-														<span class="wf-sn-ai-abilities-list__summary"><?php 
-            echo esc_html( $ability['summary'] );
-            ?></span>
-													</li>
-												<?php 
-        }
-        ?>
-											</ul>
-										</div>
-									</section>
-
-									<?php 
-        // Scheduled AI reports UI ships in a future release; backend remains in place.
-        if ( apply_filters( 'wf_sn_ai_advisor_show_scheduled_reports', false ) ) {
-            self::render_scheduled_reports_section( $options );
-        }
-        ?>
-
-									<div class="wf-sn-ai-settings-actions">
-										<button type="submit" class="button button-primary input-button"><?php 
+										</ul>
+									</div>
+								</section>
+								<div class="wf-sn-ai-settings-actions">
+									<button type="submit" class="button button-primary input-button"><?php 
         esc_html_e( 'Save Changes', 'security-ninja' );
         ?></button>
-									</div>
 								</div>
 							</form>
 							<div class="wf-sn-ai-danger-zone">
@@ -808,8 +826,57 @@ class Wf_Sn_Ai_Advisor_Page {
      */
     private static function render_no_report_yet_state() {
         echo '<div class="wf-sn-ai-no-report-yet">';
-        echo '<p>' . esc_html__( 'No AI security report saved yet. Use the button above to generate your first review.', 'security-ninja' ) . '</p>';
+        echo '<p>' . esc_html__( 'No AI security report saved yet.', 'security-ninja' ) . '</p>';
         echo '</div>';
+    }
+
+    /**
+     * Status line: connector, last review, schedule.
+     *
+     * @param bool                       $has_connectors   Whether connectors exist.
+     * @param array<string,mixed>|null   $selected_meta    Selected connector metadata.
+     * @param string                     $connectors_url   Connectors admin URL.
+     * @param bool                       $has_report       Whether a report exists.
+     * @param array<string,mixed>|null   $latest_report    Latest report data.
+     * @param string                     $schedule_status  Schedule status sentence.
+     * @param string                     $scheduler_url    Scheduler tab URL.
+     * @return void
+     */
+    private static function render_status_line(
+        $has_connectors,
+        $selected_meta,
+        $connectors_url,
+        $has_report,
+        $latest_report,
+        $schedule_status,
+        $scheduler_url
+    ) {
+        echo '<p class="wf-sn-ai-status-line">';
+        if ( $has_connectors && is_array( $selected_meta ) && !empty( $selected_meta['label'] ) ) {
+            printf( 
+                /* translators: %s: connector display name */
+                esc_html__( 'Using %s', 'security-ninja' ),
+                esc_html( $selected_meta['label'] )
+             );
+        } else {
+            echo '<a href="' . esc_url( $connectors_url ) . '">' . esc_html__( 'Set up AI connector', 'security-ninja' ) . '</a>';
+        }
+        echo ' · ';
+        if ( $has_report && is_array( $latest_report ) && !empty( $latest_report['created'] ) ) {
+            echo esc_html( sprintf( 
+                /* translators: %s: human time */
+                __( 'Last review %s ago', 'security-ninja' ),
+                human_time_diff( strtotime( $latest_report['created'] ), time() )
+             ) );
+        } else {
+            echo esc_html__( 'No review yet', 'security-ninja' );
+        }
+        if ( '' !== $schedule_status ) {
+            echo ' · ';
+            echo esc_html( $schedule_status );
+            echo ' <a href="' . esc_url( $scheduler_url ) . '">' . esc_html__( 'Scheduler', 'security-ninja' ) . '</a>';
+        }
+        echo '</p>';
     }
 
     /**
@@ -1103,193 +1170,9 @@ class Wf_Sn_Ai_Advisor_Page {
      */
     public static function get_scheduled_report_interval() {
         $opts = self::get_options();
-        $interval = ( isset( $opts['scheduled_report_interval'] ) ? sanitize_key( (string) $opts['scheduled_report_interval'] ) : 'daily' );
-        $schedules = wp_get_schedules();
-        if ( !isset( $schedules[$interval] ) ) {
-            $interval = 'daily';
-        }
-        return $interval;
-    }
-
-    /**
-     * Render scheduled AI reports settings (visible to all; Pro-only when active).
-     *
-     * @param array $options Advisor options.
-     * @return void
-     */
-    private static function render_scheduled_reports_section( $options ) {
-        $show_pro_upsell = true;
-        $plugin_name = \WPSecurityNinja\Plugin\Utils::get_branded_plugin_name();
-        $schedule_enabled = self::is_scheduled_report_enabled();
-        $schedule_interval = self::get_scheduled_report_interval();
-        $schedule_locked = $show_pro_upsell;
-        $interval_options = array();
-        $wp_schedules = wp_get_schedules();
-        foreach ( $wp_schedules as $name => $details ) {
-            $label = ( isset( $details['display'] ) ? $details['display'] : $name );
-            if ( 'daily' === $name ) {
-                $label .= ' ' . esc_html__( '(recommended)', 'security-ninja' );
-            }
-            $interval_options[] = array(
-                'val'   => $name,
-                'label' => $label,
-            );
-        }
-        $scheduler_state = array(
-            'timestamp' => 0,
-            'backend'   => 'none',
-        );
-        $panel_classes = 'wf-sn-ai-settings-group wf-sn-ai-schedule-panel';
-        if ( $schedule_locked ) {
-            $panel_classes .= ' wf-sn-ai-schedule--locked';
-        }
-        if ( $schedule_enabled ) {
-            $panel_classes .= ' is-enabled';
-        } else {
-            $panel_classes .= ' is-disabled';
-        }
-        ?>
-		<section class="<?php 
-        echo esc_attr( $panel_classes );
-        ?>" id="wf_sn_ai_schedule_panel">
-			<div class="wf-sn-ai-settings-row wf-sn-ai-settings-row--toggle">
-				<div class="wf-sn-ai-settings-row__content">
-					<label for="wf_sn_ai_advisor_scheduled_report_enabled">
-						<h3>
-							<?php 
-        esc_html_e( 'Scheduled AI reports', 'security-ninja' );
-        ?>
-							<span class="sn-pro-badge"><?php 
-        esc_html_e( 'Pro', 'security-ninja' );
-        ?></span>
-						</h3>
-						<p class="description"><?php 
-        esc_html_e( 'Automatically generate a full AI security report on a recurring schedule. Reports are saved here on the Security Advisor page.', 'security-ninja' );
-        ?></p>
-					</label>
-				</div>
-				<div class="wf-sn-ai-settings-row__control">
-					<?php 
-        if ( $schedule_locked ) {
-            ?>
-						<input type="checkbox" id="wf_sn_ai_advisor_scheduled_report_enabled" class="switch" disabled <?php 
-            checked( true );
-            ?> />
-					<?php 
-        } else {
-            ?>
-						<?php 
-            \WPSecurityNinja\Plugin\Utils::create_toggle_switch( 'wf_sn_ai_advisor_scheduled_report_enabled', array(
-                'value'       => 1,
-                'saved_value' => ( $schedule_enabled ? 1 : 0 ),
-                'option_key'  => 'wf_sn_ai_advisor_scheduled_report_enabled',
-            ) );
-            ?>
-					<?php 
-        }
-        ?>
-				</div>
-			</div>
-
-			<div class="wf-sn-ai-schedule-panel__details">
-				<div class="wf-sn-ai-settings-row">
-					<div class="wf-sn-ai-settings-row__content">
-						<label for="wf_sn_ai_advisor_scheduled_report_interval">
-							<h4 class="wf-sn-ai-settings-subtitle"><?php 
-        esc_html_e( 'Report schedule', 'security-ninja' );
-        ?></h4>
-							<p class="description"><?php 
-        esc_html_e( 'How often Security Advisor sends a new full report request to your configured AI connector.', 'security-ninja' );
-        ?></p>
-						</label>
-					</div>
-					<div class="wf-sn-ai-settings-row__control">
-						<select
-							name="<?php 
-        echo ( $schedule_locked ? '' : 'wf_sn_ai_advisor_scheduled_report_interval' );
-        ?>"
-							id="wf_sn_ai_advisor_scheduled_report_interval"
-							class="regular-text"
-							<?php 
-        disabled( $schedule_locked );
-        ?>
-						>
-							<?php 
-        \WPSecurityNinja\Plugin\Utils::create_select_options( $interval_options, $schedule_interval );
-        ?>
-						</select>
-					</div>
-				</div>
-
-				<?php 
-        if ( !$schedule_locked ) {
-            ?>
-					<div class="wf-sn-ai-schedule-meta">
-						<?php 
-            if ( $schedule_enabled ) {
-                $timestamp = (int) $scheduler_state['timestamp'];
-                if ( $timestamp > 0 ) {
-                    $schedules = wp_get_schedules();
-                    $interval_label = ( isset( $schedules[$schedule_interval]['display'] ) ? $schedules[$schedule_interval]['display'] : $schedule_interval );
-                    $next_at = date_i18n( get_option( 'date_format' ) . ' ' . get_option( 'time_format' ), $timestamp );
-                    $time_until = human_time_diff( current_time( 'timestamp' ), $timestamp );
-                    echo '<p class="wf-sn-ai-schedule-status wf-sn-ai-schedule-status--ok">';
-                    printf(
-                        /* translators: 1: schedule frequency label, 2: next run datetime, 3: human time until next run */
-                        esc_html__( 'Next report: %2$s (%3$s from now) · %1$s', 'security-ninja' ),
-                        esc_html( $interval_label ),
-                        esc_html( $next_at ),
-                        esc_html( $time_until )
-                    );
-                    echo '</p>';
-                } else {
-                    echo '<p class="wf-sn-ai-schedule-status wf-sn-ai-schedule-status--warn">';
-                    esc_html_e( 'Scheduling is enabled, but no run is set. Save settings to recreate the schedule.', 'security-ninja' );
-                    echo '</p>';
-                }
-            }
-            ?>
-						<div class="wf-sn-ai-schedule-run-now" id="wf_sn_ai_schedule_run_now">
-							<button type="button" class="button button-secondary wf-sn-ai-schedule-run-now__btn" id="wf_sn_ai_schedule_run_now_btn"><?php 
-            esc_html_e( 'Run report now', 'security-ninja' );
-            ?></button>
-							<span class="wf-sn-ai-schedule-run-now__status" id="wf_sn_ai_schedule_run_now_status" role="status" aria-live="polite"></span>
-						</div>
-					</div>
-				<?php 
-        }
-        ?>
-			</div>
-
-			<?php 
-        if ( $show_pro_upsell ) {
-            ?>
-				<div class="sncard infobox wf-sn-ai-schedule-upsell">
-					<div class="inner">
-						<h4><?php 
-            esc_html_e( 'Upgrade to Pro for scheduled AI reports', 'security-ninja' );
-            ?></h4>
-						<p><?php 
-            echo esc_html( sprintf( 
-                /* translators: %s: plugin display name */
-                __( 'Let %s generate fresh AI security reports automatically — daily, weekly, or on any WordPress cron interval — without manual clicks.', 'security-ninja' ),
-                $plugin_name
-             ) );
-            ?></p>
-						<p style="margin-top: 15px;">
-							<a href="<?php 
-            echo esc_url( \WPSecurityNinja\Plugin\Utils::generate_sn_web_link( 'ai_advisor_upgrade', '/upgrade/' ) );
-            ?>" class="button button-primary button-small" target="_blank" rel="noopener"><?php 
-            esc_html_e( 'Upgrade to Pro', 'security-ninja' );
-            ?></a>
-						</p>
-					</div>
-				</div>
-			<?php 
-        }
-        ?>
-		</section>
-		<?php 
+        $interval = ( isset( $opts['scheduled_report_interval'] ) ? sanitize_key( (string) $opts['scheduled_report_interval'] ) : Wf_Sn_Ai_Advisor_Schedule_Policy::INTERVAL_MONTHLY );
+        $is_premium = false;
+        return Wf_Sn_Ai_Advisor_Schedule_Policy::normalize_interval( $interval, $is_premium );
     }
 
     /**

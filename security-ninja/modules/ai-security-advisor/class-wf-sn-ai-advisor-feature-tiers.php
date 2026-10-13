@@ -30,7 +30,8 @@ class Wf_Sn_Ai_Advisor_Feature_Tiers {
             'vulnerability scanner (full summary; scheduling, email alerts, ignore list are Pro-only)',
             'core scanner (summary of unknown or modified files; file viewer and diff vs official core)',
             'configuration hardening (e.g. security headers, XML-RPC, best practices you can apply without the Pro Fixes page)',
-            'basic events logger (firewall events and login attempts only)'
+            'basic events logger (firewall events and login attempts only)',
+            'monthly automatic AI security review (weekly and daily reviews are Pro)'
         );
     }
 
@@ -53,6 +54,7 @@ class Wf_Sn_Ai_Advisor_Feature_Tiers {
             '404 Guard (Pro; protect from bots that generate excessive 404 errors)',
             'scheduled scanner (Pro)',
             'scheduled reports (Pro; email reports about vulnerabilities and malware)',
+            'weekly or daily automatic AI reviews',
             'advanced firewall: country blocking, IP or geolocation blocking, stronger rules, automation',
             'visitor logging (Pro)'
         );

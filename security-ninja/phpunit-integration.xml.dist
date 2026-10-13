@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<phpunit
+	bootstrap="tests/integration/bootstrap.php"
+	colors="true"
+	convertDeprecationsToExceptions="true"
+	convertErrorsToExceptions="true"
+	convertNoticesToExceptions="true"
+	convertWarningsToExceptions="true"
+>
+	<testsuites>
+		<testsuite name="security-ninja-store-integration">
+			<directory suffix="-test.php">./tests/integration</directory>
+		</testsuite>
+	</testsuites>
+</phpunit>

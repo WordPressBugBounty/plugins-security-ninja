@@ -127,6 +127,12 @@ const Whizzie = ( function( $ ) {
 			} );
 		},
 
+		activate_early_firewall: function() {
+			runWizardAjax( 'secnin_activate_early_firewall', function() {
+				doNextStep();
+			} );
+		},
+
 		activate_events: function() {
 			runWizardAjax( 'secnin_activate_events', function() {
 				doNextStep();

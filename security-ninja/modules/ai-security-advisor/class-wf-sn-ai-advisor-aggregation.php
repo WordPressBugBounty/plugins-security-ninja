@@ -41,6 +41,7 @@ class Wf_Sn_Ai_Advisor_Aggregation {
 		'blocked_ip_banned',
 		'blocked_ip_country_ban',
 		'blocked_ip_suspicious_request',
+		'firewall_block',
 		'blacklisted_IP',
 	);
 

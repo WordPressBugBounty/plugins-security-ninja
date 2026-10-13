@@ -84,6 +84,7 @@ class Wf_Sn_Ai_Advisor {
         require_once $dir . '/class-wf-sn-ai-advisor-attack-activity.php';
         require_once $dir . '/class-wf-sn-ai-advisor-test-scores.php';
         require_once $dir . '/class-wf-sn-ai-advisor-improvements.php';
+        require_once $dir . '/class-wf-sn-ai-advisor-schedule-policy.php';
         require_once $dir . '/class-wf-sn-ai-advisor-payload.php';
         require_once $dir . '/class-wf-sn-ai-advisor-feature-tiers.php';
         require_once $dir . '/class-wf-sn-ai-advisor-prompts.php';
@@ -162,26 +163,34 @@ class Wf_Sn_Ai_Advisor {
         if ( !class_exists( __NAMESPACE__ . '\\Wf_Sn_Ai_Advisor_Reevaluate_Notice', false ) ) {
             require_once __DIR__ . '/class-wf-sn-ai-advisor-reevaluate-notice.php';
         }
+        self::load_dependencies();
+        if ( class_exists( __NAMESPACE__ . '\\Wf_Sn_Ai_Advisor_Page' ) && Wf_Sn_Ai_Advisor_Page::is_scheduled_report_enabled() ) {
+            return;
+        }
         Wf_Sn_Ai_Advisor_Reevaluate_Notice::set_pending( (string) $context );
     }
 
     /**
      * Shared AI Advisor card state for Overview, dashboard widget, and Advisor page.
      *
-     * @return array{available: bool, state: int, last_reviewed: string, teaser: string, has_connectors: bool, has_reports: bool, advisor_url: string, connector_label: string}
+     * @return array{available: bool, state: int, last_reviewed: string, teaser: string, has_connectors: bool, has_reports: bool, advisor_url: string, connector_label: string, connection_state: string, schedule_enabled: bool, schedule_interval: string, schedule_status: string}
      */
     public static function get_card_state() {
         self::load_dependencies();
         $advisor_url = admin_url( 'admin.php?page=wf-sn-advisor' );
         $state = array(
-            'available'       => false,
-            'state'           => 1,
-            'last_reviewed'   => '',
-            'teaser'          => '',
-            'has_connectors'  => false,
-            'has_reports'     => false,
-            'advisor_url'     => $advisor_url,
-            'connector_label' => '',
+            'available'         => false,
+            'state'             => 1,
+            'last_reviewed'     => '',
+            'teaser'            => '',
+            'has_connectors'    => false,
+            'has_reports'       => false,
+            'advisor_url'       => $advisor_url,
+            'connector_label'   => '',
+            'connection_state'  => Wf_Sn_Ai_Advisor_Schedule_Policy::STATE_UNAVAILABLE,
+            'schedule_enabled'  => false,
+            'schedule_interval' => Wf_Sn_Ai_Advisor_Schedule_Policy::INTERVAL_MONTHLY,
+            'schedule_status'   => '',
         );
         if ( !class_exists( __NAMESPACE__ . '\\Wf_Sn_Ai_Advisor_Provider_Wp_Connectors' ) ) {
             return $state;
@@ -208,6 +217,19 @@ class Wf_Sn_Ai_Advisor {
             $reports = Wf_Sn_Ai_Advisor_Reports::get_reports( 1, 0, 'full_report' );
             $has_reports = is_array( $reports ) && isset( $reports[0] );
             $state['has_reports'] = $has_reports;
+            $state['connection_state'] = Wf_Sn_Ai_Advisor_Schedule_Policy::get_connection_state();
+            $state['schedule_enabled'] = Wf_Sn_Ai_Advisor_Page::is_scheduled_report_enabled();
+            $state['schedule_interval'] = ( class_exists( __NAMESPACE__ . '\\Wf_Sn_Ai_Advisor_Scheduler' ) ? Wf_Sn_Ai_Advisor_Scheduler::get_schedule_interval() : Wf_Sn_Ai_Advisor_Schedule_Policy::INTERVAL_MONTHLY );
+            $scheduler_state = ( class_exists( __NAMESPACE__ . '\\Wf_Sn_Ai_Advisor_Scheduler' ) ? Wf_Sn_Ai_Advisor_Scheduler::get_scheduler_state() : array(
+                'timestamp' => 0,
+                'backend'   => 'none',
+            ) );
+            $state['schedule_status'] = ( class_exists( __NAMESPACE__ . '\\Wf_Sn_Ai_Advisor_Scheduler' ) ? Wf_Sn_Ai_Advisor_Scheduler::get_status_line(
+                $state['schedule_enabled'],
+                $state['connection_state'],
+                $state['schedule_interval'],
+                $scheduler_state
+            ) : '' );
             if ( $ready || $has_reports ) {
                 $state['state'] = 2;
                 if ( $has_reports ) {
@@ -295,7 +317,7 @@ class Wf_Sn_Ai_Advisor {
             'uiLocale'             => $ui_locale,
             'improvementLinks'     => self::get_improvement_links(),
             'baseUrlPath'          => $base_url_path,
-            'chips'                => Wf_Sn_Ai_Advisor_Chips::get_chips_for_ui(),
+            'chips'                => Wf_Sn_Ai_Advisor_Chips::get_toolbar_chips_for_ui(),
             'chipHistoryPageSize'  => $chip_history_page_size,
             'latestParentReportId' => Wf_Sn_Ai_Advisor_Reports::get_latest_full_report_id(),
             'followupReady'        => Wf_Sn_Ai_Advisor_Chips::is_followup_toolbar_active(),
@@ -427,6 +449,24 @@ class Wf_Sn_Ai_Advisor {
         );
     }
 
+    /**
+     * When exactly one connector is configured, store it as the selected provider.
+     *
+     * @return void
+     */
+    public static function maybe_select_single_connector() {
+        self::load_dependencies();
+        $configured = Wf_Sn_Ai_Advisor_Provider_Wp_Connectors::get_configured_providers();
+        if ( 1 !== count( $configured ) ) {
+            return;
+        }
+        $options = Wf_Sn_Ai_Advisor_Page::get_options();
+        $selected = ( isset( $options['last_connector_provider'] ) ? sanitize_key( (string) $options['last_connector_provider'] ) : '' );
+        if ( '' === $selected || !in_array( $selected, $configured, true ) ) {
+            Wf_Sn_Ai_Advisor_Page::set_option( 'last_connector_provider', $configured[0] );
+        }
+    }
+
     public static function handle_save_settings() {
         if ( !isset( $_POST['wf_sn_ai_advisor_nonce'] ) ) {
             wp_die( 'Missing nonce.' );
@@ -445,9 +485,13 @@ class Wf_Sn_Ai_Advisor {
                 Wf_Sn_Ai_Advisor_Page::set_option( 'last_connector_provider', $connector );
             }
         }
+        self::maybe_select_single_connector();
         $abilities_raw = ( isset( $_POST['wf_sn_ai_advisor_abilities_exposed'] ) ? sanitize_text_field( wp_unslash( $_POST['wf_sn_ai_advisor_abilities_exposed'] ) ) : '0' );
         $abilities_exposed = '1' === $abilities_raw;
         Wf_Sn_Ai_Advisor_Page::set_option( Wf_Sn_Ai_Advisor_Abilities::OPTION_ABILITIES_EXPOSED, ( $abilities_exposed ? 1 : 0 ) );
+        if ( class_exists( __NAMESPACE__ . '\\Wf_Sn_Ai_Advisor_Scheduler' ) ) {
+            Wf_Sn_Ai_Advisor_Scheduler::setup_cron();
+        }
         $redirect = add_query_arg( array(
             'page'             => self::SLUG,
             'settings-updated' => 1,
@@ -1168,7 +1212,7 @@ class Wf_Sn_Ai_Advisor {
                 'raw_text'       => $full_result['text'],
                 'usage'          => $full_result['usage'],
                 'report_id'      => $full_result['report_id'],
-                'chips'          => Wf_Sn_Ai_Advisor_Chips::get_chips_for_ui(),
+                'chips'          => Wf_Sn_Ai_Advisor_Chips::get_toolbar_chips_for_ui(),
                 'followup_ready' => Wf_Sn_Ai_Advisor_Chips::is_followup_toolbar_active(),
             ) );
         }

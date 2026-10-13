@@ -45,6 +45,79 @@ class wf_sn_el_modules extends wf_sn_el {
     }
 
     /**
+     * Make a user agent string valid UTF-8 without wiping the whole value.
+     *
+     * sanitize_text_field() can return '' for invalid UTF-8. Early Firewall
+     * may pass a byte-cut agent, so scrub first. Fallbacks cover WP 4.7+ / PHP 7.4+.
+     *
+     * @param string $ua Raw user agent.
+     * @return string
+     */
+    private static function sanitize_user_agent_utf8( $ua ) {
+        $ua = (string) $ua;
+        if ( '' === $ua ) {
+            return '';
+        }
+        $valid = false;
+        if ( function_exists( 'mb_check_encoding' ) ) {
+            $valid = mb_check_encoding( $ua, 'UTF-8' );
+        } else {
+            $valid = 1 === @preg_match( '//u', $ua );
+            // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
+        }
+        if ( $valid ) {
+            return $ua;
+        }
+        if ( function_exists( 'wp_scrub_utf8' ) ) {
+            return (string) wp_scrub_utf8( $ua );
+        }
+        if ( function_exists( 'mb_scrub' ) ) {
+            $prev = mb_substitute_character();
+            mb_substitute_character( 0xfffd );
+            $out = mb_scrub( $ua, 'UTF-8' );
+            mb_substitute_character( $prev );
+            return (string) $out;
+        }
+        if ( function_exists( 'mb_convert_encoding' ) ) {
+            return (string) mb_convert_encoding( $ua, 'UTF-8', 'UTF-8' );
+        }
+        // No mbstring: drop high bytes (UAs are ASCII in practice).
+        return (string) preg_replace( '/[\\x80-\\xFF]+/', '', $ua );
+    }
+
+    /**
+     * User agent that fits wf_sn_el.user_agent (varchar 255).
+     *
+     * Early Firewall imports pass the blocked client's agent in raw_data.
+     * The import request's own agent is only used when that value is empty.
+     * MariaDB rejects the insert when the value is longer than the column
+     * or is not valid UTF-8 (a byte-cut agent from the early queue).
+     *
+     * @param array|null $raw_data Event payload.
+     * @return string
+     */
+    private static function user_agent_for_storage( $raw_data ) {
+        $ua = '';
+        if ( is_array( $raw_data ) && isset( $raw_data['user_agent'] ) && is_string( $raw_data['user_agent'] ) ) {
+            $ua = $raw_data['user_agent'];
+        }
+        if ( '' === $ua && isset( $_SERVER['HTTP_USER_AGENT'] ) ) {
+            $ua = (string) $_SERVER['HTTP_USER_AGENT'];
+        }
+        $ua = self::sanitize_user_agent_utf8( $ua );
+        $ua = sanitize_text_field( $ua );
+        if ( function_exists( 'mb_substr' ) ) {
+            return mb_substr(
+                $ua,
+                0,
+                255,
+                'UTF-8'
+            );
+        }
+        return substr( $ua, 0, 255 );
+    }
+
+    /**
      * Write event to database
      * @param  [type] $module                   [description]
      * @param  [type] $action                   [description]
@@ -82,11 +155,8 @@ class wf_sn_el_modules extends wf_sn_el {
         if ( !$ip ) {
             $ip = call_user_func( __NAMESPACE__ . '\\Wf_sn_cf::get_user_ip' );
         }
+        $ua = self::user_agent_for_storage( $raw_data );
         foreach ( $description as $desc ) {
-            $ua = '';
-            if ( isset( $_SERVER['HTTP_USER_AGENT'] ) ) {
-                $ua = sanitize_text_field( $_SERVER['HTTP_USER_AGENT'] );
-            }
             $table_name = $wpdb->prefix . 'wf_sn_el';
             $insert_result = $wpdb->insert( $table_name, array(
                 'timestamp'   => current_time( 'mysql' ),

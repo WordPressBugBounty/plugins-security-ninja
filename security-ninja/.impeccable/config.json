@@ -1,0 +1,44 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "side-tab",
+        "value": "4px solid #28a745",
+        "files": [
+          "css/sn-style.css"
+        ],
+        "createdAt": "2026-09-10T21:00:00.000Z",
+        "reason": "Severity success indicator on improved test rows"
+      },
+      {
+        "rule": "side-tab",
+        "value": "4px solid #dc3545",
+        "files": [
+          "css/sn-style.css"
+        ],
+        "createdAt": "2026-09-10T21:00:00.000Z",
+        "reason": "Severity error indicator on declined test rows"
+      },
+      {
+        "rule": "side-tab",
+        "value": "*",
+        "files": [
+          "css/sn-style.css"
+        ],
+        "createdAt": "2026-09-24T13:59:59.412Z",
+        "reason": "Agent: existing WordPress admin notice-style left borders on security test status rows; not part of this layout fix"
+      },
+      {
+        "rule": "side-tab",
+        "value": "*",
+        "files": [
+          "modules/ai-security-advisor/css/ai-advisor.css"
+        ],
+        "createdAt": "2026-09-24T14:25:41.115Z",
+        "reason": "Existing Security Advisor page styles; this change only adds single-column layout rules and does not introduce new side-tab accents."
+      }
+    ]
+  }
+}

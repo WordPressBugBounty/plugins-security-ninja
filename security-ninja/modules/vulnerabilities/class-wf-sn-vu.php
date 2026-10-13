@@ -2241,12 +2241,19 @@ class Wf_Sn_Vu {
         }
         // Generate HTML for displaying vulnerability results
         $output = self::generate_vulnerability_display( $vulnerabilities, $scan_summary );
+        $has_vulnerabilities = self::count_vulnerabilities_in_result( $vulnerabilities ) > 0;
         ?>
 		<div class="submit-test-container">
 			<div class="section sncard">
-				<h2><span class="dashicons dashicons-shield-alt"></span> <?php 
-        esc_html_e( 'Vulnerability Scanner', 'security-ninja' );
-        ?></h2>
+				<?php 
+        if ( !$has_vulnerabilities ) {
+            ?>
+					<h2><span class="dashicons dashicons-shield-alt"></span> <?php 
+            esc_html_e( 'Vulnerability Scanner', 'security-ninja' );
+            ?></h2>
+				<?php 
+        }
+        ?>
 				<?php 
         $allowed_tags = wp_kses_allowed_html( 'post' );
         $allowed_tags['input'] = array(
@@ -3200,19 +3207,7 @@ class Wf_Sn_Vu {
     public static function generate_vulnerability_display( $vulnerabilities, $scan_summary = null ) {
         global $wp_version;
         $output = '';
-        // Check if any vulnerabilities were found
-        $has_vulnerabilities = false;
-        if ( $vulnerabilities ) {
-            if ( isset( $vulnerabilities['plugins'] ) && !empty( $vulnerabilities['plugins'] ) ) {
-                $has_vulnerabilities = true;
-            }
-            if ( isset( $vulnerabilities['themes'] ) && !empty( $vulnerabilities['themes'] ) ) {
-                $has_vulnerabilities = true;
-            }
-            if ( isset( $vulnerabilities['wordpress'] ) && !empty( $vulnerabilities['wordpress'] ) ) {
-                $has_vulnerabilities = true;
-            }
-        }
+        $has_vulnerabilities = self::count_vulnerabilities_in_result( $vulnerabilities ) > 0;
         if ( $has_vulnerabilities ) {
             $output .= '<h2 class="warning"><span class="dashicons dashicons-sos"></span>' . esc_html__( 'Vulnerabilities found on your system!', 'security-ninja' ) . '</h2>';
             // Display WordPress vulnerabilities

@@ -124,9 +124,11 @@ class WF_SN_Overview_Tab {
                 if ( !empty( $ai['teaser'] ) ) {
                     echo '<div class="wf-sn-ai-teaser">' . wp_kses_post( wpautop( esc_html( $ai['teaser'] ) ) ) . '</div>';
                 }
+                if ( !empty( $ai['schedule_enabled'] ) && !empty( $ai['schedule_status'] ) ) {
+                    echo '<p class="description">' . esc_html( $ai['schedule_status'] ) . '</p>';
+                }
                 echo '<div class="secscore-link sn-overview-ai-actions">';
-                echo '<a href="' . esc_url( $advisor_url ) . '" class="button snbtn">' . esc_html__( 'Ask AI what to fix first', 'security-ninja' ) . '</a> ';
-                echo '<a href="' . esc_url( $advisor_url ) . '" class="button button-link">' . esc_html__( 'View last report', 'security-ninja' ) . '</a>';
+                echo '<a href="' . esc_url( $advisor_url ) . '" class="button snbtn">' . esc_html__( 'View latest review', 'security-ninja' ) . '</a>';
                 echo '</div>';
             } else {
                 echo '<p>' . esc_html__( 'Get a plain-English security review based on your scans, firewall activity, vulnerabilities, and login events.', 'security-ninja' ) . '</p>';
@@ -444,7 +446,7 @@ class WF_SN_Overview_Tab {
     private static function render_card_upgrade_pro() : void {
         $pricing_url = Utils::generate_sn_web_link( 'overview_upgrade', '/upgrade/' );
         $trial_url = Utils::generate_sn_web_link( 'overview_trial', '/upgrade/', array(
-            'trial' => 'free',
+            'trial' => 'paid',
         ) );
         ?>
 		<div class="sncard upgradepro">
@@ -499,9 +501,18 @@ class WF_SN_Overview_Tab {
         echo esc_url( $pricing_url );
         ?>" class="wf-sn-button button button-primary button-small" target="_blank" rel="noopener"><?php 
         echo esc_html( 'Upgrade now' );
-        ?></a> <small> or try our <a href="<?php 
-        echo esc_url( $trial_url );
-        ?>" class="" target="_blank" rel="noopener">14 days FREE trial &raquo;</a></small></p>
+        ?></a>
+		<small>
+			<?php 
+        printf( 
+            /* translators: 1: opening anchor tag, 2: closing anchor tag */
+            esc_html__( 'or try a %1$s14-day Pro trial%2$s', 'security-ninja' ),
+            '<a href="' . esc_url( $trial_url ) . '" target="_blank" rel="noopener">',
+            ' &raquo;</a>'
+         );
+        ?>
+		</small>
+		</p>
 		</div>
 		</div>
 		<?php 

@@ -770,65 +770,86 @@ class Wf_Sn_Tests extends WF_SN {
 
 
 	/**
+	 * file_exists() that skips paths outside open_basedir.
+	 *
+	 * Reading a parent path that PHP is not allowed to see raises a warning.
+	 *
+	 * @param string $path Absolute path.
+	 * @return bool
+	 */
+	private static function file_exists_within_open_basedir( $path ) {
+		if ( function_exists( 'ini_get' ) ) {
+			$open_basedir = ini_get( 'open_basedir' );
+			if ( empty( $open_basedir ) ) {
+				return file_exists( $path );
+			}
+
+			$allowed_paths   = explode( PATH_SEPARATOR, $open_basedir );
+			$path_normalized = wp_normalize_path( $path );
+			$is_allowed      = false;
+			foreach ( $allowed_paths as $allowed_path ) {
+				$allowed_path_normalized = wp_normalize_path( rtrim( $allowed_path, DIRECTORY_SEPARATOR ) );
+				if ( strpos( $path_normalized, $allowed_path_normalized ) === 0 ) {
+					$is_allowed = true;
+					break;
+				}
+			}
+			if ( ! $is_allowed ) {
+				return false;
+			}
+
+			return @file_exists( $path );
+		}
+
+		return @file_exists( $path );
+	}
+
+	/**
 	 * check if wp-config is present on the default location
+	 *
+	 * Status 10 is a pass, 5 is a warning, 0 is a fail. A config file one level
+	 * above the WordPress root is the recommended setup, so that result is a pass.
 	 *
 	 * @author  Lars Koudal
 	 * @since   v0.0.1
 	 * @version v1.0.0  Monday, January 25th, 2021.
 	 * @access  public static
-	 * @return  mixed
+	 * @return  array
 	 */
 	public static function config_location() {
 		$return = array();
 
-		// Check one level up (recommended security practice)
-		$parent_dir  = dirname( ABSPATH );
-		$parent_file = $parent_dir . '/wp-config.php';
-
-		// Check if the path is within open_basedir restrictions before checking file_exists
-		$parent_check = false;
-		if ( function_exists( 'ini_get' ) ) {
-			$open_basedir = ini_get( 'open_basedir' );
-			if ( empty( $open_basedir ) ) {
-				// No restrictions, safe to check
-				$parent_check = file_exists( $parent_file );
-			} else {
-				// Check if the path is within allowed directories
-				$allowed_paths          = explode( PATH_SEPARATOR, $open_basedir );
-				$is_allowed             = false;
-				$parent_file_normalized = wp_normalize_path( $parent_file );
-				foreach ( $allowed_paths as $allowed_path ) {
-					$allowed_path_normalized = wp_normalize_path( rtrim( $allowed_path, DIRECTORY_SEPARATOR ) );
-					// Check if parent_file starts with allowed_path (path is within allowed directory)
-					if ( strpos( $parent_file_normalized, $allowed_path_normalized ) === 0 ) {
-						$is_allowed = true;
-						break;
-					}
-				}
-				if ( $is_allowed ) {
-					$parent_check = @file_exists( $parent_file );
-				}
-				// If not allowed, $parent_check remains false (no file check attempted)
-			}
-		} else {
-			// Fallback if ini_get is not available - use error suppression to avoid warnings
-			$parent_check = @file_exists( $parent_file );
-		}
-
-		if ( $parent_check ) {
-			// Found one level up - this is the best practice
-			$return['status'] = 0;
-			$return['msg']    = __( 'wp-config.php file found one level up from WordPress root directory. This is a great security improvement!', 'security-ninja' );
-			/* translators: %s: path to wp-config.php */
-			$return['details'] = sprintf( __( 'Found file here: %s', 'security-ninja' ), esc_html( $parent_dir ) );
-		} else {
-			// Found in default location - warning level 5
-			// Note: wp-config.php must exist somewhere for WordPress to run, so if not found one level up, it's in the default location
+		// WordPress loads ABSPATH/wp-config.php whenever that file exists,
+		// even if another copy sits one level up. See wp-load.php.
+		$root_file = ABSPATH . 'wp-config.php';
+		if ( file_exists( $root_file ) ) {
 			$return['status'] = 5;
 			$return['msg']    = __( 'wp-config.php file found in the WordPress root directory. Consider moving it one level up for better security.', 'security-ninja' );
 			/* translators: %s: path to WordPress root directory */
 			$return['details'] = sprintf( __( 'Found file here: %s', 'security-ninja' ), esc_html( ABSPATH ) );
+			return $return;
 		}
+
+		// Same rule as core: parent wp-config.php is used only when that folder
+		// is not another WordPress install (no wp-settings.php beside it).
+		$parent_dir      = dirname( ABSPATH );
+		$parent_file     = $parent_dir . '/wp-config.php';
+		$parent_settings = $parent_dir . '/wp-settings.php';
+		$parent_check    = self::file_exists_within_open_basedir( $parent_file );
+		$parent_install  = self::file_exists_within_open_basedir( $parent_settings );
+
+		if ( $parent_check && ! $parent_install ) {
+			$return['status'] = 10;
+			$return['msg']    = __( 'wp-config.php file found one level up from WordPress root directory. This is a great security improvement!', 'security-ninja' );
+			/* translators: %s: path to wp-config.php */
+			$return['details'] = sprintf( __( 'Found file here: %s', 'security-ninja' ), esc_html( $parent_dir ) );
+			return $return;
+		}
+
+		$return['status'] = 5;
+		$return['msg']    = __( 'wp-config.php file found in the WordPress root directory. Consider moving it one level up for better security.', 'security-ninja' );
+		/* translators: %s: path to WordPress root directory */
+		$return['details'] = sprintf( __( 'Found file here: %s', 'security-ninja' ), esc_html( ABSPATH ) );
 
 		return $return;
 	}
@@ -872,39 +893,176 @@ class Wf_Sn_Tests extends WF_SN {
 
 
 	/**
-	 * check if the WP MySQL user has too many permissions granted
+	 * Check if the WP MySQL user has too many permissions granted.
+	 *
+	 * Fails on global grants (ON *.*) other than USAGE, and on GRANT OPTION.
+	 * Warns when the account has ALL PRIVILEGES on this site's database.
 	 *
 	 * @author  Lars Koudal
 	 * @since   v0.0.1
 	 * @version v1.0.0  Monday, January 25th, 2021.
 	 * @access  public static
-	 * @return  mixed
+	 * @return  array
 	 */
 	public static function mysql_permissions() {
-		$return = array(
-			'status' => 10,
-			'msg'    => __( 'Database permissions are set correctly.', 'security-ninja' ),
-		);
-
 		global $wpdb;
 
 		$grants = $wpdb->get_results( 'SHOW GRANTS', ARRAY_N );
 
-		if ( is_wp_error( $grants ) ) {
-			$return['status'] = 5;
-			$return['msg']    = __( 'Failed to retrieve database permissions.', 'security-ninja' );
-			return $return;
+		if ( is_wp_error( $grants ) || ! is_array( $grants ) || '' !== (string) $wpdb->last_error ) {
+			return array(
+				'status' => 5,
+				'msg'    => __( 'Failed to retrieve database permissions.', 'security-ninja' ),
+			);
 		}
 
+		$lines = array();
 		foreach ( $grants as $grant ) {
-			if ( false !== stripos( $grant[0], 'GRANT ALL PRIVILEGES' ) ) {
-				$return['status'] = 5;
-				$return['msg']    = __( 'Database permissions are too permissive.', 'security-ninja' );
-				break;
+			if ( is_array( $grant ) && isset( $grant[0] ) ) {
+				$lines[] = (string) $grant[0];
+			} elseif ( is_string( $grant ) ) {
+				$lines[] = $grant;
 			}
 		}
 
-		return $return;
+		$db_name = defined( 'DB_NAME' ) ? DB_NAME : '';
+		return self::score_mysql_grants( $lines, $db_name );
+	}
+
+	/**
+	 * Score SHOW GRANTS lines for the WordPress database user.
+	 *
+	 * Status 0: a global grant other than USAGE, or WITH GRANT OPTION.
+	 * Status 5: ALL PRIVILEGES on this database, a grant on another database, or a line that could not be read.
+	 * Status 10: privileges limited to this database.
+	 *
+	 * @since 5.305
+	 * @param array  $grant_lines Grant statement strings from SHOW GRANTS.
+	 * @param string $db_name     This site's database name.
+	 * @return array{status: int, msg: string}
+	 */
+	public static function score_mysql_grants( array $grant_lines, $db_name ) {
+		$db_name = strtolower( (string) $db_name );
+
+		$has_grant_option = false;
+		$has_global       = false;
+		$has_all_on_site  = false;
+		$has_other_db     = false;
+		$has_unparsed     = false;
+		$saw_line         = false;
+
+		foreach ( $grant_lines as $line ) {
+			$line = trim( (string) $line );
+			if ( '' === $line ) {
+				continue;
+			}
+			$saw_line = true;
+
+			if ( false !== stripos( $line, 'WITH GRANT OPTION' ) ) {
+				$has_grant_option = true;
+			}
+
+			if ( ! preg_match( '/\bON\s+(\*|`[^`]+`|"[^"]+"|[^\s.(]+)\s*\.\s*(\*|`[^`]+`|"[^"]+"|[^\s,;]+)/i', $line, $matches ) ) {
+				$has_unparsed = true;
+				continue;
+			}
+
+			$db_part  = strtolower( self::unquote_mysql_identifier( $matches[1] ) );
+			$tbl_part = strtolower( self::unquote_mysql_identifier( $matches[2] ) );
+			$is_usage = (bool) preg_match( '/^\s*GRANT\s+USAGE\s+ON\b/i', $line );
+			$is_all   = (bool) preg_match( '/^\s*GRANT\s+ALL(?:\s+PRIVILEGES)?\s+ON\b/i', $line );
+
+			if ( '*' === $db_part && '*' === $tbl_part ) {
+				if ( ! $is_usage ) {
+					$has_global = true;
+				}
+				continue;
+			}
+
+			if ( '' !== $db_name && $db_part === $db_name ) {
+				if ( $is_all && '*' === $tbl_part ) {
+					$has_all_on_site = true;
+				}
+				continue;
+			}
+
+			$has_other_db = true;
+		}
+
+		if ( ! $saw_line ) {
+			return array(
+				'status' => 5,
+				'msg'    => __( 'Failed to retrieve database permissions.', 'security-ninja' ),
+			);
+		}
+
+		if ( $has_grant_option ) {
+			return array(
+				'status' => 0,
+				'msg'    => __( 'The database user has GRANT OPTION, so it can give its privileges to other accounts.', 'security-ninja' ),
+			);
+		}
+
+		if ( $has_global ) {
+			return array(
+				'status' => 0,
+				'msg'    => __( 'The database user has privileges on all databases (ON *.*). Limit it to this site\'s database.', 'security-ninja' ),
+			);
+		}
+
+		if ( $has_all_on_site ) {
+			return array(
+				'status' => 5,
+				'msg'    => __( 'The database user has ALL PRIVILEGES on this site\'s database. Remove CREATE ROUTINE, ALTER ROUTINE, EXECUTE, EVENT, and TRIGGER if you do not need them.', 'security-ninja' ),
+			);
+		}
+
+		if ( $has_other_db ) {
+			return array(
+				'status' => 5,
+				'msg'    => __( 'The database user has privileges on a database other than this site\'s database.', 'security-ninja' ),
+			);
+		}
+
+		if ( $has_unparsed ) {
+			return array(
+				'status' => 5,
+				'msg'    => __( 'Could not read every database privilege grant.', 'security-ninja' ),
+			);
+		}
+
+		return array(
+			'status' => 10,
+			'msg'    => __( 'Database permissions are limited to this site\'s database.', 'security-ninja' ),
+		);
+	}
+
+	/**
+	 * Strip MySQL identifier quotes from a SHOW GRANTS name.
+	 *
+	 * @since 5.305
+	 * @param string $identifier Raw identifier, possibly wrapped in backticks or double quotes.
+	 * @return string
+	 */
+	private static function unquote_mysql_identifier( $identifier ) {
+		$identifier = trim( (string) $identifier );
+		$length     = strlen( $identifier );
+		if ( $length < 2 ) {
+			return $identifier;
+		}
+
+		$first = $identifier[0];
+		$last  = $identifier[ $length - 1 ];
+		if ( ( '`' === $first && '`' === $last ) || ( '"' === $first && '"' === $last ) ) {
+			$identifier = substr( $identifier, 1, -1 );
+			if ( '`' === $first ) {
+				$identifier = str_replace( '``', '`', $identifier );
+			} else {
+				$identifier = str_replace( '""', '"', $identifier );
+			}
+		}
+
+		return $identifier;
 	}
 
 
@@ -2966,8 +3124,13 @@ class Wf_Sn_Tests extends WF_SN {
 		}
 
 		if ( empty( $bad ) && empty( $good ) ) {
-			$return['status'] = 5;
-			$return['msg']    = __( 'No plugins found.', 'security-ninja' );
+			if ( empty( $active_plugins ) ) {
+				$return['status'] = 10;
+				$return['msg']    = __( 'No active plugins to check.', 'security-ninja' );
+			} else {
+				$return['status'] = 5;
+				$return['msg']    = __( 'Could not verify plugin update ages. Active plugins may be premium or custom, or this site could not reach WordPress.org.', 'security-ninja' );
+			}
 		} elseif ( empty( $bad ) ) {
 			$return['status'] = 10;
 			$return['msg']    = __( 'All plugins are up to date.', 'security-ninja' );
@@ -3039,10 +3202,17 @@ class Wf_Sn_Tests extends WF_SN {
 		} // foreach active plugin
 
 		if ( empty( $wf_sn_active_plugins ) ) {
-			// No plugin data returned from the WordPress.org API for any active plugin.
+			if ( empty( $active_plugins ) ) {
+				return array(
+					'status' => 10,
+					'msg'    => esc_html__( 'No active plugins to check.', 'security-ninja' ),
+				);
+			}
+
+			// Active plugins exist, but WordPress.org returned no usable data (premium/custom or API unreachable).
 			return array(
-				'status' => 0,
-				'msg'    => esc_html__( 'No active plugins to check.', 'security-ninja' ),
+				'status' => 5,
+				'msg'    => esc_html__( 'Could not check plugin compatibility with WordPress.org. Active plugins may be premium or custom, or this site could not reach WordPress.org.', 'security-ninja' ),
 			);
 		}
 

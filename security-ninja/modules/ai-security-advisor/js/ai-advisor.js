@@ -412,6 +412,7 @@
 			return;
 		}
 		$column.attr('data-followup-ready', active ? '1' : '0');
+		$column.prop('hidden', false);
 		if (active) {
 			$journey.prop('hidden', true);
 			$locked.prop('hidden', true);
@@ -420,11 +421,11 @@
 			$introLocked.prop('hidden', true);
 			rebuildChipRow(chips || base.chips);
 		} else {
-			$journey.prop('hidden', false);
-			$locked.prop('hidden', false);
+			$journey.prop('hidden', true);
+			$locked.prop('hidden', true);
 			$active.prop('hidden', true);
 			$introActive.prop('hidden', true);
-			$introLocked.prop('hidden', false);
+			$introLocked.prop('hidden', true);
 		}
 		syncConvoEmptyState();
 	}
@@ -531,6 +532,9 @@
 					var label = item.short_label || title;
 					var details = item.details || '';
 					var risk = (item.risk || 'low').toLowerCase();
+					if (['low', 'medium', 'high', 'critical'].indexOf(risk) === -1) {
+						risk = 'low';
+					}
 					var riskLabel = risk.charAt(0).toUpperCase() + risk.slice(1);
 					var hash = item.id && improvementLinks[item.id] ? improvementLinks[item.id] : '';
 					var openInSnUrl = hash ? (window.location.origin + baseUrlPath + hash) : '';

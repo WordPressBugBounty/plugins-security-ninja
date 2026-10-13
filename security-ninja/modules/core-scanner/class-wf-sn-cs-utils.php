@@ -404,6 +404,7 @@ class Wf_Sn_Cs_Utils {
             'favicon.ico',
             'php.ini',
             'wordfence-waf.php',
+            'secnin-waf.php',
             'wp-config.php',
             'wp-config-sample.php',
             '*.shtml'

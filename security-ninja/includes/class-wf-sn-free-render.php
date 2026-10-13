@@ -43,7 +43,7 @@ class Free_Render {
 				<li><strong>Comprehensive Activity Tracking:</strong> Monitor user logins, file modifications, plugin changes, and other critical events automatically.</li>
 				<li><strong>Advanced Filtering:</strong> Quickly find specific events using powerful search and filter options to focus on what matters most.</li>
 				<li><strong>Detailed Event Information:</strong> Get complete context for each event including user details, timestamps, and related data.</li>
-				<li><strong>Export Capabilities:</strong> Export logs for external analysis, compliance reporting, or backup purposes.</li>
+				<li><strong>Export the event log as CSV:</strong> Download logs for external analysis, compliance reporting, or backup purposes.</li>
 				<li><strong>Real-Time Monitoring:</strong> Stay informed with immediate logging of all site activities as they happen.</li>
 			</ul>
 			<p>
@@ -137,24 +137,26 @@ class Free_Render {
 	 * @return  void
 	 */
 	public static function render_scheduled_scanner_page() {
+		if ( class_exists( 'WPSecurityNinja\\Plugin\\AiAdvisor\\Wf_Sn_Ai_Advisor_Scheduler' ) && apply_filters( 'wf_sn_ai_advisor_enabled', true ) ) {
+			\WPSecurityNinja\Plugin\AiAdvisor\Wf_Sn_Ai_Advisor_Scheduler::render_settings_card();
+		}
 		?>
 		<div class="sncard settings-card">
-			<h2><span class="dashicons dashicons-backup"></span>Scheduler</h2>
-			<p>Run security scans on a schedule and receive email reports.</p>
+			<h2><span class="dashicons dashicons-backup"></span><?php esc_html_e( 'Scheduled scans', 'security-ninja' ); ?> <span class="sn-pro-badge"><?php esc_html_e( 'Pro', 'security-ninja' ); ?></span></h2>
+			<p><?php esc_html_e( 'Run security scans on a schedule and receive email reports.', 'security-ninja' ); ?></p>
 			<div class="sncard infobox">
 				<div class="inner">
-					<h3>Upgrade to Pro for Scheduled Scanner</h3>
-					<p>Run security checks on a schedule without lifting a finger. Upgrade to Security Ninja Pro to unlock the Scheduler:</p>
+					<h3><?php esc_html_e( 'Upgrade to Pro for Scheduled Scanner', 'security-ninja' ); ?></h3>
+					<p><?php esc_html_e( 'Run security checks on a schedule without lifting a finger. Upgrade to Security Ninja Pro to unlock scheduled scans:', 'security-ninja' ); ?></p>
 					<ul style="list-style: disc; margin-left: 20px; margin-top: 10px;">
-						<li>Schedule automated scans – daily, weekly, or monthly</li>
-						<li>Run Security Tests, Core Scanner, and Malware Scanner on a single schedule</li>
-						<li>Receive detailed email reports with findings and recommendations</li>
-						<li>Background execution so scans never time out</li>
-						<li>Historical tracking of scan results over time</li>
+						<li><?php esc_html_e( 'Schedule automated scans: daily, weekly, or monthly', 'security-ninja' ); ?></li>
+						<li><?php esc_html_e( 'Run Security Tests, Core Scanner, and Malware Scanner on a single schedule', 'security-ninja' ); ?></li>
+						<li><?php esc_html_e( 'Receive detailed email reports with findings and recommendations', 'security-ninja' ); ?></li>
+						<li><?php esc_html_e( 'Background execution so scans never time out', 'security-ninja' ); ?></li>
+						<li><?php esc_html_e( 'Historical tracking of scan results over time', 'security-ninja' ); ?></li>
 					</ul>
 					<p style="margin-top: 15px;">
 						<a href="<?php echo esc_url( Utils::generate_sn_web_link( 'scheduler_upgrade', '/upgrade/' ) ); ?>" class="button button-primary button-small" target="_blank" rel="noopener"><?php esc_html_e( 'Upgrade to Pro', 'security-ninja' ); ?></a>
-
 					</p>
 				</div>
 			</div>

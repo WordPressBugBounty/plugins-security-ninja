@@ -354,6 +354,7 @@ class FileViewer {
 
 		echo '<div class="wrap">';
 		echo '<h1>' . esc_html__( 'Security Ninja File Viewer', 'security-ninja' ) . '</h1>';
+		echo '<hr class="wp-header-end">';
 		echo '<div id="file-info">';
 		echo '<div class="file-meta">';
 		if ( $file_meta ) {
@@ -404,6 +405,7 @@ class FileViewer {
 			$file_meta = self::get_file_meta( $file_path );
 			echo '<div class="wrap">';
 			echo '<h1>' . esc_html__( 'Compare file', 'security-ninja' ) . ': ' . esc_html( $relative_path ) . '</h1>';
+			echo '<hr class="wp-header-end">';
 			echo '<div class="notice notice-warning inline"><p>' . esc_html__( 'The original file is not available for comparison. This can happen if the file is not part of the standard WordPress core for your version, or the comparison source is temporarily unavailable.', 'security-ninja' ) . '</p></div>';
 			if ( $file_meta ) {
 				echo '<p class="description">' . esc_html__( 'File:', 'security-ninja' ) . ' ' . esc_html( $file_meta['path'] ) . ' | ' . esc_html__( 'Size:', 'security-ninja' ) . ' ' . esc_html( $file_meta['size'] ) . '</p>';
@@ -437,6 +439,7 @@ class FileViewer {
 
 		echo '<div class="wrap">';
 		echo '<h1>' . esc_html__( 'Compare file', 'security-ninja' ) . ': ' . esc_html( $relative_path ) . '</h1>';
+		echo '<hr class="wp-header-end">';
 		echo '<div id="file-info">';
 		echo '<div class="file-meta">';
 		if ( $file_meta ) {
@@ -638,7 +641,7 @@ class FileViewer {
 
 		// Check if the file is within WordPress installation
 		$prefix = rtrim( wp_normalize_path( $wp_root ), '/' ) . '/';
-		return str_starts_with( wp_normalize_path( $file_path ), $prefix );
+		return 0 === strpos( wp_normalize_path( $file_path ), $prefix );
 	}
 
 	/**

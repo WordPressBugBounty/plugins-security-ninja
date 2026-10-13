@@ -134,7 +134,7 @@ class Wf_Sn_Wiz {
     private static function get_rerun_warning_markup() {
         $markup = '<div class="notice notice-warning secnin-wizard-rerun-warning"><p><strong>' . esc_html__( 'You have run this wizard before.', 'security-ninja' ) . '</strong></p>';
         $markup .= '<p>' . esc_html__( 'Clicking Activate on any step replaces your saved settings for that module with the wizard defaults. Use Skip or Continue on steps you do not want to change.', 'security-ninja' ) . '</p>';
-        $markup .= '<p>' . esc_html__( 'Affected modules: Firewall, Events Logger, Vulnerability Scanner, Login Protection, Default Fixes, and WooCommerce Protection.', 'security-ninja' ) . '</p></div>';
+        $markup .= '<p>' . esc_html__( 'Affected modules: Firewall, Events Logger, Vulnerability Scanner, Login Protection, Default Fixes, and Store Protection.', 'security-ninja' ) . '</p></div>';
         return $markup;
     }
 
@@ -164,7 +164,7 @@ class Wf_Sn_Wiz {
      * @return string
      */
     private static function get_pro_overview_markup() {
-        $text = __( 'Everything in this wizard works on the free plan. Pro adds stronger protection when you need it: cloud firewall with 600M+ bad IPs, login brute-force blocking, one-click security fixes, WooCommerce hardening, malware scanning, and more.', 'security-ninja' );
+        $text = __( 'Everything in this wizard works on the free plan. Pro adds stronger protection when you need it: cloud firewall with 600M+ bad IPs, login brute-force blocking, one-click security fixes, store hardening for WooCommerce and SureCart, malware scanning, and more.', 'security-ninja' );
         $url = Utils::generate_sn_web_link( 'wizard_upgrade', '/upgrade/' );
         if ( $url ) {
             $text .= ' <a href="' . esc_url( $url ) . '" target="_blank" rel="noopener">' . esc_html__( 'Compare plans', 'security-ninja' ) . '</a>';
@@ -261,7 +261,7 @@ class Wf_Sn_Wiz {
                 }
                 echo '<div class="button-wrap">';
                 printf(
-                    '<a href="#" class="button button-hero button-primary do-it %s" data-callback="%s" data-step="%s">%s</a>',
+                    '<a href="#" class="button button-hero button-primary sn-cta do-it %s" data-callback="%s" data-step="%s">%s</a>',
                     esc_attr( $button_class ),
                     esc_attr( $step['callback'] ),
                     esc_attr( $step['id'] ),
@@ -415,8 +415,8 @@ class Wf_Sn_Wiz {
             ),
             'woocommerce'      => array(
                 'id'           => 'woocommerce',
-                'title'        => __( 'WooCommerce Protection', 'security-ninja' ),
-                'title_short'  => __( 'WooCommerce', 'security-ninja' ),
+                'title'        => __( 'Store Protection', 'security-ninja' ),
+                'title_short'  => __( 'Store', 'security-ninja' ),
                 'icon'         => 'cart',
                 'view'         => 'get_step_woocommerce',
                 'callback'     => $woo_callback,
@@ -526,6 +526,29 @@ class Wf_Sn_Wiz {
     }
 
     /**
+     * Get the content for the Early Firewall wizard step (Pro, first run).
+     *
+     * @return array
+     */
+    public static function get_step_early_firewall() {
+        $content = array();
+        $content['summary'] = '<p>' . __( 'Early Firewall can block bad requests before WordPress loads, using PHP auto_prepend_file.', 'security-ninja' ) . '</p>';
+        $content['summary'] .= '<p>' . __( 'This step is optional. Skip keeps the WordPress-hooks firewall from the previous step.', 'security-ninja' ) . '</p>';
+        $content['summary'] .= '<ul class="summarylist">';
+        $content['summary'] .= '<li>' . __( 'This setting stays on this site only. It is not copied by Tools import/export or MainWP.', 'security-ninja' ) . '</li>';
+        $content['summary'] .= '<li>' . __( 'If PHP already prepends another file, we include that file (chain). We do not overwrite it.', 'security-ninja' ) . '</li>';
+        $content['summary'] .= '<li>' . __( 'Unknown prepend files abort for safety unless you override later in Firewall settings.', 'security-ninja' ) . '</li>';
+        $content['summary'] .= '</ul>';
+        if ( class_exists( __NAMESPACE__ . '\\Wf_sn_cf' ) ) {
+            $content['summary'] .= '<div class="attbox">' . __( 'In case you ever get locked out - Save this URL:', 'security-ninja' ) . '</br>';
+            $unblock_url = Wf_sn_cf::get_unblock_url();
+            $content['summary'] .= '<pre>' . esc_url( $unblock_url ) . '</pre>';
+            $content['summary'] .= __( 'Visiting that URL will whitelist your IP. Your current IP is also whitelisted before Early Firewall is enabled.', 'security-ninja' ) . '</br></div>';
+        }
+        return $content;
+    }
+
+    /**
      * Get the content for the events logger step.
      *
      * @since  5.289
@@ -543,7 +566,7 @@ class Wf_Sn_Wiz {
         $content['summary'] .= '<li>' . __( 'Plugin and theme installs and updates', 'security-ninja' ) . '</li>';
         $content['summary'] .= '<li>' . __( 'WordPress settings changes and Security Ninja actions', 'security-ninja' ) . '</li>';
         $content['summary'] .= '<li>' . __( 'Posts, pages, media, comments, menus, and widgets', 'security-ninja' ) . '</li>';
-        $content['summary'] .= '<li>' . __( 'WooCommerce store activity (when WooCommerce is active)', 'security-ninja' ) . '</li>';
+        $content['summary'] .= '<li>' . __( 'Store activity (when WooCommerce or SureCart is active)', 'security-ninja' ) . '</li>';
         $content['summary'] .= '</ul>';
         $show_events_pro_note = true;
         if ( $show_events_pro_note ) {
@@ -585,10 +608,7 @@ class Wf_Sn_Wiz {
     }
 
     /**
-     * Get the content for the WooCommerce step.
-     *
-     * This method returns an array containing the summary and detail content
-     * for the WooCommerce step of the wizard.
+     * Get the content for the store (WooCommerce / SureCart) wizard step.
      *
      * @since  0.0.1
      * @access public static
@@ -597,9 +617,11 @@ class Wf_Sn_Wiz {
     public static function get_step_woocommerce() {
         $content = array();
         $woocommerce_active = class_exists( 'WooCommerce' );
-        $content['summary'] = '<p>' . __( 'Pro can rate-limit checkout and cart actions and stop coupon guessing attacks on WooCommerce stores.', 'security-ninja' ) . '</p>';
-        if ( !$woocommerce_active ) {
-            $content['summary'] .= '<p>' . __( 'WooCommerce is not active on your site yet. Use Continue below. You can turn on store protection later from Cloud Firewall settings.', 'security-ninja' ) . '</p>';
+        $surecart_active = defined( 'SURECART_PLUGIN_FILE' );
+        $store_active = $woocommerce_active || $surecart_active;
+        $content['summary'] = '<p>' . __( 'Pro can rate-limit checkout and cart actions and stop coupon guessing attacks on WooCommerce and SureCart stores.', 'security-ninja' ) . '</p>';
+        if ( !$store_active ) {
+            $content['summary'] .= '<p>' . __( 'Neither WooCommerce nor SureCart is active on your site yet. Use Continue below. You can turn on store protection later from Cloud Firewall settings.', 'security-ninja' ) . '</p>';
         } else {
             $content['summary'] .= '<p>' . __( 'Use Continue below to finish your free setup.', 'security-ninja' ) . '</p>';
         }
@@ -759,6 +781,52 @@ class Wf_Sn_Wiz {
             'message' => __( 'Firewall enabled.', 'security-ninja' ),
         );
         wp_send_json_success( $results );
+        exit;
+    }
+
+    /**
+     * Enable Early Firewall from the setup wizard (Pro, optional step).
+     *
+     * @return void
+     */
+    public static function activate_early_firewall() {
+        check_ajax_referer( 'secnin_wizard_nonce' );
+        if ( !current_user_can( 'manage_options' ) ) {
+            wp_send_json_error( array(
+                'message' => __( 'Insufficient permissions.', 'security-ninja' ),
+            ) );
+        }
+        if ( !is_admin() ) {
+            wp_send_json_error( array(
+                'message' => __( 'Invalid request context.', 'security-ninja' ),
+            ) );
+        }
+        $installer_file = WF_SN_PLUGIN_DIR . 'modules/cloud-firewall/waf/class-secnin-waf-installer.php';
+        if ( !is_readable( $installer_file ) ) {
+            wp_send_json_error( array(
+                'message' => __( 'Early Firewall installer is not available.', 'security-ninja' ),
+            ) );
+        }
+        require_once $installer_file;
+        if ( !class_exists( __NAMESPACE__ . '\\Secnin_Waf_Installer' ) || !class_exists( __NAMESPACE__ . '\\Secnin_Waf_Config' ) ) {
+            wp_send_json_error( array(
+                'message' => __( 'Early Firewall installer is not available.', 'security-ninja' ),
+            ) );
+        }
+        Secnin_Waf_Config::sync_all();
+        $result = Secnin_Waf_Installer::install( array(
+            'action' => 'chain',
+        ) );
+        if ( empty( $result['success'] ) ) {
+            wp_send_json_error( array(
+                'message' => ( isset( $result['message'] ) ? $result['message'] : __( 'Could not enable Early Firewall.', 'security-ninja' ) ),
+            ) );
+        }
+        // pending (FPM delay) still counts as wizard success; verify later in settings.
+        wp_send_json_success( array(
+            'done'    => 1,
+            'message' => ( isset( $result['message'] ) ? $result['message'] : __( 'Early Firewall enabled.', 'security-ninja' ) ),
+        ) );
         exit;
     }
 
@@ -949,10 +1017,9 @@ class Wf_Sn_Wiz {
     }
 
     /**
-     * Activate WooCommerce protection features.
+     * Activate store protection features (WooCommerce and/or SureCart).
      *
-     * This method activates the WooCommerce protection features for the Security Ninja plugin.
-     * It enables rate limiting and coupon protection features.
+     * Enables shared rate limiting and coupon protection options.
      *
      * @since  0.0.1
      * @access public static
@@ -973,12 +1040,12 @@ class Wf_Sn_Wiz {
         $woo_protection_activated = false;
         if ( !$woo_protection_activated ) {
             wp_send_json_error( array(
-                'message' => __( 'WooCommerce protection requires Security Ninja Pro.', 'security-ninja' ),
+                'message' => __( 'Store protection requires Security Ninja Pro.', 'security-ninja' ),
             ) );
         }
         $results = array(
             'done'    => 1,
-            'message' => __( 'WooCommerce protection enabled.', 'security-ninja' ),
+            'message' => __( 'Store protection enabled.', 'security-ninja' ),
         );
         wp_send_json_success( $results );
         exit;

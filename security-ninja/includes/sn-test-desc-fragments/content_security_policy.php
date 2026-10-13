@@ -4,27 +4,39 @@
  */
 defined( 'ABSPATH' ) || exit;
 ?>
-<p><?php esc_html_e( 'This limits any browser visiting your website to only load content from approved sources.', 'security-ninja' ); ?></p>
+<p><?php esc_html_e( 'This tells the browser which sources it may load, and which sites may embed your pages.', 'security-ninja' ); ?></p>
 
-		<p><strong>Warning: <?php esc_html_e( 'If you embed scripts from external websites, Google Analytics or other sources this could break your website functionality. Read and test before implementing.', 'security-ninja' ); ?></strong></p>
-		<p><?php esc_html_e( 'Since each website is different, we can only give a general suggestion and strongly advise to remove the fix again if something on your website stops working.', 'security-ninja' ); ?></p>
+		<p><?php esc_html_e( 'The example below is safe on a normal WordPress site. It blocks clickjacking, locks the base URL, and stops old plugin embeds such as Flash. It does not block scripts or styles, so the dashboard, page builders, and checkout keep working.', 'security-ninja' ); ?></p>
 
-		<p><?php esc_html_e( 'This example forces a browser to only load JavaScript .js files from your own website. Warning: Inline code will stop working. Add this to your .htaccess file', 'security-ninja' ); ?></p>
+		<p><?php esc_html_e( "Add this to your theme's functions.php file:", 'security-ninja' ); ?></p>
+<pre>add_filter( 'wp_headers', function ( $headers ) {
+	if ( is_admin() ) {
+		return $headers;
+	}
+
+	$policy = "frame-ancestors 'self'; base-uri 'self'; object-src 'none'";
+	if ( is_ssl() ) {
+		$policy = 'upgrade-insecure-requests; ' . $policy;
+	}
+	$headers['Content-Security-Policy'] = $policy;
+
+	return $headers;
+} );</pre>
+
+		<p><?php esc_html_e( 'You can also add this to your .htaccess file. Include upgrade-insecure-requests only when the site is served over HTTPS.', 'security-ninja' ); ?></p>
 		<p><strong><?php esc_html_e( 'LiteSpeed servers:', 'security-ninja' ); ?></strong> <?php esc_html_e( 'The PHP header interface may not work correctly on LiteSpeed. If CSP headers are not appearing in your response, add the policy directly to your .htaccess file using the example below.', 'security-ninja' ); ?></p>
-<pre>#BEGIN - Only allow browsers to load .js files from this website
-	# Use Content-Security-Policy-Report-Only to test settings before using Content-Security-Policy.
-	# Once you have fixed any problems, you can change to
-	# Header set Content-Security-Policy: ...
-	
+<pre>#BEGIN - Set Content-Security-Policy
 	&lt;IfModule mod_headers.c&gt;
-	Header set Content-Security-Policy-Report-Only: "script-src 'self'"
+	Header set Content-Security-Policy "upgrade-insecure-requests; frame-ancestors 'self'; base-uri 'self'; object-src 'none'"
 	&lt;/IfModule&gt;
-#END - Only allow browsers to load .js files from this website</pre>
+#END - Set Content-Security-Policy</pre>
 
-			<p><?php esc_html_e( 'For Nginx add this to the nginx.conf under server block', 'security-ninja' ); ?></p>
-			<pre>add_header Content-Security-Policy "default-src 'self'";</pre>
-			<p>
-				<a href="<?php echo esc_url( \WPSecurityNinja\Plugin\Utils::generate_sn_web_link( 'security_tests_docs', 'docs/security-fixes/content-security-policy/' ) ); ?>" target="_blank" rel="noopener">
-					<?php esc_html_e( 'Read our guide to configuring Content Security Policy', 'security-ninja' ); ?>
-				</a>
-			</p>
+		<p><?php esc_html_e( 'For Nginx add this to the nginx.conf under server block', 'security-ninja' ); ?></p>
+		<pre>add_header Content-Security-Policy "upgrade-insecure-requests; frame-ancestors 'self'; base-uri 'self'; object-src 'none'";</pre>
+
+		<p><?php esc_html_e( 'Script limits are an advanced step. Start with Content-Security-Policy-Report-Only. WordPress needs nonces or \'unsafe-inline\' for scripts. Report-Only will not pass this test.', 'security-ninja' ); ?></p>
+		<p>
+			<a href="<?php echo esc_url( \WPSecurityNinja\Plugin\Utils::generate_sn_web_link( 'security_tests_docs', 'docs/security-fixes/content-security-policy/' ) ); ?>" target="_blank" rel="noopener">
+				<?php esc_html_e( 'Read our guide to configuring Content Security Policy', 'security-ninja' ); ?>
+			</a>
+		</p>

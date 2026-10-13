@@ -171,6 +171,77 @@ class Wf_sn_cf_Utils {
 	}
 
 	/**
+	 * Count addresses represented by a cloud blocklist option (wf_sn_cf_ips).
+	 *
+	 * Used on the Firewall admin page. Must not fatal on PHP 8+ when a CIDR mask
+	 * is a non-numeric string, a group is a flat CIDR string, or keys are missing.
+	 *
+	 * @since 5.304
+	 * @param mixed $ips Option value from wf_sn_cf_ips.
+	 * @return int
+	 */
+	public static function count_cloud_list_addresses( $ips ) {
+		if ( ! is_array( $ips ) ) {
+			return 0;
+		}
+
+		$total = 0;
+
+		if ( isset( $ips['subnets'] ) && is_array( $ips['subnets'] ) ) {
+			foreach ( $ips['subnets'] as $subnet ) {
+				if ( is_string( $subnet ) ) {
+					$total += self::ipv4_cidr_host_count( $subnet );
+					continue;
+				}
+				if ( ! is_array( $subnet ) ) {
+					continue;
+				}
+				foreach ( $subnet as $sub ) {
+					if ( is_string( $sub ) ) {
+						$total += self::ipv4_cidr_host_count( $sub );
+					}
+				}
+			}
+		}
+
+		if ( isset( $ips['ips'] ) && is_array( $ips['ips'] ) ) {
+			$total += count( $ips['ips'] );
+		}
+
+		return $total;
+	}
+
+	/**
+	 * Number of IPv4 addresses represented by a CIDR.
+	 *
+	 * Returns 0 for invalid or non-numeric masks so PHP 8 does not throw
+	 * "Unsupported operand types: int - string".
+	 *
+	 * @since 5.304
+	 * @param string $cidr CIDR string, optionally wrapped in single quotes.
+	 * @return int
+	 */
+	private static function ipv4_cidr_host_count( $cidr ) {
+		$cidr  = str_replace( "'", '', $cidr );
+		$parts = explode( '/', $cidr, 2 );
+		if ( ! isset( $parts[1] ) ) {
+			return 0;
+		}
+
+		$mask_raw = trim( $parts[1] );
+		if ( '' === $mask_raw || ! ctype_digit( $mask_raw ) ) {
+			return 0;
+		}
+
+		$mask = (int) $mask_raw;
+		if ( $mask < 0 || $mask > 32 ) {
+			return 0;
+		}
+
+		return (int) pow( 2, 32 - $mask );
+	}
+
+	/**
 	 * IPv6 mask to byte array (for CIDR matching).
 	 *
 	 * @author  Unknown
@@ -791,5 +862,23 @@ class Wf_sn_cf_Utils {
 			}
 		}
 		return false;
+	}
+
+	/**
+	 * Whether REMOTE_ADDR may supply X-Forwarded-For / X-Real-IP.
+	 *
+	 * True for private/loopback peers (e.g. local nginx → php-fpm), Cloudflare,
+	 * and configured Trusted proxy CIDRs. Public peers without a trusted range
+	 * cannot spoof those headers.
+	 *
+	 * @param string     $remote_addr    REMOTE_ADDR.
+	 * @param array|null $user_proxy_cidrs Trusted proxy CIDRs.
+	 * @return bool
+	 */
+	public static function peer_may_forward_client_ip( $remote_addr, $user_proxy_cidrs = null ) {
+		if ( self::is_non_public_ip( $remote_addr ) ) {
+			return true;
+		}
+		return self::is_trusted_proxy_ip( $remote_addr, $user_proxy_cidrs );
 	}
 }

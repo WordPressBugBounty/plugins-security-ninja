@@ -46,8 +46,24 @@ function initEventsDataTable( forceFocus ) {
 				d.action_filter = jQuery( '#sn-el-action-filter' ).val();
 			},
 			error: function( xhr, error, code ) {
-				var errorMsg = '<strong>Error loading data:</strong><br>Status: ' + xhr.status + ' (' + xhr.statusText + ')<br>Error: ' + error + '<br>Code: ' + code + '<br>Response: ' + xhr.responseText;
-				jQuery( '#datatable-error' ).html( errorMsg ).show();
+				var response = xhr && xhr.responseText ? String( xhr.responseText ) : '';
+				if ( response.length > 500 ) {
+					response = response.substring( 0, 500 ) + '\u2026';
+				}
+				var $box = jQuery( '#datatable-error' );
+				$box.empty();
+				$box.append( jQuery( '<strong></strong>' ).text( 'Error loading data:' ) );
+				$box.append( '<br>' );
+				$box.append( document.createTextNode( 'Status: ' + xhr.status + ' (' + xhr.statusText + ')' ) );
+				$box.append( '<br>' );
+				$box.append( document.createTextNode( 'Error: ' + error ) );
+				$box.append( '<br>' );
+				$box.append( document.createTextNode( 'Code: ' + ( code && code.message ? code.message : code ) ) );
+				if ( response ) {
+					$box.append( '<br>' );
+					$box.append( document.createTextNode( 'Response: ' + response ) );
+				}
+				$box.show();
 			}
 		},
 		columns: [

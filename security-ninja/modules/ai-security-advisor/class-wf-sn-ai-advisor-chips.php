@@ -33,6 +33,15 @@ class Wf_Sn_Ai_Advisor_Chips {
 	);
 
 	/**
+	 * Primary follow-up chips shown after the first report.
+	 */
+	const PRIMARY_PROMPT_IDS = array(
+		'what_next',
+		'explain_for_client',
+		'action_plan_30m',
+	);
+
+	/**
 	 * Chip definitions: id => label callback uses __() in caller for i18n.
 	 *
 	 * @return array<string, array{label: string}>
@@ -167,11 +176,16 @@ class Wf_Sn_Ai_Advisor_Chips {
 	 * @return array<int, array{id: string, label: string, enabled: bool, reason: string}>
 	 */
 	public static function get_enabled_chips_for_ui() {
+		$primary    = self::PRIMARY_PROMPT_IDS;
+		$comparison = self::comparison_prompt_ids();
 		return array_values(
 			array_filter(
 				self::get_chips_for_ui(),
-				static function ( $chip ) {
-					return ! empty( $chip['enabled'] );
+				static function ( $chip ) use ( $primary, $comparison ) {
+					if ( empty( $chip['enabled'] ) ) {
+						return false;
+					}
+					return in_array( $chip['id'], $primary, true ) || in_array( $chip['id'], $comparison, true );
 				}
 			)
 		);
@@ -208,6 +222,24 @@ class Wf_Sn_Ai_Advisor_Chips {
 	 *
 	 * @return array<int, array{id: string, label: string, enabled: bool, reason: string}>
 	 */
+	/**
+	 * Chips offered in the follow-up toolbar (primary + comparison).
+	 *
+	 * @return array<int, array{id: string, label: string, enabled: bool, reason: string}>
+	 */
+	public static function get_toolbar_chips_for_ui() {
+		$primary    = self::PRIMARY_PROMPT_IDS;
+		$comparison = self::comparison_prompt_ids();
+		return array_values(
+			array_filter(
+				self::get_chips_for_ui(),
+				static function ( $chip ) use ( $primary, $comparison ) {
+					return in_array( $chip['id'], $primary, true ) || in_array( $chip['id'], $comparison, true );
+				}
+			)
+		);
+	}
+
 	public static function get_chips_for_ui() {
 		$defs = self::definitions();
 		$out  = array();

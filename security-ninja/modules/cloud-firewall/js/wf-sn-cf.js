@@ -1,4 +1,4 @@
-/* globals jQuery:true, ajaxurl:true, wf_sn_cf:true, sn_block_ui:true, alert:true */
+/* globals jQuery:true, ajaxurl:true, wf_sn_cf:true, sn_block_ui:true, alert:true, confirm:true */
 /*
 * Security Ninja PRO
 * (c) 2018. Web factory Ltd
@@ -6,17 +6,7 @@
 
 jQuery(document).ready(function ($) {
 
-  // Handle tab switching
-  $('#wf-sn-cf-subtabs .nav-tab').on('click', function(e) {
-    e.preventDefault();
-    $('#wf-sn-cf-subtabs .nav-tab').removeClass('nav-tab-active');
-    $('.wf-sn-subtab').hide();
-
-    
-    $(this).addClass('nav-tab-active');
-    var targetId = $(this).attr('href');
-    $(targetId).show();
-  });
+  // Firewall subtabs are initialized in sn-global.js (no Select2 dependency).
 
   // Function to toggle sub-inputs
   function toggleSubInputs(checkbox, subInputClass) {
@@ -29,17 +19,36 @@ jQuery(document).ready(function ($) {
 
 
 
-  // Select all countries button
+  // Select all countries button. type="button" so Enter in other fields does not fire this.
   $('#select_all_countries').click(function (e) {
     e.preventDefault();
+    var message = (wf_sn_cf.strings && wf_sn_cf.strings.block_all_countries) ? wf_sn_cf.strings.block_all_countries : 'Block all countries?';
+    if (!window.confirm(message)) {
+      return;
+    }
+    $('#wf_sn_cf_blocked_countries_confirm_all').val('1');
     $('#wf_sn_cf_blocked_countries option').prop('selected', true);
     $('#wf_sn_cf_blocked_countries').trigger('change');
   });
 
   $('#select_no_countries').click(function (e) {
     e.preventDefault();
+    $('#wf_sn_cf_blocked_countries_confirm_all').val('0');
     $('#wf_sn_cf_blocked_countries option').prop('selected', false);
     $('#wf_sn_cf_blocked_countries').trigger('change');
+  });
+
+  $('#wf-cf-ip-test').on('keydown', function (e) {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      $('#wf-cf-do-test-ip').trigger('click');
+    }
+  });
+
+  $('#sn-cf-ip-search').on('keydown', function (e) {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+    }
   });
 
   $('#wf_sn_cf_ip_source').on('change', function () {
@@ -55,13 +64,17 @@ jQuery(document).ready(function ($) {
     $(this).parents('.testresults').toggleClass('opened').find('table');
   });
 
-  // Select2 on country dropdown
-  $('#wf_sn_cf_blocked_countries').select2({
-    multiple: true,
-    dropdownAutoWidth: true,
-    closeOnSelect: false,
-    theme: 'classic'
-  });
+  // Select2 on country dropdown (guard: some themes deregister the global select2 handle).
+  var $blockedCountries = $('#wf_sn_cf_blocked_countries');
+  if ($blockedCountries.length && $.fn.select2) {
+    $blockedCountries.select2({
+      multiple: true,
+      dropdownAutoWidth: true,
+      closeOnSelect: false,
+      theme: 'classic',
+      dropdownParent: $blockedCountries.closest('#sn_cf_settings').length ? $blockedCountries.closest('#sn_cf_settings') : $(document.body)
+    });
+  }
 
   // Show enable-firewall dialog
   $('#sn-enable-firewall-overlay').on('click', function (e) {
@@ -774,4 +787,276 @@ jQuery(document).ready(function ($) {
 
     ipMgmt.init();
   }
+
+  // Early Firewall (beta) AJAX controls.
+  function secninWafExtendedMsg(text, isError) {
+    var $el = $('#secnin-waf-extended-msg');
+    if (!$el.length) {
+      return;
+    }
+    $el.text(text || '');
+    $el.css('color', isError ? '#b32d2e' : '');
+  }
+
+  function secninWafExtendedFailMessage(xhr, fallback) {
+    var msg = '';
+    if (xhr && xhr.responseJSON) {
+      if (xhr.responseJSON.data && xhr.responseJSON.data.message) {
+        msg = xhr.responseJSON.data.message;
+      } else if (xhr.responseJSON.message) {
+        msg = xhr.responseJSON.message;
+      }
+    }
+    if (!msg && xhr && typeof xhr.responseText === 'string' && xhr.responseText) {
+      var text = xhr.responseText.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+      if (text && text.length < 300 && text.indexOf('{') !== 0) {
+        msg = text;
+      } else {
+        try {
+          var parsed = JSON.parse(xhr.responseText);
+          if (parsed && parsed.data && parsed.data.message) {
+            msg = parsed.data.message;
+          }
+        } catch (e) {
+          // ignore
+        }
+      }
+    }
+    if (!msg && xhr && xhr.status) {
+      msg = fallback + ' (HTTP ' + xhr.status + ')';
+    }
+    return msg || fallback;
+  }
+
+  function secninWafExtendedPost(action, extra) {
+    var data = $.extend(
+      {
+        action: action,
+        _ajax_nonce: wf_sn_cf.nonce
+      },
+      extra || {}
+    );
+    return $.ajax({
+      url: ajaxurl,
+      type: 'POST',
+      dataType: 'json',
+      data: data
+    });
+  }
+
+  var secninWafVerifyTimer = null;
+  var secninWafBusy = false;
+
+  function secninWafBusyButtons(busy) {
+    secninWafBusy = !!busy;
+    $('#secnin-waf-spinner').toggleClass('is-active', secninWafBusy);
+    $('#secnin-waf-install, #secnin-waf-verify, #secnin-waf-uninstall').prop('disabled', secninWafBusy);
+    if (!secninWafBusy && $('#secnin-waf-verify').is(':visible') && $('#secnin-waf-verify').data('secnin-not-ready')) {
+      $('#secnin-waf-verify').prop('disabled', true);
+    }
+  }
+
+  function secninWafStrings() {
+    return (wf_sn_cf && wf_sn_cf.waf_strings) ? wf_sn_cf.waf_strings : {};
+  }
+
+  function secninWafWarnUnsaved() {
+    var $form = $('#wf_sn_cf_form, form#sn_cf_form, form[name="wf_sn_cf"]').first();
+    if (!$form.length) {
+      return false;
+    }
+    return !!$form.data('secnin-dirty');
+  }
+
+  function secninWafScheduleVerifyReady(ui) {
+    if (secninWafVerifyTimer) {
+      window.clearTimeout(secninWafVerifyTimer);
+      secninWafVerifyTimer = null;
+    }
+    if (!ui || !ui.show_verify || ui.verify_ready) {
+      return;
+    }
+    var readyAt = parseInt(ui.ready_at, 10) || 0;
+    if (readyAt <= 0) {
+      return;
+    }
+    var waitMs = Math.max(0, (readyAt * 1000) - Date.now());
+    secninWafVerifyTimer = window.setTimeout(function () {
+      $('#secnin-waf-verify').data('secnin-not-ready', false);
+      if (!secninWafBusy) {
+        $('#secnin-waf-verify').prop('disabled', false);
+      }
+    }, waitMs);
+  }
+
+  function secninWafApplyUi(ui, fallbackMessage, fallbackError) {
+    if (!ui) {
+      secninWafBusyButtons(false);
+      if (fallbackMessage) {
+        secninWafExtendedMsg(fallbackMessage, !!fallbackError);
+      }
+      return;
+    }
+
+    $('#secnin-waf-mode-label').text(ui.mode_label || '');
+    $('#secnin-waf-status-label').text(ui.status_label || '');
+
+    if (ui.prepend) {
+      $('#secnin-waf-prepend-path').text(ui.prepend).prop('hidden', false);
+      $('#secnin-waf-prepend-label').text(ui.prepend_label || '').prop('hidden', !ui.prepend_label);
+      $('#secnin-waf-prepend-empty').prop('hidden', true);
+    } else {
+      $('#secnin-waf-prepend-path').prop('hidden', true);
+      $('#secnin-waf-prepend-label').prop('hidden', true);
+      $('#secnin-waf-prepend-empty').prop('hidden', false);
+    }
+
+    if (ui.last_verify) {
+      $('#secnin-waf-last-verify-value').text(ui.last_verify);
+      $('#secnin-waf-last-verify-row').prop('hidden', false);
+    } else {
+      $('#secnin-waf-last-verify-row').prop('hidden', true);
+    }
+
+    if (ui.detail) {
+      $('#secnin-waf-detail-label').text(ui.detail_label || '');
+      $('#secnin-waf-detail-value').text(ui.detail);
+      $('#secnin-waf-detail-row').prop('hidden', false);
+    } else {
+      $('#secnin-waf-detail-row').prop('hidden', true);
+    }
+
+    if (ui.status === 'failed_safe' && ui.detail) {
+      $('#secnin-waf-error').prop('hidden', false).find('p').text(ui.detail);
+    } else if (ui.status !== 'failed_safe') {
+      $('#secnin-waf-error').prop('hidden', true);
+    }
+
+    $('#secnin-waf-install').prop('hidden', !ui.show_enable);
+    $('#secnin-waf-verify').prop('hidden', !ui.show_verify).text(ui.verify_label || 'Verify').attr('data-ready-at', ui.ready_at || 0);
+    $('#secnin-waf-uninstall').prop('hidden', !ui.show_disable);
+    $('#secnin-waf-verify').data('secnin-not-ready', !!(ui.show_verify && !ui.verify_ready));
+
+    secninWafBusyButtons(false);
+    secninWafScheduleVerifyReady(ui);
+    secninWafExtendedMsg(ui.message || fallbackMessage || '', !!(ui.message_is_error || fallbackError));
+
+    if (ui.installed) {
+      $('[data-dismissible="secnin-early-firewall-notice-forever"]').hide();
+    }
+  }
+
+  function secninWafHandleResponse(resp, fallbackOk, fallbackErr) {
+    var data = resp && resp.data ? resp.data : {};
+    var ui = data.ui || null;
+    if (resp && resp.success) {
+      secninWafApplyUi(ui, (data && data.message) ? data.message : fallbackOk, false);
+      return;
+    }
+    secninWafApplyUi(ui, (data && data.message) ? data.message : fallbackErr, true);
+  }
+
+  $('form').filter(function () {
+    return $(this).find('[name^="wf_sn_cf"]').length > 0;
+  }).on('change input', 'input, select, textarea', function () {
+    $(this).closest('form').data('secnin-dirty', true);
+  });
+
+  function secninWafDoInstall(wafAction) {
+    var s = secninWafStrings();
+    secninWafBusyButtons(true);
+    secninWafExtendedMsg(s.installing || 'Installing…');
+    secninWafExtendedPost('sn_waf_extended_install', { waf_action: wafAction })
+      .done(function (resp) {
+        secninWafHandleResponse(resp, s.installed || 'Installed.', s.install_failed || 'Install failed.');
+      })
+      .fail(function (xhr) {
+        secninWafBusyButtons(false);
+        secninWafExtendedMsg(secninWafExtendedFailMessage(xhr, s.install_request_failed || 'Install request failed.'), true);
+      });
+  }
+
+  $('#secnin-waf-install').on('click', function (e) {
+    e.preventDefault();
+    var $btn = $(this);
+    var wafAction = $btn.data('action') || 'chain';
+    var prepend = $btn.data('prepend') || '';
+    var s = secninWafStrings();
+
+    if (secninWafWarnUnsaved()) {
+      secninWafExtendedMsg(s.unsaved_warning || 'You have unsaved firewall form changes.', true);
+    }
+
+    if (wafAction === 'confirm_non_waf') {
+      var msg = (s.confirm_chain || 'Enable Early Firewall and chain this existing prepend file?') +
+        (prepend ? ('\n\n' + prepend) : '');
+      if (typeof SnDialog !== 'undefined' && SnDialog.confirm) {
+        SnDialog.confirm({
+          title: s.confirm_title || 'Confirm chaining',
+          message: msg,
+          confirmText: s.confirm_ok || 'Enable',
+          cancelText: s.confirm_cancel || 'Cancel'
+        }).then(function (ok) {
+          if (ok) {
+            secninWafDoInstall('confirm_non_waf');
+          }
+        });
+        return;
+      }
+      if (!window.confirm(msg)) {
+        return;
+      }
+    }
+    secninWafDoInstall(wafAction);
+  });
+
+  $('#secnin-waf-verify').on('click', function (e) {
+    e.preventDefault();
+    if ($(this).data('secnin-not-ready')) {
+      return;
+    }
+    var s = secninWafStrings();
+    secninWafBusyButtons(true);
+    secninWafExtendedMsg(s.verifying || 'Verifying…');
+    secninWafExtendedPost('sn_waf_extended_verify')
+      .done(function (resp) {
+        secninWafHandleResponse(resp, s.verified || 'Verified.', s.verify_failed || 'Verify failed.');
+      })
+      .fail(function (xhr) {
+        secninWafBusyButtons(false);
+        secninWafExtendedMsg(secninWafExtendedFailMessage(xhr, s.verify_request_failed || 'Verify request failed.'), true);
+      });
+  });
+
+  $('#secnin-waf-uninstall').on('click', function (e) {
+    e.preventDefault();
+    var s = secninWafStrings();
+    secninWafBusyButtons(true);
+    secninWafExtendedMsg(s.disabling || 'Disabling…');
+    secninWafExtendedPost('sn_waf_extended_uninstall')
+      .done(function (resp) {
+        secninWafHandleResponse(resp, s.disabled || 'Disabled.', s.disable_failed || 'Disable failed.');
+      })
+      .fail(function (xhr) {
+        secninWafBusyButtons(false);
+        secninWafExtendedMsg(secninWafExtendedFailMessage(xhr, s.disable_request_failed || 'Disable request failed.'), true);
+      });
+  });
+
+  (function initEarlyFirewallPanel() {
+    var $verify = $('#secnin-waf-verify');
+    if (!$verify.length || $verify.prop('hidden')) {
+      return;
+    }
+    var readyAt = parseInt($verify.attr('data-ready-at'), 10) || 0;
+    var notReady = !!$verify.prop('disabled') || (readyAt > 0 && Date.now() < readyAt * 1000);
+    $verify.data('secnin-not-ready', notReady);
+    if (notReady) {
+      secninWafScheduleVerifyReady({
+        show_verify: true,
+        verify_ready: false,
+        ready_at: readyAt
+      });
+    }
+  })();
 });

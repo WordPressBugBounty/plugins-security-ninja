@@ -9,18 +9,26 @@ defined( 'ABSPATH' ) || exit;
 			<p><strong><?php esc_html_e( 'Warning: The fix is easy, but some sites have problems with the theme customizer preview when this code is enabled.', 'security-ninja' ); ?></strong></p>
 
 			<p><?php esc_html_e( "Fixing is very easy. Open your theme's functions.php file and add the following:", 'security-ninja' ); ?></p>
-			<pre>header('X-Frame-Options: SAMEORIGIN');</pre>
+<pre>add_filter( 'wp_headers', function ( $headers ) {
+	if ( is_admin() ) {
+		return $headers;
+	}
+
+	$headers['X-Frame-Options'] = 'SAMEORIGIN';
+
+	return $headers;
+} );</pre>
 
 			<p><?php esc_html_e( 'You can also add this to your .htaccess file', 'security-ninja' ); ?></p>
 			<p><strong><?php esc_html_e( 'LiteSpeed servers:', 'security-ninja' ); ?></strong> <?php esc_html_e( 'The PHP header interface may not work correctly on LiteSpeed. If this header is not appearing in your response, add it directly to your .htaccess file using the example below.', 'security-ninja' ); ?></p>
 <pre>#BEGIN - Prevent page-framing and click-jacking
 	&lt;IfModule mod_headers.c&gt;
-	Header always append X-Frame-Options SAMEORIGIN
+	Header set X-Frame-Options SAMEORIGIN
 	&lt;/IfModule&gt;
 #END - Prevent page-framing and click-jacking</pre>
 			<p>
 
-				<p><?php esc_html_e( 'You can use the following values: DENY, SAMEORIGIN or ALLOW-FROM', 'security-ninja' ); ?></p>
+				<p><?php esc_html_e( 'You can use DENY or SAMEORIGIN. ALLOW-FROM is obsolete and ignored by modern browsers. For an allowlist of embedding sites, use Content-Security-Policy with the frame-ancestors directive instead.', 'security-ninja' ); ?></p>
 				<p><?php esc_html_e( 'WARNING: If you use iframes on your website you need to be careful configuring this.', 'security-ninja' ); ?></p>
 
 				<p><?php esc_html_e( 'For Nginx add this to the nginx.conf under server block', 'security-ninja' ); ?></p>

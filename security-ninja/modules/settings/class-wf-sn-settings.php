@@ -282,7 +282,7 @@ class Wf_Sn_Settings {
 					'globalbannetwork'              => true,
 					'global'                        => false,
 					'filterqueries'                 => true,
-					'trackvisits'                   => true,
+					'trackvisits'                   => false,
 					'trackvisits_howlong'           => 7,
 					'usecloud'                      => true,
 					'protect_login_form'            => true,

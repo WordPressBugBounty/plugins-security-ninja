@@ -5,7 +5,9 @@ Plugin Name: Security Ninja
 Plugin URI: https://wpsecurityninja.com/
 Description: Check your site for security vulnerabilities and get precise suggestions for corrective actions on passwords, user accounts, file permissions, database security, version hiding, plugins, themes, security headers and other security aspects.
 Author: WP Security Ninja
-Version: 5.303
+Version: 5.305
+Requires at least: 4.7
+Requires PHP: 7.4
 Author URI: https://wpsecurityninja.com/
 License: GPLv3
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
@@ -76,15 +78,15 @@ if ( !function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
             $secnin_fs = \fs_dynamic_init( array(
                 'id'               => '3690',
                 'slug'             => 'security-ninja',
-                'enable_anonymous' => true,
                 'type'             => 'plugin',
                 'public_key'       => 'pk_f990ec18700a90c02db544f1aa986',
                 'is_premium'       => false,
                 'has_addons'       => true,
                 'has_paid_plans'   => true,
+                'is_org_compliant' => true,
                 'trial'            => array(
                     'days'               => 14,
-                    'is_require_payment' => false,
+                    'is_require_payment' => true,
                 ),
                 'has_affiliation'  => false,
                 'menu'             => ( is_multisite() ? array(
@@ -99,7 +101,6 @@ if ( !function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
                     'pricing'    => false,
                 ) ),
                 'is_live'          => true,
-                'is_org_compliant' => true,
             ) );
         }
         return $secnin_fs;
@@ -112,6 +113,12 @@ if ( !function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
     define( 'WF_SN_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
     define( 'WF_SN_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
     define( 'WF_SN_PLUGIN_BASENAME', plugin_basename( __FILE__ ) );
+    if ( !defined( 'WF_SN_PLUGIN_VERSION' ) ) {
+        $secnin_plugin_header = get_file_data( __FILE__, array(
+            'Version' => 'Version',
+        ), 'plugin' );
+        define( 'WF_SN_PLUGIN_VERSION', ( isset( $secnin_plugin_header['Version'] ) ? (string) $secnin_plugin_header['Version'] : '' ) );
+    }
     /**
      * Whether this request is wp-admin, AJAX, cron, WP-CLI, import, or MainWP.
      *
@@ -146,6 +153,14 @@ if ( !function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
     include_once WF_SN_PLUGIN_DIR . 'modules/cloud-firewall/class-wf-sn-cf-utils.php';
     include_once WF_SN_PLUGIN_DIR . 'modules/cloud-firewall/class-wf-sn-security-utils.php';
     include_once WF_SN_PLUGIN_DIR . 'modules/cloud-firewall/cloud-firewall.php';
+    include_once WF_SN_PLUGIN_DIR . 'includes/class-secnin-fs-atomic.php';
+    include_once WF_SN_PLUGIN_DIR . 'includes/class-secnin-secure-snapshot.php';
+    include_once WF_SN_PLUGIN_DIR . 'includes/class-secnin-af-backup.php';
+    include_once WF_SN_PLUGIN_DIR . 'modules/cloud-firewall/waf/class-secnin-waf-lifecycle.php';
+    include_once WF_SN_PLUGIN_DIR . 'modules/cloud-firewall/waf/class-secnin-waf-ban-clock.php';
+    include_once WF_SN_PLUGIN_DIR . 'modules/cloud-firewall/waf/class-secnin-waf-recorder.php';
+    include_once WF_SN_PLUGIN_DIR . 'modules/cloud-firewall/waf/class-secnin-waf-extended.php';
+    include_once WF_SN_PLUGIN_DIR . 'modules/cloud-firewall/waf/class-secnin-waf-config.php';
     include_once WF_SN_PLUGIN_DIR . 'includes/class-wf-sn-utils.php';
     include_once WF_SN_PLUGIN_DIR . 'includes/class-wf-sn-test-descriptions.php';
     include_once WF_SN_PLUGIN_DIR . 'includes/class-wf-sn-free-render.php';
@@ -158,7 +173,9 @@ if ( !function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
     include_once WF_SN_PLUGIN_DIR . 'modules/wizard/class-wf-sn-wizard.php';
     if ( apply_filters( 'wf_sn_ai_advisor_enabled', true ) ) {
         include_once WF_SN_PLUGIN_DIR . 'modules/ai-security-advisor/class-wf-sn-ai-advisor.php';
+        include_once WF_SN_PLUGIN_DIR . 'modules/ai-security-advisor/class-wf-sn-ai-advisor-scheduler.php';
         add_action( 'init', array('\\WPSecurityNinja\\Plugin\\AiAdvisor\\Wf_Sn_Ai_Advisor', 'init') );
+        add_action( 'init', array('\\WPSecurityNinja\\Plugin\\AiAdvisor\\Wf_Sn_Ai_Advisor_Scheduler', 'init') );
     }
     class Wf_Sn {
         /**
@@ -273,6 +290,8 @@ if ( !function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
                     );
                     secnin_fs()->add_filter( 'checkout/parameters', array(__NAMESPACE__ . '\\Utils', 'extra_modern_checkout_parameters') );
                     add_action( 'admin_init', array(__NAMESPACE__ . '\\Utils', 'secnin_fs_license_key_migration') );
+                    // MainWP child pings rarely hit admin_init; activate from license_key.txt on those requests too.
+                    add_action( 'init', array(__NAMESPACE__ . '\\Utils', 'maybe_secnin_fs_license_key_migration_mainwp') );
                     secnin_fs()->add_filter( 'plugin_icon', array(__NAMESPACE__ . '\\Wf_Sn', 'secnin_fs_custom_icon') );
                     // Custom, security-focused opt-in message (Skip remains available).
                     secnin_fs()->add_filter(
@@ -658,7 +677,7 @@ if ( !function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
             );
             $schedule_tab = array(
                 'id'       => 'sn_schedule',
-                'class'    => 'profeature',
+                'class'    => '',
                 'label'    => esc_html__( 'Scheduler', 'security-ninja' ),
                 'callback' => array(__NAMESPACE__ . '\\Free_Render', 'render_scheduled_scanner_page'),
             );
@@ -887,6 +906,11 @@ if ( !function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
                 wp_dequeue_style( 'facebook-member-plugin-css' );
                 wp_dequeue_style( 'kc-testimonial-admin' );
                 wp_dequeue_style( 'jquery-ui-style' );
+                // MyListing and similar themes register global select2/admin assets that break SN firewall UI.
+                wp_dequeue_style( 'mylisting-select2' );
+                wp_dequeue_script( 'mylisting-select2' );
+                wp_dequeue_style( 'case27-admin-styles' );
+                wp_dequeue_script( 'case27-admin-scripts' );
             }
         }
 
@@ -986,6 +1010,302 @@ if ( !function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
             wp_enqueue_style( 'dashicons' );
             $css = '.sn-ai-menu-badge{display:inline-block;margin-left:4px;padding:2px 6px;font-size:10px;font-weight:600;line-height:1.2;color:#1d2327;background:#dcdcde;border-radius:3px;vertical-align:middle}';
             wp_add_inline_style( 'dashicons', $css );
+        }
+
+        /**
+         * Whether imported JSON is from a newer plugin than this install.
+         *
+         * @param array $import_wf_data Decoded export payload.
+         * @return bool
+         */
+        public static function imported_settings_are_newer( $import_wf_data ) {
+            if ( !is_array( $import_wf_data ) || empty( $import_wf_data['plugin_version'] ) ) {
+                return false;
+            }
+            return version_compare( (string) $import_wf_data['plugin_version'], \WPSecurityNinja\Plugin\Utils::get_plugin_version(), '>' );
+        }
+
+        /**
+         * Apply a decoded Tools export payload to this site.
+         *
+         * Site-local Early Firewall and unblock URL are never overwritten.
+         * Missing keys (older exports) take runtime defaults on next get_options().
+         *
+         * @param array $import_wf_data Decoded export payload.
+         * @return array<string, string> Module slug => status, plus optional skip notes.
+         */
+        public static function apply_imported_settings( $import_wf_data ) {
+            $import_log = array();
+            if ( !is_array( $import_wf_data ) ) {
+                return $import_log;
+            }
+            if ( !empty( $import_wf_data['firewall'] ) && is_array( $import_wf_data['firewall'] ) ) {
+                $firewall_options = $import_wf_data['firewall'];
+                $existing_options = \WPSecurityNinja\Plugin\wf_sn_cf::get_options();
+                if ( isset( $existing_options['unblock_url'] ) ) {
+                    $firewall_options['unblock_url'] = $existing_options['unblock_url'];
+                }
+                unset(
+                    $firewall_options['firewall_mode'],
+                    $firewall_options['firewall_extended_status'],
+                    $firewall_options['mode'],
+                    $firewall_options['status'],
+                    $firewall_options['prepend_path'],
+                    $firewall_options['wf_sn_cf_extended']
+                );
+                $boolean_keys = array(
+                    'active',
+                    'globalbannetwork',
+                    'global',
+                    'filterqueries',
+                    'trackvisits',
+                    'usecloud',
+                    'protect_login_form',
+                    'hide_login_errors',
+                    'failed_login_email_warning',
+                    'countryblock_loginonly',
+                    'satellite_soft_enabled',
+                    'whitelist_managewp',
+                    'whitelist_wprocket',
+                    'whitelist_uptimia',
+                    'whitelist_uptimerobot',
+                    '2fa_enabled',
+                    '2fa_backup_codes_enabled',
+                    '404guard_enabled',
+                    'woo_rate_limiting_enabled',
+                    'woo_coupon_protection_enabled',
+                    'change_login_url',
+                    'blockadminlogin'
+                );
+                foreach ( $boolean_keys as $key ) {
+                    if ( isset( $firewall_options[$key] ) ) {
+                        $firewall_options[$key] = \WPSecurityNinja\Plugin\Utils::normalize_flag( $firewall_options[$key] );
+                    }
+                }
+                if ( array_key_exists( 'ip_source', $firewall_options ) ) {
+                    $firewall_options['ip_source'] = \WPSecurityNinja\Plugin\Wf_sn_cf::normalize_ip_source( $firewall_options['ip_source'] );
+                } elseif ( isset( $existing_options['ip_source'] ) ) {
+                    $firewall_options['ip_source'] = \WPSecurityNinja\Plugin\Wf_sn_cf::normalize_ip_source( $existing_options['ip_source'] );
+                } else {
+                    $firewall_options['ip_source'] = 'auto';
+                }
+                if ( array_key_exists( 'trusted_proxy_cidrs', $firewall_options ) ) {
+                    $firewall_options['trusted_proxy_cidrs'] = \WPSecurityNinja\Plugin\Wf_sn_cf::sanitize_trusted_proxy_cidrs( $firewall_options['trusted_proxy_cidrs'] );
+                } elseif ( isset( $existing_options['trusted_proxy_cidrs'] ) ) {
+                    $firewall_options['trusted_proxy_cidrs'] = \WPSecurityNinja\Plugin\Wf_sn_cf::sanitize_trusted_proxy_cidrs( $existing_options['trusted_proxy_cidrs'] );
+                } else {
+                    $firewall_options['trusted_proxy_cidrs'] = array();
+                }
+                $array_keys = array(
+                    'blocked_countries',
+                    'whitelist',
+                    'blacklist',
+                    'autoban_rules'
+                );
+                foreach ( $array_keys as $key ) {
+                    if ( !empty( $firewall_options[$key] ) && is_array( $firewall_options[$key] ) ) {
+                        $firewall_options[$key] = array_map( 'sanitize_text_field', $firewall_options[$key] );
+                    } else {
+                        $firewall_options[$key] = array();
+                    }
+                }
+                $note_max = 150;
+                foreach ( array('whitelist_notes', 'blacklist_notes') as $notes_key ) {
+                    $sanitized_notes = array();
+                    if ( !empty( $firewall_options[$notes_key] ) && is_array( $firewall_options[$notes_key] ) ) {
+                        foreach ( $firewall_options[$notes_key] as $note_ip => $note_text ) {
+                            $note_ip = sanitize_text_field( trim( (string) $note_ip ) );
+                            if ( '' === $note_ip ) {
+                                continue;
+                            }
+                            $note_text = sanitize_text_field( (string) $note_text );
+                            if ( '' === $note_text ) {
+                                continue;
+                            }
+                            if ( function_exists( 'mb_substr' ) ) {
+                                $note_text = mb_substr( $note_text, 0, $note_max );
+                            } else {
+                                $note_text = substr( $note_text, 0, $note_max );
+                            }
+                            $sanitized_notes[$note_ip] = $note_text;
+                        }
+                    }
+                    $firewall_options[$notes_key] = $sanitized_notes;
+                }
+                foreach ( array(
+                    'whitelist' => 'whitelist_notes',
+                    'blacklist' => 'blacklist_notes',
+                ) as $list_key => $notes_key ) {
+                    $list = ( isset( $firewall_options[$list_key] ) && is_array( $firewall_options[$list_key] ) ? array_map( 'strval', $firewall_options[$list_key] ) : array() );
+                    $kept = array();
+                    foreach ( $firewall_options[$notes_key] as $note_ip => $note_text ) {
+                        if ( in_array( (string) $note_ip, $list, true ) ) {
+                            $kept[$note_ip] = $note_text;
+                        }
+                    }
+                    $firewall_options[$notes_key] = $kept;
+                }
+                $keep = array_fill_keys( array_keys( $existing_options ), true );
+                foreach ( array('autoban_rules', 'whitelist_notes', 'blacklist_notes') as $extra ) {
+                    $keep[$extra] = true;
+                }
+                $firewall_options = array_intersect_key( $firewall_options, $keep );
+                update_option( 'wf_sn_cf', $firewall_options, false );
+                if ( isset( $import_wf_data['wf_sn_cf_extended'] ) || isset( $import_wf_data['firewall_extended'] ) ) {
+                    $import_log[] = 'Skipped Early Firewall (site-local only).';
+                }
+                $import_log['firewall'] = 'success';
+            }
+            if ( !empty( $import_wf_data['scheduledscanner'] ) && is_array( $import_wf_data['scheduledscanner'] ) ) {
+                $scanner_options = $import_wf_data['scheduledscanner'];
+                if ( !isset( $scanner_options['scan_schedule'] ) && isset( $scanner_options['schedule'] ) ) {
+                    $scanner_options['scan_schedule'] = $scanner_options['schedule'];
+                }
+                if ( !isset( $scanner_options['main_setting'] ) && isset( $scanner_options['active'] ) ) {
+                    $scanner_options['main_setting'] = ( \WPSecurityNinja\Plugin\Utils::normalize_flag( $scanner_options['active'] ) ? '1' : '0' );
+                }
+                unset($scanner_options['active'], $scanner_options['schedule']);
+                $default_scanner_options = array(
+                    'main_setting'  => '0',
+                    'scan_schedule' => 'twicedaily',
+                    'email_report'  => 2,
+                    'email_to'      => get_bloginfo( 'admin_email' ),
+                );
+                $scanner_options = wp_parse_args( $scanner_options, $default_scanner_options );
+                $scanner_options['main_setting'] = sanitize_text_field( (string) $scanner_options['main_setting'] );
+                $scanner_options['scan_schedule'] = sanitize_text_field( (string) $scanner_options['scan_schedule'] );
+                $scanner_options['email_report'] = (int) $scanner_options['email_report'];
+                if ( !empty( $scanner_options['email_to'] ) ) {
+                    $scanner_options['email_to'] = sanitize_email( $scanner_options['email_to'] );
+                }
+                $ss_key = ( defined( 'WF_SN_SS_OPTIONS_KEY' ) ? WF_SN_SS_OPTIONS_KEY : 'wf_sn_ss' );
+                update_option( $ss_key, $scanner_options, false );
+                $import_log['scheduler'] = 'success';
+            }
+            if ( !empty( $import_wf_data['vulns'] ) && is_array( $import_wf_data['vulns'] ) ) {
+                $vulns = $import_wf_data['vulns'];
+                if ( class_exists( __NAMESPACE__ . '\\Wf_Sn_Vu' ) ) {
+                    $vulns = \WPSecurityNinja\Plugin\Wf_Sn_Vu::sanitize_settings( $vulns );
+                }
+                update_option( 'wf_sn_vu_settings_group', $vulns, false );
+                $import_log['vulns'] = 'success';
+            }
+            if ( !empty( $import_wf_data['eventslogger'] ) && is_array( $import_wf_data['eventslogger'] ) ) {
+                $el_options = \WPSecurityNinja\Plugin\Wf_Sn_El::sanitize_imported_settings( $import_wf_data['eventslogger'] );
+                $existing_el = get_option( 'wf_sn_el', array() );
+                if ( is_array( $existing_el ) && isset( $existing_el['known_admin_ids'] ) ) {
+                    $el_options['known_admin_ids'] = $existing_el['known_admin_ids'];
+                }
+                if ( is_array( $existing_el ) && isset( $existing_el['last_reported_event'] ) ) {
+                    $el_options['last_reported_event'] = $existing_el['last_reported_event'];
+                }
+                update_option( 'wf_sn_el', $el_options, false );
+                $import_log['eventslogger'] = 'success';
+            }
+            if ( !empty( $import_wf_data['fixes'] ) && is_array( $import_wf_data['fixes'] ) ) {
+                $fixes_options = $import_wf_data['fixes'];
+                $boolean_keys = array(
+                    'disable_editors',
+                    'disable_wp_debug',
+                    'disable_wp_sitemaps',
+                    'application_passwords',
+                    'disable_xmlrpc',
+                    'disable_username_enumeration',
+                    'remove_unwanted_files',
+                    'hide_wp',
+                    'hide_wlw',
+                    'secure_cookies',
+                    'hide_php_ver',
+                    'hide_server',
+                    'enable_xcto',
+                    'enable_xfo',
+                    'enable_xxp',
+                    'enable_sts',
+                    'enable_rp',
+                    'enable_fp',
+                    'enable_csp',
+                    'hide_wp_debug'
+                );
+                foreach ( $boolean_keys as $key ) {
+                    if ( isset( $fixes_options[$key] ) ) {
+                        $fixes_options[$key] = \WPSecurityNinja\Plugin\Utils::normalize_flag( $fixes_options[$key] );
+                    }
+                }
+                $text_keys = array(
+                    'sechead_xcto',
+                    'sechead_xfo',
+                    'sechead_sts',
+                    'sechead_rp',
+                    'sechead_fp',
+                    'sechead_csp'
+                );
+                foreach ( $text_keys as $key ) {
+                    if ( isset( $fixes_options[$key] ) ) {
+                        $fixes_options[$key] = sanitize_text_field( $fixes_options[$key] );
+                    }
+                }
+                $fixes_key = ( defined( 'WF_SN_FIXES_OPTIONS_KEY' ) ? WF_SN_FIXES_OPTIONS_KEY : 'wf_sn_fixes' );
+                update_option( $fixes_key, $fixes_options, false );
+                $import_log['fixes'] = 'success';
+            }
+            if ( !empty( $import_wf_data['whitelabel'] ) && is_array( $import_wf_data['whitelabel'] ) ) {
+                $whitelabel_options = $import_wf_data['whitelabel'];
+                if ( isset( $whitelabel_options['wl_active'] ) ) {
+                    $whitelabel_options['wl_active'] = \WPSecurityNinja\Plugin\Utils::normalize_flag( $whitelabel_options['wl_active'] );
+                }
+                $text_keys = array(
+                    'wl_newname',
+                    'wl_newdesc',
+                    'wl_newauthor',
+                    'wl_newurl',
+                    'wl_newiconurl',
+                    'wl_newmenuiconurl'
+                );
+                foreach ( $text_keys as $key ) {
+                    if ( isset( $whitelabel_options[$key] ) ) {
+                        $whitelabel_options[$key] = sanitize_text_field( $whitelabel_options[$key] );
+                    }
+                }
+                $url_keys = array('wl_newurl', 'wl_newiconurl', 'wl_newmenuiconurl');
+                foreach ( $url_keys as $key ) {
+                    if ( isset( $whitelabel_options[$key] ) && !empty( $whitelabel_options[$key] ) ) {
+                        $whitelabel_options[$key] = esc_url_raw( $whitelabel_options[$key] );
+                    }
+                }
+                update_option( 'wf_sn_wl', $whitelabel_options, false );
+                $import_log['whitelabel'] = 'success';
+            }
+            if ( !empty( $import_wf_data['malware_scanner']['whitelist'] ) && is_array( $import_wf_data['malware_scanner']['whitelist'] ) ) {
+                $sanitized = array();
+                foreach ( $import_wf_data['malware_scanner']['whitelist'] as $item ) {
+                    if ( !is_array( $item ) ) {
+                        continue;
+                    }
+                    if ( isset( $item['pattern'] ) && '' !== $item['pattern'] ) {
+                        $sanitized[] = array(
+                            'pattern' => sanitize_text_field( $item['pattern'] ),
+                        );
+                    } elseif ( !empty( $item['filename'] ) ) {
+                        $entry = array(
+                            'filename' => sanitize_text_field( $item['filename'] ),
+                        );
+                        if ( isset( $item['hash'] ) ) {
+                            $entry['hash'] = sanitize_text_field( $item['hash'] );
+                        }
+                        $sanitized[] = $entry;
+                    }
+                }
+                update_option( 'wf_sn_ms_whitelist', $sanitized, false );
+                $import_log['malware_scanner'] = 'success';
+            }
+            if ( !empty( $import_wf_data['core_scanner']['user_ignore'] ) && is_array( $import_wf_data['core_scanner']['user_ignore'] ) ) {
+                if ( !class_exists( '\\WPSecurityNinja\\Plugin\\Wf_Sn_Cs_Utils' ) ) {
+                    require_once WF_SN_PLUGIN_DIR . 'modules/core-scanner/class-wf-sn-cs-utils.php';
+                }
+                \WPSecurityNinja\Plugin\Wf_Sn_Cs_Utils::set_user_ignored_files( $import_wf_data['core_scanner']['user_ignore'] );
+                $import_log['core_scanner'] = 'success';
+            }
+            return $import_log;
         }
 
         /**
@@ -1337,7 +1657,7 @@ if ( !function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
             $out .= '<div id="secninja-tests-quickselect">';
             $out .= '<span>' . __( 'Quick Filter', 'security-ninja' ) . ':</span><ul><li><a href="#" id="sn-quickselect-all">' . __( 'All', 'security-ninja' ) . '</a></li><li><a href="#" id="sn-quickselect-failed">' . __( 'Failed', 'security-ninja' ) . '</a></li><li><a href="#"  id="sn-quickselect-warning">' . __( 'Warning', 'security-ninja' ) . '</a></li><li><a href="#" id="sn-quickselect-okay">' . __( 'Passed', 'security-ninja' ) . '</a></li><li><a href="#" id="sn-quickselect-untested">' . __( 'Untested', 'security-ninja' ) . '</a></li>';
             $out .= '</ul>';
-            $out .= ' <span class="secnin-expand-all-wrap">| <a href="#" class="secnin_expand_all_details">' . esc_html__( 'Expand all details', 'security-ninja' ) . '</a></span>';
+            $out .= ' <span class="secnin-expand-all-wrap"><a href="#" class="secnin_expand_all_details">' . esc_html__( 'Expand all details', 'security-ninja' ) . '</a></span>';
             $out .= '</div></div>';
             $out .= '<table class="wp-list-table widefat" cellspacing="0" id="security-ninja">';
             $out .= '<thead><tr>';
@@ -1673,7 +1993,7 @@ if ( !function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
             // Get firewall options
             $firewall_options = \WPSecurityNinja\Plugin\Wf_sn_cf::get_options();
             // Generate new secret access URL
-            $firewall_options['unblock_url'] = md5( time() . wp_rand() );
+            $firewall_options['unblock_url'] = \WPSecurityNinja\Plugin\Wf_sn_cf::generate_unblock_token();
             // Update the options
             update_option( 'wf_sn_cf', $firewall_options, false );
             // Log the event
@@ -1822,14 +2142,34 @@ if ( !function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
          * @return  void
          */
         public static function run_all_tests( $return_data = false ) {
-            if ( defined( 'DOING_AJAX' ) && DOING_AJAX ) {
+            /*
+             * Nonce only for Security Ninja UI AJAX that invokes this method directly.
+             * Internal callers (Scheduled Scanner, AI Advisor) pass $return_data = true.
+             * Action Scheduler's async queue runner also sets DOING_AJAX with its own nonce;
+             * requiring ours there aborts the whole request with 403 (ticket #10286).
+             */
+            $enforce_ajax_nonce = !$return_data && defined( 'DOING_AJAX' ) && DOING_AJAX;
+            if ( $enforce_ajax_nonce && function_exists( 'doing_action' ) ) {
+                if ( doing_action( 'wf_sn_ss_run_scheduled_scan' ) || doing_action( 'wf_sn_ss_cron' ) || doing_action( 'secnin_run_tests_event' ) || defined( 'WF_SN_AI_ADVISOR_RUN_SCHEDULED' ) && doing_action( WF_SN_AI_ADVISOR_RUN_SCHEDULED ) ) {
+                    $enforce_ajax_nonce = false;
+                }
+            }
+            if ( $enforce_ajax_nonce ) {
+                $ajax_action = ( isset( $_REQUEST['action'] ) ? sanitize_key( wp_unslash( $_REQUEST['action'] ) ) : '' );
+                // Foreign admin-ajax handlers (e.g. as_async_request_queue_runner) are not SN UI.
+                if ( '' !== $ajax_action && 0 === strpos( $ajax_action, 'as_' ) ) {
+                    $enforce_ajax_nonce = false;
+                }
+            }
+            if ( $enforce_ajax_nonce ) {
                 // Attempt to verify the first nonce.
-                $nonce_verified = wp_verify_nonce( sanitize_text_field( $_REQUEST['nonce'] ), 'wf_sn_run_tests' );
-                // If the first nonce verification fails, try the second nonce
-                if ( !$nonce_verified ) {
-                    $nonce = wp_unslash( $_REQUEST['nonce'] );
-                    $nonce = sanitize_text_field( $nonce );
-                    $nonce_verified = wp_verify_nonce( $nonce, 'secnin_scheduled_scanner' );
+                $nonce_verified = false;
+                if ( isset( $_REQUEST['nonce'] ) ) {
+                    $nonce_verified = wp_verify_nonce( sanitize_text_field( wp_unslash( $_REQUEST['nonce'] ) ), 'wf_sn_run_tests' );
+                    // If the first nonce verification fails, try the second nonce.
+                    if ( !$nonce_verified ) {
+                        $nonce_verified = wp_verify_nonce( sanitize_text_field( wp_unslash( $_REQUEST['nonce'] ) ), 'secnin_scheduled_scanner' );
+                    }
                 }
                 // If both nonce verifications fail, terminate the AJAX call.
                 if ( !$nonce_verified ) {
@@ -2125,6 +2465,7 @@ if ( !function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
     }
 
 }
+Wf_Sn::$version = ( defined( 'WF_SN_PLUGIN_VERSION' ) ? WF_SN_PLUGIN_VERSION : '' );
 register_activation_hook( __FILE__, array(__NAMESPACE__ . '\\WF_SN', 'activate') );
 register_deactivation_hook( __FILE__, array(__NAMESPACE__ . '\\WF_SN', 'deactivate') );
 register_uninstall_hook( __FILE__, array(__NAMESPACE__ . '\\WF_SN', 'uninstall') );

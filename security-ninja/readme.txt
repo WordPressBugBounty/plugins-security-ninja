@@ -5,8 +5,8 @@ Tags: security, firewall, waf, vulnerability, malware
 License: GPLv3
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 Requires at least: 4.7
-Tested up to: 7.1
-Stable tag: 5.303
+Tested up to: 7.1.2
+Stable tag: 5.305
 Requires PHP: 7.4
 
 WordPress security plugin: free 8G firewall/WAF, 50+ tests, vulnerability/core scanning, events logging, AI reports.
@@ -15,7 +15,7 @@ WordPress security plugin: free 8G firewall/WAF, 50+ tests, vulnerability/core s
 
 Security Ninja is a lightweight **WordPress security plugin** that helps protect your site from common attacks and security mistakes - without turning your dashboard into a cockpit.
 
-[youtube https://www.youtube.com/watch?v=5zzzQTPmbS0]
+[youtube https://www.youtube.com/watch?v=x8GZCnywMhE]
 
 **Web Application Firewall (WAF)** (based on the 8G ruleset) to block common malicious requests, plus 50+ security checks, a full vulnerability scanner, and a core integrity scanner to spot risky settings and unexpected file changes.
 
@@ -282,6 +282,63 @@ While we strive for universal compatibility, if you face any issues, our support
 5. Core Scanner (detect modified/unknown core files).
 
 == Changelog ==
+
+= 5.305 =
+* 2026-10-11
+* IMPROVED: German - The bundled translation now uses Du, the same terms throughout (Schwachstelle, Core-Scanner, Malware-Scanner, Korrekturen, Anmeldung), and the strings that were still English are translated.
+* FIX: Tests - A wp-config.php moved one level above the WordPress root now scores as a pass. A file still in the root stays a warning. Thank you Robert.
+* IMPROVED: Updated Freemius SDK to the latest version.
+* NEW: Agent skill - SKILL.md in the plugin folder tells Cursor and Claude-style agents how to configure Security Ninja, read scan results, and work through a harden checklist. This is separate from the WordPress Abilities API. Thank you Gabe.
+* IMPROVED: Vulnerability Scanner - When vulnerabilities are found, the warning is the only headline. "Vulnerability Scanner" stays when the scan is clean or still running. Collapsed Details no longer leaves an empty white bar.
+* FIX: Auto Fixer - File backups are stored as .wfbkp data files again (not .php), so the Malware Scanner no longer flags our own backups. Existing .wfbkp.php backups are migrated automatically. Thank you Tom and Masahiro.
+* IMPROVED: Tests - Permissions-Policy example now uses current header syntax and a shorter default that leaves fullscreen, autoplay, and encrypted media alone so embedded video keeps working. Thank you Lee.
+* IMPROVED: Tests - Permissions-Policy default no longer disables payment, so Apple Pay and Google Pay checkouts keep working. Thank you Robert.
+* IMPROVED: Tests - Content-Security-Policy help and Fixes examples use a WordPress-safe enforcing policy. Script limits stay an advanced step and will not pass the test while they are Report-Only. Thank you Robert.
+* IMPROVED: Tests - MySQL permissions warns when the account has ALL PRIVILEGES on this site's database, and fails on global grants or GRANT OPTION. The help text lists the privileges WordPress, updates, and backups need. Thank you Robert.
+* IMPROVED: Tests - Security header help cleanup: removed obsolete X-Frame-Options ALLOW-FROM, fixed CSP Apache Header set syntax, and aligned X-Content-Type-Options, X-Frame-Options, HSTS, and Referrer-Policy PHP examples with the wp_headers filter.
+* IMPROVED: Fixes - Hide WP Version now also clears the generator on RSS/Atom feeds and strips matching WordPress core ?ver= from CSS/JS asset URLs. Plugin and theme cache-busting versions are left alone.
+* FIX: Scheduled Scanner - Scans started through Action Scheduler's async admin-ajax runner no longer die on a Security Ninja test nonce check (403). Internal runners skip that AJAX nonce; UI AJAX still verifies it. Thank you Kevin.
+* IMPROVED: Firewall - Block IP Network now uses api.wpsecurityninja.com. User-agent matches stay local and are no longer sent to the shared list. Sites with the feature on download the shared list once a day.
+* IMPROVED: Firewall - Block IP Network reports are queued locally and flushed in batches (every 15 minutes or at 25 unique IPs), with a local hit count per IP.
+* IMPROVED: Firewall - Early Firewall 8G blocks are reported to the Block IP Network when WordPress imports them. User-agent matches stay local.
+* FIX: Firewall - Repeated failed logins are reported to the Block IP Network as repeat_failed_login, which is the type the shared list accepts.
+* IMPROVED: Events Logger - Selected firewall and block events, including Early Firewall blocks and lost-password bans, are kept for 90 days. Other events still follow the retention you set.
+* IMPROVED: Firewall - Country block selection stays as you set it when you press Enter in another field on the Firewall settings page.
+* IMPROVED: Firewall - Request URI checks use the path only. Query parameters are checked separately, so long tokens in URLs (for example WooCommerce download links) are not mistaken for exploit paths.
+
+= 5.304 =
+* 2026-10-01
+* NEW: Translations - Portuguese (Brazil).
+* IMPROVED: Translations - Full review of bundled language packs: Bulgarian, Chinese, Croatian, Danish, Dutch, Finnish, French, German, Italian, Korean, Norwegian, Portuguese (Brazil), Russian, Spanish, and Swedish.
+* NEW: Early Firewall (Pro, beta) - Optional mode that can run the firewall before WordPress loads via PHP auto_prepend_file. Existing sites stay on WordPress hooks until you enable it. Site-local only (not Tools import/export or MainWP). Beta limitations: not available on multisite or IIS; competing security WAFs are refused (guided migration); non-WAF prepends require confirmation; disable removes Security Ninja markers only and keeps prior prepend details for manual recovery.
+* NEW: Setup wizard (Pro, first run) - Optional Early Firewall step after Activate Firewall. Skip keeps the current WordPress-hooks firewall.
+* NEW: Admin notice (Pro) - Dismissible heads-up on existing sites that Early Firewall is available. No automatic install.
+* NEW: Events Logger (Pro) - Download the event log as CSV from the Events tab (capability + nonce + license gated, streamed in chunks for large logs). Thank you Tim.
+* IMPROVED: Events Logger - "Keep last N records" follows the number you save.
+* IMPROVED: Events Logger - Retention help text notes that selected firewall/block events can be kept longer for investigations, and that Delete all clears everything.
+* IMPROVED: Events Logger - Log rows with nested details stay readable in the events table.
+* IMPROVED: Firewall - Slimmer load path: heavy admin and cron code moved out of the always-loaded firewall class; shared 8G rules file; mail, temporary-login, and service/crawler whitelist helpers load on demand. Helps uncached PHP bootstrap cost.
+* IMPROVED: Firewall - WooCommerce checkout and payment returns are less likely to be treated as attacks. Obvious attacks are still blocked. Free and Pro.
+* IMPROVED: Firewall - SureCart checkout, product, and webhook requests are less likely to be treated as attacks, using the same approach as WooCommerce. Pro store rate limits and coupon protection apply when SureCart is active. When 2FA is on, sign in through the WordPress login. Free and Pro.
+* FIX: Admin - Firewall sidebar no longer crushes the main settings column on laptop and tablet widths. Store toggles stay on one row with their labels.
+* IMPROVED: Visitor Logging - New installs default to tracking off (existing sites keep their saved setting).
+* FIX: license_key.txt auto-activation now works when upgrading from Free to Pro. Thank you Michael.
+* IMPROVED: Firewall - Login settings page loads reliably in the free plugin.
+* IMPROVED: Firewall - Unusual cloud blocklist entries no longer interrupt the plugin admin page on PHP 8. Thank you Werner.
+* FIX: Tests - Quick Filter and Expand all details now sit on one row with Run Tests.
+* IMPROVED: Early Firewall (Pro) - Enable, Verify, and Disable update the panel without reloading the page. A spinner shows while the request runs.
+* IMPROVED: Early Firewall (Pro) - The beta notice hides once Early Firewall is installed, including while it is pending or on. Open Firewall settings jumps to the panel.
+* IMPROVED: Early Firewall (Pro) - Shorter status copy. Partial coverage is shown as On. While it is turning off, only Verify removal is shown.
+* FIX: Plugin header now includes Requires at least (WordPress 4.7) and Requires PHP (7.4), so the update screen can show both.
+* IMPROVED: Automatic AI review - Each scheduled review runs the security tests first, then sends those results and the latest stored scans. Malware scans stay on their own schedule.
+* FIX: Malware Scanner - Scan step timers stay in one right-hand column, and View File / Whitelist / Delete stay on one row in the findings table.
+* IMPROVED: Events Logger - User agents recorded by Early Firewall are stored cleanly, including unusual characters.
+* IMPROVED: Core Scanner and File Viewer - Path checks keep working on PHP 7.4 and older WordPress versions.
+* IMPROVED: Firewall - Existing secret access URLs stay as they are. Reset still creates a new one when you ask.
+* IMPROVED: Firewall - Visitor IP detection stays consistent across Automatic, Cloudflare, and proxy modes. If a reverse proxy sits in front of the site, add its address under Trusted proxy CIDRs.
+* IMPROVED: AI Security Advisor - Risk badges use the standard labels: low, medium, high, and critical.
+* IMPROVED: Tests - Plugin age and WordPress compatibility checks say when a plugin could not be verified, for example a premium or custom plugin, or when WordPress.org could not be reached.
+* IMPROVED: Firewall (Pro) - Firewall settings tabs and country blocking controls work with directory themes such as MyListing. Thank you Kevin.
 
 = 5.303 =
 * 2026-09-08

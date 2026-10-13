@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<phpunit
+	bootstrap="tests/waf-standalone-bootstrap.php"
+	colors="true"
+	convertDeprecationsToExceptions="false"
+	convertErrorsToExceptions="true"
+	convertNoticesToExceptions="true"
+	convertWarningsToExceptions="true"
+>
+	<testsuites>
+		<testsuite name="security-ninja-waf">
+			<file>./tests/waf-runner-test.php</file>
+			<file>./tests/waf-fs-atomic-test.php</file>
+			<file>./tests/waf-secure-snapshot-test.php</file>
+			<file>./tests/waf-lifecycle-path-test.php</file>
+			<file>./tests/waf-config-generation-test.php</file>
+			<file>./tests/waf-decision-engine-test.php</file>
+			<file>./tests/waf-login-related-test.php</file>
+			<file>./tests/waf-woo-payment-surface-test.php</file>
+			<file>./tests/waf-woo-payment-8g-test.php</file>
+			<file>./tests/waf-surecart-payment-surface-test.php</file>
+			<file>./tests/waf-surecart-payment-8g-test.php</file>
+			<file>./tests/waf-ban-clock-test.php</file>
+			<file>./tests/waf-recorder-test.php</file>
+			<file>./tests/waf-subprocess-smoke-test.php</file>
+			<file>./tests/waf-owasp-matrix-test.php</file>
+			<file>./tests/auto-fixer-backup-test.php</file>
+			<file>./tests/malware-scanner-sn-backup-test.php</file>
+		</testsuite>
+	</testsuites>
+</phpunit>
