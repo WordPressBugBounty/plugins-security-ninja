@@ -6,7 +6,7 @@ License: GPLv3
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 Requires at least: 4.7
 Tested up to: 7.1.2
-Stable tag: 5.305
+Stable tag: 5.306
 Requires PHP: 7.4
 
 WordPress security plugin: free 8G firewall/WAF, 50+ tests, vulnerability/core scanning, events logging, AI reports.
@@ -282,6 +282,17 @@ While we strive for universal compatibility, if you face any issues, our support
 5. Core Scanner (detect modified/unknown core files).
 
 == Changelog ==
+
+= 5.306 =
+* 2026-10-21
+* NEW: Login Protection - Optional "Redirect /wp-admin to homepage" when Change login URL is on. Logged-out visitors who open /wp-admin or /wp-login.php go to the homepage instead of Access Denied. Off by default. Does not reveal the new login URL. Included in Tools import/export and MainWP settings sync. Thank you Torsten for the suggestion.
+* FIX: Firewall - Filter Suspicious Queries no longer treats bare "..." in query values as path traversal (masked card numbers, truncated text). Real traversal such as ../, ..\\, and encoded variants still match. Thank you Kevin.
+* FIX: Early Firewall - After a plugin update, the compiled WAF config is rebuilt automatically so rule changes apply. If rebuild fails, Extended Protection shows an error instead of silently keeping old rules. Early Firewall is still in beta but proving very stable so far from the feedback we get.
+* FIX: Early Firewall - Pre-install recovery snapshots are stored as .wfbkp JSON (not .php), so the Malware Scanner no longer flags our own recovery files as Critical. Thank you 学而図書.
+* FIX: Firewall / WooCommerce - Coupon protection counts one failed apply per request (Woo can fire the error filter twice), logs the real coupon code instead of the numeric error id, returns a normal coupon error instead of killing the request, and no longer blocks placing an order when only coupons are temporarily limited. Default failed-attempt limit is 10 (minimum 5). Thank you Manfred.
+* FIX: Fixes - Security header names stay in English in every language. No more translated titles.
+* IMPROVED: Firewall - Referrer and blocked-host matches stay on the site.
+* IMPROVED: Firewall - IP Management. IP and status columns stay narrow so notes and last visit have the room. Last visit shows the relative time and the date. Long lists stay at 25 per page.
 
 = 5.305 =
 * 2026-10-11

@@ -302,10 +302,11 @@
 
 .sn-cf-status-badge {
   display: inline-block;
-  padding: 2px 8px;
+  padding: 2px 6px;
   border-radius: 3px;
   font-size: 12px;
   font-weight: 600;
+  line-height: 1.3;
 }
 
 .sn-cf-status-whitelisted {
@@ -351,7 +352,23 @@
 }
 
 .sn-cf-ip-pagination {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 12px;
   margin-top: 10px;
+}
+
+.sn-cf-ip-pagination-summary {
+  margin: 0;
+  color: #646970;
+  font-size: 13px;
+}
+
+.sn-cf-ip-page-gap {
+  padding: 0 2px;
+  color: #646970;
 }
 
 .sn-cf-ip-pagination-pages {
@@ -380,7 +397,7 @@
 }
 
 .sn-cf-ip-table {
-  table-layout: auto;
+  table-layout: fixed;
   width: 100%;
 }
 
@@ -391,35 +408,68 @@
   vertical-align: middle;
 }
 
+/* Beat .sncard.settings-card .form-table th { width: 62% }, which otherwise
+   stretches every header in this nested table. */
+.sncard.settings-card .sn-cf-ip-management .sn-cf-ip-table th.column-ip,
+.sncard.settings-card .sn-cf-ip-management .sn-cf-ip-table td.column-ip,
 .sn-cf-ip-table th.column-ip,
 .sn-cf-ip-table td.column-ip {
-  min-width: 160px;
-  padding-left: 12px;
-  padding-right: 10px;
+  width: 10.5rem;
+  padding-left: 10px;
+  padding-right: 6px;
 }
 
+.sncard.settings-card .sn-cf-ip-management .sn-cf-ip-table th.column-status,
+.sncard.settings-card .sn-cf-ip-management .sn-cf-ip-table td.column-status,
 .sn-cf-ip-table th.column-status,
 .sn-cf-ip-table td.column-status {
+  width: 11rem;
   white-space: nowrap;
-  padding-left: 8px;
-  padding-right: 8px;
+  padding-left: 4px;
+  padding-right: 4px;
 }
 
+.sncard.settings-card .sn-cf-ip-management .sn-cf-ip-table th.column-details,
+.sncard.settings-card .sn-cf-ip-management .sn-cf-ip-table td.column-details,
 .sn-cf-ip-table th.column-details,
 .sn-cf-ip-table td.column-details {
+  width: auto;
+  min-width: 0;
   padding-left: 8px;
   padding-right: 8px;
 }
 
+.sncard.settings-card .sn-cf-ip-management .sn-cf-ip-table th.column-actions,
+.sncard.settings-card .sn-cf-ip-management .sn-cf-ip-table td.column-actions,
 .sn-cf-ip-table th.column-actions,
 .sn-cf-ip-table td.column-actions {
-  width: 110px;
-  min-width: 110px;
+  width: 7.5rem;
   white-space: nowrap;
-  padding-left: 8px;
-  padding-right: 12px;
+  padding-left: 4px;
+  padding-right: 8px;
   text-align: right;
   vertical-align: middle;
+}
+
+@media (max-width: 782px) {
+  .sn-cf-ip-table {
+    table-layout: auto;
+  }
+
+  .sncard.settings-card .sn-cf-ip-management .sn-cf-ip-table th.column-ip,
+  .sncard.settings-card .sn-cf-ip-management .sn-cf-ip-table td.column-ip,
+  .sncard.settings-card .sn-cf-ip-management .sn-cf-ip-table th.column-status,
+  .sncard.settings-card .sn-cf-ip-management .sn-cf-ip-table td.column-status,
+  .sncard.settings-card .sn-cf-ip-management .sn-cf-ip-table th.column-actions,
+  .sncard.settings-card .sn-cf-ip-management .sn-cf-ip-table td.column-actions,
+  .sn-cf-ip-table th.column-ip,
+  .sn-cf-ip-table td.column-ip,
+  .sn-cf-ip-table th.column-status,
+  .sn-cf-ip-table td.column-status,
+  .sn-cf-ip-table th.column-actions,
+  .sn-cf-ip-table td.column-actions {
+    width: auto;
+  }
 }
 
 .sn-cf-ip-row-actions {
@@ -431,14 +481,21 @@
 }
 
 .sn-cf-ip-address {
+  font-size: 12px;
   word-break: break-all;
   white-space: normal;
 }
 
 .sn-cf-ip-details {
   font-size: 12px;
-  line-height: 1.35;
+  line-height: 1.45;
   color: #50575e;
+  overflow-wrap: break-word;
+}
+
+.sn-cf-ip-last-visit-abs {
+  color: #646970;
+  white-space: nowrap;
 }
 
 .sn-cf-ip-detail-line {

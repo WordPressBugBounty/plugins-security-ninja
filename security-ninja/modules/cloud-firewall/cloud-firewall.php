@@ -339,8 +339,12 @@ class Wf_sn_cf {
                         }
                         $extraarr = array_merge( $extraarr, $bad_query );
                         $extraarr['ip'] = $current_user_ip;
-                        $ua_string = ( isset( $_SERVER['HTTP_USER_AGENT'] ) ? sanitize_text_field( $_SERVER['HTTP_USER_AGENT'] ) : '' );
+                        $ua_string = ( isset( $_SERVER['HTTP_USER_AGENT'] ) ? sanitize_text_field( wp_unslash( $_SERVER['HTTP_USER_AGENT'] ) ) : '' );
                         $extraarr['user_agent'] = $ua_string;
+                        // A verified crawler is allowed through. Do not block it or share its IP.
+                        if ( !$whitelisted_user && self::validate_crawler_ip( $current_user_ip, $ua_string ) ) {
+                            $whitelisted_user = true;
+                        }
                         $request_uri = ( isset( $_SERVER['REQUEST_URI'] ) ? esc_url( $_SERVER['REQUEST_URI'] ) : '' );
                         if ( !empty( $request_uri ) ) {
                             $extraarr['request_uri'] = $request_uri;
@@ -1323,6 +1327,7 @@ class Wf_sn_cf {
             'redirect_url'                  => '',
             'blockadminlogin'               => 0,
             'change_login_url'              => 0,
+            'rename_login_redirect_home'    => 0,
             'new_login_url'                 => 'my-login',
             'unblock_url'                   => '',
             '2fa_enabled'                   => 0,
@@ -1345,8 +1350,8 @@ class Wf_sn_cf {
             'woo_order_rate_limit'          => 2,
             'woo_order_window'              => 600,
             'woo_coupon_protection_enabled' => 0,
-            'woo_coupon_failed_attempts'    => 3,
-            'woo_coupon_window'             => 180,
+            'woo_coupon_failed_attempts'    => 10,
+            'woo_coupon_window'             => 300,
             'woo_coupon_ban_time'           => 900,
             'satellite_soft_enabled'        => 1,
             'satellite_soft_asns'           => array('14593'),
@@ -1377,6 +1382,7 @@ class Wf_sn_cf {
             'woo_rate_limiting_enabled',
             'woo_coupon_protection_enabled',
             'change_login_url',
+            'rename_login_redirect_home',
             'blockadminlogin'
         );
         foreach ( $boolean_keys as $key ) {

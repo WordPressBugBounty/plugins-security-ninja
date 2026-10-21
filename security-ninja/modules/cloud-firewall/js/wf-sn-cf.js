@@ -389,7 +389,7 @@ jQuery(document).ready(function ($) {
           '<span class="sn-cf-ip-detail-line"><strong>' +
           (this.strings.last_visit_label || 'Last visit:') +
           '</strong> ' +
-          this.escapeHtml(entry.last_visit_text || '-') +
+          this.lastVisitHtml(entry) +
           '</span>';
         if (entry.note) {
           lines +=
@@ -469,14 +469,84 @@ jQuery(document).ready(function ($) {
         );
       },
 
+      lastVisitHtml: function (entry) {
+        var html =
+          '<span class="sn-cf-ip-last-visit-rel">' +
+          this.escapeHtml(entry.last_visit_text || '-') +
+          '</span>';
+        if (entry.last_visit_absolute) {
+          html +=
+            ' <time class="sn-cf-ip-last-visit-abs" datetime="' +
+            this.escapeAttr(entry.last_visit || '') +
+            '">(' +
+            this.escapeHtml(entry.last_visit_absolute) +
+            ')</time>';
+        }
+        return html;
+      },
+
+      rangeLabel: function (from, to, total) {
+        var template = this.strings.showing_range || 'Showing %1$s-%2$s of %3$s';
+        return template
+          .replace('%1$s', String(from))
+          .replace('%2$s', String(to))
+          .replace('%3$s', String(total));
+      },
+
+      pageItems: function (current, total) {
+        if (total <= 7) {
+          var all = [];
+          for (var i = 1; i <= total; i++) {
+            all.push(i);
+          }
+          return all;
+        }
+
+        var start = Math.max(2, current - 1);
+        var end = Math.min(total - 1, current + 1);
+        if (current <= 3) {
+          start = 2;
+          end = Math.min(total - 1, 4);
+        }
+        if (current >= total - 2) {
+          start = Math.max(2, total - 3);
+          end = total - 1;
+        }
+
+        var items = [1];
+        if (start > 2) {
+          items.push('gap');
+        }
+        for (var p = start; p <= end; p++) {
+          items.push(p);
+        }
+        if (end < total - 1) {
+          items.push('gap');
+        }
+        items.push(total);
+        return items;
+      },
+
       renderPagination: function (total, totalPages) {
         var $pag = $('#sn-cf-ip-pagination');
         $pag.empty();
+        if (!total) {
+          return;
+        }
+
+        var from = (this.page - 1) * this.perPage + 1;
+        var to = Math.min(this.page * this.perPage, total);
+        $pag.append(
+          $('<p class="sn-cf-ip-pagination-summary"></p>').text(this.rangeLabel(from, to, total))
+        );
+
         if (totalPages <= 1) {
           return;
         }
 
-        var $wrap = $('<div class="sn-cf-ip-pagination-pages" role="navigation" aria-label="IP list pagination"></div>');
+        var $wrap = $(
+          '<div class="sn-cf-ip-pagination-pages" role="navigation"></div>'
+        ).attr('aria-label', this.strings.pagination_label || 'IP list pages');
         var self = this;
 
         if (this.page > 1) {
@@ -487,15 +557,19 @@ jQuery(document).ready(function ($) {
           );
         }
 
-        for (var p = 1; p <= totalPages; p++) {
+        this.pageItems(this.page, totalPages).forEach(function (item) {
+          if (item === 'gap') {
+            $wrap.append('<span class="sn-cf-ip-page-gap" aria-hidden="true">&hellip;</span>');
+            return;
+          }
           var $btn = $('<button type="button" class="button sn-cf-ip-page-num"></button>')
-            .attr('data-page', p)
-            .text(String(p));
-          if (p === this.page) {
-            $btn.addClass('sn-cf-ip-page-current');
+            .attr('data-page', item)
+            .text(String(item));
+          if (item === self.page) {
+            $btn.addClass('sn-cf-ip-page-current').attr('aria-current', 'page');
           }
           $wrap.append($btn);
-        }
+        });
 
         if (this.page < totalPages) {
           $wrap.append(

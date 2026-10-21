@@ -84,7 +84,8 @@ return array(
 				'url_injection'          => '(s)?(ftp|inurl|php)(s)?(:(/|%2f|%u2215)(/|%2f|%u2215))', // Matches attempts to inject FTP or PHP URLs.
 				'wp_permalink_injection' => '(\\.|20)(get|the)(_|%5f)(permalink|posts_page_url)(\\(|%28)', // Matches complex injection attempts, potentially targeting WordPress permalink structure.
 				'critical_file_access'   => '((boot|win)((\\.|%2e)ini)|etc(/|%2f)passwd|self(/|%2f)environ)', // Matches attempts to access critical system files or environment paths.
-				'path_traversal'         => '(((/|%2f){3,})|((\\.|%2e){3,})|((\\.|%2e){2,})(/|%2f|%u2215))', // Matches path traversal attempts with excessive slashes or dots.
+				// Bare "..." (masked cards, truncated text) is not traversal; require dots + separator. Also match backslash variants.
+				'path_traversal'         => '(((/|%2f){3,})|((\\.|%2e){2,})(/|%2f|%u2215|\\\\|%5c))',
 				'code_exec_injection'    => '(benchmark|char|exec|fopen|function|html)(.*)(\\(|%28)(.*)(\\)|%29)', // Matches code execution or injection attempts.
 				'php_object_injection'   => '(php)([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})', // Matches PHP object injection attempts.
 				'eval_injection'         => '(e|%65|%45)(v|%76|%56)(a|%61|%31)(l|%6c|%4c)(.*)(\\(|%28)(.*)(\\)|%29)', // Matches eval function attempts with various encodings.

@@ -851,6 +851,7 @@ class Utils {
             'hide_login_errors',
             'blockadminlogin',
             'change_login_url',
+            'rename_login_redirect_home',
             '2fa_enabled',
             '2fa_backup_codes_enabled',
             '404guard_enabled',

@@ -72,6 +72,8 @@ class Wf_Sn_Cf_Admin {
                 'source_label'        => __( 'Source:', 'security-ninja' ),
                 'expires_label'       => __( 'Expires:', 'security-ninja' ),
                 'last_visit_label'    => __( 'Last visit:', 'security-ninja' ),
+                'showing_range'       => __( 'Showing %1$s-%2$s of %3$s', 'security-ninja' ),
+                'pagination_label'    => __( 'IP list pages', 'security-ninja' ),
                 'note_label'          => __( 'Note:', 'security-ninja' ),
                 'status_whitelisted'  => __( 'Whitelisted', 'security-ninja' ),
                 'status_blacklisted'  => __( 'Blacklisted', 'security-ninja' ),
@@ -772,6 +774,7 @@ class Wf_Sn_Cf_Admin {
                 'woo_rate_limiting_enabled',
                 'woo_coupon_protection_enabled',
                 'change_login_url',
+                'rename_login_redirect_home',
                 'blockadminlogin'
             );
             foreach ( $boolean_keys as $key ) {
@@ -818,6 +821,7 @@ class Wf_Sn_Cf_Admin {
             'redirect_url'                  => '',
             'blockadminlogin'               => 0,
             'change_login_url'              => 0,
+            'rename_login_redirect_home'    => 0,
             'new_login_url'                 => 'my-login',
             'unblock_url'                   => '',
             '2fa_required_roles'            => array(),
@@ -840,7 +844,7 @@ class Wf_Sn_Cf_Admin {
             'woo_order_rate_limit'          => 2,
             'woo_order_window'              => 600,
             'woo_coupon_protection_enabled' => 0,
-            'woo_coupon_failed_attempts'    => 5,
+            'woo_coupon_failed_attempts'    => 10,
             'woo_coupon_window'             => 300,
             'woo_coupon_ban_time'           => 900,
             'satellite_soft_enabled'        => 1,
@@ -874,6 +878,7 @@ class Wf_Sn_Cf_Admin {
             'woo_rate_limiting_enabled',
             'woo_coupon_protection_enabled',
             'change_login_url',
+            'rename_login_redirect_home',
             'blockadminlogin'
         );
         // Handle boolean keys
@@ -1049,9 +1054,9 @@ class Wf_Sn_Cf_Admin {
                     // Coupon protection options
                     case 'woo_coupon_failed_attempts':
                         $new_options[$key] = intval( $value );
-                        // Sanity check: minimum 3, maximum 15
-                        if ( $new_options[$key] < 3 ) {
-                            $new_options[$key] = 3;
+                        // Sanity check: minimum 5, maximum 15 (browser shopping helpers try several codes quickly).
+                        if ( $new_options[$key] < 5 ) {
+                            $new_options[$key] = 5;
                         } elseif ( $new_options[$key] > 15 ) {
                             $new_options[$key] = 15;
                         }
@@ -1290,6 +1295,7 @@ class Wf_Sn_Cf_Admin {
             'hide_login_errors',
             'failed_login_email_warning',
             'change_login_url',
+            'rename_login_redirect_home',
             'blockadminlogin',
             '2fa_enabled',
             '2fa_backup_codes_enabled'

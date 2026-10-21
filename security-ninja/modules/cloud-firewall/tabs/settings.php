@@ -36,15 +36,15 @@ function wf_sn_cf_render_ip_source_settings(  $options  ) {
             'desc'  => __( 'Direct connection. Most secure on origin-only hosts.', 'security-ninja' ),
         ),
         'cf_connecting_ip' => array(
-            'title' => __( 'Cloudflare CF-Connecting-IP', 'security-ninja' ),
+            'title' => 'Cloudflare CF-Connecting-IP',
             'desc'  => __( 'Use the Cloudflare visitor header only when REMOTE_ADDR is a Cloudflare IP. Falls back to REMOTE_ADDR otherwise.', 'security-ninja' ),
         ),
         'x_forwarded_for'  => array(
-            'title' => __( 'X-Forwarded-For', 'security-ninja' ),
+            'title' => 'X-Forwarded-For',
             'desc'  => __( 'First valid IP in X-Forwarded-For, only when the connection is from a private/local proxy, Cloudflare, or a Trusted proxy CIDR. Falls back to REMOTE_ADDR. If a public load balancer shows as every visitor, add its IP under Trusted proxy CIDRs.', 'security-ninja' ),
         ),
         'x_real_ip'        => array(
-            'title' => __( 'X-Real-IP', 'security-ninja' ),
+            'title' => 'X-Real-IP',
             'desc'  => __( 'Trust X-Real-IP only when the connection is from a private/local proxy, Cloudflare, or a Trusted proxy CIDR. Falls back to REMOTE_ADDR. If a public load balancer shows as every visitor, add its IP under Trusted proxy CIDRs.', 'security-ninja' ),
         ),
     );

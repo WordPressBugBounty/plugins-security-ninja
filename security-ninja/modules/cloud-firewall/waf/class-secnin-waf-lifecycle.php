@@ -101,6 +101,15 @@ class Secnin_Waf_Lifecycle {
 	}
 
 	/**
+	 * Directory for encrypted pre-install recovery snapshots (.wfbkp JSON, never PHP).
+	 *
+	 * @return string
+	 */
+	public static function get_recovery_dir() {
+		return trailingslashit( self::get_data_dir() ) . 'recovery';
+	}
+
+	/**
 	 * Detect server profile for prepend install.
 	 *
 	 * @return string apache-mod_php|litespeed|cgi|nginx|iis|unknown
@@ -516,9 +525,12 @@ class Secnin_Waf_Lifecycle {
 	/**
 	 * Snapshot a config file for admin-assisted recovery (not auto-restored).
 	 *
+	 * Stores an encrypted JSON .wfbkp envelope (same format as Auto Fixer).
+	 * Never writes .php — Malware Scanner would flag those as Critical.
+	 *
 	 * @param string $source_path File path.
 	 * @param string $label       Label.
-	 * @return array{ok:bool,path?:string,hash?:string,error?:string}
+	 * @return array{ok:bool,path?:string,hash?:string,error?:string,note?:string}
 	 */
 	public static function snapshot_for_recovery( $source_path, $label ) {
 		if ( ! class_exists( __NAMESPACE__ . '\\Secnin_Secure_Snapshot' ) || ! class_exists( __NAMESPACE__ . '\\Secnin_Fs_Atomic' ) ) {
@@ -529,9 +541,9 @@ class Secnin_Waf_Lifecycle {
 		}
 		if ( ! is_readable( $source_path ) ) {
 			return array(
-				'ok'    => true,
-				'hash'  => '',
-				'note'  => 'source_missing',
+				'ok'   => true,
+				'hash' => '',
+				'note' => 'source_missing',
 			);
 		}
 
@@ -543,11 +555,12 @@ class Secnin_Waf_Lifecycle {
 			);
 		}
 
-		$dir = trailingslashit( self::get_data_dir() ) . 'recovery';
+		$dir = self::get_recovery_dir();
 		Secnin_Fs_Atomic::protect_directory( dirname( $dir ) );
 		Secnin_Fs_Atomic::protect_directory( $dir );
-		$path = $dir . '/' . preg_replace( '/[^a-zA-Z0-9_-]/', '', $label ) . '-' . time() . '.php';
-		$write = Secnin_Secure_Snapshot::write_guarded_php( $path, $created['envelope'] );
+		$safe_label = preg_replace( '/[^a-zA-Z0-9_-]/', '', (string) $label );
+		$path       = trailingslashit( $dir ) . $safe_label . '-' . time() . '.wfbkp';
+		$write      = Secnin_Secure_Snapshot::write_envelope_json( $path, $created['envelope'] );
 		if ( ! Secnin_Fs_Atomic::is_ok( $write ) ) {
 			return array(
 				'ok'    => false,

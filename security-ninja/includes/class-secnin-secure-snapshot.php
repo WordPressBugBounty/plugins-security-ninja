@@ -225,7 +225,11 @@ class Secnin_Secure_Snapshot {
 	}
 
 	/**
-	 * Persist envelope as guarded PHP file (cannot be served as plaintext JSON).
+	 * Persist envelope as guarded PHP file.
+	 *
+	 * LEGACY ONLY. New product snapshots must use write_envelope_json() (.wfbkp).
+	 * Writing PHP under Early Firewall recovery/ is refused (Malware Scanner false positives).
+	 * Kept for Auto Fixer leftover migration and tests that build fixtures outside recovery/.
 	 *
 	 * @param string $path     Destination .php path.
 	 * @param array  $envelope Envelope.
@@ -239,16 +243,48 @@ class Secnin_Secure_Snapshot {
 				'message' => 'Invalid envelope.',
 			);
 		}
+		if ( self::path_is_waf_recovery_target( $path ) ) {
+			return array(
+				'ok'      => false,
+				'code'    => 'php_forbidden_in_waf_recovery',
+				'message' => 'Early Firewall recovery snapshots must be .wfbkp JSON, not PHP.',
+			);
+		}
 		$export  = var_export( $envelope, true );
 		$content = "<?php\n// Security Ninja guarded snapshot. Do not edit.\nif ( ! defined( 'ABSPATH' ) && ! defined( 'SECNIN_WAF_BOOTSTRAP' ) && ! defined( 'SECNIN_FS_ATOMIC_STANDALONE' ) ) { exit; }\nreturn " . $export . ";\n";
 		return Secnin_Fs_Atomic::write_file( $path, $content, 0600 );
 	}
 
 	/**
+	 * Whether a destination path is under Early Firewall recovery/ (must never be PHP).
+	 *
+	 * @param string $path Path.
+	 * @return bool
+	 */
+	public static function path_is_waf_recovery_target( $path ) {
+		$norm = str_replace( '\\', '/', (string) $path );
+		if ( '' === $norm ) {
+			return false;
+		}
+		if ( false !== strpos( $norm, '/security-ninja-waf/recovery/' ) ) {
+			return true;
+		}
+		if ( class_exists( __NAMESPACE__ . '\\Secnin_Waf_Lifecycle', false ) ) {
+			$recovery = Secnin_Waf_Lifecycle::get_recovery_dir();
+			$recovery = rtrim( str_replace( '\\', '/', (string) $recovery ), '/' ) . '/';
+			if ( '' !== $recovery && '/' !== $recovery && 0 === strpos( $norm, $recovery ) ) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	/**
 	 * Whether a file is an inert Auto Fixer v2 guarded snapshot under sn-backups.
 	 *
 	 * Reads bytes and tokenizes only. Never includes/executes the file. A matching
-	 * filename alone is never enough.
+	 * filename alone is never enough. New backups are .wfbkp JSON; this covers
+	 * leftover .wfbkp.php files until Auto Fixer migration removes them.
 	 *
 	 * @param string $path Absolute path.
 	 * @return bool
