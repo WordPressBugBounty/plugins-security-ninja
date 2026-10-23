@@ -1,1 +1,0 @@
-jQuery(document).ready((function($){jQuery(document).on("click",".secnin-welcome-notice .closeme",(function(){jQuery(".secnin-welcome-notice").slideUp()}))}));
