@@ -709,6 +709,7 @@ class Secnin_Waf_Runner {
 		$dir = dirname( dirname( __FILE__ ) ) . '/queue';
 		if ( ! is_dir( $dir ) ) {
 			@mkdir( $dir, 0755, true ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged,WordPress.WP.AlternativeFunctions.file_system_operations_mkdir
+			self::protect_queue_directory( $dir );
 		}
 		if ( ! is_dir( $dir ) || ! is_writable( $dir ) ) {
 			return;
@@ -729,8 +730,40 @@ class Secnin_Waf_Runner {
 			'source'      => 'early',
 			'ban_type'    => (string) $ban_type,
 		);
-		$file = $dir . '/evt-' . $event_id . '.php';
-		$body = "<?php\nreturn " . var_export( $event, true ) . ";\n";
+		$file = $dir . '/evt-' . $event_id . '.json';
+		$body = json_encode( $event );
+		if ( ! is_string( $body ) ) {
+			return;
+		}
 		@file_put_contents( $file, $body, LOCK_EX ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged,WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents
+	}
+
+	/**
+	 * Deny web access to the queue directory.
+	 *
+	 * Inlined so the early prepend process does not need Secnin_Fs_Atomic.
+	 *
+	 * @param string $dir Queue directory.
+	 * @return void
+	 */
+	private static function protect_queue_directory( $dir ) {
+		$dir = rtrim( (string) $dir, '/\\' );
+		if ( '' === $dir || ! is_dir( $dir ) ) {
+			return;
+		}
+
+		$htaccess   = "Order Deny,Allow\nDeny from all\n<IfModule mod_authz_core.c>\nRequire all denied\n</IfModule>\n";
+		$web_config = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<configuration>\n  <system.webServer>\n    <authorization>\n      <deny users=\"*\" />\n    </authorization>\n  </system.webServer>\n</configuration>\n";
+		$index      = "<?php\n// Silence is golden.\n";
+
+		if ( ! is_file( $dir . '/.htaccess' ) ) {
+			@file_put_contents( $dir . '/.htaccess', $htaccess, LOCK_EX ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged,WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents
+		}
+		if ( ! is_file( $dir . '/web.config' ) ) {
+			@file_put_contents( $dir . '/web.config', $web_config, LOCK_EX ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged,WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents
+		}
+		if ( ! is_file( $dir . '/index.php' ) ) {
+			@file_put_contents( $dir . '/index.php', $index, LOCK_EX ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged,WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents
+		}
 	}
 }

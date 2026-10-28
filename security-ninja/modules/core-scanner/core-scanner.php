@@ -87,6 +87,7 @@ class Wf_Sn_Cs {
             add_action( 'wp_ajax_sn_core_run_scan', array(__NAMESPACE__ . '\\Wf_Sn_Cs', 'do_action_core_run_scan') );
             add_action( 'wp_ajax_sn_core_get_cached_results', array(__NAMESPACE__ . '\\Wf_Sn_Cs', 'get_cached_results') );
             add_action( 'wp_ajax_sn_core_delete_all_unknowns', array(__NAMESPACE__ . '\\Wf_Sn_Cs', 'do_action_delete_all_unknowns') );
+            add_action( 'wp_ajax_sn_core_repair_truncated', array(__NAMESPACE__ . '\\Wf_Sn_Cs', 'do_action_repair_truncated') );
             add_action( 'wp_ajax_sn_core_ignore_file', array(__NAMESPACE__ . '\\Wf_Sn_Cs', 'ignore_unknown_file') );
             add_action( 'wp_ajax_sn_core_unignore_file', array(__NAMESPACE__ . '\\Wf_Sn_Cs', 'unignore_unknown_file') );
         }
@@ -240,6 +241,9 @@ class Wf_Sn_Cs {
                 }
             }
         }
+        if ( !empty( $results['truncated_core'] ) && is_array( $results['truncated_core'] ) ) {
+            $total += count( $results['truncated_core'] );
+        }
         return $total;
     }
 
@@ -253,7 +257,7 @@ class Wf_Sn_Cs {
         if ( !is_array( $results ) ) {
             return false;
         }
-        return !empty( $results['changed_bad'] ) || !empty( $results['missing_bad'] ) || !empty( $results['unknown_bad'] );
+        return !empty( $results['changed_bad'] ) || !empty( $results['missing_bad'] ) || !empty( $results['unknown_bad'] ) || !empty( $results['truncated_core'] );
     }
 
     /**
@@ -347,14 +351,15 @@ class Wf_Sn_Cs {
      * Summary counts for the results strip and row-action AJAX payloads.
      *
      * @param array $results Scan results.
-     * @return array{modified:int,missing:int,unknown:int,verified:int}
+     * @return array{modified:int,missing:int,unknown:int,truncated:int,verified:int}
      */
     private static function get_results_stats( $results ) {
         return array(
-            'modified' => ( !empty( $results['changed_bad'] ) && is_array( $results['changed_bad'] ) ? count( $results['changed_bad'] ) : 0 ),
-            'missing'  => ( !empty( $results['missing_bad'] ) && is_array( $results['missing_bad'] ) ? count( $results['missing_bad'] ) : 0 ),
-            'unknown'  => ( !empty( $results['unknown_bad'] ) && is_array( $results['unknown_bad'] ) ? count( $results['unknown_bad'] ) : 0 ),
-            'verified' => ( isset( $results['total'] ) ? (int) $results['total'] : 0 ),
+            'modified'  => ( !empty( $results['changed_bad'] ) && is_array( $results['changed_bad'] ) ? count( $results['changed_bad'] ) : 0 ),
+            'missing'   => ( !empty( $results['missing_bad'] ) && is_array( $results['missing_bad'] ) ? count( $results['missing_bad'] ) : 0 ),
+            'unknown'   => ( !empty( $results['unknown_bad'] ) && is_array( $results['unknown_bad'] ) ? count( $results['unknown_bad'] ) : 0 ),
+            'truncated' => ( !empty( $results['truncated_core'] ) && is_array( $results['truncated_core'] ) ? count( $results['truncated_core'] ) : 0 ),
+            'verified'  => ( isset( $results['total'] ) ? (int) $results['total'] : 0 ),
         );
     }
 
@@ -410,6 +415,12 @@ class Wf_Sn_Cs {
                 continue;
             }
             $results[$key] = array_values( array_filter( $results[$key], function ( $file ) use($remove) {
+                return !isset( $remove[$file] );
+            } ) );
+        }
+        if ( !empty( $results['truncated_core'] ) && is_array( $results['truncated_core'] ) ) {
+            $results['truncated_core'] = array_values( array_filter( $results['truncated_core'], function ( $row ) use($remove) {
+                $file = ( is_array( $row ) && isset( $row['file'] ) ? $row['file'] : '' );
                 return !isset( $remove[$file] );
             } ) );
         }
@@ -733,8 +744,11 @@ class Wf_Sn_Cs {
         $pricing_url = \WPSecurityNinja\Plugin\Utils::generate_sn_web_link( 'core_scanner_upgrade', '/upgrade/' );
         $changed = !empty( $results['changed_bad'] );
         $unknown = !empty( $results['unknown_bad'] );
+        $truncated = !empty( $results['truncated_core'] );
         if ( $changed ) {
             $text = __( 'Modified core files should be treated seriously. Pro adds scheduled scans, email alerts, and Events Logger audit trail.', 'security-ninja' );
+        } elseif ( $truncated ) {
+            $text = __( 'Shortened core filenames need a repair before those classes load under their official names. Pro adds scheduled scans and email alerts.', 'security-ninja' );
         } elseif ( $unknown ) {
             $text = __( 'Core Scanner found extra files WordPress did not ship. Malware Scanner (Pro) can inspect plugins and themes where most infections hide.', 'security-ninja' );
         } else {
@@ -798,6 +812,61 @@ class Wf_Sn_Cs {
     }
 
     /**
+     * Section for official core files saved under a WP-CLI shortened name.
+     *
+     * @param array $results Scan results.
+     * @return string
+     */
+    private static function build_truncated_core_section( $results ) {
+        if ( empty( $results['truncated_core'] ) || !is_array( $results['truncated_core'] ) ) {
+            return '';
+        }
+        $rows = array();
+        foreach ( $results['truncated_core'] as $row ) {
+            if ( !is_array( $row ) || empty( $row['file'] ) || empty( $row['official'] ) ) {
+                continue;
+            }
+            $file = (string) $row['file'];
+            $official = (string) $row['official'];
+            if ( !empty( $row['conflict'] ) ) {
+                $guidance = sprintf( 
+                    /* translators: %s: official core relative path */
+                    __( 'The full file %s is already on disk, but its contents do not match the official checksum. This shortened copy does match. It was not changed.', 'security-ninja' ),
+                    $official
+                 );
+            } elseif ( !empty( $row['official_ok'] ) ) {
+                $guidance = sprintf( 
+                    /* translators: %s: official core relative path */
+                    __( 'Leftover shortened copy of %s. The official file is already in place and matches the checksum, so this copy can be removed.', 'security-ninja' ),
+                    $official
+                 );
+            } else {
+                $guidance = sprintf( 
+                    /* translators: %s: official core relative path */
+                    __( 'Official core file saved under a shortened name. Contents match the checksum for %s. Repair renames it. Deleting it would remove the only copy.', 'security-ninja' ),
+                    $official
+                 );
+            }
+            $rows[] = array(
+                'file'     => $file,
+                'severity' => 'warning',
+                'guidance' => $guidance,
+                'view'     => true,
+            );
+        }
+        if ( empty( $rows ) ) {
+            return '';
+        }
+        $out = '<div class="sn-cs-section" data-section="truncated">';
+        $out .= '<h4>' . esc_html__( 'Truncated core filenames', 'security-ninja' ) . ' (' . esc_html( number_format_i18n( count( $rows ) ) ) . ')</h4>';
+        $out .= '<p class="description">' . esc_html__( 'These are official WordPress files. wp core download (WP-CLI) cuts archive paths at 100 characters, which hits wp-includes/php-ai-client/ on WordPress 7 and later. The contents match the WordPress.org checksum. Do not delete them, and do not delete the php-ai-client folder. Repair restores the original filename. Update WP-CLI afterwards so the next core download keeps the full names. Reinstalling this WordPress version from Dashboard > Updates does the same repair.', 'security-ninja' ) . '</p>';
+        $out .= self::render_findings_table( $rows );
+        $out .= '<p class="sn-cs-delete-all-wrap"><button type="button" class="sn-cs-repair-truncated button button-secondary button-small">' . esc_html__( 'Repair truncated filenames', 'security-ninja' ) . '</button></p>';
+        $out .= '</div>';
+        return $out;
+    }
+
+    /**
      * Build the full HTML output from a data-only results array.
      * Every call generates fresh tokens so links never expire.
      *
@@ -817,6 +886,10 @@ class Wf_Sn_Cs {
             return $out;
         }
         $out .= '<div id="sn-cs-results" class="' . esc_attr( self::get_findings_wrap_class( $results ) ) . '">';
+        $truncated_html = self::build_truncated_core_section( $results );
+        if ( $truncated_html ) {
+            $out .= $truncated_html;
+        }
         $unknown_html = self::build_unknown_files_sections( $results );
         if ( $unknown_html ) {
             $out .= $unknown_html;
@@ -985,6 +1058,72 @@ class Wf_Sn_Cs {
     }
 
     /**
+     * Restore official filenames for checksum-matching shortened core files.
+     *
+     * @return void
+     */
+    public static function do_action_repair_truncated() {
+        check_ajax_referer( 'wf_sn_cs' );
+        if ( !current_user_can( 'manage_options' ) ) {
+            wp_send_json_error( array(
+                'message' => __( 'You do not have sufficient permissions to access this page.', 'security-ninja' ),
+            ) );
+        }
+        $results = self::get_results_option( array() );
+        if ( empty( $results['truncated_core'] ) || !is_array( $results['truncated_core'] ) ) {
+            wp_send_json_error( array(
+                'message' => __( 'No truncated core files to repair.', 'security-ninja' ),
+            ) );
+        }
+        $filehashes = self::get_file_hashes();
+        if ( !is_array( $filehashes ) ) {
+            wp_send_json_error( array(
+                'message' => __( 'Could not load official WordPress checksums.', 'security-ninja' ),
+            ) );
+        }
+        self::load_utils();
+        $repaired = array();
+        $failed = array();
+        foreach ( $results['truncated_core'] as $row ) {
+            if ( !is_array( $row ) || empty( $row['file'] ) || !is_string( $row['file'] ) ) {
+                continue;
+            }
+            $done = Wf_Sn_Cs_Utils::repair_truncated_core_copy( $row['file'], $filehashes );
+            if ( is_wp_error( $done ) ) {
+                $failed[] = $row['file'];
+                continue;
+            }
+            $repaired[] = $row['file'];
+        }
+        if ( empty( $repaired ) ) {
+            wp_send_json_error( array(
+                'message' => __( 'No files were repaired.', 'security-ninja' ),
+                'failed'  => $failed,
+            ) );
+        }
+        $results = self::remove_paths_from_cached_results( $repaired );
+        wp_send_json_success( array_merge( self::build_row_action_payload( $results, $repaired ), array(
+            'repaired' => count( $repaired ),
+            'failed'   => $failed,
+        ) ) );
+    }
+
+    /**
+     * Bulk delete skips files that sit directly in the site root.
+     *
+     * @param string $relative_path Path relative to ABSPATH.
+     * @return bool
+     */
+    public static function is_bulk_deletable_unknown_path( $relative_path ) {
+        $path = str_replace( '\\', '/', (string) $relative_path );
+        $path = ltrim( $path, '/' );
+        if ( '' === $path || false === strpos( $path, '/' ) ) {
+            return false;
+        }
+        return true;
+    }
+
+    /**
      * Delete all unknown files in core WordPress folders
      *
      * @return void
@@ -1013,6 +1152,9 @@ class Wf_Sn_Cs {
             $failed_deletions = array();
             $findings = ( isset( $results['unknown_findings'] ) && is_array( $results['unknown_findings'] ) ? $results['unknown_findings'] : array() );
             foreach ( $results['unknown_bad'] as $ub ) {
+                if ( !self::is_bulk_deletable_unknown_path( $ub ) ) {
+                    continue;
+                }
                 $severity = ( isset( $findings[$ub]['severity'] ) ? $findings[$ub]['severity'] : 'warning' );
                 if ( !Wf_Sn_Cs_Utils::severity_counts_in_badge( $severity ) ) {
                     continue;
@@ -1072,22 +1214,23 @@ class Wf_Sn_Cs {
                 'run_scan_nonce'   => wp_create_nonce( 'wf-cs-run-scan-nonce' ),
                 'delete_all_nonce' => wp_create_nonce( 'wf-cs-delete-all-unknown-nonce' ),
                 'strings'          => array(
-                    'error_occurred'          => __( 'An error occurred', 'security-ninja' ),
-                    'undocumented_error'      => __( 'An undocumented error occurred. The page will reload.', 'security-ninja' ),
-                    'file_source'             => __( 'File source', 'security-ninja' ),
-                    'confirm_restore'         => __( 'Are you sure you want to restore this file?', 'security-ninja' ),
-                    'confirm_delete'          => __( 'Are you sure you want to delete this file?', 'security-ninja' ),
-                    'confirm_delete_all'      => __( 'Delete all critical and warning unknown files? Notice-level custom files will be kept.', 'security-ninja' ),
-                    'confirm_ignore_notice'   => __( 'Ignore this file? It will be hidden from Core Scanner findings on future scans.', 'security-ninja' ),
-                    'confirm_ignore_warning'  => __( 'Ignore this file? Only do this if you are certain it is intentional. Ignoring may hide a real security risk.', 'security-ninja' ),
-                    'confirm_ignore_critical' => __( 'Ignore this critical unknown file? Unexpected files in core locations are often malware. Only ignore if you are absolutely certain this file is safe and intentional.', 'security-ninja' ),
-                    'confirm_unignore'        => __( 'Stop ignoring this file? It will reappear in the unknown files list.', 'security-ninja' ),
-                    'ajax_error'              => __( 'An error occurred during the AJAX request.', 'security-ninja' ),
-                    'please_wait'             => __( 'Please wait.', 'security-ninja' ),
-                    'no_scan_yet'             => __( 'No scan made yet. Click "Scan Core Files" to run a scan.', 'security-ninja' ),
-                    'loading'                 => __( 'Loading...', 'security-ninja' ),
-                    'no_problems_found'       => __( 'No problems found', 'security-ninja' ),
-                    'report_disabled'         => __( 'Available when issues are detected.', 'security-ninja' ),
+                    'error_occurred'           => __( 'An error occurred', 'security-ninja' ),
+                    'undocumented_error'       => __( 'An undocumented error occurred. The page will reload.', 'security-ninja' ),
+                    'file_source'              => __( 'File source', 'security-ninja' ),
+                    'confirm_restore'          => __( 'Are you sure you want to restore this file?', 'security-ninja' ),
+                    'confirm_delete'           => __( 'Are you sure you want to delete this file?', 'security-ninja' ),
+                    'confirm_delete_all'       => __( 'Delete all critical and warning unknown files outside the site root? Notice-level custom files and files in the site root are kept.', 'security-ninja' ),
+                    'confirm_repair_truncated' => __( 'Restore the original filenames for these core files? A shortened copy is renamed when the official file is missing. It is deleted only when the official file is already present and matches the checksum.', 'security-ninja' ),
+                    'confirm_ignore_notice'    => __( 'Ignore this file? It will be hidden from Core Scanner findings on future scans.', 'security-ninja' ),
+                    'confirm_ignore_warning'   => __( 'Ignore this file? Only do this if you are certain it is intentional. Ignoring may hide a real security risk.', 'security-ninja' ),
+                    'confirm_ignore_critical'  => __( 'Ignore this critical unknown file? Unexpected files in core locations are often malware. Only ignore if you are absolutely certain this file is safe and intentional.', 'security-ninja' ),
+                    'confirm_unignore'         => __( 'Stop ignoring this file? It will reappear in the unknown files list.', 'security-ninja' ),
+                    'ajax_error'               => __( 'An error occurred during the AJAX request.', 'security-ninja' ),
+                    'please_wait'              => __( 'Please wait.', 'security-ninja' ),
+                    'no_scan_yet'              => __( 'No scan made yet. Click "Scan Core Files" to run a scan.', 'security-ninja' ),
+                    'loading'                  => __( 'Loading...', 'security-ninja' ),
+                    'no_problems_found'        => __( 'No problems found', 'security-ninja' ),
+                    'report_disabled'          => __( 'Available when issues are detected.', 'security-ninja' ),
                 ),
             );
             wp_localize_script( 'sn-core-js', 'wf_sn_cs', $js_vars );
@@ -1188,7 +1331,7 @@ class Wf_Sn_Cs {
             wp_die( 'Security check failed.' );
         }
         $results = self::get_results_option( array() );
-        $has_issues = !empty( $results['changed_bad'] ) || !empty( $results['missing_bad'] ) || !empty( $results['unknown_bad'] );
+        $has_issues = self::has_any_findings( $results );
         if ( !$has_issues || empty( $results['last_run'] ) ) {
             wp_die( 'No issues to report. Run a scan from the Core Scanner tab when issues are detected to print a report.' );
         }
@@ -1295,6 +1438,31 @@ class Wf_Sn_Cs {
 						<?php 
             foreach ( $results['missing_bad'] as $f ) {
                 echo '<li>' . esc_html( $f ) . '</li>';
+            }
+            ?>
+					</ul>
+				</section>
+			<?php 
+        }
+        ?>
+			<?php 
+        if ( !empty( $results['truncated_core'] ) && is_array( $results['truncated_core'] ) ) {
+            ?>
+				<section>
+					<h2><?php 
+            esc_html_e( 'Truncated core filenames', 'security-ninja' );
+            ?></h2>
+					<p><?php 
+            esc_html_e( 'Official WordPress files saved under a shortened name. The contents match the official checksum. Do not delete the php-ai-client folder.', 'security-ninja' );
+            ?></p>
+					<ul>
+						<?php 
+            foreach ( $results['truncated_core'] as $row ) {
+                if ( !is_array( $row ) || empty( $row['file'] ) ) {
+                    continue;
+                }
+                $official = ( isset( $row['official'] ) ? (string) $row['official'] : '' );
+                echo '<li>' . esc_html( $row['file'] ) . (( '' !== $official ? ' (' . esc_html( $official ) . ')' : '' )) . '</li>';
             }
             ?>
 					</ul>
@@ -1651,6 +1819,8 @@ class Wf_Sn_Cs {
                     $results['missing_bad'][] = $file;
                 }
             }
+            self::load_utils();
+            Wf_Sn_Cs_Utils::separate_truncated_core_files( $results, $filehashes );
             do_action( 'security_ninja_core_scanner_done_scanning', $results, microtime( true ) - $start_time );
             $results['run_time'] = number_format( microtime( true ) - $start_time, 2 );
             unset($results['missing_ok'], $results['changed_ok'], $results['ok']);
@@ -1768,6 +1938,8 @@ class Wf_Sn_Cs {
                     $results['missing_bad'][] = $file;
                 }
             }
+            self::load_utils();
+            Wf_Sn_Cs_Utils::separate_truncated_core_files( $results, $filehashes );
             do_action( 'security_ninja_core_scanner_done_scanning', $results, microtime( true ) - $start_time );
             $results['run_time'] = number_format( microtime( true ) - $start_time, 2 );
             unset($results['missing_ok'], $results['changed_ok'], $results['ok']);

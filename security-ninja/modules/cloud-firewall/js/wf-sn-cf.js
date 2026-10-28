@@ -8,6 +8,48 @@ jQuery(document).ready(function ($) {
 
   // Firewall subtabs are initialized in sn-global.js (no Select2 dependency).
 
+  // Hidden tabs stay in the same form. A number below its min (for example an
+  // old coupon trigger of 3 after the minimum became 5) makes the browser
+  // reject every save, including tabs where that field is not visible.
+  function clampFirewallNumberInput(input) {
+    var value = parseInt(input.value, 10);
+    if (isNaN(value)) {
+      return;
+    }
+    var min = input.getAttribute('min');
+    var max = input.getAttribute('max');
+    if (min !== null && min !== '' && value < parseInt(min, 10)) {
+      input.value = String(parseInt(min, 10));
+    } else if (max !== null && max !== '' && value > parseInt(max, 10)) {
+      input.value = String(parseInt(max, 10));
+    }
+  }
+
+  function clampHiddenFirewallNumbers(form) {
+    var inputs = form.querySelectorAll('.wf-sn-subtab input[type="number"]');
+    var i;
+    var panel;
+    for (i = 0; i < inputs.length; i++) {
+      panel = inputs[i].closest('.wf-sn-subtab');
+      if (!panel || panel.offsetParent !== null) {
+        continue;
+      }
+      clampFirewallNumberInput(inputs[i]);
+    }
+  }
+
+  var firewallForm = document.getElementById('sn-firewall-settings-form');
+  if (firewallForm) {
+    clampHiddenFirewallNumbers(firewallForm);
+    firewallForm.addEventListener('click', function (event) {
+      var target = event.target;
+      if (!target || !target.closest || !target.closest('[type="submit"]')) {
+        return;
+      }
+      clampHiddenFirewallNumbers(firewallForm);
+    }, true);
+  }
+
   // Function to toggle sub-inputs
   function toggleSubInputs(checkbox, subInputClass) {
     if (checkbox.is(':checked')) {
@@ -290,6 +332,10 @@ jQuery(document).ready(function ($) {
           e.preventDefault();
           self.openRemoveModal($(this).data('ip'), $(this).data('list-type'));
         });
+        $('#sn-cf-ip-table-body').on('click', '.sn-cf-lift-temporary', function (e) {
+          e.preventDefault();
+          self.openLiftTemporaryModal($(this).data('ip'));
+        });
         $('#sn-cf-ip-pagination').on('click', 'button', function (e) {
           e.preventDefault();
           self.page = parseInt($(this).data('page'), 10);
@@ -416,6 +462,18 @@ jQuery(document).ready(function ($) {
         var removeLabel = this.strings.remove || 'Remove';
         var editBtn = '';
         var removeBtn = '';
+        var unblockBtn = '';
+        if (entry.can_lift_temporary) {
+          var unblockLabel = this.strings.unblock || 'Unblock';
+          unblockBtn =
+            '<button type="button" class="button button-small sn-cf-icon-btn sn-cf-lift-temporary" data-ip="' +
+            this.escapeAttr(entry.ip) +
+            '" title="' +
+            this.escapeAttr(unblockLabel) +
+            '" aria-label="' +
+            this.escapeAttr(unblockLabel) +
+            '"><span class="dashicons dashicons-unlock" aria-hidden="true"></span></button>';
+        }
         if (entry.editable && entry.list_type) {
           editBtn =
             '<button type="button" class="button button-small sn-cf-icon-btn sn-cf-edit-ip" data-ip="' +
@@ -457,6 +515,7 @@ jQuery(document).ready(function ($) {
           '</td>' +
           '<td class="column-actions sn-cf-ip-row-actions">' +
           editBtn +
+          unblockBtn +
           '<button type="button" class="button button-small sn-cf-icon-btn sn-cf-copy-ip" data-ip="' +
           this.escapeAttr(entry.ip) +
           '" title="' +
@@ -784,6 +843,30 @@ jQuery(document).ready(function ($) {
 
         this.closeIpRuleModal();
         this.postEntriesAction(postData, 'Request failed.');
+      },
+
+      openLiftTemporaryModal: function (ip) {
+        var template = this.strings.unblock_confirm || 'Lift the temporary ban for %1$s?';
+        var message = template.replace('%1$s', ip);
+        var self = this;
+        SnDialog.confirm({
+          title: this.strings.unblock || 'Unblock',
+          message: message,
+          danger: true,
+          confirmText: this.strings.unblock || 'Unblock'
+        }).then(function (ok) {
+          if (!ok) {
+            return;
+          }
+          self.postEntriesAction(
+            {
+              action: 'sn_cf_lift_temporary_ban',
+              ip: ip,
+              _ajax_nonce: wf_sn_cf.nonce
+            },
+            'Could not lift ban.'
+          );
+        });
       },
 
       openRemoveModal: function (ip, listType) {

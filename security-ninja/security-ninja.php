@@ -5,7 +5,7 @@ Plugin Name: Security Ninja
 Plugin URI: https://wpsecurityninja.com/
 Description: Check your site for security vulnerabilities and get precise suggestions for corrective actions on passwords, user accounts, file permissions, database security, version hiding, plugins, themes, security headers and other security aspects.
 Author: WP Security Ninja
-Version: 5.306
+Version: 5.307
 Requires at least: 4.7
 Requires PHP: 7.4
 Author URI: https://wpsecurityninja.com/
@@ -248,7 +248,7 @@ if ( !function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
             add_action( 'admin_init', array('PAnD', 'init') );
             include_once WF_SN_PLUGIN_DIR . 'class-wf-sn-tests.php';
             include_once WF_SN_PLUGIN_DIR . 'includes/class-wf-sn-utils.php';
-            // MainWP integration - run here to make sure it's loaded
+            // MainWP integration: always register; callbacks verify MainWP Child is active.
             add_filter(
                 'mainwp_child_extra_execution',
                 array(__NAMESPACE__ . '\\Utils', 'do_filter_mainwp_child_extra_execution'),

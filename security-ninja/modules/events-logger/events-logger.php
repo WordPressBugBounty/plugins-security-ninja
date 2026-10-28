@@ -1110,13 +1110,56 @@ class Wf_Sn_El {
             $options['new_admin_notification_email'] = sanitize_email( $options['new_admin_notification_email'] );
         }
         if ( isset( $options['email_modules'] ) && is_array( $options['email_modules'] ) ) {
-            $options['email_modules'] = array_map( 'sanitize_text_field', $options['email_modules'] );
+            $options['email_modules'] = self::sanitize_email_modules_list( $options['email_modules'] );
         } else {
             $options['email_modules'] = ( isset( $baseline['email_modules'] ) ? $baseline['email_modules'] : array() );
         }
         if ( function_exists( __NAMESPACE__ . '\\secnin_fs' ) && is_object( secnin_fs() ) ) {
         }
         return $options;
+    }
+
+    /**
+     * Module slugs allowed in email report filters.
+     *
+     * @return string[]
+     */
+    public static function get_email_report_module_slugs() {
+        return array(
+            'users',
+            'menus',
+            'file_editor',
+            'taxonomies',
+            'media',
+            'posts',
+            'widgets',
+            'installer',
+            'comments',
+            'settings',
+            'security_ninja',
+            'woocommerce'
+        );
+    }
+
+    /**
+     * Sanitize email report module selections against the known module list.
+     *
+     * @param mixed $modules Raw module list.
+     * @return string[]
+     */
+    public static function sanitize_email_modules_list( $modules ) {
+        if ( !is_array( $modules ) ) {
+            return array();
+        }
+        $allowed = array_fill_keys( self::get_email_report_module_slugs(), true );
+        $clean = array();
+        foreach ( $modules as $module ) {
+            $slug = sanitize_key( (string) $module );
+            if ( '' !== $slug && isset( $allowed[$slug] ) ) {
+                $clean[] = $slug;
+            }
+        }
+        return array_values( array_unique( $clean ) );
     }
 
     /**
@@ -1539,11 +1582,20 @@ class Wf_Sn_El {
             return false;
         }
         if ( isset( self::$options['last_reported_event'] ) && $last_id - self::$options['last_reported_event'] >= (int) self::$options['email_reports'] ) {
-            $modules = '';
-            if ( self::$options['email_modules'] ) {
-                $modules = " and module IN('" . implode( "', '", self::$options['email_modules'] ) . "') ";
+            $last_reported = (int) self::$options['last_reported_event'];
+            $limit = max( 1, (int) self::$options['email_reports'] );
+            $table = $wpdb->prefix . 'wf_sn_el';
+            $sql = "SELECT * FROM {$table} WHERE id > %d";
+            $prepare_args = array($last_reported);
+            $email_modules = self::sanitize_email_modules_list( self::$options['email_modules'] );
+            if ( !empty( $email_modules ) ) {
+                $placeholders = implode( ', ', array_fill( 0, count( $email_modules ), '%s' ) );
+                $sql .= " AND module IN ({$placeholders})";
+                $prepare_args = array_merge( $prepare_args, $email_modules );
             }
-            $events = $wpdb->get_results( 'SELECT * FROM ' . $wpdb->prefix . 'wf_sn_el WHERE id > ' . self::$options['last_reported_event'] . $modules . ' ORDER BY id DESC LIMIT ' . self::$options['email_reports'] );
+            $sql .= ' ORDER BY id DESC LIMIT %d';
+            $prepare_args[] = $limit;
+            $events = $wpdb->get_results( $wpdb->prepare( $sql, $prepare_args ) );
             if ( !$events || count( $events ) < (int) self::$options['email_reports'] ) {
                 return;
             }

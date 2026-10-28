@@ -41,7 +41,7 @@ function wf_sn_cf_render_ip_source_settings(  $options  ) {
         ),
         'x_forwarded_for'  => array(
             'title' => 'X-Forwarded-For',
-            'desc'  => __( 'First valid IP in X-Forwarded-For, only when the connection is from a private/local proxy, Cloudflare, or a Trusted proxy CIDR. Falls back to REMOTE_ADDR. If a public load balancer shows as every visitor, add its IP under Trusted proxy CIDRs.', 'security-ninja' ),
+            'desc'  => __( 'Uses the first valid IP in X-Forwarded-For (comma-separated lists are parsed safely), only when the connection is from a private/local proxy, Cloudflare, or a Trusted proxy CIDR. Otherwise falls back to REMOTE_ADDR. If a public load balancer shows as every visitor, add its IP under Trusted proxy CIDRs.', 'security-ninja' ),
         ),
         'x_real_ip'        => array(
             'title' => 'X-Real-IP',

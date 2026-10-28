@@ -133,7 +133,14 @@ class Secnin_Waf_Recorder {
         if ( '' === $dir || !is_dir( $dir ) ) {
             return 0;
         }
-        $files = glob( $dir . '/evt-*.php' );
+        $php_files = glob( $dir . '/evt-*.php' );
+        if ( is_array( $php_files ) ) {
+            foreach ( $php_files as $php_file ) {
+                @unlink( $php_file );
+                // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged,WordPress.WP.AlternativeFunctions.unlink_unlink
+            }
+        }
+        $files = glob( $dir . '/evt-*.json' );
         if ( !is_array( $files ) || empty( $files ) ) {
             return 0;
         }
@@ -142,7 +149,9 @@ class Secnin_Waf_Recorder {
             if ( !is_readable( $file ) ) {
                 continue;
             }
-            $event = (include $file);
+            $raw = file_get_contents( $file );
+            // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents
+            $event = ( is_string( $raw ) ? json_decode( $raw, true ) : null );
             if ( !is_array( $event ) || empty( $event['event_id'] ) || empty( $event['ip'] ) ) {
                 @unlink( $file );
                 // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged,WordPress.WP.AlternativeFunctions.unlink_unlink

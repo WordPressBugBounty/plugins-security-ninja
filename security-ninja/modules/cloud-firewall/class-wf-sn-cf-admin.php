@@ -86,6 +86,9 @@ class Wf_Sn_Cf_Admin {
                 'edit_success'        => __( 'IP rule updated.', 'security-ninja' ),
                 'list_type_blacklist' => __( 'Blacklist', 'security-ninja' ),
                 'list_type_whitelist' => __( 'Whitelist', 'security-ninja' ),
+                'unblock'             => __( 'Unblock', 'security-ninja' ),
+                'unblock_confirm'     => __( 'Lift the temporary ban for %1$s?', 'security-ninja' ),
+                'unblock_success'     => __( 'Temporary ban lifted.', 'security-ninja' ),
             ),
             'waf_strings'   => array(
                 'installing'             => __( 'Installing…', 'security-ninja' ),
@@ -456,6 +459,37 @@ class Wf_Sn_Cf_Admin {
      *
      * @return void
      */
+    public static function ajax_lift_temporary_ban() {
+        check_ajax_referer( 'wf_sn_cf' );
+        wf_sn_cf::require_premium_ip_management_ajax();
+        if ( !current_user_can( 'manage_options' ) ) {
+            wp_send_json_error( array(
+                'message' => __( 'Failed.', 'security-ninja' ),
+            ) );
+        }
+        if ( !isset( $_POST['ip'] ) ) {
+            wp_send_json_error( array(
+                'message' => __( 'Missing required fields.', 'security-ninja' ),
+            ) );
+        }
+        $ip = sanitize_text_field( wp_unslash( $_POST['ip'] ) );
+        if ( !class_exists( __NAMESPACE__ . '\\Wf_Sn_Cf_Ip_Management' ) ) {
+            wp_send_json_error( array(
+                'message' => __( 'IP Management is not available.', 'security-ninja' ),
+            ) );
+        }
+        $result = Wf_Sn_Cf_Ip_Management::lift_temporary_bans_for_ip( $ip );
+        if ( is_wp_error( $result ) ) {
+            wp_send_json_error( array(
+                'message' => $result->get_error_message(),
+            ) );
+        }
+        wp_send_json_success( array(
+            'message' => __( 'Temporary ban lifted.', 'security-ninja' ),
+            'data'    => $result,
+        ) );
+    }
+
     public static function ajax_remove_ip_rule() {
         check_ajax_referer( 'wf_sn_cf' );
         wf_sn_cf::require_premium_ip_management_ajax();

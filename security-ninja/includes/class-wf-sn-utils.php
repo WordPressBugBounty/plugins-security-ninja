@@ -466,6 +466,34 @@ class Utils {
     }
 
     /**
+     * Whether the MainWP Child plugin is active on this site.
+     *
+     * @return bool
+     */
+    public static function is_mainwp_child_plugin_active() {
+        if ( defined( 'MAINWP_CHILD_URL' ) ) {
+            return true;
+        }
+        return class_exists( 'MainWP\\Child\\MainWP_Child' );
+    }
+
+    /**
+     * Whether MainWP may run Security Ninja remote actions on this child site.
+     *
+     * Site owners can disable via the wf_sn_mainwp_disable_remote_actions option (1 = disabled)
+     * or the wf_sn_mainwp_remote_actions_enabled filter.
+     *
+     * @return bool
+     */
+    public static function is_mainwp_remote_actions_enabled() {
+        if ( !self::is_mainwp_child_plugin_active() ) {
+            return false;
+        }
+        $default_enabled = !(bool) get_option( 'wf_sn_mainwp_disable_remote_actions', false );
+        return (bool) apply_filters( 'wf_sn_mainwp_remote_actions_enabled', $default_enabled );
+    }
+
+    /**
      * Handles incoming requests from MainWP Master.
      *
      * @author  Lars Koudal
@@ -477,6 +505,9 @@ class Utils {
      * @return  mixed
      */
     public static function do_filter_mainwp_site_sync_others_data( $information, $data = array() ) {
+        if ( !self::is_mainwp_child_plugin_active() ) {
+            return $information;
+        }
         if ( isset( $data['SecNin_get_details'] ) && $data['SecNin_get_details'] ) {
             try {
                 global $wpdb;
@@ -532,6 +563,22 @@ class Utils {
      * @return  mixed
      */
     public static function do_filter_mainwp_child_extra_execution( $info, $post_data ) {
+        if ( !self::is_mainwp_child_plugin_active() ) {
+            return $info;
+        }
+        if ( !self::is_mainwp_remote_actions_enabled() ) {
+            if ( is_array( $info ) && is_array( $post_data ) && !empty( $post_data['action'] ) ) {
+                $info['secnin_remote_actions_disabled'] = true;
+            }
+            return $info;
+        }
+        if ( !is_array( $post_data ) || !isset( $post_data['action'] ) ) {
+            return $info;
+        }
+        $post_data['action'] = sanitize_key( $post_data['action'] );
+        if ( '' === $post_data['action'] ) {
+            return $info;
+        }
         if ( isset( $post_data['action'] ) ) {
             switch ( $post_data['action'] ) {
                 // *** Run all tests
@@ -673,6 +720,14 @@ class Utils {
             'message' => '',
             'options' => array(),
         );
+        if ( !self::is_mainwp_remote_actions_enabled() ) {
+            $response['message'] = __( 'MainWP remote actions are disabled on this site.', 'security-ninja' );
+            return $response;
+        }
+        if ( !is_array( $post_data ) ) {
+            $response['message'] = __( 'Invalid request.', 'security-ninja' );
+            return $response;
+        }
         $patch = array();
         if ( isset( $post_data['settings_patch'] ) && is_array( $post_data['settings_patch'] ) ) {
             $patch = $post_data['settings_patch'];

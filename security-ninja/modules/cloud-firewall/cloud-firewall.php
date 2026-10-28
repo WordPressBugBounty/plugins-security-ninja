@@ -1497,6 +1497,11 @@ class Wf_sn_cf {
         return Wf_Sn_Cf_Admin::ajax_remove_ip_rule();
     }
 
+    public static function ajax_lift_temporary_ban() {
+        require_once WF_SN_PLUGIN_DIR . 'modules/cloud-firewall/class-wf-sn-cf-admin.php';
+        return Wf_Sn_Cf_Admin::ajax_lift_temporary_ban();
+    }
+
     public static function ajax_bulk_add_ip_rules() {
         require_once WF_SN_PLUGIN_DIR . 'modules/cloud-firewall/class-wf-sn-cf-admin.php';
         return Wf_Sn_Cf_Admin::ajax_bulk_add_ip_rules();

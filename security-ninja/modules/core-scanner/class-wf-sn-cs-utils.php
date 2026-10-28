@@ -41,6 +41,16 @@ class Wf_Sn_Cs_Utils {
     const USER_IGNORE_MAX = 500;
 
     /**
+     * Shortest path that can be a WP-CLI PharData truncation of a core file.
+     *
+     * Archive paths are cut at 100 bytes. The wordpress/ prefix uses 10 of those,
+     * so on-disk names are typically 90 characters. 80 leaves a little room.
+     *
+     * @var int
+     */
+    const TRUNCATED_CORE_MIN_LENGTH = 80;
+
+    /**
      * Whether Core Scanner options should be network-scoped.
      *
      * On Multisite, core files under ABSPATH are shared, so Ignore and
@@ -342,26 +352,77 @@ class Wf_Sn_Cs_Utils {
      * @return string|\WP_Error File body or WP_Error on failure.
      */
     public static function get_original_core_file_content( $relative_path, $version = null ) {
+        $relative_path = ltrim( str_replace( '\\', '/', (string) $relative_path ), '/' );
+        if ( '' === $relative_path ) {
+            return new \WP_Error('invalid_path', __( 'Invalid core file path.', 'security-ninja' ));
+        }
         $version = ( $version ? $version : get_bloginfo( 'version' ) );
         $key = 'wf_sn_cs_orig_' . $version . '_' . md5( $relative_path );
         $cached = get_transient( $key );
         if ( false !== $cached && is_string( $cached ) ) {
-            return $cached;
+            $cached_check = self::validate_original_core_file_body( $relative_path, $cached );
+            if ( true === $cached_check ) {
+                return $cached;
+            }
+            delete_transient( $key );
         }
         $url = 'https://core.trac.wordpress.org/browser/tags/' . $version . '/src/' . $relative_path . '?format=txt';
         $r = wp_remote_get( $url );
         if ( is_wp_error( $r ) ) {
             return $r;
         }
-        if ( 404 === wp_remote_retrieve_response_code( $r ) ) {
-            return new \WP_Error('not_found', __( 'Original file not found.', 'security-ninja' ));
+        $code = (int) wp_remote_retrieve_response_code( $r );
+        if ( 200 !== $code ) {
+            if ( 404 === $code ) {
+                return new \WP_Error('not_found', __( 'Original file not found.', 'security-ninja' ));
+            }
+            return new \WP_Error('http_error', sprintf( 
+                /* translators: %d: HTTP status code */
+                __( 'Unable to download original core file (HTTP %d).', 'security-ninja' ),
+                $code
+             ));
         }
         $body = wp_remote_retrieve_body( $r );
-        if ( '' === $body ) {
-            return new \WP_Error('empty', __( 'Unable to download remote file source.', 'security-ninja' ));
+        $valid = self::validate_original_core_file_body( $relative_path, $body );
+        if ( true !== $valid ) {
+            return $valid;
         }
         set_transient( $key, $body, self::ORIGINAL_FILE_TRANSIENT_EXPIRY );
         return $body;
+    }
+
+    /**
+     * Reject HTML challenge/error pages masquerading as core file downloads.
+     *
+     * @param string $relative_path Path under wp root (e.g. wp-includes/version.php).
+     * @param string $body          Response body.
+     * @return true|\WP_Error True when body looks like real file content.
+     */
+    public static function validate_original_core_file_body( $relative_path, $body ) {
+        if ( !is_string( $body ) || '' === $body ) {
+            return new \WP_Error('empty', __( 'Unable to download remote file source.', 'security-ninja' ));
+        }
+        $ext = strtolower( pathinfo( $relative_path, PATHINFO_EXTENSION ) );
+        if ( in_array( $ext, array('html', 'htm'), true ) ) {
+            return true;
+        }
+        $trim = ltrim( $body );
+        if ( 0 === stripos( $trim, '<!DOCTYPE html' ) || 0 === stripos( $trim, '<html' ) ) {
+            return new \WP_Error('html_challenge', __( 'Original core file download returned an HTML page instead of file content.', 'security-ninja' ));
+        }
+        $lower = strtolower( $body );
+        $markers = array(
+            'cf-browser-verification',
+            'cdn-cgi/challenge-platform',
+            'just a moment',
+            'checking your browser'
+        );
+        foreach ( $markers as $marker ) {
+            if ( false !== strpos( $lower, $marker ) ) {
+                return new \WP_Error('html_challenge', __( 'Original core file download returned an HTML page instead of file content.', 'security-ninja' ));
+            }
+        }
+        return true;
     }
 
     /**
@@ -626,6 +687,187 @@ class Wf_Sn_Cs_Utils {
             'wp-links-opml.php'
         );
         return in_array( $basename_lower, $decoys, true );
+    }
+
+    /**
+     * Find the single official checksum path this shortened core file belongs to.
+     *
+     * The unknown path must be a strict prefix of exactly one checksum path, and
+     * the file hash must equal that checksum. Two matches are rejected so a shared
+     * prefix cannot rename the file to the wrong class.
+     *
+     * @param string $unknown_path Path relative to ABSPATH.
+     * @param string $md5          MD5 of the file on disk.
+     * @param array  $filehashes   Official path => md5.
+     * @return string|false Official relative path, or false.
+     */
+    public static function match_truncated_checksum_path( $unknown_path, $md5, $filehashes ) {
+        $unknown_path = self::normalize_relative_path( $unknown_path );
+        if ( false === $unknown_path || !is_string( $md5 ) || '' === $md5 || !is_array( $filehashes ) ) {
+            return false;
+        }
+        if ( strlen( $unknown_path ) < self::TRUNCATED_CORE_MIN_LENGTH ) {
+            return false;
+        }
+        if ( 0 !== strpos( $unknown_path, 'wp-includes/' ) && 0 !== strpos( $unknown_path, 'wp-admin/' ) ) {
+            return false;
+        }
+        $matches = array();
+        $prefix_len = strlen( $unknown_path );
+        foreach ( $filehashes as $path => $hash ) {
+            if ( !is_string( $path ) || !is_string( $hash ) ) {
+                continue;
+            }
+            if ( strlen( $path ) <= $prefix_len ) {
+                continue;
+            }
+            if ( 0 !== strncmp( $path, $unknown_path, $prefix_len ) ) {
+                continue;
+            }
+            if ( !hash_equals( $hash, $md5 ) ) {
+                continue;
+            }
+            $matches[] = $path;
+            if ( count( $matches ) > 1 ) {
+                return false;
+            }
+        }
+        if ( 1 !== count( $matches ) ) {
+            return false;
+        }
+        return $matches[0];
+    }
+
+    /**
+     * Move checksum-matching shortened core files out of the unknown and missing lists.
+     *
+     * @param array       $results    Scan results, by reference.
+     * @param array       $filehashes Official path => md5.
+     * @param string|null $root       WordPress root. Default ABSPATH.
+     * @return void
+     */
+    public static function separate_truncated_core_files( &$results, $filehashes, $root = null ) {
+        if ( !is_array( $results ) ) {
+            return;
+        }
+        $results['truncated_core'] = array();
+        if ( empty( $results['unknown_bad'] ) || !is_array( $results['unknown_bad'] ) || !is_array( $filehashes ) ) {
+            return;
+        }
+        $root = trailingslashit( ( null === $root ? ABSPATH : $root ) );
+        $keep_unknown = array();
+        $truncated = array();
+        $hide_missing = array();
+        foreach ( $results['unknown_bad'] as $path ) {
+            if ( !is_string( $path ) ) {
+                continue;
+            }
+            $full = $root . $path;
+            if ( !is_file( $full ) ) {
+                $keep_unknown[] = $path;
+                continue;
+            }
+            $md5 = md5_file( $full );
+            if ( !is_string( $md5 ) ) {
+                $keep_unknown[] = $path;
+                continue;
+            }
+            $official = self::match_truncated_checksum_path( $path, $md5, $filehashes );
+            if ( false === $official ) {
+                $keep_unknown[] = $path;
+                continue;
+            }
+            $official_full = $root . $official;
+            $official_hash = ( isset( $filehashes[$official] ) ? (string) $filehashes[$official] : '' );
+            $official_ok = '' !== $official_hash && is_file( $official_full ) && hash_equals( $official_hash, (string) md5_file( $official_full ) );
+            $conflict = is_file( $official_full ) && !$official_ok;
+            $truncated[] = array(
+                'file'        => $path,
+                'official'    => $official,
+                'official_ok' => $official_ok,
+                'conflict'    => $conflict,
+            );
+            if ( !$official_ok && !$conflict ) {
+                $hide_missing[$official] = true;
+            }
+        }
+        $results['unknown_bad'] = array_values( $keep_unknown );
+        $results['truncated_core'] = $truncated;
+        if ( !empty( $hide_missing ) && !empty( $results['missing_bad'] ) && is_array( $results['missing_bad'] ) ) {
+            $results['missing_bad'] = array_values( array_filter( $results['missing_bad'], function ( $file ) use($hide_missing) {
+                return !isset( $hide_missing[$file] );
+            } ) );
+        }
+    }
+
+    /**
+     * Rename a shortened core file back to its official path, or delete a leftover copy.
+     *
+     * Refuses to overwrite an official path whose contents do not match the checksum.
+     *
+     * @param string      $truncated_path Path relative to the WordPress root.
+     * @param array       $filehashes     Official path => md5.
+     * @param string|null $root           WordPress root. Default ABSPATH.
+     * @return true|\WP_Error
+     */
+    public static function repair_truncated_core_copy( $truncated_path, $filehashes, $root = null ) {
+        $truncated_path = self::normalize_relative_path( $truncated_path );
+        if ( false === $truncated_path ) {
+            return new \WP_Error('invalid_path', __( 'Invalid file path.', 'security-ninja' ));
+        }
+        $root_real = realpath( ( null === $root ? ABSPATH : $root ) );
+        if ( false === $root_real ) {
+            return new \WP_Error('bad_root', __( 'Could not resolve the WordPress root.', 'security-ninja' ));
+        }
+        $root_real = wp_normalize_path( $root_real );
+        $source = $root_real . '/' . $truncated_path;
+        if ( !is_file( $source ) ) {
+            return new \WP_Error('missing_source', __( 'The shortened file is no longer on disk.', 'security-ninja' ));
+        }
+        $md5 = md5_file( $source );
+        if ( !is_string( $md5 ) ) {
+            return new \WP_Error('unreadable', __( 'Could not read the shortened file.', 'security-ninja' ));
+        }
+        $official = self::match_truncated_checksum_path( $truncated_path, $md5, $filehashes );
+        if ( false === $official || empty( $filehashes[$official] ) || !is_string( $filehashes[$official] ) ) {
+            return new \WP_Error('no_match', __( 'This file does not match an official WordPress checksum.', 'security-ninja' ));
+        }
+        $source_real = realpath( $source );
+        if ( false === $source_real || 0 !== strpos( wp_normalize_path( $source_real ), $root_real . '/' ) ) {
+            return new \WP_Error('bad_source', __( 'The shortened file is outside the WordPress root.', 'security-ninja' ));
+        }
+        $dest = $root_real . '/' . $official;
+        if ( 0 !== strpos( wp_normalize_path( $dest ), $root_real . '/' ) ) {
+            return new \WP_Error('bad_dest', __( 'The official path is outside the WordPress root.', 'security-ninja' ));
+        }
+        $dest_dir = realpath( dirname( $dest ) );
+        if ( false === $dest_dir || 0 !== strpos( wp_normalize_path( $dest_dir ), $root_real . '/' ) ) {
+            return new \WP_Error('bad_dest_dir', __( 'The official file directory is missing.', 'security-ninja' ));
+        }
+        if ( is_file( $dest ) ) {
+            $dest_md5 = md5_file( $dest );
+            if ( !is_string( $dest_md5 ) || !hash_equals( $filehashes[$official], $dest_md5 ) ) {
+                return new \WP_Error('dest_conflict', __( 'The official filename already exists, and its contents do not match the checksum. The shortened file was left in place.', 'security-ninja' ));
+            }
+            wp_delete_file( $source );
+            if ( is_file( $source ) ) {
+                return new \WP_Error('delete_failed', __( 'Could not delete the shortened leftover.', 'security-ninja' ));
+            }
+            return true;
+        }
+        if ( !is_writable( $dest_dir ) ) {
+            return new \WP_Error('not_writable', __( 'The core directory is not writable.', 'security-ninja' ));
+        }
+        // phpcs:ignore WordPress.WP.AlternativeFunctions.rename_rename -- Same-directory rename keeps the verified bytes. No new content is written.
+        if ( !rename( $source_real, $dest ) ) {
+            return new \WP_Error('rename_failed', __( 'Could not restore the official filename.', 'security-ninja' ));
+        }
+        clearstatcache( true, $dest );
+        $renamed_md5 = md5_file( $dest );
+        if ( !is_string( $renamed_md5 ) || !hash_equals( $filehashes[$official], $renamed_md5 ) ) {
+            return new \WP_Error('rename_mismatch', __( 'The file was renamed, but the checksum no longer matches.', 'security-ninja' ));
+        }
+        return true;
     }
 
 }
