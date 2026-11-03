@@ -45,8 +45,9 @@ return array(
 				'exploit_paths'       => '(/)((.*)crlf-?injection|(.*)xss-?protection|__(inc|jsc)|administrator|author-panel|cgi-bin|database|downloader|(db|mysql)-?admin)(/)', // Matches common admin or exploit paths
 				'malicious_php'       => '(/)(haders|head|helpear|incahe|includes?|indo(sec)?|infos?|install|ioptimizes?|jmail|js|king|kiss|kodox|kro|legion|libsoft)(\\.php)', // Matches potentially malicious or sensitive PHP scripts
 				'info_leak_paths'     => '(/)(awstats|document_root|dologin\\.action|error.log|extension/ext|htaccess\\.|lib/php|listinfo|phpunit/php|remoteview|server/php|www\\.root\\.)', // Matches server management or info leak paths
-				'code_execution'      => '(base64_(en|de)code|benchmark|curl_exec|e?chr|eval\(|function|fwrite|(f|p)open|html|leak|passthru|p?fsockopen|phpinfo)(.*)(\\(|%28)(.*)(\\)|%29)', // Matches code execution or info leak functions
-				'process_management'  => '(posix_(kill|mkfifo|setpgid|setsid|setuid)|(child|proc)_(close|get_status|nice|open|terminate)|(shell_)?exec|system)(.*)(\\(|%28)(.*)(\\)|%29)', // Matches commands or functions that manage processes or execute commands
+				// Whole word, then an immediate parenthesis. "chr" inside chrome, or "exec" inside executive, is not a call.
+				'code_execution'      => '(?<![a-z0-9_])(base64_(en|de)code|benchmark|curl_exec|e?chr|eval|function|fwrite|(f|p)open|html|leak|passthru|p?fsockopen|phpinfo)(?![a-z0-9_])(\\(|%28)',
+				'process_management'  => '(?<![a-z0-9_])(posix_(kill|mkfifo|setpgid|setsid|setuid)|(child|proc)_(close|get_status|nice|open|terminate)|(shell_)?exec|system)(?![a-z0-9_])(\\(|%28)',
 				'remote_admin_tools'  => '(/)((c99|php|web)?shell|crossdomain|fileditor|locus7|nstview|php(get|remoteview|writer)|r57|remview|sshphp|storm7|webadmin)(.*)(\\.|%2e|\\(|%28)', // Matches shells or remote admin tools
 				'wp_paths'            => '/((wp-)((201\\d|202\\d|[0-9]{2})|ad|admin(fx|rss|setup)|booking|confirm|crons|data|file|mail|one|plugins?|readindex|reset|setups?|story))(\\.php)', // Matches WordPress-specific paths
 				'various_php'         => '(/)(^$|-|\\!|\\w|\\.(.*)|100|123|([^iI])?ndex|index\\.php/index|7yn|90sec|aill|ajs\\.delivery|al277|alexuse?|ali|allwrite)(\\.php)', // Matches various PHP scripts or obfuscated paths
@@ -86,23 +87,28 @@ return array(
 				'critical_file_access'   => '((boot|win)((\\.|%2e)ini)|etc(/|%2f)passwd|self(/|%2f)environ)', // Matches attempts to access critical system files or environment paths.
 				// Bare "..." (masked cards, truncated text) is not traversal; require dots + separator. Also match backslash variants.
 				'path_traversal'         => '(((/|%2f){3,})|((\\.|%2e){2,})(/|%2f|%u2215|\\\\|%5c))',
-				'code_exec_injection'    => '(benchmark|char|exec|fopen|function|html)(.*)(\\(|%28)(.*)(\\)|%29)', // Matches code execution or injection attempts.
+				// Whole word, then a parenthesis. "char" inside Charlotte, or "html" in page.html, is not a function call.
+				'code_exec_injection'    => '(?<![a-z0-9_])(benchmark|char|exec|fopen|function|html)(?![a-z0-9_])(?:\\s|%20|%09)*(\\(|%28)',
 				'php_object_injection'   => '(php)([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})', // Matches PHP object injection attempts.
-				'eval_injection'         => '(e|%65|%45)(v|%76|%56)(a|%61|%31)(l|%6c|%4c)(.*)(\\(|%28)(.*)(\\)|%29)', // Matches eval function attempts with various encodings.
+				// Whole word, then a parenthesis. "eval" inside evaluation, medieval, or retrieval is not a call.
+				'eval_injection'         => '(?<![a-z0-9_])(?:e|%65|%45)(?:v|%76|%56)(?:a|%61|%31)(?:l|%6c|%4c)(?![a-z0-9_])(?:\\s|%20|%09)*(\\(|%28)',
 				'various_injections'     => '(/|%2f)(=|%3d|$&|_mm|cgi(\\.|\\-)|inurl(:|%3a)(/|%2f)|(mod|path)(=|%3d)(\\.|%2e))', // Matches various injection or manipulation attempts.
 				'html_embed'             => '(<|%3c)(.*)(e|%65|%45)(m|%6d|%4d)(b|%62|%42)(e|%65|%45)(d|%64|%44)(.*)(>|%3e)', // Matches embedded HTML or scripts
 				'iframe_injection'       => '(<|%3c)(.*)(i|%69|%49)(f|%66|%46)(r|%72|%52)(a|%61|%41)(m|%6d|%4d)(e|%65|%45)(.*)(>|%3e)', // Matches iframe injections
 				'object_injection'       => '(<|%3c)(.*)(o|%4f|%6f)(b|%62|%42)(j|%4a|%6a)(e|%65|%45)(c|%63|%43)(t|%74|%54)(.*)(>|%3e)', // Matches object tag injections
 				'script_injection'       => '(<|%3c)(.*)(s|%73|%53)(c|%63|%43)(r|%72|%52)(i|%69|%49)(p|%70|%50)(t|%74|%54)(.*)(>|%3e)', // Matches script tag injections
-				'space_delete'           => '(\\+|%2b|%20)(d|%64|%44)(e|%65|%45)(l|%6c|%4c)(e|%65|%45)(t|%74|%54)(e|%65|%45)(\\+|%2b|%20)', // Matches space or encoded space followed by 'delete'
-				'space_insert'           => '(\\+|%2b|%20)(i|%69|%49)(n|%6e|%4e)(s|%73|%53)(e|%65|%45)(r|%72|%52)(t|%74|%54)(\\+|%2b|%20)', // Matches space or encoded space followed by 'insert'
-				'space_select'           => '(\\+|%2b|%20)(s|%73|%53)(e|%65|%45)(l|%6c|%4c)(e|%65|%45)(c|%63|%43)(t|%74|%54)(\\+|%2b|%20)', // Matches space or encoded space followed by 'select'
-				'space_update'           => '(\\+|%2b|%20)(u|%75|%55)(p|%70|%50)(d|%64|%44)(a|%61|%41)(t|%74|%54)(e|%65|%45)(\\+|%2b|%20)', // Matches space or encoded space followed by 'update'
+				// The SQL word must be followed by SQL, not a normal phrase such as "please select one".
+				'space_delete'           => '(\\+|%2b|%20)(d|%64|%44)(e|%65|%45)(l|%6c|%4c)(e|%65|%45)(t|%74|%54)(e|%65|%45)(\\+|%2b|%20)([^&]{0,24})?(from)',
+				'space_insert'           => '(\\+|%2b|%20)(i|%69|%49)(n|%6e|%4e)(s|%73|%53)(e|%65|%45)(r|%72|%52)(t|%74|%54)(\\+|%2b|%20)([^&]{0,24})?(into)',
+				'space_select'           => '(\\+|%2b|%20)(s|%73|%53)(e|%65|%45)(l|%6c|%4c)(e|%65|%45)(c|%63|%43)(t|%74|%54)(\\+|%2b|%20)([^&]{0,40})?(\\*|%2a|from|where|union|schema)',
+				'space_update'           => '(\\+|%2b|%20)(u|%75|%55)(p|%70|%50)(d|%64|%44)(a|%61|%41)(t|%74|%54)(e|%65|%45)(\\+|%2b|%20)([^&]{0,40})?(set)',
 				'sql_null_byte'          => '(\\\\x00|(\"|%22|\'|%27)?0(\"|%22|\'|%27)?(=|%3d)(\"|%22|\'|%27)?0|cast(\\(|%28)0x|or%201(=|%3d)1)', // Matches null byte, zero equals zero, or SQL 'or 1=1' pattern
-				'php_globals_access'     => '(^|&)(g|%67|%47)(l|%6c|%4c)(o|%6f|%4f)(b|%62|%42)(a|%61|%41)(l|%6c|%4c)(s|%73|%53)(=|\\[|%[0-9A-Z]{0,2})', // Matches attempts to access or manipulate PHP globals
-				'request_array_access'   => '(_|%5f)(r|%72|%52)(e|%65|%45)(q|%71|%51)(u|%75|%55)(e|%65|%45)(s|%73|%53)(t|%74|%54)(=|\\[|%[0-9A-Z]{2,})', // Matches attempts to access or manipulate the request array
+				'php_globals_access'     => '(^|&)(g|%67|%47)(l|%6c|%4c)(o|%6f|%4f)(b|%62|%42)(a|%61|%41)(l|%6c|%4c)(s|%73|%53)(=|\\[|%3d|%5b)', // Matches attempts to access or manipulate PHP globals
+				// The parameter itself must be _request, not a name that merely ends in _request.
+				'request_array_access'   => '(?<![a-z0-9])(_|%5f)(r|%72|%52)(e|%65|%45)(q|%71|%51)(u|%75|%55)(e|%65|%45)(s|%73|%53)(t|%74|%54)(=|\\[|%3d|%5b)',
 				'js_protocol_injection'  => '(j|%6a|%4a)(a|%61|%41)(v|%76|%56)(a|%61|%31)(s|%73|%53)(c|%63|%43)(r|%72|%52)(i|%69|%49)(p|%70|%50)(t|%74|%54)(:|%3a)(.*)(;|%3b|\\)|%29)', // Matches javascript protocol injection
-				'base64_encode_attempt'  => '(b|%62|%42)(a|%61|%41)(s|%73|%53)(e|%65|%45)(6|%36)(4|%34)(_|%5f)(d|%64|%44)(e|%65|%45|n|%6e|%4e)(c|%63|%43)(o|%6f|%4f)(d|%64|%44)(e|%65|%45)(.*)(\\()(.*)(\\))', // Matches base64 encode function attempts
+				// The parenthesis has to follow the function. A later "(" somewhere else in the query is not a call.
+				'base64_encode_attempt'  => '(?<![a-z0-9_])(?:b|%62|%42)(?:a|%61|%41)(?:s|%73|%53)(?:e|%65|%45)(?:6|%36)(?:4|%34)(?:_|%5f)(?:d|%64|%44)(?:e|%65|%45|n|%6e|%4e)(?:c|%63|%43)(?:o|%6f|%4f)(?:d|%64|%44)(?:e|%65|%45)(?:\\s|%20|%09)*\\(',
 	),
 	'user_agent' => array(
 		'ua_long_alnum'       => '[a-z0-9]{2000,}', // Matches user agents longer than 2000 alphanumeric characters.

@@ -938,6 +938,7 @@ class Utils {
         $firewall['404guard_block_time'] = 'int';
         $firewall['blocked_countries'] = 'country_codes';
         $firewall['2fa_grace_period'] = 'int';
+        $firewall['2fa_remember_days'] = 'int';
         $firewall['2fa_intro'] = 'text';
         $firewall['2fa_enter_code'] = 'text';
         $firewall['satellite_soft_asns'] = 'asn_list';
@@ -1072,7 +1073,11 @@ class Utils {
             case 'bool':
                 return self::normalize_flag( $value );
             case 'int':
-                return max( 0, (int) $value );
+                $int = max( 0, (int) $value );
+                if ( 'firewall' === $module && '2fa_remember_days' === $key ) {
+                    $int = min( 90, $int );
+                }
+                return $int;
             case 'email':
                 return sanitize_email( (string) $value );
             case 'url':
@@ -1444,7 +1449,7 @@ class Utils {
      *   overview_upgrade, overview_trial
      * Topbar: topbar_docs, topbar_help
      * Wizard: wizard_upgrade
-     * Email: email_vuln_footer, email_secret_access
+     * Email: email_vuln_footer, email_vuln_upgrade, email_secret_access
      * Other: newsletter_signup
      *
      * @param string $placement utm_content placement key.

@@ -5,7 +5,7 @@ Plugin Name: Security Ninja
 Plugin URI: https://wpsecurityninja.com/
 Description: Check your site for security vulnerabilities and get precise suggestions for corrective actions on passwords, user accounts, file permissions, database security, version hiding, plugins, themes, security headers and other security aspects.
 Author: WP Security Ninja
-Version: 5.307
+Version: 5.308
 Requires at least: 4.7
 Requires PHP: 7.4
 Author URI: https://wpsecurityninja.com/
@@ -1145,6 +1145,14 @@ if ( !function_exists( '\\WPSecurityNinja\\Plugin\\secnin_fs' ) ) {
                         }
                     }
                     $firewall_options[$notes_key] = $kept;
+                }
+                // Older exports omit this key. Keep the value already on this site.
+                if ( array_key_exists( '2fa_remember_days', $firewall_options ) ) {
+                    $firewall_options['2fa_remember_days'] = max( 0, min( 90, (int) $firewall_options['2fa_remember_days'] ) );
+                } elseif ( isset( $existing_options['2fa_remember_days'] ) ) {
+                    $firewall_options['2fa_remember_days'] = max( 0, min( 90, (int) $existing_options['2fa_remember_days'] ) );
+                } else {
+                    $firewall_options['2fa_remember_days'] = 0;
                 }
                 $keep = array_fill_keys( array_keys( $existing_options ), true );
                 foreach ( array('autoban_rules', 'whitelist_notes', 'blacklist_notes') as $extra ) {

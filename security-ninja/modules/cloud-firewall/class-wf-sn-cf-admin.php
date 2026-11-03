@@ -864,6 +864,7 @@ class Wf_Sn_Cf_Admin {
             '2fa_enabled_timestamp'         => '',
             '2fa_backup_codes_enabled'      => 0,
             '2fa_grace_period'              => 14,
+            '2fa_remember_days'             => 0,
             '2fa_intro'                     => '',
             '2fa_enter_code'                => '',
             '404guard_enabled'              => 1,
@@ -998,6 +999,9 @@ class Wf_Sn_Cf_Admin {
                     case 'trackvisits_howlong':
                         // number of days to track visits
                         $new_options[$key] = intval( $value );
+                        break;
+                    case '2fa_remember_days':
+                        $new_options[$key] = max( 0, min( 90, intval( $value ) ) );
                         break;
                     case '404guard_threshold':
                         $new_options[$key] = intval( $value );
@@ -1342,6 +1346,7 @@ class Wf_Sn_Cf_Admin {
             'max_login_attempts_time' => array(1, 60),
             'bruteforce_ban_time'     => array(2, 5256000),
             '2fa_grace_period'        => array(0, 90),
+            '2fa_remember_days'       => array(0, 90),
         );
         foreach ( $int_keys as $key => $bounds ) {
             if ( isset( $values[$key] ) ) {

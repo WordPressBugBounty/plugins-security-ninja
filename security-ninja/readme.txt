@@ -6,7 +6,7 @@ License: GPLv3
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 Requires at least: 4.7
 Tested up to: 7.1.2
-Stable tag: 5.307
+Stable tag: 5.308
 Requires PHP: 7.4
 
 WordPress security plugin: free 8G firewall/WAF, 50+ tests, vulnerability/core scanning, events logging, AI reports.
@@ -285,9 +285,19 @@ While we strive for universal compatibility, if you face any issues, our support
 
 Recent releases are below. The full history is on <a href="https://wpsecurityninja.com/changelog/?utm_source=wordpressorg&utm_medium=content&utm_campaign=readme&utm_content=changelog">wpsecurityninja.com/changelog/</a>.
 
+= 5.308 =
+* 2026-11-03
+* FIX: Vulnerability Scanner - The "plugins checked" and "themes checked" numbers now match what is installed. A plugin with many known issues was counted once for each database row, and a theme with no known issues was reported as 0. The scan was already checking the installed list. Run the scan again after updating so the event log shows the new numbers. Thank you Werner.
+* IMPROVED: Two-Factor Authentication - Login Protection can let a browser skip 2FA for a set number of days after a successful code. It stays off until you set the days (up to 90). The person still ticks "Remember this browser" on the code screen. A password change from the profile screen or the reset email, or resetting 2FA, asks for a code again. Lowering the days cuts short a browser that was remembered for longer. The number is included in Tools import/export. An older export that does not have it leaves the number already on the site. Thank you Torsten.
+* IMPROVED: Two-Factor Authentication - Backup codes are shown when 2FA setup finishes. The person confirms they have saved them before continuing. Each code is shown once and works once. A password change, or resetting 2FA, deletes the codes. A new set can be created later from the profile.
+* FIX: Two-Factor Authentication - The login session created by the password is destroyed before the code screen. The code is checked for the account that passed the password step. A user id sent with the code is ignored. Wrong codes, including backup codes, still count toward lockout, and a blocked IP is not checked for a code.
+* FIX: Two-Factor Authentication - "Remember this browser" on the code screen can be ticked. The verify button no longer sits on top of it.
+* FIX: Scheduled Scanner - The email names the security test that changed, including the previous result when the message changed. Core files are listed only when they are new or no longer listed. A file that was already reported does not send another change email by itself.
+
 = 5.307 =
-* 2026-10-25
+* 2026-11-01
 * Login, firewall, and scan updates. Your saved settings stay as they are.
+* FIX: Firewall - Filter Suspicious Queries no longer treats ordinary text as an attack. A MapPress title such as "Scharfenstein (Rangerstation)" is not a function call, and neither is "Charlotte (Charlie)" or "Functions (overview)". The function name has to stand on its own and be followed by a parenthesis. char(), eval(), and benchmark() are still blocked. Words such as "evaluation" or "medieval" are not eval(). A phrase such as "please select one" is no longer treated as SQL. select, insert, update, and delete are still blocked when SQL follows, such as FROM, INTO, or SET. A parameter that only ends in _request, such as download_request, is no longer treated as access to the request array. Thank you Torsten and Kevin.
 * FIX: Core Scanner - WordPress 7 files under wp-includes/php-ai-client/ that were saved with a shortened name are no longer listed as critical unknown files. When the file matches the official checksum, the scan explains the shortened name and can rename it back. Those files are left out of "Delete critical & warning unknowns".
 * FIX: Firewall - A saved coupon limit of 3 (the minimum is now 5) no longer blocks saving the other firewall tabs. The field sits on the Store tab in the same form, and the browser was refusing to submit it. Thank you Chris.
 * IMPROVED: Two-Factor Authentication - Repeated wrong codes now use the same limit as failed logins (default 5 tries in 5 minutes). The wait stays in place until that window ends. With the firewall on, those tries count the same way a wrong password does.

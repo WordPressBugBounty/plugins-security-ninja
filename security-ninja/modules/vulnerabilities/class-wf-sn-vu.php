@@ -1739,6 +1739,15 @@ class Wf_Sn_Vu {
         $message_content_html .= '<p>' . esc_html__( 'Thank you for using WP Security Ninja', 'security-ninja' ) . ' - <a href="' . esc_url( $url ) . '" target="_blank">' . esc_html__( 'WP Security Ninja', 'security-ninja' ) . '</a></p>';
         // Additional security advice
         $message_content_html .= '<p>' . esc_html__( 'For enhanced security, please ensure that all your plugins, themes, and WordPress itself are always up-to-date. Regular updates help protect your website from known vulnerabilities.', 'security-ninja' ) . '</p>';
+        // Free installs (and premium code without an active license) get a single upgrade link.
+        // Active Pro licenses skip it. The premium if is stripped from the free build.
+        $show_upgrade_link = true;
+        if ( $show_upgrade_link ) {
+            $upgrade_url = Utils::generate_sn_web_link( 'email_vuln_upgrade', '/upgrade/', array(
+                'utm_medium' => 'email',
+            ) );
+            $message_content_html .= '<p><a href="' . esc_url( $upgrade_url ) . '" target="_blank" rel="noopener">' . esc_html__( 'Upgrade to Pro', 'security-ninja' ) . '</a> ' . esc_html__( 'for a firewall, malware scanning, and automatic fixes.', 'security-ninja' ) . '</p>';
+        }
         $site_url = site_url();
         $parsed_url = wp_parse_url( $site_url );
         $domain = ( isset( $parsed_url['host'] ) ? $parsed_url['host'] : '' );
@@ -2731,6 +2740,15 @@ class Wf_Sn_Vu {
                 $plugin_slug_map[$slug] = $plugin_data;
             }
         }
+        // Count each installed plugin once. The database lists many rows per slug,
+        // and a plugin with no row was still checked.
+        foreach ( array_keys( $plugin_slug_map ) as $slug ) {
+            if ( isset( $ignored_set[$slug] ) ) {
+                ++$scan_stats['plugins_ignored'];
+                continue;
+            }
+            ++$scan_stats['plugins_checked'];
+        }
         $installed_set = array();
         if ( !empty( $plugin_slug_map ) ) {
             $installed_set = array_fill_keys( array_keys( $plugin_slug_map ), true );
@@ -2747,14 +2765,12 @@ class Wf_Sn_Vu {
             }
             // Skip if this plugin is in the ignored list
             if ( isset( $ignored_set[$plugin_slug] ) ) {
-                ++$scan_stats['plugins_ignored'];
                 continue;
             }
             $installed_plugin = ( isset( $plugin_slug_map[$plugin_slug] ) ? $plugin_slug_map[$plugin_slug] : null );
             if ( !$installed_plugin ) {
                 continue;
             }
-            ++$scan_stats['plugins_checked'];
             // Check for vulnerabilities
             $is_vulnerable = false;
             $vulnerability_data = array();
@@ -2791,9 +2807,9 @@ class Wf_Sn_Vu {
             }
             if ( $is_vulnerable ) {
                 $found_vulnerabilities[$plugin_slug] = $vulnerability_data;
-                ++$scan_stats['vulnerabilities_found'];
             }
         }
+        $scan_stats['vulnerabilities_found'] = count( $found_vulnerabilities );
         return array(
             'vulnerabilities' => $found_vulnerabilities,
             'stats'           => $scan_stats,
@@ -3127,6 +3143,14 @@ class Wf_Sn_Vu {
         if ( !empty( $ignored_slugs ) ) {
             $ignored_set = array_fill_keys( $ignored_slugs, true );
         }
+        // Count each installed theme once. A theme with no database row was still checked.
+        foreach ( array_keys( $installed_themes ) as $theme_slug ) {
+            if ( isset( $ignored_set[$theme_slug] ) ) {
+                ++$scan_stats['themes_ignored'];
+                continue;
+            }
+            ++$scan_stats['themes_checked'];
+        }
         foreach ( self::stream_jsonl_records( $file_path ) as $decoded_line ) {
             ++$scan_stats['lines_processed'];
             if ( !isset( $decoded_line['slug'] ) ) {
@@ -3139,7 +3163,6 @@ class Wf_Sn_Vu {
             }
             // Skip if this theme is in the ignored list
             if ( isset( $ignored_set[$theme_slug] ) ) {
-                ++$scan_stats['themes_ignored'];
                 continue;
             }
             // Find the installed theme data
@@ -3147,7 +3170,6 @@ class Wf_Sn_Vu {
             if ( !$installed_theme ) {
                 continue;
             }
-            ++$scan_stats['themes_checked'];
             // Check for vulnerabilities (same rule as plugins: EndExcluding exclusive, else Impact).
             $is_vulnerable = false;
             $vulnerability_data = array();
@@ -3184,9 +3206,9 @@ class Wf_Sn_Vu {
             }
             if ( $is_vulnerable ) {
                 $found_vulnerabilities[$theme_slug] = $vulnerability_data;
-                ++$scan_stats['vulnerabilities_found'];
             }
         }
+        $scan_stats['vulnerabilities_found'] = count( $found_vulnerabilities );
         return array(
             'vulnerabilities' => $found_vulnerabilities,
             'stats'           => $scan_stats,
