@@ -35,6 +35,28 @@ class Utils {
     }
 
     /**
+     * Public base URL for malware / vuln definition files (no trailing slash).
+     *
+     * Stable hostname: Cloudflare Worker proxies to the current Spaces CDN origin.
+     *
+     * @return string
+     */
+    public static function get_definitions_cdn_base() {
+        return 'https://defs.wpsecurityninja.com';
+    }
+
+    /**
+     * Absolute URL for a definitions CDN object key.
+     *
+     * @param string $object Object key, e.g. samples.json.
+     * @return string
+     */
+    public static function get_definitions_cdn_url( $object ) {
+        $object = ltrim( (string) $object, '/' );
+        return self::get_definitions_cdn_base() . '/' . $object;
+    }
+
+    /**
      * Whether a PHP ini directive is enabled (on/true/1).
      *
      * Handles string values such as "Off" and "On" that are truthy in PHP
@@ -273,7 +295,7 @@ class Utils {
 		<div data-dismissible="secnin-early-firewall-notice-forever" class="notice notice-info is-dismissible secnin-notice">
 			<p>
 				<strong><?php 
-        esc_html_e( 'Early Firewall is available (beta)', 'security-ninja' );
+        esc_html_e( 'Early Firewall is available', 'security-ninja' );
         ?></strong>
 				<?php 
         esc_html_e( 'It can run the firewall before WordPress loads. Optional, and this setting stays on this site only.', 'security-ninja' );

@@ -8,11 +8,28 @@ if ( !defined( 'ABSPATH' ) ) {
 class Wf_Sn_Vu {
     public static $options = null;
 
-    public static $api_urls = array(
-        'plugins'   => 'https://wpsecurityninja.sfo2.cdn.digitaloceanspaces.com/plugin_vulns.jsonl',
-        'themes'    => 'https://wpsecurityninja.sfo2.cdn.digitaloceanspaces.com/theme_vulns.jsonl',
-        'wordpress' => 'https://wpsecurityninja.sfo2.cdn.digitaloceanspaces.com/wp_vulns.jsonl',
-    );
+    /**
+     * Vuln list CDN URLs (resolved at runtime so the definitions CDN base is not hardcoded).
+     *
+     * @var array<string, string>|null
+     */
+    public static $api_urls = null;
+
+    /**
+     * Resolve vuln CDN object URLs from the shared definitions CDN base.
+     *
+     * @return array<string, string>
+     */
+    public static function get_api_urls() {
+        if ( null === self::$api_urls ) {
+            self::$api_urls = array(
+                'plugins'   => Utils::get_definitions_cdn_url( 'plugin_vulns.jsonl' ),
+                'themes'    => Utils::get_definitions_cdn_url( 'theme_vulns.jsonl' ),
+                'wordpress' => Utils::get_definitions_cdn_url( 'wp_vulns.jsonl' ),
+            );
+        }
+        return self::$api_urls;
+    }
 
     /**
      * init plugin
@@ -23,6 +40,7 @@ class Wf_Sn_Vu {
      * @return  void
      */
     public static function init() {
+        self::get_api_urls();
         self::$options = self::get_options();
         add_action( 'admin_init', array(__NAMESPACE__ . '\\wf_sn_vu', 'admin_init') );
         add_filter( 'sn_tabs', array(__NAMESPACE__ . '\\wf_sn_vu', 'sn_tabs'), 2 );
@@ -320,7 +338,7 @@ class Wf_Sn_Vu {
      */
     public static function get_file_validators( $type ) {
         // Validate type against allowed values.
-        if ( !isset( self::$api_urls[$type] ) ) {
+        if ( !isset( self::get_api_urls()[$type] ) ) {
             return false;
         }
         $option_key = 'wf_sn_vu_file_validators_' . sanitize_key( $type );
@@ -354,7 +372,7 @@ class Wf_Sn_Vu {
         $last_error = ''
     ) {
         // Validate type against allowed values.
-        if ( !isset( self::$api_urls[$type] ) ) {
+        if ( !isset( self::get_api_urls()[$type] ) ) {
             return false;
         }
         $option_key = 'wf_sn_vu_file_validators_' . sanitize_key( $type );
@@ -677,11 +695,12 @@ class Wf_Sn_Vu {
      */
     public static function download_vuln_file_with_conditional_get( $type, $url ) {
         // Validate type against allowed values.
-        if ( !isset( self::$api_urls[$type] ) ) {
+        if ( !isset( self::get_api_urls()[$type] ) ) {
             return false;
         }
         // Validate URL is from whitelisted API URLs (security: prevent arbitrary URL downloads).
-        if ( !isset( self::$api_urls[$type] ) || self::$api_urls[$type] !== $url ) {
+        $api_urls = self::get_api_urls();
+        if ( !isset( $api_urls[$type] ) || $api_urls[$type] !== $url ) {
             return false;
         }
         // Retrieve stored validators for this file type.
@@ -1623,7 +1642,7 @@ class Wf_Sn_Vu {
         $old_counts = self::get_known_vuln_db_counts();
         $oldcount = $old_counts['plugins'] + $old_counts['themes'] + $old_counts['wordpress'];
         $download_results = array();
-        foreach ( self::$api_urls as $type => $url ) {
+        foreach ( self::get_api_urls() as $type => $url ) {
             // Use conditional GET to download file.
             $result = self::download_vuln_file_with_conditional_get( $type, $url );
             $download_results[$type] = $result;
@@ -2680,7 +2699,7 @@ class Wf_Sn_Vu {
         delete_option( 'wf_sn_known_vuln_db_counts' );
         delete_option( 'wf_sn_vu_last_update' );
         // Clean up validator options for all file types.
-        foreach ( self::$api_urls as $type => $url ) {
+        foreach ( self::get_api_urls() as $type => $url ) {
             delete_option( 'wf_sn_vu_file_validators_' . $type );
         }
     }
@@ -3493,7 +3512,7 @@ class Wf_Sn_Vu {
         $errors = array();
         $results = array();
         // Download all vulnerability files using conditional GET.
-        foreach ( self::$api_urls as $file_type => $api_url ) {
+        foreach ( self::get_api_urls() as $file_type => $api_url ) {
             $result = self::download_vuln_file_with_conditional_get( $file_type, $api_url );
             $results[$file_type] = $result;
             if ( $result && !empty( $result['success'] ) && self::resolve_vuln_jsonl_file_path( $file_type ) ) {

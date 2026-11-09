@@ -280,6 +280,24 @@ class Secnin_Secure_Snapshot {
 	}
 
 	/**
+	 * Whether a path is one of our Early Firewall recovery artifacts.
+	 *
+	 * Covers current .wfbkp JSON and legacy guarded .php leftovers under
+	 * security-ninja-waf/recovery/. The malware scanner must not flag these
+	 * as unknown malware: they are our own recovery snapshots.
+	 *
+	 * @param string $path Absolute path.
+	 * @return bool
+	 */
+	public static function is_waf_recovery_artifact( $path ) {
+		$path = (string) $path;
+		if ( '' === $path || ! is_file( $path ) ) {
+			return false;
+		}
+		return self::path_is_waf_recovery_target( $path );
+	}
+
+	/**
 	 * Whether a file is an inert Auto Fixer v2 guarded snapshot under sn-backups.
 	 *
 	 * Reads bytes and tokenizes only. Never includes/executes the file. A matching

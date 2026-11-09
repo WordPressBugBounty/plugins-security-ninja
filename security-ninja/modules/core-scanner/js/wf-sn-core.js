@@ -365,7 +365,8 @@ jQuery( document ).ready( function( $ ) {
 					if ( response.success ) {
 						applyRowActionResponse( response.data );
 					} else {
-						SnDialog.alert({ message: wf_sn_cs.strings.error_occurred });
+						var msg = ( response.data && response.data.message ) ? response.data.message : wf_sn_cs.strings.error_occurred;
+						SnDialog.alert({ message: msg });
 						$row.removeClass( 'sn-cs-row-processing' );
 					}
 				},

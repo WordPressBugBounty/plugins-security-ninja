@@ -132,4 +132,63 @@ class Wf_Sn_Security_Utils {
 
 		return file_get_contents( $file_path );
 	}
+
+	/**
+	 * Drop a leading PHP block from a file read as an email template.
+	 *
+	 * includes/email-default.php starts with an ABSPATH guard. The guard is
+	 * for direct requests. Reading the file as text would send that PHP in
+	 * the message.
+	 *
+	 * @param string $contents Raw file contents.
+	 * @return string Contents with the opening PHP block removed.
+	 */
+	public static function strip_leading_php_block( $contents ) {
+		$trimmed = ltrim( (string) $contents );
+		if ( 0 !== strpos( $trimmed, '<?php' ) ) {
+			return $trimmed;
+		}
+
+		$end = strpos( $trimmed, '?>' );
+		if ( false === $end ) {
+			return $trimmed;
+		}
+
+		return ltrim( substr( $trimmed, $end + 2 ) );
+	}
+
+	/**
+	 * Load the shared HTML email template and apply placeholders.
+	 *
+	 * @param array $replacements Placeholder => replacement.
+	 * @return string HTML ready to send.
+	 */
+	public static function render_email_template( $replacements ) {
+		$template_path = WF_SN_PLUGIN_DIR . 'includes/email-default.php';
+		$html          = self::secure_file_get_contents(
+			$template_path,
+			array(
+				'check_readable'     => true,
+				'check_size'         => true,
+				'max_size'           => 1024 * 1024,
+				'check_type'         => true,
+				'allowed_extensions' => array( 'php' ),
+				'check_mime'         => false,
+				'check_path'         => true,
+				'allowed_dirs'       => array( WF_SN_PLUGIN_DIR ),
+			)
+		);
+
+		if ( false === $html || '' === $html ) {
+			return '<p>Email template not found.</p>';
+		}
+
+		$html = self::strip_leading_php_block( $html );
+
+		foreach ( $replacements as $needle => $replacement ) {
+			$html = str_replace( $needle, (string) $replacement, $html );
+		}
+
+		return $html;
+	}
 }

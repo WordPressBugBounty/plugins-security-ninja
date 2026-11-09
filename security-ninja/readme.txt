@@ -6,7 +6,7 @@ License: GPLv3
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 Requires at least: 4.7
 Tested up to: 7.1.2
-Stable tag: 5.308
+Stable tag: 5.309
 Requires PHP: 7.4
 
 WordPress security plugin: free 8G firewall/WAF, 50+ tests, vulnerability/core scanning, events logging, AI reports.
@@ -285,6 +285,21 @@ While we strive for universal compatibility, if you face any issues, our support
 
 Recent releases are below. The full history is on <a href="https://wpsecurityninja.com/changelog/?utm_source=wordpressorg&utm_medium=content&utm_campaign=readme&utm_content=changelog">wpsecurityninja.com/changelog/</a>.
 
+= 5.309 =
+* 2026-11-09
+* FIX: Two-Factor Authentication - Switching mobile network or proxy between the password and the code no longer blocks email 2FA or the login session. IP and browser changes are still logged. Thank you Ryan.
+* FIX: Two-Factor Authentication - "Remember this browser" on the code screen is clickable again.
+* FIX: Emails - Failed login warnings no longer begin with leftover PHP from the email template (some mail filters treated that as spam). The same template fix covers the secret access link, two-factor code, and scheduled scan emails. Failed login warnings also include a plain-text copy. Thank you Tyson.
+* FIX: Malware Scanner - ThinkRank Pro redirect and SEO field-resolver files are no longer false positives. Thank you Kathryn / WPDeveloper.
+* FIX: Core Scanner - Diff and Restore only use a WordPress.org file after it matches the official checksum. If the download cannot be verified, nothing is restored. Non-English sites use checksums for their own language. Thank you Tim.
+* FIX: Firewall and Events - Missing PHP BCMath no longer breaks the page on IPv6 lookups. Country is skipped for that address; the Events log and front end (including Elementor) keep loading. Enable BCMath if you want countries for IPv6. Thank you Tom and Vahid.
+* FIX: Firewall - With Early Firewall on, country blocking still applies to dashboard AJAX requests after the early IP check.
+* IMPROVED: Early Firewall - No longer labeled as beta. It stays optional and off until you enable it (it changes server setup for that site).
+* IMPROVED: Malware Scanner - Database and persistence checks are back and marked Beta. They flag known bad plugin and must-use names, hidden folders that match known malware naming patterns, and suspicious option values. Thank you Tim.
+* FIX: Malware Scanner - Option-value scanning ignores ordinary plugin text, long keys and hashes, short function names that appear in normal docs, and normal widget iframes.
+* IMPROVED: Malware Scanner - Clearer scan progress with live counters, one results table with filters and paging, and safer delete actions for options, cron events, and folders.
+* FIX: Malware Scanner - Early Firewall recovery snapshots are no longer listed as malware.
+
 = 5.308 =
 * 2026-11-03
 * FIX: Vulnerability Scanner - The "plugins checked" and "themes checked" numbers now match what is installed. A plugin with many known issues was counted once for each database row, and a theme with no known issues was reported as 0. The scan was already checking the installed list. Run the scan again after updating so the event log shows the new numbers. Thank you Werner.
@@ -297,7 +312,7 @@ Recent releases are below. The full history is on <a href="https://wpsecuritynin
 = 5.307 =
 * 2026-11-01
 * Login, firewall, and scan updates. Your saved settings stay as they are.
-* FIX: Firewall - Filter Suspicious Queries no longer treats ordinary text as an attack. A MapPress title such as "Scharfenstein (Rangerstation)" is not a function call, and neither is "Charlotte (Charlie)" or "Functions (overview)". The function name has to stand on its own and be followed by a parenthesis. char(), eval(), and benchmark() are still blocked. Words such as "evaluation" or "medieval" are not eval(). A phrase such as "please select one" is no longer treated as SQL. select, insert, update, and delete are still blocked when SQL follows, such as FROM, INTO, or SET. A parameter that only ends in _request, such as download_request, is no longer treated as access to the request array. Thank you Torsten and Kevin.
+* FIX: Firewall - Filter Suspicious Queries no longer treats ordinary text as an attack. A MapPress title such as "Scharfenstein (Rangerstation)" is not a function call, and neither is "Charlotte (Charlie)" or "Functions (overview)". The function name has to stand on its own and be followed by a parenthesis. Real exploit-style calls are still blocked. Words such as "evaluation" or "medieval" are not treated as code execution. A phrase such as "please select one" is no longer treated as SQL. Common SQL verbs are still blocked when real query syntax follows. A parameter that only ends in _request, such as download_request, is no longer treated as access to the request array. Thank you Torsten and Kevin.
 * FIX: Core Scanner - WordPress 7 files under wp-includes/php-ai-client/ that were saved with a shortened name are no longer listed as critical unknown files. When the file matches the official checksum, the scan explains the shortened name and can rename it back. Those files are left out of "Delete critical & warning unknowns".
 * FIX: Firewall - A saved coupon limit of 3 (the minimum is now 5) no longer blocks saving the other firewall tabs. The field sits on the Store tab in the same form, and the browser was refusing to submit it. Thank you Chris.
 * IMPROVED: Two-Factor Authentication - Repeated wrong codes now use the same limit as failed logins (default 5 tries in 5 minutes). The wait stays in place until that window ends. With the firewall on, those tries count the same way a wrong password does.

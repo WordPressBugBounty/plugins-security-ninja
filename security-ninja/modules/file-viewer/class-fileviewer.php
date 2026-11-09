@@ -377,7 +377,7 @@ class FileViewer {
 
 	/**
 	 * Handler for the view_diff action.
-	 * Compares the current WordPress core file against the original from WP Trac.
+	 * Compares the current WordPress core file against the official checksummed copy.
 	 *
 	 * @param string $file_path Absolute path to the current core file.
 	 * @return void
@@ -403,10 +403,11 @@ class FileViewer {
 		$original = Wf_Sn_Cs_Utils::get_original_core_file_content( $relative_path );
 		if ( is_wp_error( $original ) ) {
 			$file_meta = self::get_file_meta( $file_path );
+			$notice    = Wf_Sn_Cs_Utils::describe_original_file_error( $original, 'diff' );
 			echo '<div class="wrap">';
 			echo '<h1>' . esc_html__( 'Compare file', 'security-ninja' ) . ': ' . esc_html( $relative_path ) . '</h1>';
 			echo '<hr class="wp-header-end">';
-			echo '<div class="notice notice-warning inline"><p>' . esc_html__( 'The original file is not available for comparison. This can happen if the file is not part of the standard WordPress core for your version, or the comparison source is temporarily unavailable.', 'security-ninja' ) . '</p></div>';
+			echo '<div class="notice notice-warning inline"><p>' . esc_html( $notice ) . '</p></div>';
 			if ( $file_meta ) {
 				echo '<p class="description">' . esc_html__( 'File:', 'security-ninja' ) . ' ' . esc_html( $file_meta['path'] ) . ' | ' . esc_html__( 'Size:', 'security-ninja' ) . ' ' . esc_html( $file_meta['size'] ) . '</p>';
 			}

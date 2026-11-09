@@ -162,7 +162,7 @@ class Secnin_Waf_Lifecycle {
 			return array(
 				'ok'      => false,
 				'code'    => 'iis',
-				'message' => __( 'Early Firewall is not available on IIS in this beta.', 'security-ninja' ),
+				'message' => __( 'Early Firewall is not available on IIS yet.', 'security-ninja' ),
 				'profile' => $profile,
 			);
 		}

@@ -16,6 +16,24 @@ if ( !defined( 'ABSPATH' ) ) {
  * Class Wf_Sn_Cf_Mail
  */
 class Wf_Sn_Cf_Mail {
+    /**
+     * Plain-text alternative attached to the next wp_mail() call.
+     *
+     * @var string
+     */
+    private static $plain_alt_body = '';
+
+    /**
+     * Set PHPMailer's plain-text part for the message being sent.
+     *
+     * @param object $phpmailer PHPMailer instance from phpmailer_init.
+     */
+    public static function apply_plain_alt_body( $phpmailer ) {
+        if ( is_object( $phpmailer ) && '' !== self::$plain_alt_body && property_exists( $phpmailer, 'AltBody' ) ) {
+            $phpmailer->AltBody = self::$plain_alt_body;
+        }
+    }
+
     public static function send_secret_access_unblock_url( $email ) {
         if ( !$email ) {
             return false;
@@ -54,25 +72,7 @@ class Wf_Sn_Cf_Mail {
             '%%sentfromtext%%'        => 'This email was sent from ' . wf_sn_cf::url_to_domain( site_url() ),
             '%%emailcontent%%'        => nl2br( $body ),
         );
-        $template_path = WF_SN_PLUGIN_DIR . 'includes/email-default.php';
-        // Use secure file reading with validation
-        $html = Wf_Sn_Security_Utils::secure_file_get_contents( $template_path, array(
-            'check_readable'     => true,
-            'check_size'         => true,
-            'max_size'           => 1024 * 1024,
-            'check_type'         => true,
-            'allowed_extensions' => array('php'),
-            'check_mime'         => false,
-            'check_path'         => true,
-            'allowed_dirs'       => array(WF_SN_PLUGIN_DIR),
-        ) );
-        if ( $html === false ) {
-            // Handle error - template not found
-            $html = '<p>Email template not found.</p>';
-        }
-        foreach ( $my_replacements as $needle => $replacement ) {
-            $html = str_replace( $needle, $replacement, $html );
-        }
+        $html = Wf_Sn_Security_Utils::render_email_template( $my_replacements );
         $sendresult = wp_mail(
             $sanitized_email,
             $subject,
@@ -175,31 +175,23 @@ class Wf_Sn_Cf_Mail {
             '%%sentfromtext%%'        => 'This email was sent from ' . wf_sn_cf::url_to_domain( site_url() ),
             '%%emailcontent%%'        => nl2br( $body ),
         );
-        $template_path = WF_SN_PLUGIN_DIR . 'includes/email-default.php';
-        // Use secure file reading with validation
-        $html = Wf_Sn_Security_Utils::secure_file_get_contents( $template_path, array(
-            'check_readable'     => true,
-            'check_size'         => true,
-            'max_size'           => 1024 * 1024,
-            'check_type'         => true,
-            'allowed_extensions' => array('php'),
-            'check_mime'         => false,
-            'check_path'         => true,
-            'allowed_dirs'       => array(WF_SN_PLUGIN_DIR),
-        ) );
-        if ( $html === false ) {
-            // Handle error - template not found
-            $html = '<p>Email template not found.</p>';
-        }
-        foreach ( $my_replacements as $needle => $replacement ) {
-            $html = str_replace( $needle, $replacement, $html );
-        }
+        $html = Wf_Sn_Security_Utils::render_email_template( $my_replacements );
+        $plain = self::failed_login_plain_text(
+            $username,
+            $ip,
+            $user_agent,
+            $dashboardlink
+        );
+        self::$plain_alt_body = $plain;
+        add_action( 'phpmailer_init', array(__CLASS__, 'apply_plain_alt_body') );
         $sendresult = wp_mail(
             $user_email,
             $subject,
             $html,
             $headers
         );
+        remove_action( 'phpmailer_init', array(__CLASS__, 'apply_plain_alt_body') );
+        self::$plain_alt_body = '';
         // Log the email sending event
         if ( $sendresult ) {
             wf_sn_el_modules::log_event(
@@ -238,6 +230,56 @@ class Wf_Sn_Cf_Mail {
             );
         }
         return $sendresult;
+    }
+
+    /**
+     * Plain-text copy of the failed login warning.
+     *
+     * @param string $username      Username that was attempted.
+     * @param string $ip            IP address of the attempt.
+     * @param string $user_agent    User agent string.
+     * @param string $dashboardlink Link to the plugin dashboard.
+     * @return string
+     */
+    private static function failed_login_plain_text(
+        $username,
+        $ip,
+        $user_agent,
+        $dashboardlink
+    ) {
+        $lines = array();
+        $lines[] = sprintf( 
+            /* translators: 1: Username */
+            __( 'Someone just tried to log in to your account with username: %s', 'security-ninja' ),
+            $username
+         );
+        $lines[] = '';
+        $lines[] = __( 'Details:', 'security-ninja' );
+        $lines[] = sprintf( 
+            /* translators: 1: IP address */
+            __( 'IP Address: %s', 'security-ninja' ),
+            $ip
+         );
+        if ( !empty( $user_agent ) ) {
+            $lines[] = sprintf( 
+                /* translators: 1: User agent */
+                __( 'User Agent: %s', 'security-ninja' ),
+                $user_agent
+             );
+        }
+        $lines[] = sprintf( 
+            /* translators: 1: Timestamp */
+            __( 'Time: %s', 'security-ninja' ),
+            date_i18n( get_option( 'date_format' ) . ' ' . get_option( 'time_format' ), current_time( 'timestamp' ) )
+         );
+        $lines[] = '';
+        $lines[] = __( 'If this was you, you can ignore this email. If this was not you, we recommend:', 'security-ninja' );
+        $lines[] = '- ' . __( 'Change your password immediately', 'security-ninja' );
+        $lines[] = '- ' . __( 'Review your account security settings', 'security-ninja' );
+        $lines[] = '- ' . __( 'Enable two-factor authentication if available', 'security-ninja' );
+        $lines[] = '';
+        $lines[] = $dashboardlink;
+        return implode( "\n", $lines );
     }
 
 }

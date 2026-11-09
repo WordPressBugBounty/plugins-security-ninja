@@ -211,16 +211,19 @@ class Wf_sn_cf {
         if ( 1 !== self::is_active() ) {
             return;
         }
-        // Early Firewall: skip only capabilities proven complete for this request.
+        // Early Firewall does not look up country. IP bans and query rules can be
+        // skipped when that pass finished. Country still has to run here, including
+        // admin-ajax (Fluent Forms and similar), which check_visitor() does not see.
         $skip_ban_enforcement = false;
+        $skip_query_filter = false;
         if ( class_exists( __NAMESPACE__ . '\\Secnin_Waf_Extended' ) && Secnin_Waf_Extended::is_active() ) {
             $skip_ban = Secnin_Waf_Extended::early_capability_complete( 'local_bans' ) && Secnin_Waf_Extended::early_capability_complete( 'cloud_ips' );
             $skip_8g = Secnin_Waf_Extended::early_capability_complete( 'query_filter' );
-            if ( $skip_ban && $skip_8g ) {
-                return;
-            }
             if ( $skip_ban ) {
                 $skip_ban_enforcement = true;
+            }
+            if ( $skip_8g ) {
+                $skip_query_filter = true;
             }
         }
         $current_user_ip = self::get_user_ip();
@@ -232,6 +235,11 @@ class Wf_sn_cf {
         $reason = false;
         if ( !$skip_ban_enforcement ) {
             $reason = self::is_banned_ip( $current_user_ip );
+        }
+        // Early Firewall does not do country. When it already finished the IP bans,
+        // is_banned_ip() is skipped above and check_visitor() skips country too.
+        // admin-ajax never reaches check_visitor(), so the country check has to run here.
+        if ( !$reason && $skip_ban_enforcement ) {
         }
         if ( $reason ) {
             // SureCart cloud webhooks must not be killed by visitor IP/country bans.
@@ -276,8 +284,8 @@ class Wf_sn_cf {
             );
             exit;
         }
-        // Only check if firewall is active
-        if ( 1 === (int) self::$options['active'] && 1 === (int) self::$options['filterqueries'] ) {
+        // Only check if firewall is active. Skip when Early Firewall already applied the query rules.
+        if ( !$skip_query_filter && 1 === (int) self::$options['active'] && 1 === (int) self::$options['filterqueries'] ) {
             // Determine if user is whitelisted (but still check for suspicious requests)
             $whitelisted_user = false;
             if ( current_user_can( 'manage_options' ) ) {

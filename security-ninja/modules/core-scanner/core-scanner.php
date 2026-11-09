@@ -75,6 +75,8 @@ class Wf_Sn_Cs {
      * @return void
      */
     public static function init() {
+        self::load_utils();
+        Wf_Sn_Cs_Utils::maybe_purge_unverified_originals();
         add_action( 'secnin_run_core_scanner', array(__NAMESPACE__ . '\\Wf_Sn_Cs', 'do_action_secnin_run_core_scanner') );
         add_action( 'init', array(__NAMESPACE__ . '\\Wf_Sn_Cs', 'schedule_cron_jobs') );
         add_action( 'admin_post_sn_core_scan_report', array(__NAMESPACE__ . '\\Wf_Sn_Cs', 'render_scan_report') );
@@ -2120,9 +2122,9 @@ class Wf_Sn_Cs {
         self::load_utils();
         $org_body = Wf_Sn_Cs_Utils::get_original_core_file_content( $file );
         if ( is_wp_error( $org_body ) ) {
-            $error_message = $org_body->get_error_message();
             wp_send_json_error( array(
-                'message' => $error_message,
+                'message' => Wf_Sn_Cs_Utils::describe_original_file_error( $org_body, 'restore' ),
+                'code'    => $org_body->get_error_code(),
             ) );
         }
         global $wp_filesystem;
@@ -2131,9 +2133,20 @@ class Wf_Sn_Cs {
             include_once ABSPATH . 'wp-admin/includes/file.php';
             WP_Filesystem();
         }
-        if ( !$wp_filesystem->put_contents( trailingslashit( ABSPATH ) . $file, $org_body, FS_CHMOD_FILE ) ) {
+        $target = trailingslashit( ABSPATH ) . $file;
+        if ( !$wp_filesystem->put_contents( $target, $org_body, FS_CHMOD_FILE ) ) {
             wp_send_json_error( array(
                 'message' => __( 'Error writing file.', 'security-ninja' ),
+            ) );
+        }
+        clearstatcache( true, $target );
+        $disk_md5 = md5_file( $target );
+        $official_md5 = Wf_Sn_Cs_Utils::get_official_checksum( $file );
+        $disk_verified = is_string( $disk_md5 ) && is_string( $official_md5 ) && strlen( $disk_md5 ) === strlen( $official_md5 ) && hash_equals( $official_md5, $disk_md5 );
+        if ( !$disk_verified ) {
+            wp_send_json_error( array(
+                'message' => __( 'The restored file does not match the official WordPress checksum.', 'security-ninja' ),
+                'code'    => 'checksum_mismatch',
             ) );
         }
         $results = self::remove_paths_from_cached_results( $file );
@@ -2389,11 +2402,13 @@ class Wf_Sn_Cs {
             self::load_utils();
             delete_option( Wf_Sn_Cs_Utils::RESULTS_OPTION );
             delete_option( Wf_Sn_Cs_Utils::USER_IGNORE_OPTION );
+            Wf_Sn_Cs_Utils::delete_reference_transients( false );
             return;
         }
         self::load_utils();
         self::delete_results_option();
         Wf_Sn_Cs_Utils::delete_user_ignored_files();
+        Wf_Sn_Cs_Utils::delete_reference_transients( true );
         if ( is_multisite() ) {
             // Clean leftover per-blog copies from older versions.
             delete_option( Wf_Sn_Cs_Utils::RESULTS_OPTION );

@@ -945,7 +945,7 @@ jQuery(document).ready(function ($) {
     ipMgmt.init();
   }
 
-  // Early Firewall (beta) AJAX controls.
+  // Early Firewall AJAX controls.
   function secninWafExtendedMsg(text, isError) {
     var $el = $('#secnin-waf-extended-msg');
     if (!$el.length) {
