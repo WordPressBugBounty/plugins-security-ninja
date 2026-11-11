@@ -109,6 +109,7 @@ class Wf_Sn_Dashboard_Widget {
         }
         // Check if whitelabel is active
         echo '<div class="secnin-dashboard-widget">';
+        Wf_Sn_Campaigns::render_dashboard_offer();
         // Render updates section
         self::render_updates_section();
         // Render security score section

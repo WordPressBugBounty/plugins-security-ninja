@@ -11,6 +11,7 @@ global $secnin_fs;
 <div class="secnin_content_cell" id="sidebar-container">
 
 	<?php 
+Wf_Sn_Campaigns::render_sidebar_offer();
 // Firewall quick numbers - simple, informative and fast.
 if ( !class_exists( __NAMESPACE__ . '\\Wf_sn_cf' ) ) {
     require_once WF_SN_PLUGIN_DIR . 'modules/cloud-firewall/cloud-firewall.php';
@@ -244,6 +245,9 @@ echo esc_url( admin_url( 'admin.php?page=security-ninja-wizard' ) );
 ?>" rel="noopener"><?php 
 esc_html_e( 'Restart the setup wizard', 'security-ninja' );
 ?></a></li>
+			<?php 
+Wf_Sn_Campaigns::render_sidebar_restore_link();
+?>
 			<?php 
 ?>
 		</ul>

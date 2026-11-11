@@ -1469,6 +1469,9 @@ class Utils {
      *   security_tests_docs, wizard_docs, wizard_help, sidebar_docs
      * Sidebar/overview: sidebar_article, sidebar_upgrade, sidebar_trial,
      *   overview_upgrade, overview_trial
+     * Campaigns: dashboard_bfcm, sidebar_bfcm, email_vuln_bfcm, dashboard_xmas,
+     *   sidebar_xmas, email_vuln_xmas, dashboard_ny, sidebar_ny, email_vuln_ny
+     *   (pass utm_campaign in $params; email uses utm_medium=email)
      * Topbar: topbar_docs, topbar_help
      * Wizard: wizard_upgrade
      * Email: email_vuln_footer, email_vuln_upgrade, email_secret_access

@@ -1604,6 +1604,40 @@ Hide "see details" from tables in responsive mode
   overflow-wrap: break-word;
 }
 
+#sidebar-container .secnin-campaign {
+  background: #f0f6fc;
+  border: 1px solid #c5d9ed;
+  border-radius: 6px;
+  padding: 12px;
+  margin-bottom: 20px;
+}
+
+#sidebar-container .secnin-campaign p {
+  margin: 0 0 8px;
+}
+
+#sidebar-container .secnin-campaign-headline {
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+#sidebar-container .secnin-campaign-actions {
+  margin-bottom: 0;
+}
+
+#sidebar-container .secnin-campaign-hide {
+  display: inline-block;
+  margin-left: 8px;
+  font-size: 12px;
+  line-height: 28px;
+  color: #646970;
+  text-decoration: none;
+}
+
+#sidebar-container .secnin-campaign-restore a {
+  color: #646970;
+}
+
 .toplevel_page_wf-sn h2.warning {
   color: #ba413d;
 }

@@ -288,4 +288,28 @@
     color: #721c24;
     font-size: 14px; /* Increased from 12px */
     margin-top: 10px;
+}
+
+.secnin-dashboard-widget .secnin-campaign {
+    background: #f0f6fc;
+    border: 1px solid #c5d9ed;
+    border-radius: 6px;
+    padding: 12px;
+    margin-bottom: 15px;
+}
+
+.secnin-dashboard-widget .secnin-campaign p {
+    margin: 0 0 8px;
+}
+
+.secnin-dashboard-widget .secnin-campaign-actions {
+    margin-bottom: 0;
+}
+
+.secnin-dashboard-widget .secnin-campaign-hide {
+    display: inline-block;
+    margin-left: 8px;
+    line-height: 30px;
+    color: #646970;
+    text-decoration: none;
 } 

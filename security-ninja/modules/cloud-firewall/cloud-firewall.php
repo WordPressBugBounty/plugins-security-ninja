@@ -94,6 +94,13 @@ class Wf_sn_cf {
         if ( is_null( self::$options ) ) {
             self::$options = self::get_options();
         }
+        // The 15-minute name must exist even when Pro is off. Otherwise a job
+        // left from a Pro install makes WordPress log "schedule does not exist".
+        add_filter( 'cron_schedules', array(__NAMESPACE__ . '\\wf_sn_cf', 'register_fifteen_minute_schedule') );
+        $keep_network_flush = false;
+        if ( !$keep_network_flush ) {
+            add_action( 'init', array(__NAMESPACE__ . '\\wf_sn_cf', 'clear_network_report_cron'), 30 );
+        }
         // update geolocation database via SN_Geolocation in class-sn-geolocation.php
         // setup_theme seems to be earliest hook - because of Freemius API - Future - add as mu-plugin - plugins_loaded earliest possible hook
         if ( self::$options['active'] ) {
@@ -2517,6 +2524,36 @@ class Wf_sn_cf {
             'snf' => $my_options['unblock_url'],
         ), get_site_url() );
         return $outurl;
+    }
+
+    /**
+     * Register the 15-minute cron interval. Ships in free so an old Pro job can reschedule.
+     *
+     * @param array $schedules Existing schedules.
+     * @return array
+     */
+    public static function register_fifteen_minute_schedule( $schedules ) {
+        if ( !is_array( $schedules ) ) {
+            $schedules = array();
+        }
+        if ( !isset( $schedules['secnin_fifteen_minutes'] ) ) {
+            $schedules['secnin_fifteen_minutes'] = array(
+                'interval' => 15 * MINUTE_IN_SECONDS,
+                'display'  => __( 'Every 15 minutes (Security Ninja)', 'security-ninja' ),
+            );
+        }
+        return $schedules;
+    }
+
+    /**
+     * Drop the Block IP Network flush job when Pro or the firewall is off.
+     *
+     * @return void
+     */
+    public static function clear_network_report_cron() {
+        if ( false !== wp_next_scheduled( 'secnin_flush_network_reports' ) ) {
+            wp_clear_scheduled_hook( 'secnin_flush_network_reports' );
+        }
     }
 
     /**

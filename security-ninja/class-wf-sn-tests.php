@@ -2707,6 +2707,22 @@ class Wf_Sn_Tests extends WF_SN {
 
 
 	/**
+	 * Normalize a URL for Site Address vs WordPress Address comparison.
+	 *
+	 * Cron and CLI often run with is_ssl() false. home_url() / site_url() then
+	 * rewrite schemes from the request (or SSL plugins force only one of them),
+	 * so a strict string compare false-fails even when both settings are the same
+	 * https host. Force one scheme and drop a trailing slash before comparing.
+	 *
+	 * @param string $url URL from home_url() or site_url().
+	 * @return string
+	 */
+	public static function normalize_blog_site_url_for_compare( $url ) {
+		$url = set_url_scheme( (string) $url, 'https' );
+		return untrailingslashit( $url );
+	}
+
+	/**
 	 * compare WP Blog Url with WP Site Url
 	 *
 	 * @author  Lars Koudal
@@ -2719,8 +2735,8 @@ class Wf_Sn_Tests extends WF_SN {
 	public static function blog_site_url_check() {
 		$return = array();
 
-		$site_url = home_url(); // Retrieves the URL for the site
-		$wp_url   = site_url(); // Retrieves the URL for the WordPress installation
+		$site_url = self::normalize_blog_site_url_for_compare( home_url() );
+		$wp_url   = self::normalize_blog_site_url_for_compare( site_url() );
 
 		// In multisite, this check is less critical as subdirectories are common
 		if ( is_multisite() ) {

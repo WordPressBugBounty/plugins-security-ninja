@@ -6,7 +6,7 @@ License: GPLv3
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 Requires at least: 4.7
 Tested up to: 7.1.2
-Stable tag: 5.309
+Stable tag: 5.310
 Requires PHP: 7.4
 
 WordPress security plugin: free 8G firewall/WAF, 50+ tests, vulnerability/core scanning, events logging, AI reports.
@@ -284,6 +284,12 @@ While we strive for universal compatibility, if you face any issues, our support
 == Changelog ==
 
 Recent releases are below. The full history is on <a href="https://wpsecurityninja.com/changelog/?utm_source=wordpressorg&utm_medium=content&utm_campaign=readme&utm_content=changelog">wpsecurityninja.com/changelog/</a>.
+
+= 5.310 =
+* 2026-11-10
+* FIX: Firewall - Turning Pro off, or turning the firewall off, no longer leaves a 15-minute job that WordPress cannot reschedule. The job is removed, so the log stays quiet.
+* FIX: Tests - Site Address vs WordPress Address no longer fails on server cron when HTTPS is off. Both URLs are compared with the same scheme. Manual scans in the browser were already fine. Thank you Torsten.
+* IMPROVED: Scheduled Scanner - Agencies can temporarily keep specific tests out of the status-change email with the <code>wf_sn_ss_email_ignore_tests</code> filter. The tests still run and still show in the dashboard. Thank you Torsten.
 
 = 5.309 =
 * 2026-11-09

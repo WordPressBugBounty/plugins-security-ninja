@@ -1762,10 +1762,15 @@ class Wf_Sn_Vu {
         // Active Pro licenses skip it. The premium if is stripped from the free build.
         $show_upgrade_link = true;
         if ( $show_upgrade_link ) {
-            $upgrade_url = Utils::generate_sn_web_link( 'email_vuln_upgrade', '/upgrade/', array(
-                'utm_medium' => 'email',
-            ) );
-            $message_content_html .= '<p><a href="' . esc_url( $upgrade_url ) . '" target="_blank" rel="noopener">' . esc_html__( 'Upgrade to Pro', 'security-ninja' ) . '</a> ' . esc_html__( 'for a firewall, malware scanning, and automatic fixes.', 'security-ninja' ) . '</p>';
+            $campaign_html = Wf_Sn_Campaigns::email_paragraph();
+            if ( '' !== $campaign_html ) {
+                $message_content_html .= $campaign_html;
+            } else {
+                $upgrade_url = Utils::generate_sn_web_link( 'email_vuln_upgrade', '/upgrade/', array(
+                    'utm_medium' => 'email',
+                ) );
+                $message_content_html .= '<p><a href="' . esc_url( $upgrade_url ) . '" target="_blank" rel="noopener">' . esc_html__( 'Upgrade to Pro', 'security-ninja' ) . '</a> ' . esc_html__( 'for a firewall, malware scanning, and automatic fixes.', 'security-ninja' ) . '</p>';
+            }
         }
         $site_url = site_url();
         $parsed_url = wp_parse_url( $site_url );
